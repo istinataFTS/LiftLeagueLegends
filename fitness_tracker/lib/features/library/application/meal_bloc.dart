@@ -4,6 +4,7 @@ import 'package:flutter_bloc/flutter_bloc.dart';
 import '../../../domain/entities/meal.dart';
 import '../../../domain/usecases/meals/add_meal.dart';
 import '../../../domain/usecases/meals/delete_meal.dart';
+import '../../../domain/usecases/meals/ensure_default_meals.dart';
 import '../../../domain/usecases/meals/get_all_meals.dart';
 import '../../../domain/usecases/meals/get_meal_by_id.dart';
 import '../../../domain/usecases/meals/get_meal_by_name.dart';
@@ -118,6 +119,7 @@ class MealBloc extends Bloc<MealEvent, MealState> {
     required this.addMeal,
     required this.updateMeal,
     required this.deleteMeal,
+    required this.ensureDefaultMeals,
   }) : super(MealInitial()) {
     on<LoadMealsEvent>(_onLoadMeals);
     on<LoadMealByIdEvent>(_onLoadMealById);
@@ -133,6 +135,9 @@ class MealBloc extends Bloc<MealEvent, MealState> {
   final AddMeal addMeal;
   final UpdateMeal updateMeal;
   final DeleteMeal deleteMeal;
+  final EnsureDefaultMeals ensureDefaultMeals;
+
+  bool _hasEnsuredDefaults = false;
 
   Future<void> _onLoadMeals(
     LoadMealsEvent event,
@@ -140,10 +145,26 @@ class MealBloc extends Bloc<MealEvent, MealState> {
   ) async {
     emit(MealLoading());
     final result = await getAllMeals();
-    result.fold(
-      (failure) => emit(MealError(failure.message)),
-      (meals) => emit(MealsLoaded(meals)),
-    );
+    await result.fold((failure) async => emit(MealError(failure.message)), (
+      meals,
+    ) async {
+      // Safety-net: an empty catalog on a fresh device / new cloud account
+      // gets the defaults provisioned once per session. The flag prevents
+      // an infinite re-seed loop if seeding yields nothing.
+      if (meals.isEmpty && !_hasEnsuredDefaults) {
+        _hasEnsuredDefaults = true;
+        await ensureDefaultMeals();
+
+        final reloadResult = await getAllMeals();
+        reloadResult.fold(
+          (failure) => emit(MealError(failure.message)),
+          (seeded) => emit(MealsLoaded(seeded)),
+        );
+        return;
+      }
+
+      emit(MealsLoaded(meals));
+    });
   }
 
   Future<void> _onLoadMealById(
@@ -152,16 +173,13 @@ class MealBloc extends Bloc<MealEvent, MealState> {
   ) async {
     emit(MealLoading());
     final result = await getMealById(event.id);
-    result.fold(
-      (failure) => emit(MealError(failure.message)),
-      (meal) {
-        if (meal == null) {
-          emit(const MealError('Meal not found'));
-        } else {
-          emit(MealLoaded(meal));
-        }
-      },
-    );
+    result.fold((failure) => emit(MealError(failure.message)), (meal) {
+      if (meal == null) {
+        emit(const MealError('Meal not found'));
+      } else {
+        emit(MealLoaded(meal));
+      }
+    });
   }
 
   Future<void> _onLoadMealByName(
@@ -170,30 +188,23 @@ class MealBloc extends Bloc<MealEvent, MealState> {
   ) async {
     emit(MealLoading());
     final result = await getMealByName(event.name);
-    result.fold(
-      (failure) => emit(MealError(failure.message)),
-      (meal) {
-        if (meal == null) {
-          emit(const MealError('Meal not found'));
-        } else {
-          emit(MealLoaded(meal));
-        }
-      },
-    );
+    result.fold((failure) => emit(MealError(failure.message)), (meal) {
+      if (meal == null) {
+        emit(const MealError('Meal not found'));
+      } else {
+        emit(MealLoaded(meal));
+      }
+    });
   }
 
-  Future<void> _onAddMeal(
-    AddMealEvent event,
-    Emitter<MealState> emit,
-  ) async {
+  Future<void> _onAddMeal(AddMealEvent event, Emitter<MealState> emit) async {
     final result = await addMeal(event.meal);
-    await result.fold(
-      (failure) async => emit(MealError(failure.message)),
-      (_) async {
-        emit(const MealOperationSuccess('Meal added successfully'));
-        add(LoadMealsEvent());
-      },
-    );
+    await result.fold((failure) async => emit(MealError(failure.message)), (
+      _,
+    ) async {
+      emit(const MealOperationSuccess('Meal added successfully'));
+      add(LoadMealsEvent());
+    });
   }
 
   Future<void> _onUpdateMeal(
@@ -201,13 +212,12 @@ class MealBloc extends Bloc<MealEvent, MealState> {
     Emitter<MealState> emit,
   ) async {
     final result = await updateMeal(event.meal);
-    await result.fold(
-      (failure) async => emit(MealError(failure.message)),
-      (_) async {
-        emit(const MealOperationSuccess('Meal updated successfully'));
-        add(LoadMealsEvent());
-      },
-    );
+    await result.fold((failure) async => emit(MealError(failure.message)), (
+      _,
+    ) async {
+      emit(const MealOperationSuccess('Meal updated successfully'));
+      add(LoadMealsEvent());
+    });
   }
 
   Future<void> _onDeleteMeal(
@@ -215,12 +225,11 @@ class MealBloc extends Bloc<MealEvent, MealState> {
     Emitter<MealState> emit,
   ) async {
     final result = await deleteMeal(event.id);
-    await result.fold(
-      (failure) async => emit(MealError(failure.message)),
-      (_) async {
-        emit(const MealOperationSuccess('Meal deleted successfully'));
-        add(LoadMealsEvent());
-      },
-    );
+    await result.fold((failure) async => emit(MealError(failure.message)), (
+      _,
+    ) async {
+      emit(const MealOperationSuccess('Meal deleted successfully'));
+      add(LoadMealsEvent());
+    });
   }
 }

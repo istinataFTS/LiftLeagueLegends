@@ -4,6 +4,7 @@ import 'package:fitness_tracker/core/errors/failures.dart';
 import 'package:fitness_tracker/domain/entities/meal.dart';
 import 'package:fitness_tracker/domain/usecases/meals/add_meal.dart';
 import 'package:fitness_tracker/domain/usecases/meals/delete_meal.dart';
+import 'package:fitness_tracker/domain/usecases/meals/ensure_default_meals.dart';
 import 'package:fitness_tracker/domain/usecases/meals/get_all_meals.dart';
 import 'package:fitness_tracker/domain/usecases/meals/get_meal_by_id.dart';
 import 'package:fitness_tracker/domain/usecases/meals/get_meal_by_name.dart';
@@ -23,6 +24,8 @@ class MockAddMeal extends Mock implements AddMeal {}
 class MockUpdateMeal extends Mock implements UpdateMeal {}
 
 class MockDeleteMeal extends Mock implements DeleteMeal {}
+
+class MockEnsureDefaultMeals extends Mock implements EnsureDefaultMeals {}
 
 // ---------------------------------------------------------------------------
 // Fixtures
@@ -48,15 +51,17 @@ void main() {
   late MockAddMeal mockAdd;
   late MockUpdateMeal mockUpdate;
   late MockDeleteMeal mockDelete;
+  late MockEnsureDefaultMeals mockEnsureDefaults;
 
   MealBloc buildBloc() => MealBloc(
-        getAllMeals: mockGetAll,
-        getMealById: mockGetById,
-        getMealByName: mockGetByName,
-        addMeal: mockAdd,
-        updateMeal: mockUpdate,
-        deleteMeal: mockDelete,
-      );
+    getAllMeals: mockGetAll,
+    getMealById: mockGetById,
+    getMealByName: mockGetByName,
+    addMeal: mockAdd,
+    updateMeal: mockUpdate,
+    deleteMeal: mockDelete,
+    ensureDefaultMeals: mockEnsureDefaults,
+  );
 
   setUpAll(() {
     registerFallbackValue(_meal);
@@ -69,6 +74,7 @@ void main() {
     mockAdd = MockAddMeal();
     mockUpdate = MockUpdateMeal();
     mockDelete = MockDeleteMeal();
+    mockEnsureDefaults = MockEnsureDefaultMeals();
   });
 
   group('MealBloc', () {
@@ -87,17 +93,40 @@ void main() {
       );
 
       blocTest<MealBloc, MealState>(
-        'emits [Loading, MealError] on failure',
+        'empty catalog triggers default seeding then reloads',
         build: buildBloc,
         setUp: () {
-          when(() => mockGetAll())
-              .thenAnswer((_) async => const Left(_dbFailure));
+          final responses = <Either<Failure, List<Meal>>>[
+            const Right(<Meal>[]),
+            Right([_meal]),
+          ];
+          when(
+            () => mockGetAll(),
+          ).thenAnswer((_) async => responses.removeAt(0));
+          when(
+            () => mockEnsureDefaults(),
+          ).thenAnswer((_) async => const Right(50));
         },
         act: (bloc) => bloc.add(LoadMealsEvent()),
         expect: () => [
           isA<MealLoading>(),
-          const MealError('db error'),
+          MealsLoaded([_meal]),
         ],
+        verify: (_) {
+          verify(() => mockEnsureDefaults()).called(1);
+        },
+      );
+
+      blocTest<MealBloc, MealState>(
+        'emits [Loading, MealError] on failure',
+        build: buildBloc,
+        setUp: () {
+          when(
+            () => mockGetAll(),
+          ).thenAnswer((_) async => const Left(_dbFailure));
+        },
+        act: (bloc) => bloc.add(LoadMealsEvent()),
+        expect: () => [isA<MealLoading>(), const MealError('db error')],
       );
     });
 
@@ -106,42 +135,36 @@ void main() {
         'emits [Loading, MealLoaded] when meal is found',
         build: buildBloc,
         setUp: () {
-          when(() => mockGetById('meal-1'))
-              .thenAnswer((_) async => Right(_meal));
+          when(
+            () => mockGetById('meal-1'),
+          ).thenAnswer((_) async => Right(_meal));
         },
         act: (bloc) => bloc.add(const LoadMealByIdEvent('meal-1')),
-        expect: () => [
-          isA<MealLoading>(),
-          MealLoaded(_meal),
-        ],
+        expect: () => [isA<MealLoading>(), MealLoaded(_meal)],
       );
 
       blocTest<MealBloc, MealState>(
         'emits [Loading, MealError] when meal is not found',
         build: buildBloc,
         setUp: () {
-          when(() => mockGetById('meal-1'))
-              .thenAnswer((_) async => const Right(null));
+          when(
+            () => mockGetById('meal-1'),
+          ).thenAnswer((_) async => const Right(null));
         },
         act: (bloc) => bloc.add(const LoadMealByIdEvent('meal-1')),
-        expect: () => [
-          isA<MealLoading>(),
-          const MealError('Meal not found'),
-        ],
+        expect: () => [isA<MealLoading>(), const MealError('Meal not found')],
       );
 
       blocTest<MealBloc, MealState>(
         'emits [Loading, MealError] on repository failure',
         build: buildBloc,
         setUp: () {
-          when(() => mockGetById('meal-1'))
-              .thenAnswer((_) async => const Left(_dbFailure));
+          when(
+            () => mockGetById('meal-1'),
+          ).thenAnswer((_) async => const Left(_dbFailure));
         },
         act: (bloc) => bloc.add(const LoadMealByIdEvent('meal-1')),
-        expect: () => [
-          isA<MealLoading>(),
-          const MealError('db error'),
-        ],
+        expect: () => [isA<MealLoading>(), const MealError('db error')],
       );
     });
 
@@ -150,28 +173,24 @@ void main() {
         'emits [Loading, MealLoaded] when meal is found',
         build: buildBloc,
         setUp: () {
-          when(() => mockGetByName('Oats'))
-              .thenAnswer((_) async => Right(_meal));
+          when(
+            () => mockGetByName('Oats'),
+          ).thenAnswer((_) async => Right(_meal));
         },
         act: (bloc) => bloc.add(const LoadMealByNameEvent('Oats')),
-        expect: () => [
-          isA<MealLoading>(),
-          MealLoaded(_meal),
-        ],
+        expect: () => [isA<MealLoading>(), MealLoaded(_meal)],
       );
 
       blocTest<MealBloc, MealState>(
         'emits [Loading, MealError] when meal name is not found',
         build: buildBloc,
         setUp: () {
-          when(() => mockGetByName('Oats'))
-              .thenAnswer((_) async => const Right(null));
+          when(
+            () => mockGetByName('Oats'),
+          ).thenAnswer((_) async => const Right(null));
         },
         act: (bloc) => bloc.add(const LoadMealByNameEvent('Oats')),
-        expect: () => [
-          isA<MealLoading>(),
-          const MealError('Meal not found'),
-        ],
+        expect: () => [isA<MealLoading>(), const MealError('Meal not found')],
       );
     });
 
@@ -180,8 +199,7 @@ void main() {
         'emits [OperationSuccess, Loading, MealsLoaded] on success',
         build: buildBloc,
         setUp: () {
-          when(() => mockAdd(_meal))
-              .thenAnswer((_) async => const Right(null));
+          when(() => mockAdd(_meal)).thenAnswer((_) async => const Right(null));
           when(() => mockGetAll()).thenAnswer((_) async => Right([_meal]));
         },
         act: (bloc) => bloc.add(AddMealEvent(_meal)),
@@ -196,8 +214,9 @@ void main() {
         'emits [MealError] on failure without reloading',
         build: buildBloc,
         setUp: () {
-          when(() => mockAdd(_meal))
-              .thenAnswer((_) async => const Left(_dbFailure));
+          when(
+            () => mockAdd(_meal),
+          ).thenAnswer((_) async => const Left(_dbFailure));
         },
         act: (bloc) => bloc.add(AddMealEvent(_meal)),
         expect: () => [const MealError('db error')],
@@ -210,8 +229,9 @@ void main() {
         'emits [OperationSuccess, Loading, MealsLoaded] on success',
         build: buildBloc,
         setUp: () {
-          when(() => mockUpdate(_meal))
-              .thenAnswer((_) async => const Right(null));
+          when(
+            () => mockUpdate(_meal),
+          ).thenAnswer((_) async => const Right(null));
           when(() => mockGetAll()).thenAnswer((_) async => Right([_meal]));
         },
         act: (bloc) => bloc.add(UpdateMealEvent(_meal)),
@@ -226,8 +246,9 @@ void main() {
         'emits [MealError] on failure without reloading',
         build: buildBloc,
         setUp: () {
-          when(() => mockUpdate(_meal))
-              .thenAnswer((_) async => const Left(_dbFailure));
+          when(
+            () => mockUpdate(_meal),
+          ).thenAnswer((_) async => const Left(_dbFailure));
         },
         act: (bloc) => bloc.add(UpdateMealEvent(_meal)),
         expect: () => [const MealError('db error')],
@@ -240,8 +261,9 @@ void main() {
         'emits [OperationSuccess, Loading, MealsLoaded] on success',
         build: buildBloc,
         setUp: () {
-          when(() => mockDelete('meal-1'))
-              .thenAnswer((_) async => const Right(null));
+          when(
+            () => mockDelete('meal-1'),
+          ).thenAnswer((_) async => const Right(null));
           when(() => mockGetAll()).thenAnswer((_) async => Right([_meal]));
         },
         act: (bloc) => bloc.add(const DeleteMealEvent('meal-1')),
@@ -256,8 +278,9 @@ void main() {
         'emits [MealError] on failure without reloading',
         build: buildBloc,
         setUp: () {
-          when(() => mockDelete('meal-1'))
-              .thenAnswer((_) async => const Left(_dbFailure));
+          when(
+            () => mockDelete('meal-1'),
+          ).thenAnswer((_) async => const Left(_dbFailure));
         },
         act: (bloc) => bloc.add(const DeleteMealEvent('meal-1')),
         expect: () => [const MealError('db error')],

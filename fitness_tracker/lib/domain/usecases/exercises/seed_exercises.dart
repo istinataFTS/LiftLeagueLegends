@@ -1,14 +1,13 @@
 import 'package:dartz/dartz.dart';
 import 'package:flutter/foundation.dart';
-import 'package:uuid/uuid.dart';
 import '../../../config/env_config.dart';
 import '../../../core/constants/default_exercises_data.dart';
 import '../../../core/errors/failures.dart';
+import '../../../core/utils/deterministic_catalog_id.dart';
 import '../../repositories/exercise_repository.dart';
 
 class SeedExercises {
   final ExerciseRepository repository;
-  final _uuid = const Uuid();
 
   const SeedExercises(this.repository);
 
@@ -73,7 +72,7 @@ class SeedExercises {
   /// Clear existing exercise data (used with force reseed)
   Future<void> _clearExistingData() async {
     _log('Clearing existing exercise data...');
-    
+
     try {
       await repository.clearAllExercises();
       _log('Successfully cleared existing data');
@@ -104,14 +103,19 @@ class SeedExercises {
     // Note: In a production app, you might want to use batch insert
     for (final exerciseData in defaultExercises) {
       try {
+        // Deterministic, name-derived id: stable across every device,
+        // reseed and account, so the workout_sets→exercise reference never
+        // diverges (the root cause of the sign-in failure / "Unknown
+        // exercise"). User-created exercises still get a v4 id via
+        // AddExercise — only the curated defaults are deterministic.
         final exercise = exerciseData.toEntity(
-          _uuid.v4(),
+          DeterministicCatalogId.fromName(exerciseData.name),
           now,
           ownerUserId: ownerUserId,
         );
 
         final result = await repository.addExercise(exercise);
-        
+
         result.fold(
           (failure) {
             failureCount++;

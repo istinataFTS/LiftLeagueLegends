@@ -17,6 +17,7 @@ import '../core/sync/sync_feature.dart';
 import '../core/sync/sync_orchestrator.dart';
 import '../core/sync/sync_orchestrator_impl.dart';
 import '../domain/usecases/exercises/seed_exercises.dart';
+import '../domain/usecases/meals/seed_meals.dart';
 import '../domain/usecases/muscle_factors/seed_exercise_factors.dart';
 import '../domain/usecases/muscle_stimulus/rebuild_muscle_stimulus_from_workout_history.dart';
 import '../data/datasources/local/database_helper.dart';
@@ -174,7 +175,10 @@ void _registerAppComposition(GetIt sl) {
   // turn must precede the stimulus rebuild that reads those factors.
   sl.registerLazySingleton<List<PostSyncHook>>(
     () => <PostSyncHook>[
-      AccountCatalogProvisionHook(seedExercises: sl<SeedExercises>()),
+      AccountCatalogProvisionHook(
+        seedExercises: sl<SeedExercises>(),
+        seedMeals: sl<SeedMeals>(),
+      ),
       MuscleFactorHealHook(seedExerciseFactors: sl<SeedExerciseFactors>()),
       MuscleStimulusRebuildHook(
         rebuild: sl<RebuildMuscleStimulusFromWorkoutHistory>(),

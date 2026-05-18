@@ -77,9 +77,12 @@ class EnvConfig {
   /// Version 19: Dropped the targets table — the Targets feature has been removed from the app.
   /// Version 20: Collapsed legacy NULL owner_user_id on exercises and meals to the guest
   ///             sentinel '' so ownership is never NULL (per-user catalog model).
+  /// Version 21: Rewrote default exercise/meal rows to deterministic name-derived
+  ///             UUIDv5 ids and repointed workout_sets / exercise_muscle_factors /
+  ///             nutrition_logs so identity is stable across reseed/device/account.
   static const int databaseVersion = int.fromEnvironment(
     'DATABASE_VERSION',
-    defaultValue: 20,
+    defaultValue: 21,
   );
 
   static const bool seedDefaultData = bool.fromEnvironment(

@@ -1,8 +1,13 @@
+import 'package:dartz/dartz.dart';
+
+import '../../../core/errors/failures.dart';
 import '../../../domain/usecases/exercises/seed_exercises.dart';
+import '../../../domain/usecases/meals/seed_meals.dart';
 import '../../logging/app_logger.dart';
 import '../post_sync_hook.dart';
 
-/// Ensures the just-synced account owns the full default exercise catalog.
+/// Ensures the just-synced account owns the full default exercise and meal
+/// catalogs.
 ///
 /// Under the per-user catalog model every account (guest `''` or a real
 /// `uid`) has its own owned catalog — there is no shared NULL-owner bucket.
@@ -28,8 +33,12 @@ import '../post_sync_hook.dart';
 /// stamp always agree.
 class AccountCatalogProvisionHook implements PostSyncHook {
   final SeedExercises seedExercises;
+  final SeedMeals seedMeals;
 
-  const AccountCatalogProvisionHook({required this.seedExercises});
+  const AccountCatalogProvisionHook({
+    required this.seedExercises,
+    required this.seedMeals,
+  });
 
   @override
   String get name => 'account_catalog_provision';
@@ -41,18 +50,34 @@ class AccountCatalogProvisionHook implements PostSyncHook {
 
   @override
   Future<void> run(PostSyncContext context) async {
-    final result = await seedExercises(ownerUserId: context.userId);
+    await _provision(
+      label: 'exercise',
+      userId: context.userId,
+      seed: () => seedExercises(ownerUserId: context.userId),
+    );
+    await _provision(
+      label: 'meal',
+      userId: context.userId,
+      seed: () => seedMeals(ownerUserId: context.userId),
+    );
+  }
 
+  Future<void> _provision({
+    required String label,
+    required String userId,
+    required Future<Either<Failure, int>> Function() seed,
+  }) async {
+    final result = await seed();
     result.fold(
       (failure) => AppLogger.warning(
-        'Post-sync account catalog provisioning failed: ${failure.message}',
+        'Post-sync $label catalog provisioning failed: ${failure.message}',
         category: 'sync',
       ),
       (seededCount) {
         if (seededCount > 0) {
           AppLogger.info(
-            'Post-sync account catalog provisioned $seededCount exercise(s) '
-            'for ${context.userId}',
+            'Post-sync account catalog provisioned $seededCount $label(s) '
+            'for $userId',
             category: 'sync',
           );
         }

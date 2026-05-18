@@ -21,9 +21,11 @@ import '../../domain/repositories/meal_repository.dart';
 import '../../domain/repositories/nutrition_log_repository.dart';
 import '../../domain/usecases/meals/add_meal.dart';
 import '../../domain/usecases/meals/delete_meal.dart';
+import '../../domain/usecases/meals/ensure_default_meals.dart';
 import '../../domain/usecases/meals/get_all_meals.dart';
 import '../../domain/usecases/meals/get_meal_by_id.dart';
 import '../../domain/usecases/meals/get_meal_by_name.dart';
+import '../../domain/usecases/meals/seed_meals.dart';
 import '../../domain/usecases/meals/update_meal.dart';
 import '../../domain/usecases/nutrition_logs/add_nutrition_log.dart';
 import '../../domain/usecases/nutrition_logs/delete_nutrition_log.dart';
@@ -43,6 +45,7 @@ void registerMealsNutritionModule(GetIt sl) {
       addMeal: sl(),
       updateMeal: sl(),
       deleteMeal: sl(),
+      ensureDefaultMeals: sl(),
     ),
   );
 
@@ -57,67 +60,37 @@ void registerMealsNutritionModule(GetIt sl) {
   );
 
   sl.registerLazySingleton(
-    () => GetAllMeals(
-      sl(),
-      sourcePreferenceResolver: sl(),
-    ),
+    () => GetAllMeals(sl(), sourcePreferenceResolver: sl()),
   );
   sl.registerLazySingleton(
-    () => GetMealById(
-      sl(),
-      sourcePreferenceResolver: sl(),
-    ),
+    () => GetMealById(sl(), sourcePreferenceResolver: sl()),
   );
   sl.registerLazySingleton(
-    () => GetMealByName(
-      sl(),
-      sourcePreferenceResolver: sl(),
-    ),
+    () => GetMealByName(sl(), sourcePreferenceResolver: sl()),
   );
-  sl.registerLazySingleton(
-    () => AddMeal(
-      sl(),
-      appSessionRepository: sl(),
-    ),
-  );
-  sl.registerLazySingleton(
-    () => UpdateMeal(
-      sl(),
-      appSessionRepository: sl(),
-    ),
-  );
+  sl.registerLazySingleton(() => AddMeal(sl(), appSessionRepository: sl()));
+  sl.registerLazySingleton(() => UpdateMeal(sl(), appSessionRepository: sl()));
   sl.registerLazySingleton(() => DeleteMeal(sl()));
+  sl.registerLazySingleton(() => SeedMeals(sl()));
+  sl.registerLazySingleton(
+    () => EnsureDefaultMeals(appSessionRepository: sl(), seedMeals: sl()),
+  );
 
   sl.registerLazySingleton(
-    () => GetLogsForDate(
-      sl(),
-      sourcePreferenceResolver: sl(),
-    ),
+    () => GetLogsForDate(sl(), sourcePreferenceResolver: sl()),
   );
   sl.registerLazySingleton(
-    () => GetLogsByDateRange(
-      sl(),
-      sourcePreferenceResolver: sl(),
-    ),
+    () => GetLogsByDateRange(sl(), sourcePreferenceResolver: sl()),
   );
   sl.registerLazySingleton(
-    () => AddNutritionLog(
-      sl(),
-      appSessionRepository: sl(),
-    ),
+    () => AddNutritionLog(sl(), appSessionRepository: sl()),
   );
   sl.registerLazySingleton(
-    () => UpdateNutritionLog(
-      sl(),
-      appSessionRepository: sl(),
-    ),
+    () => UpdateNutritionLog(sl(), appSessionRepository: sl()),
   );
   sl.registerLazySingleton(() => DeleteNutritionLog(sl()));
   sl.registerLazySingleton(
-    () => GetDailyMacros(
-      sl(),
-      sourcePreferenceResolver: sl(),
-    ),
+    () => GetDailyMacros(sl(), sourcePreferenceResolver: sl()),
   );
 
   sl.registerLazySingleton<MealRepository>(

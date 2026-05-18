@@ -5,6 +5,7 @@ import '../../core/session/current_user_id_resolver.dart';
 import '../../data/datasources/local/app_metadata_local_datasource.dart';
 import '../../domain/repositories/app_session_repository.dart';
 import '../../domain/usecases/exercises/seed_exercises.dart';
+import '../../domain/usecases/meals/seed_meals.dart';
 import '../../domain/usecases/muscle_factors/seed_exercise_factors.dart';
 import '../../domain/usecases/muscle_stimulus/rebuild_muscle_stimulus_from_workout_history.dart';
 import '../../injection/injection_container.dart' as di;
@@ -61,6 +62,17 @@ class AppDataSeeder {
       appSessionRepository: di.sl<AppSessionRepository>(),
     );
     final ownerId = await resolver.resolve();
+
+    final seedMeals = di.sl<SeedMeals>();
+    final mealsResult = await seedMeals(ownerUserId: ownerId);
+    mealsResult.fold(
+      (failure) => debugPrint('⚠️ Meal seeding failed: ${failure.message}'),
+      (mealCount) {
+        if (mealCount > 0) {
+          debugPrint('✅ Seeded $mealCount meals');
+        }
+      },
+    );
 
     final seedExercises = di.sl<SeedExercises>();
     final exercisesResult = await seedExercises(ownerUserId: ownerId);
