@@ -82,15 +82,18 @@ Future<void> resetDependencies() {
 void _registerAppComposition(GetIt sl) {
   // Migration and sync order must respect FK dependencies in the remote schema:
   //   exercises → meals → workout_sets → nutrition_logs
-  // Every migration step follows the same prepare → push → pull shape:
+  // Every migration step follows the same prepare → pull → push shape,
+  // mirroring the regular feature sync (which already pulls before pushing):
   //   1. prepare: reassign any guest-owned rows to this authenticated user.
-  //   2. push:    upload the local (now user-scoped) rows to the cloud.
-  //   3. pull:    download anything else on the cloud for this user so that
-  //               multi-device / re-login data is present locally before the
-  //               UI reads from it.
-  // The pull step is what guarantees that post-sync hooks (factor heal,
-  // stimulus rebuild) see cloud-only exercises and workout sets the first
-  // time the user signs in on a new device.
+  //   2. pull:    download the cloud rows for this user first and reconcile
+  //               by (name, owner) via the local insert path, so a server
+  //               row that already exists is adopted locally instead of
+  //               being blind-inserted again.
+  //   3. push:    upload only the genuinely local-only / changed rows.
+  // Pulling before pushing prevents the duplicate-key collision that a
+  // blind insert-by-id would otherwise hit on the server's
+  // UNIQUE(user_id, name), and still guarantees post-sync hooks (factor
+  // heal, stimulus rebuild) see cloud-only data on a new device.
   sl.registerLazySingleton<List<InitialCloudMigrationStep>>(
     () => <InitialCloudMigrationStep>[
       InitialCloudMigrationStep(
@@ -98,8 +101,8 @@ void _registerAppComposition(GetIt sl) {
         run: (userId) async {
           final coordinator = sl<ExerciseSyncCoordinator>();
           await coordinator.prepareForInitialCloudMigration(userId);
-          await coordinator.syncPendingChanges();
           await coordinator.pullRemoteChanges(userId: userId, since: null);
+          await coordinator.syncPendingChanges();
         },
       ),
       InitialCloudMigrationStep(
@@ -107,8 +110,8 @@ void _registerAppComposition(GetIt sl) {
         run: (userId) async {
           final coordinator = sl<MealSyncCoordinator>();
           await coordinator.prepareForInitialCloudMigration(userId);
-          await coordinator.syncPendingChanges();
           await coordinator.pullRemoteChanges(userId: userId, since: null);
+          await coordinator.syncPendingChanges();
         },
       ),
       InitialCloudMigrationStep(
@@ -116,8 +119,8 @@ void _registerAppComposition(GetIt sl) {
         run: (userId) async {
           final coordinator = sl<WorkoutSetSyncCoordinator>();
           await coordinator.prepareForInitialCloudMigration(userId);
-          await coordinator.syncPendingChanges();
           await coordinator.pullRemoteChanges(userId: userId, since: null);
+          await coordinator.syncPendingChanges();
         },
       ),
       InitialCloudMigrationStep(
@@ -125,8 +128,8 @@ void _registerAppComposition(GetIt sl) {
         run: (userId) async {
           final coordinator = sl<NutritionLogSyncCoordinator>();
           await coordinator.prepareForInitialCloudMigration(userId);
-          await coordinator.syncPendingChanges();
           await coordinator.pullRemoteChanges(userId: userId, since: null);
+          await coordinator.syncPendingChanges();
         },
       ),
     ],

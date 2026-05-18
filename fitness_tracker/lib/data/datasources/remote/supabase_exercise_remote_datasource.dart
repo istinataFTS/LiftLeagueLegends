@@ -9,9 +9,7 @@ class SupabaseExerciseRemoteDataSource implements ExerciseRemoteDataSource {
   static const String _tableName = 'exercises';
   static const String _userIdColumn = 'user_id';
 
-  const SupabaseExerciseRemoteDataSource({
-    required this.clientProvider,
-  });
+  const SupabaseExerciseRemoteDataSource({required this.clientProvider});
 
   final SupabaseClientProvider clientProvider;
 
@@ -99,14 +97,16 @@ class SupabaseExerciseRemoteDataSource implements ExerciseRemoteDataSource {
       final userId = _requireAuthenticatedUserId();
 
       final dto = SupabaseExerciseDto.fromEntity(exercise);
-      final payload = <String, dynamic>{
-        ...dto.toMap(),
-        _userIdColumn: userId,
-      };
+      final payload = <String, dynamic>{...dto.toMap(), _userIdColumn: userId};
 
+      // Conflict on the server's UNIQUE(user_id, name), not just the PK.
+      // A stale-id row with the same (user_id, name) is UPDATEd in place
+      // instead of raising 23505 — making the push idempotent for default
+      // rows (whose id is deterministic since db v21) and robust for any
+      // user-renamed exercise that collides by name.
       final dynamic data = await clientProvider.client
           .from(_tableName)
-          .upsert(payload)
+          .upsert(payload, onConflict: 'user_id,name')
           .select()
           .single();
 
@@ -116,10 +116,7 @@ class SupabaseExerciseRemoteDataSource implements ExerciseRemoteDataSource {
   }
 
   @override
-  Future<void> deleteExercise({
-    required String localId,
-    String? serverId,
-  }) {
+  Future<void> deleteExercise({required String localId, String? serverId}) {
     return RemoteDatasourceGuard.run(() async {
       final userId = _requireAuthenticatedUserId();
       final remoteId = serverId ?? localId;
@@ -133,10 +130,7 @@ class SupabaseExerciseRemoteDataSource implements ExerciseRemoteDataSource {
   }
 
   @override
-  Future<List<Exercise>> fetchSince({
-    required String userId,
-    DateTime? since,
-  }) {
+  Future<List<Exercise>> fetchSince({required String userId, DateTime? since}) {
     return RemoteDatasourceGuard.run(() async {
       var query = clientProvider.client
           .from(_tableName)
@@ -155,10 +149,7 @@ class SupabaseExerciseRemoteDataSource implements ExerciseRemoteDataSource {
 
   Exercise _mapRowToEntity(Map<String, dynamic> row) {
     final dto = SupabaseExerciseDto.fromMap(row);
-    return dto.toEntity(
-      localId: dto.id,
-      syncMetadata: dto.toSyncedMetadata(),
-    );
+    return dto.toEntity(localId: dto.id, syncMetadata: dto.toSyncedMetadata());
   }
 
   List<Map<String, dynamic>> _asMapList(dynamic data) {

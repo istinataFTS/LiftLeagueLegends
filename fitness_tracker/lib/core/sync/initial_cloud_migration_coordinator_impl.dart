@@ -41,8 +41,8 @@ class InitialCloudMigrationCoordinatorImpl
         }
 
         final user = session.user!;
-        final existingStateResult =
-            await appSessionRepository.getInitialCloudMigrationState();
+        final existingStateResult = await appSessionRepository
+            .getInitialCloudMigrationState();
 
         return await existingStateResult.fold(
           (failure) async {
@@ -53,8 +53,10 @@ class InitialCloudMigrationCoordinatorImpl
             );
           },
           (existingState) async {
-            InitialCloudMigrationState state =
-                _resolveStateForUser(existingState, user.id);
+            InitialCloudMigrationState state = _resolveStateForUser(
+              existingState,
+              user.id,
+            );
 
             final initialSave = await appSessionRepository
                 .saveInitialCloudMigrationState(state);
@@ -72,6 +74,8 @@ class InitialCloudMigrationCoordinatorImpl
                 state: state,
               );
             }
+
+            final List<String> failedSteps = <String>[];
 
             for (final step in steps) {
               if (_isStepCompleted(step.key, state)) {
@@ -105,29 +109,45 @@ class InitialCloudMigrationCoordinatorImpl
                   );
                 }
               } catch (error) {
+                // Non-fatal: record the error, leave this step incomplete so
+                // it retries on the next sync, and continue with the
+                // remaining steps. The user must always be able to sign in;
+                // sync converges later.
                 state = state.copyWith(
                   updatedAt: DateTime.now(),
                   lastError: 'step ${step.key} failed: $error',
                 );
 
-                await appSessionRepository.saveInitialCloudMigrationState(state);
+                await appSessionRepository.saveInitialCloudMigrationState(
+                  state,
+                );
 
                 AppLogger.error(
-                  'Initial cloud migration step failed: ${step.key}',
+                  'Initial cloud migration step failed (continuing): '
+                  '${step.key}',
                   category: 'sync',
                   error: error,
                 );
 
-                return InitialCloudMigrationResult(
-                  status: InitialCloudMigrationStatus.failed,
-                  message: 'initial migration step failed: ${step.key}',
-                  state: state,
-                );
+                failedSteps.add(step.key);
               }
             }
 
-            final completeResult =
-                await appSessionRepository.completeInitialCloudMigration();
+            if (failedSteps.isNotEmpty) {
+              // Intentionally do NOT completeInitialCloudMigration: leaving
+              // the session flagged as still-requiring migration is what
+              // makes the next sync re-run only the failed steps.
+              return InitialCloudMigrationResult(
+                status: InitialCloudMigrationStatus.completedWithErrors,
+                message:
+                    'initial migration completed with errors; will retry: '
+                    '${failedSteps.join(', ')}',
+                state: state,
+              );
+            }
+
+            final completeResult = await appSessionRepository
+                .completeInitialCloudMigration();
 
             final completeFailure = completeResult.fold(
               (failure) => failure,
@@ -175,10 +195,7 @@ class InitialCloudMigrationCoordinatorImpl
     );
   }
 
-  bool _isStepCompleted(
-    String key,
-    InitialCloudMigrationState state,
-  ) {
+  bool _isStepCompleted(String key, InitialCloudMigrationState state) {
     switch (key) {
       case 'workout_sets':
         return state.workoutSetsCompleted;
@@ -231,10 +248,7 @@ class InitialCloudMigrationCoordinatorImpl
           clearLastError: true,
         );
       default:
-        return state.copyWith(
-          updatedAt: DateTime.now(),
-          clearLastError: true,
-        );
+        return state.copyWith(updatedAt: DateTime.now(), clearLastError: true);
     }
   }
 }
