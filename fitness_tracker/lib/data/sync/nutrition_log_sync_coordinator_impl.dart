@@ -48,7 +48,10 @@ class NutritionLogSyncCoordinatorImpl
   NutritionLog buildAddedLocalEntity(NutritionLog entity, DateTime now) {
     return entity.copyWith(
       updatedAt: now,
-      syncMetadata: buildAddedSyncMetadata(entity.syncMetadata),
+      syncMetadata: guestAwareAddedSyncMetadata(
+        entity.syncMetadata,
+        entity.ownerUserId,
+      ),
     );
   }
 
@@ -60,9 +63,10 @@ class NutritionLogSyncCoordinatorImpl
   }) {
     return entity.copyWith(
       updatedAt: now,
-      syncMetadata: buildUpdatedSyncMetadata(
+      syncMetadata: guestAwareUpdatedSyncMetadata(
         incomingMetadata: entity.syncMetadata,
         existingLocalMetadata: existingLocal?.syncMetadata,
+        ownerUserId: entity.ownerUserId,
       ),
     );
   }
@@ -106,10 +110,7 @@ class NutritionLogSyncCoordinatorImpl
     required String localId,
     required String? serverId,
   }) {
-    return remoteDataSource.deleteLog(
-      localId: localId,
-      serverId: serverId,
-    );
+    return remoteDataSource.deleteLog(localId: localId, serverId: serverId);
   }
 
   @override

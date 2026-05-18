@@ -5,6 +5,7 @@ import '../../../config/env_config.dart';
 import '../../../core/constants/default_meals_data.dart';
 import '../../../core/errors/failures.dart';
 import '../../../core/utils/deterministic_catalog_id.dart';
+import '../../repositories/catalog_init_flag_repository.dart';
 import '../../repositories/meal_repository.dart';
 
 /// Seeds the default food catalog for an account if it has none yet.
@@ -17,7 +18,12 @@ import '../../repositories/meal_repository.dart';
 class SeedMeals {
   final MealRepository repository;
 
-  const SeedMeals(this.repository);
+  /// When provided, the per-account initialization flag is checked before
+  /// querying the catalog and set after the first successful seed.  See
+  /// [SeedExercises.catalogInitFlags] for the full rationale.
+  final CatalogInitFlagRepository? catalogInitFlags;
+
+  const SeedMeals(this.repository, {this.catalogInitFlags});
 
   /// [ownerUserId] — the account the seeded meals are owned by (the guest
   /// sentinel `''` or an authenticated uid).
@@ -29,6 +35,20 @@ class SeedMeals {
       if (!EnvConfig.seedDefaultData) {
         _log('Seeding disabled in environment config');
         return const Right(0);
+      }
+
+      // Catalog-init flag: delete-stickiness guard (mirrors SeedExercises).
+      if (catalogInitFlags != null && !EnvConfig.forceReseed) {
+        final initialized = await catalogInitFlags!.isInitialized(
+          ownerUserId ?? '',
+          'meals',
+        );
+        if (initialized) {
+          _log(
+            'Meal catalog already initialized for ${ownerUserId ?? 'guest'} — skipping',
+          );
+          return const Right(0);
+        }
       }
 
       final existingResult = await repository.getAllMeals();
@@ -90,6 +110,7 @@ class SeedMeals {
     );
 
     if (successCount > 0) {
+      await catalogInitFlags?.markInitialized(ownerUserId ?? '', 'meals');
       return Right(successCount);
     }
     return const Left(DatabaseFailure('Failed to seed any meals'));

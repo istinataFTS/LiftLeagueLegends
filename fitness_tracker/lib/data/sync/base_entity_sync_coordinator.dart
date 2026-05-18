@@ -92,6 +92,52 @@ abstract class BaseEntitySyncCoordinator<T> {
     );
   }
 
+  // ---------------------------------------------------------------------------
+  // Guest-owner guard (shared across all entity coordinators)
+  // ---------------------------------------------------------------------------
+
+  /// True when [ownerUserId] identifies a guest: null (legacy) or the guest
+  /// sentinel ''.  Guest rows must never be queued for a remote upsert — the
+  /// Supabase DTO requires a non-empty owner and RLS requires
+  /// `user_id = auth.uid()`.  They become syncable only after sign-in
+  /// adoption rewrites their owner to the real uid.
+  bool isGuestOwned(String? ownerUserId) =>
+      ownerUserId == null || ownerUserId.isEmpty;
+
+  /// [buildAddedSyncMetadata] variant that forces [SyncStatus.localOnly] for
+  /// guest-owned entities regardless of whether remote sync is configured.
+  EntitySyncMetadata guestAwareAddedSyncMetadata(
+    EntitySyncMetadata currentMetadata,
+    String? ownerUserId,
+  ) {
+    if (isGuestOwned(ownerUserId)) {
+      return currentMetadata.copyWith(
+        status: SyncStatus.localOnly,
+        clearLastSyncError: true,
+      );
+    }
+    return buildAddedSyncMetadata(currentMetadata);
+  }
+
+  /// [buildUpdatedSyncMetadata] variant that forces [SyncStatus.localOnly] for
+  /// guest-owned entities.
+  EntitySyncMetadata guestAwareUpdatedSyncMetadata({
+    required EntitySyncMetadata incomingMetadata,
+    required EntitySyncMetadata? existingLocalMetadata,
+    required String? ownerUserId,
+  }) {
+    if (isGuestOwned(ownerUserId)) {
+      return (existingLocalMetadata ?? incomingMetadata).copyWith(
+        status: SyncStatus.localOnly,
+        clearLastSyncError: true,
+      );
+    }
+    return buildUpdatedSyncMetadata(
+      incomingMetadata: incomingMetadata,
+      existingLocalMetadata: existingLocalMetadata,
+    );
+  }
+
   Future<void> persistAdded(T entity) async {
     final localEntity = buildAddedLocalEntity(entity, DateTime.now());
 

@@ -79,18 +79,21 @@ void main() {
     );
   });
 
-  test('prepareForInitialCloudMigration delegates to local datasource', () async {
-    when(
-      () => localDataSource.prepareForInitialCloudMigration(userId: 'user-1'),
-    ).thenAnswer((_) async {});
+  test(
+    'prepareForInitialCloudMigration delegates to local datasource',
+    () async {
+      when(
+        () => localDataSource.prepareForInitialCloudMigration(userId: 'user-1'),
+      ).thenAnswer((_) async {});
 
-    await coordinator.prepareForInitialCloudMigration('user-1');
+      await coordinator.prepareForInitialCloudMigration('user-1');
 
-    verify(
-      () => localDataSource.prepareForInitialCloudMigration(userId: 'user-1'),
-    ).called(1);
-    verifyNever(() => remoteDataSource.upsertSet(any()));
-  });
+      verify(
+        () => localDataSource.prepareForInitialCloudMigration(userId: 'user-1'),
+      ).called(1);
+      verifyNever(() => remoteDataSource.upsertSet(any()));
+    },
+  );
 
   test(
     'delete marks synced row as pending delete before remote delete',
@@ -159,5 +162,88 @@ void main() {
 
     verifyNever(() => localDataSource.markAsPendingDelete(any()));
     verify(() => localDataSource.deleteSet('set-1')).called(1);
+  });
+
+  // ---------------------------------------------------------------------------
+  // Guest-owner guard
+  // ---------------------------------------------------------------------------
+
+  group('guest-owner guard', () {
+    WorkoutSet buildSet({String? ownerUserId}) => WorkoutSet(
+      id: 'set-1',
+      ownerUserId: ownerUserId,
+      exerciseId: 'bench',
+      reps: 10,
+      weight: 80,
+      date: baseDate,
+      createdAt: baseDate,
+    );
+
+    test('buildAddedLocalEntity stamps null-owner set as localOnly even when '
+        'remote is configured', () {
+      when(() => remoteDataSource.isConfigured).thenReturn(true);
+
+      final result = coordinator.buildAddedLocalEntity(
+        buildSet(ownerUserId: null),
+        baseDate,
+      );
+
+      expect(result.syncMetadata.status, SyncStatus.localOnly);
+    });
+
+    test(
+      "buildAddedLocalEntity stamps guest-sentinel ('') set as localOnly",
+      () {
+        when(() => remoteDataSource.isConfigured).thenReturn(true);
+
+        final result = coordinator.buildAddedLocalEntity(
+          buildSet(ownerUserId: ''),
+          baseDate,
+        );
+
+        expect(result.syncMetadata.status, SyncStatus.localOnly);
+      },
+    );
+
+    test(
+      'buildAddedLocalEntity stamps authenticated-user set as pendingUpload',
+      () {
+        when(() => remoteDataSource.isConfigured).thenReturn(true);
+
+        final result = coordinator.buildAddedLocalEntity(
+          buildSet(ownerUserId: 'user-1'),
+          baseDate,
+        );
+
+        expect(result.syncMetadata.status, SyncStatus.pendingUpload);
+      },
+    );
+
+    test('buildUpdatedLocalEntity stamps null-owner set as localOnly', () {
+      when(() => remoteDataSource.isConfigured).thenReturn(true);
+
+      final result = coordinator.buildUpdatedLocalEntity(
+        entity: buildSet(ownerUserId: null),
+        existingLocal: null,
+        now: baseDate,
+      );
+
+      expect(result.syncMetadata.status, SyncStatus.localOnly);
+    });
+
+    test(
+      "buildUpdatedLocalEntity stamps guest-sentinel ('') set as localOnly",
+      () {
+        when(() => remoteDataSource.isConfigured).thenReturn(true);
+
+        final result = coordinator.buildUpdatedLocalEntity(
+          entity: buildSet(ownerUserId: ''),
+          existingLocal: null,
+          now: baseDate,
+        );
+
+        expect(result.syncMetadata.status, SyncStatus.localOnly);
+      },
+    );
   });
 }

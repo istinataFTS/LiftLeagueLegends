@@ -68,7 +68,7 @@ void registerExercisesModule(GetIt sl) {
       rebuildMuscleStimulusFromWorkoutHistory: sl(),
     ),
   );
-  sl.registerLazySingleton(() => SeedExercises(sl()));
+  sl.registerLazySingleton(() => SeedExercises(sl(), catalogInitFlags: sl()));
   sl.registerLazySingleton(
     () => EnsureDefaultExercises(
       appSessionRepository: sl(),

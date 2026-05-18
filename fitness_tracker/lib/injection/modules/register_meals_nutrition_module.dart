@@ -71,7 +71,7 @@ void registerMealsNutritionModule(GetIt sl) {
   sl.registerLazySingleton(() => AddMeal(sl(), appSessionRepository: sl()));
   sl.registerLazySingleton(() => UpdateMeal(sl(), appSessionRepository: sl()));
   sl.registerLazySingleton(() => DeleteMeal(sl()));
-  sl.registerLazySingleton(() => SeedMeals(sl()));
+  sl.registerLazySingleton(() => SeedMeals(sl(), catalogInitFlags: sl()));
   sl.registerLazySingleton(
     () => EnsureDefaultMeals(appSessionRepository: sl(), seedMeals: sl()),
   );

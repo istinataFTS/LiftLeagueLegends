@@ -1,5 +1,4 @@
 import '../../core/enums/sync_entity_type.dart';
-import '../../core/enums/sync_status.dart';
 import '../../core/logging/app_logger.dart';
 import '../../domain/entities/entity_sync_metadata.dart';
 import '../../domain/entities/exercise.dart';
@@ -48,7 +47,10 @@ class ExerciseSyncCoordinatorImpl extends BaseEntitySyncCoordinator<Exercise>
   Exercise buildAddedLocalEntity(Exercise entity, DateTime now) {
     return entity.copyWith(
       updatedAt: now,
-      syncMetadata: _syncMetadataForAdd(entity),
+      syncMetadata: guestAwareAddedSyncMetadata(
+        entity.syncMetadata,
+        entity.ownerUserId,
+      ),
     );
   }
 
@@ -60,46 +62,11 @@ class ExerciseSyncCoordinatorImpl extends BaseEntitySyncCoordinator<Exercise>
   }) {
     return entity.copyWith(
       updatedAt: now,
-      syncMetadata: _syncMetadataForUpdate(
-        entity: entity,
-        existingLocal: existingLocal,
+      syncMetadata: guestAwareUpdatedSyncMetadata(
+        incomingMetadata: entity.syncMetadata,
+        existingLocalMetadata: existingLocal?.syncMetadata,
+        ownerUserId: entity.ownerUserId,
       ),
-    );
-  }
-
-  /// A guest-owned exercise: `null` (legacy) or the guest sentinel `''`.
-  ///
-  /// The guest catalog must never be queued for a remote upsert — it would
-  /// always fail: the Supabase DTO requires a non-empty [ownerUserId] and
-  /// the RLS policy requires `user_id = auth.uid()`. Only exercises owned by
-  /// a real authenticated user id are syncable. Guest rows become syncable
-  /// only after sign-in adoption rewrites their owner to the user's id.
-  bool _isGuestOwned(String? ownerUserId) =>
-      ownerUserId == null || ownerUserId.isEmpty;
-
-  EntitySyncMetadata _syncMetadataForAdd(Exercise entity) {
-    if (_isGuestOwned(entity.ownerUserId)) {
-      return entity.syncMetadata.copyWith(
-        status: SyncStatus.localOnly,
-        clearLastSyncError: true,
-      );
-    }
-    return buildAddedSyncMetadata(entity.syncMetadata);
-  }
-
-  EntitySyncMetadata _syncMetadataForUpdate({
-    required Exercise entity,
-    required Exercise? existingLocal,
-  }) {
-    if (_isGuestOwned(entity.ownerUserId)) {
-      return (existingLocal?.syncMetadata ?? entity.syncMetadata).copyWith(
-        status: SyncStatus.localOnly,
-        clearLastSyncError: true,
-      );
-    }
-    return buildUpdatedSyncMetadata(
-      incomingMetadata: entity.syncMetadata,
-      existingLocalMetadata: existingLocal?.syncMetadata,
     );
   }
 

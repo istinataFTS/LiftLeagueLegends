@@ -4,12 +4,21 @@ import '../../../config/env_config.dart';
 import '../../../core/constants/default_exercises_data.dart';
 import '../../../core/errors/failures.dart';
 import '../../../core/utils/deterministic_catalog_id.dart';
+import '../../repositories/catalog_init_flag_repository.dart';
 import '../../repositories/exercise_repository.dart';
 
 class SeedExercises {
   final ExerciseRepository repository;
 
-  const SeedExercises(this.repository);
+  /// When provided, the per-account initialization flag is checked before
+  /// querying the catalog and set after the first successful seed.  This
+  /// enforces the delete-stickiness invariant: a user who deliberately deletes
+  /// every default exercise will not have them resurrected on the next launch
+  /// or sync (the flag remains set, so seeding is skipped even when the
+  /// catalog is empty).  Pass null in tests that do not need the flag.
+  final CatalogInitFlagRepository? catalogInitFlags;
+
+  const SeedExercises(this.repository, {this.catalogInitFlags});
 
   /// Seeds default exercises if none exist yet.
   ///
@@ -33,7 +42,24 @@ class SeedExercises {
         _log('Seeding as user-owned exercises (userId: $ownerUserId)');
       }
 
-      // Step 2: Check if database already has exercises
+      // Step 2a: Check catalog-init flag (delete-stickiness guard).
+      // If the flag is already set the account previously received its default
+      // catalog; honour any subsequent deletions by not re-seeding even when
+      // the catalog is currently empty.  forceReseed bypasses this guard.
+      if (catalogInitFlags != null && !EnvConfig.forceReseed) {
+        final initialized = await catalogInitFlags!.isInitialized(
+          ownerUserId ?? '',
+          'exercises',
+        );
+        if (initialized) {
+          _log(
+            'Catalog already initialized for ${ownerUserId ?? 'guest'} — skipping',
+          );
+          return const Right(0);
+        }
+      }
+
+      // Step 2b: Check if database already has exercises
       final existingExercisesResult = await repository.getAllExercises();
 
       return await existingExercisesResult.fold(
@@ -142,6 +168,7 @@ class SeedExercises {
 
     // Return success if at least some exercises were seeded
     if (successCount > 0) {
+      await catalogInitFlags?.markInitialized(ownerUserId ?? '', 'exercises');
       return Right(successCount);
     } else {
       return const Left(DatabaseFailure('Failed to seed any exercises'));

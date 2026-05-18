@@ -47,7 +47,10 @@ class MealSyncCoordinatorImpl extends BaseEntitySyncCoordinator<Meal>
   Meal buildAddedLocalEntity(Meal entity, DateTime now) {
     return entity.copyWith(
       updatedAt: now,
-      syncMetadata: buildAddedSyncMetadata(entity.syncMetadata),
+      syncMetadata: guestAwareAddedSyncMetadata(
+        entity.syncMetadata,
+        entity.ownerUserId,
+      ),
     );
   }
 
@@ -59,9 +62,10 @@ class MealSyncCoordinatorImpl extends BaseEntitySyncCoordinator<Meal>
   }) {
     return entity.copyWith(
       updatedAt: now,
-      syncMetadata: buildUpdatedSyncMetadata(
+      syncMetadata: guestAwareUpdatedSyncMetadata(
         incomingMetadata: entity.syncMetadata,
         existingLocalMetadata: existingLocal?.syncMetadata,
+        ownerUserId: entity.ownerUserId,
       ),
     );
   }
@@ -107,10 +111,7 @@ class MealSyncCoordinatorImpl extends BaseEntitySyncCoordinator<Meal>
     required String localId,
     required String? serverId,
   }) {
-    return remoteDataSource.deleteMeal(
-      localId: localId,
-      serverId: serverId,
-    );
+    return remoteDataSource.deleteMeal(localId: localId, serverId: serverId);
   }
 
   @override
@@ -154,10 +155,7 @@ class MealSyncCoordinatorImpl extends BaseEntitySyncCoordinator<Meal>
   }
 
   @override
-  Future<List<Meal>> fetchSince({
-    required String userId,
-    DateTime? since,
-  }) {
+  Future<List<Meal>> fetchSince({required String userId, DateTime? since}) {
     return remoteDataSource.fetchSince(userId: userId, since: since);
   }
 
