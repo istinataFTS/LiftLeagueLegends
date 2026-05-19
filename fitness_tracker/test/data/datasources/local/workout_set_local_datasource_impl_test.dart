@@ -1,28 +1,24 @@
-import 'package:dartz/dartz.dart';
 import 'package:fitness_tracker/core/constants/database_tables.dart';
-import 'package:fitness_tracker/core/enums/auth_mode.dart';
 import 'package:fitness_tracker/core/enums/sync_status.dart';
+import 'package:fitness_tracker/core/session/current_user_id_resolver.dart';
 import 'package:fitness_tracker/data/datasources/local/database_helper.dart';
 import 'package:fitness_tracker/data/datasources/local/workout_set_local_datasource_impl.dart';
-import 'package:fitness_tracker/domain/entities/app_session.dart';
-import 'package:fitness_tracker/domain/entities/app_user.dart';
 import 'package:fitness_tracker/domain/entities/entity_sync_metadata.dart';
 import 'package:fitness_tracker/domain/entities/workout_set.dart';
-import 'package:fitness_tracker/domain/repositories/app_session_repository.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:mocktail/mocktail.dart';
 import 'package:sqflite_common_ffi/sqflite_ffi.dart';
 
 class MockDatabaseHelper extends Mock implements DatabaseHelper {}
 
-class MockAppSessionRepository extends Mock implements AppSessionRepository {}
+class MockCurrentUserIdResolver extends Mock implements CurrentUserIdResolver {}
 
 void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
 
   late Database database;
   late MockDatabaseHelper databaseHelper;
-  late MockAppSessionRepository mockSessionRepository;
+  late MockCurrentUserIdResolver mockCurrentUserIdResolver;
   late WorkoutSetLocalDataSourceImpl dataSource;
 
   final DateTime baseDate = DateTime(2026, 3, 22, 10, 0);
@@ -84,19 +80,14 @@ void main() {
     databaseHelper = MockDatabaseHelper();
     when(() => databaseHelper.database).thenAnswer((_) async => database);
 
-    mockSessionRepository = MockAppSessionRepository();
-    when(() => mockSessionRepository.getCurrentSession()).thenAnswer(
-      (_) async => const Right(
-        AppSession(
-          authMode: AuthMode.authenticated,
-          user: AppUser(id: 'user-1', email: 'user1@test.com'),
-        ),
-      ),
-    );
+    mockCurrentUserIdResolver = MockCurrentUserIdResolver();
+    when(
+      () => mockCurrentUserIdResolver.resolve(),
+    ).thenAnswer((_) async => 'user-1');
 
     dataSource = WorkoutSetLocalDataSourceImpl(
       databaseHelper: databaseHelper,
-      appSessionRepository: mockSessionRepository,
+      currentUserIdResolver: mockCurrentUserIdResolver,
     );
   });
 
@@ -491,8 +482,8 @@ void main() {
 
     test('returns empty for a guest session', () async {
       when(
-        () => mockSessionRepository.getCurrentSession(),
-      ).thenAnswer((_) async => const Right(AppSession.guest()));
+        () => mockCurrentUserIdResolver.resolve(),
+      ).thenAnswer((_) async => kGuestUserId);
       await dataSource.addSet(
         buildSet(
           id: 'set-1',

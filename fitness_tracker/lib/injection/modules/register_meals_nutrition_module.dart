@@ -135,7 +135,7 @@ void registerMealsNutritionModule(GetIt sl) {
   sl.registerLazySingleton<NutritionLogLocalDataSource>(
     () => NutritionLogLocalDataSourceImpl(
       databaseHelper: sl(),
-      appSessionRepository: sl(),
+      currentUserIdResolver: sl(),
     ),
   );
 

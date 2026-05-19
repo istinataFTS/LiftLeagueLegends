@@ -83,7 +83,7 @@ void registerWorkoutModule(GetIt sl) {
   sl.registerLazySingleton<WorkoutSetLocalDataSource>(
     () => WorkoutSetLocalDataSourceImpl(
       databaseHelper: sl(),
-      appSessionRepository: sl(),
+      currentUserIdResolver: sl(),
     ),
   );
 
