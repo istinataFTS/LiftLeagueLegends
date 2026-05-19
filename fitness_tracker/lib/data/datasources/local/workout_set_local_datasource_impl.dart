@@ -111,14 +111,18 @@ class WorkoutSetLocalDataSourceImpl implements WorkoutSetLocalDataSource {
   @override
   Future<List<WorkoutSet>> getPendingSyncSets() async {
     try {
+      final userId = await _getCurrentUserId();
+      if (userId == null) return <WorkoutSet>[];
       final db = await databaseHelper.database;
       final maps = await db.query(
         DatabaseTables.workoutSets,
         where:
-            '${DatabaseTables.setSyncStatus} = ? OR ${DatabaseTables.setSyncStatus} = ?',
+            '(${DatabaseTables.setSyncStatus} = ? OR ${DatabaseTables.setSyncStatus} = ?) '
+            'AND ${DatabaseTables.ownerUserId} = ?',
         whereArgs: [
           SyncStatus.pendingUpload.name,
           SyncStatus.pendingUpdate.name,
+          userId,
         ],
         orderBy: '${DatabaseTables.setUpdatedAt} ASC',
       );

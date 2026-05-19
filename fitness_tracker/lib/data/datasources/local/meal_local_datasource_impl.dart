@@ -136,14 +136,17 @@ class MealLocalDataSourceImpl implements MealLocalDataSource {
   @override
   Future<List<MealModel>> getPendingSyncMeals() async {
     try {
+      final ownerId = await _resolveOwnerId();
       final db = await databaseHelper.database;
       final maps = await db.query(
         DatabaseTables.meals,
         where:
-            '${DatabaseTables.mealSyncStatus} = ? OR ${DatabaseTables.mealSyncStatus} = ?',
+            '(${DatabaseTables.mealSyncStatus} = ? OR ${DatabaseTables.mealSyncStatus} = ?) '
+            'AND ${DatabaseTables.ownerUserId} = ?',
         whereArgs: [
           SyncStatus.pendingUpload.name,
           SyncStatus.pendingUpdate.name,
+          ownerId,
         ],
         orderBy: '${DatabaseTables.mealUpdatedAt} ASC',
       );
