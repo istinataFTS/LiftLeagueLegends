@@ -2,6 +2,7 @@ import 'package:dartz/dartz.dart';
 import 'package:fitness_tracker/core/config/app_sync_policy.dart';
 import 'package:fitness_tracker/core/enums/auth_mode.dart';
 import 'package:fitness_tracker/core/enums/sync_trigger.dart';
+import 'package:fitness_tracker/core/session/current_user_id_resolver.dart';
 import 'package:fitness_tracker/core/errors/failures.dart';
 import 'package:fitness_tracker/core/session/session_sync_service.dart';
 import 'package:fitness_tracker/core/session/session_sync_service_impl.dart';
@@ -357,6 +358,8 @@ void main() {
         ).called(1);
         // Pending-delete queue wiped so orphaned ops don't bleed into next session.
         verify(() => pendingSyncDeleteLocalDataSource.clearAll()).called(1);
+        // Guest stimulus rebuilt so body map reflects guest's own history.
+        verify(() => rebuildMuscleStimulus(kGuestUserId)).called(1);
       },
     );
 
@@ -383,6 +386,7 @@ void main() {
           () => muscleStimulusLocalDataSource.clearStimulusForUser(any()),
         );
         verifyNever(() => pendingSyncDeleteLocalDataSource.clearAll());
+        verifyNever(() => rebuildMuscleStimulus(any()));
       },
     );
 
@@ -419,6 +423,8 @@ void main() {
         () => muscleStimulusLocalDataSource.clearStimulusForUser('user-1'),
       ).called(1);
       verify(() => pendingSyncDeleteLocalDataSource.clearAll()).called(1);
+      // Failure path: sign-out did not complete, so guest rebuild is skipped.
+      verifyNever(() => rebuildMuscleStimulus(any()));
     });
 
     test('scopes all clears to guest bucket; skips exercises and stimulus',
@@ -441,6 +447,8 @@ void main() {
       );
       // Pending-delete queue always wiped (guests won't have entries, harmless).
       verify(() => pendingSyncDeleteLocalDataSource.clearAll()).called(1);
+      // Guest stimulus rebuilt after guest sign-out too.
+      verify(() => rebuildMuscleStimulus(kGuestUserId)).called(1);
     });
   });
 }

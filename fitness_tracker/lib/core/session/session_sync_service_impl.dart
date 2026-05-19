@@ -1,4 +1,5 @@
 import '../../core/logging/app_logger.dart';
+import '../../core/session/current_user_id_resolver.dart';
 import '../../data/datasources/local/exercise_local_datasource.dart';
 import '../../data/datasources/local/meal_local_datasource.dart';
 import '../../data/datasources/local/muscle_stimulus_local_datasource.dart';
@@ -167,6 +168,12 @@ class SessionSyncServiceImpl implements SessionSyncService {
       },
       (_) async {
         await _clearAllLocalUserData(ownerId);
+
+        // Rebuild the guest stimulus projection so the body map immediately
+        // reflects the returning guest's own workout history, not the
+        // just-signed-out account's. Failure is non-fatal — the map
+        // self-heals on the next workout log.
+        await _rebuildMuscleStimulus(kGuestUserId);
 
         AppLogger.info(
           'Session signed out, local session reset, and local user data cleared',
