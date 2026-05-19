@@ -532,7 +532,17 @@ void main() {
   });
 
   group('WorkoutSetLocalDataSourceImpl prepareForInitialCloudMigration', () {
-    test('claims guest rows and converts localOnly to pendingUpload', () async {
+    Future<Map<String, Object?>> rawSet(String id) async {
+      final rows = await database.query(
+        DatabaseTables.workoutSets,
+        where: '${DatabaseTables.setId} = ?',
+        whereArgs: <Object?>[id],
+      );
+      expect(rows, hasLength(1));
+      return rows.single;
+    }
+
+    test('leaves guest localOnly rows untouched', () async {
       await dataSource.addSet(
         buildSet(
           id: 'set-1',
@@ -547,14 +557,13 @@ void main() {
 
       await dataSource.prepareForInitialCloudMigration(userId: 'user-1');
 
-      final set = await dataSource.getSetById('set-1');
-      expect(set, isNotNull);
-      expect(set!.ownerUserId, 'user-1');
-      expect(set.syncMetadata.status, SyncStatus.pendingUpload);
-      expect(set.syncMetadata.lastSyncError, isNull);
+      final row = await rawSet('set-1');
+      expect(row[DatabaseTables.ownerUserId], isNull);
+      expect(row[DatabaseTables.setSyncStatus], SyncStatus.localOnly.name);
+      expect(row[DatabaseTables.setLastSyncError], 'offline');
     });
 
-    test('recovers guest syncError rows into pendingUpload', () async {
+    test('leaves guest syncError rows untouched', () async {
       await dataSource.addSet(
         buildSet(
           id: 'set-1',
@@ -569,14 +578,13 @@ void main() {
 
       await dataSource.prepareForInitialCloudMigration(userId: 'user-1');
 
-      final set = await dataSource.getSetById('set-1');
-      expect(set, isNotNull);
-      expect(set!.ownerUserId, 'user-1');
-      expect(set.syncMetadata.status, SyncStatus.pendingUpload);
-      expect(set.syncMetadata.lastSyncError, isNull);
+      final row = await rawSet('set-1');
+      expect(row[DatabaseTables.ownerUserId], isNull);
+      expect(row[DatabaseTables.setSyncStatus], SyncStatus.syncError.name);
+      expect(row[DatabaseTables.setLastSyncError], 'offline');
     });
 
-    test('preserves pendingDelete and different-user ownership', () async {
+    test('leaves guest and different-user rows untouched', () async {
       await dataSource.addSet(
         buildSet(
           id: 'set-1',
@@ -598,7 +606,7 @@ void main() {
       await dataSource.prepareForInitialCloudMigration(userId: 'user-1');
 
       final rows = await database.query(DatabaseTables.workoutSets);
-      final pendingDelete = rows.firstWhere(
+      final guestRow = rows.firstWhere(
         (row) => row[DatabaseTables.setId] == 'set-1',
       );
       final otherUser = rows.firstWhere(
@@ -606,10 +614,10 @@ void main() {
       );
 
       expect(
-        pendingDelete[DatabaseTables.setSyncStatus],
+        guestRow[DatabaseTables.setSyncStatus],
         SyncStatus.pendingDelete.name,
       );
-      expect(pendingDelete[DatabaseTables.ownerUserId], 'user-1');
+      expect(guestRow[DatabaseTables.ownerUserId], isNull);
       expect(otherUser[DatabaseTables.ownerUserId], 'another-user');
       expect(
         otherUser[DatabaseTables.setSyncStatus],

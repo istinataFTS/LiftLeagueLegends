@@ -563,7 +563,17 @@ void main() {
   });
 
   group('NutritionLogLocalDataSourceImpl prepareForInitialCloudMigration', () {
-    test('claims guest localOnly log and queues upload', () async {
+    Future<Map<String, Object?>> rawLog(String id) async {
+      final rows = await database.query(
+        DatabaseTables.nutritionLogs,
+        where: '${DatabaseTables.nutritionLogId} = ?',
+        whereArgs: <Object?>[id],
+      );
+      expect(rows, hasLength(1));
+      return rows.single;
+    }
+
+    test('leaves guest localOnly log untouched', () async {
       await dataSource.insertLog(
         buildLog(
           id: 'log-1',
@@ -578,14 +588,16 @@ void main() {
 
       await dataSource.prepareForInitialCloudMigration(userId: 'user-1');
 
-      final log = await dataSource.getLogById('log-1');
-      expect(log, isNotNull);
-      expect(log!.ownerUserId, 'user-1');
-      expect(log.syncMetadata.status, SyncStatus.pendingUpload);
-      expect(log.syncMetadata.lastSyncError, isNull);
+      final row = await rawLog('log-1');
+      expect(row[DatabaseTables.ownerUserId], isNull);
+      expect(
+        row[DatabaseTables.nutritionLogSyncStatus],
+        SyncStatus.localOnly.name,
+      );
+      expect(row[DatabaseTables.nutritionLogLastSyncError], 'offline');
     });
 
-    test('recovers guest syncError log into pendingUpload', () async {
+    test('leaves guest syncError log untouched', () async {
       await dataSource.insertLog(
         buildLog(
           id: 'log-1',
@@ -600,11 +612,13 @@ void main() {
 
       await dataSource.prepareForInitialCloudMigration(userId: 'user-1');
 
-      final log = await dataSource.getLogById('log-1');
-      expect(log, isNotNull);
-      expect(log!.ownerUserId, 'user-1');
-      expect(log.syncMetadata.status, SyncStatus.pendingUpload);
-      expect(log.syncMetadata.lastSyncError, isNull);
+      final row = await rawLog('log-1');
+      expect(row[DatabaseTables.ownerUserId], isNull);
+      expect(
+        row[DatabaseTables.nutritionLogSyncStatus],
+        SyncStatus.syncError.name,
+      );
+      expect(row[DatabaseTables.nutritionLogLastSyncError], 'offline');
     });
   });
 }

@@ -334,7 +334,6 @@ void main() {
         remoteIsSourceOfTruthWhenAuthenticated: true,
         guestModeUsesLocalStorageOnly: true,
         authenticatedModeUsesUserScopedData: true,
-        initialCloudSyncUploadsLocalData: true,
         conflictResolutionStrategy: ConflictResolutionStrategy.serverWins,
         syncTriggers: <SyncTrigger>[],
       ),

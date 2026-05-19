@@ -39,14 +39,8 @@ class SessionSyncServiceImpl implements SessionSyncService {
   Future<SessionSyncActionResult> establishAuthenticatedSession(
     AppUser user,
   ) async {
-    final bool requiresInitialCloudMigration =
-        appSessionRepository.syncPolicy.initialCloudSyncUploadsLocalData;
-
     final startSessionResult = await appSessionRepository
-        .startAuthenticatedSession(
-          user,
-          requiresInitialCloudMigration: requiresInitialCloudMigration,
-        );
+        .startAuthenticatedSession(user);
 
     return await startSessionResult.fold(
       (failure) async {

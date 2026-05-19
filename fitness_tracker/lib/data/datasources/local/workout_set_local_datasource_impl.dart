@@ -440,9 +440,10 @@ class WorkoutSetLocalDataSourceImpl implements WorkoutSetLocalDataSource {
     String userId,
   ) {
     final ownerUserId = set.ownerUserId;
-    if (ownerUserId != null &&
-        ownerUserId.isNotEmpty &&
-        ownerUserId != userId) {
+    if (ownerUserId == null || ownerUserId.isEmpty) {
+      return set;
+    }
+    if (ownerUserId != userId) {
       return set;
     }
 
@@ -464,9 +465,6 @@ class WorkoutSetLocalDataSourceImpl implements WorkoutSetLocalDataSource {
       SyncStatus.pendingDelete => currentMetadata,
     };
 
-    return set.copyWith(
-      ownerUserId: ownerUserId == null || ownerUserId.isEmpty ? userId : null,
-      syncMetadata: updatedMetadata,
-    );
+    return set.copyWith(syncMetadata: updatedMetadata);
   }
 }

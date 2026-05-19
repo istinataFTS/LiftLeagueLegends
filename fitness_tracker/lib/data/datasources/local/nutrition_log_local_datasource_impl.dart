@@ -621,9 +621,10 @@ class NutritionLogLocalDataSourceImpl implements NutritionLogLocalDataSource {
     String userId,
   ) {
     final ownerUserId = log.ownerUserId;
-    if (ownerUserId != null &&
-        ownerUserId.isNotEmpty &&
-        ownerUserId != userId) {
+    if (ownerUserId == null || ownerUserId.isEmpty) {
+      return log;
+    }
+    if (ownerUserId != userId) {
       return log;
     }
 
@@ -646,10 +647,7 @@ class NutritionLogLocalDataSourceImpl implements NutritionLogLocalDataSource {
     };
 
     return NutritionLogModel.fromEntity(
-      log.copyWith(
-        ownerUserId: ownerUserId == null || ownerUserId.isEmpty ? userId : null,
-        syncMetadata: updatedMetadata,
-      ),
+      log.copyWith(syncMetadata: updatedMetadata),
     );
   }
 }

@@ -20,7 +20,6 @@ const _remoteOnPolicy = AppSyncPolicy(
   remoteIsSourceOfTruthWhenAuthenticated: true,
   guestModeUsesLocalStorageOnly: true,
   authenticatedModeUsesUserScopedData: true,
-  initialCloudSyncUploadsLocalData: false,
   conflictResolutionStrategy: ConflictResolutionStrategy.serverWins,
   syncTriggers: [],
 );
@@ -32,7 +31,6 @@ const _remoteOffPolicy = AppSyncPolicy(
   remoteIsSourceOfTruthWhenAuthenticated: false,
   guestModeUsesLocalStorageOnly: true,
   authenticatedModeUsesUserScopedData: true,
-  initialCloudSyncUploadsLocalData: false,
   conflictResolutionStrategy: ConflictResolutionStrategy.serverWins,
   syncTriggers: [],
 );
