@@ -3,6 +3,7 @@ import '../../data/datasources/local/exercise_local_datasource.dart';
 import '../../data/datasources/local/meal_local_datasource.dart';
 import '../../data/datasources/local/muscle_stimulus_local_datasource.dart';
 import '../../data/datasources/local/nutrition_log_local_datasource.dart';
+import '../../data/datasources/local/pending_sync_delete_local_datasource.dart';
 import '../../data/datasources/local/workout_set_local_datasource.dart';
 import '../../data/datasources/remote/auth_remote_datasource.dart';
 import '../enums/sync_trigger.dart';
@@ -22,6 +23,7 @@ class SessionSyncServiceImpl implements SessionSyncService {
   final MuscleStimulusLocalDataSource muscleStimulusLocalDataSource;
   final NutritionLogLocalDataSource nutritionLogLocalDataSource;
   final WorkoutSetLocalDataSource workoutSetLocalDataSource;
+  final PendingSyncDeleteLocalDataSource pendingSyncDeleteLocalDataSource;
 
   const SessionSyncServiceImpl({
     required this.appSessionRepository,
@@ -33,6 +35,7 @@ class SessionSyncServiceImpl implements SessionSyncService {
     required this.muscleStimulusLocalDataSource,
     required this.nutritionLogLocalDataSource,
     required this.workoutSetLocalDataSource,
+    required this.pendingSyncDeleteLocalDataSource,
   });
 
   @override
@@ -236,6 +239,13 @@ class SessionSyncServiceImpl implements SessionSyncService {
           muscleStimulusLocalDataSource.clearStimulusForUser(ownerId),
         ]);
       }
+
+      // Clear the pending-delete queue regardless of account type.
+      // The table has no owner column, so all entries belong to whichever user
+      // was active. Leaving them in causes the next session's sync to attempt
+      // the old user's server deletes with the new user's auth token (Supabase
+      // RLS would block them, but they'd keep retrying and polluting logs).
+      await pendingSyncDeleteLocalDataSource.clearAll();
     } catch (error) {
       AppLogger.warning(
         'Failed to fully clear local user data on sign-out: $error',

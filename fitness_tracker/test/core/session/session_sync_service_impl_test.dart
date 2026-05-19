@@ -11,6 +11,7 @@ import 'package:fitness_tracker/data/datasources/local/exercise_local_datasource
 import 'package:fitness_tracker/data/datasources/local/meal_local_datasource.dart';
 import 'package:fitness_tracker/data/datasources/local/nutrition_log_local_datasource.dart';
 import 'package:fitness_tracker/data/datasources/local/muscle_stimulus_local_datasource.dart';
+import 'package:fitness_tracker/data/datasources/local/pending_sync_delete_local_datasource.dart';
 import 'package:fitness_tracker/data/datasources/local/workout_set_local_datasource.dart';
 import 'package:fitness_tracker/data/datasources/remote/auth_remote_datasource.dart';
 import 'package:fitness_tracker/domain/entities/app_session.dart';
@@ -40,6 +41,9 @@ class MockWorkoutSetLocalDataSource extends Mock
 class MockMuscleStimulusLocalDataSource extends Mock
     implements MuscleStimulusLocalDataSource {}
 
+class MockPendingSyncDeleteLocalDataSource extends Mock
+    implements PendingSyncDeleteLocalDataSource {}
+
 class MockRebuildMuscleStimulus extends Mock
     implements RebuildMuscleStimulusFromWorkoutHistory {}
 
@@ -57,6 +61,7 @@ void main() {
   late MockNutritionLogLocalDataSource nutritionLogLocalDataSource;
   late MockWorkoutSetLocalDataSource workoutSetLocalDataSource;
   late MockMuscleStimulusLocalDataSource muscleStimulusLocalDataSource;
+  late MockPendingSyncDeleteLocalDataSource pendingSyncDeleteLocalDataSource;
   late MockRebuildMuscleStimulus rebuildMuscleStimulus;
   late SessionSyncService service;
 
@@ -80,6 +85,7 @@ void main() {
     nutritionLogLocalDataSource = MockNutritionLogLocalDataSource();
     workoutSetLocalDataSource = MockWorkoutSetLocalDataSource();
     muscleStimulusLocalDataSource = MockMuscleStimulusLocalDataSource();
+    pendingSyncDeleteLocalDataSource = MockPendingSyncDeleteLocalDataSource();
     rebuildMuscleStimulus = MockRebuildMuscleStimulus();
 
     // Default stub: rebuild succeeds silently.
@@ -116,6 +122,9 @@ void main() {
     when(
       () => muscleStimulusLocalDataSource.clearStimulusForUser(any()),
     ).thenAnswer((_) async {});
+    when(
+      () => pendingSyncDeleteLocalDataSource.clearAll(),
+    ).thenAnswer((_) async {});
 
     service = SessionSyncServiceImpl(
       appSessionRepository: repository,
@@ -127,6 +136,7 @@ void main() {
       nutritionLogLocalDataSource: nutritionLogLocalDataSource,
       workoutSetLocalDataSource: workoutSetLocalDataSource,
       muscleStimulusLocalDataSource: muscleStimulusLocalDataSource,
+      pendingSyncDeleteLocalDataSource: pendingSyncDeleteLocalDataSource,
     );
   });
 
@@ -345,6 +355,8 @@ void main() {
         verify(
           () => muscleStimulusLocalDataSource.clearStimulusForUser('user-1'),
         ).called(1);
+        // Pending-delete queue wiped so orphaned ops don't bleed into next session.
+        verify(() => pendingSyncDeleteLocalDataSource.clearAll()).called(1);
       },
     );
 
@@ -370,6 +382,7 @@ void main() {
         verifyNever(
           () => muscleStimulusLocalDataSource.clearStimulusForUser(any()),
         );
+        verifyNever(() => pendingSyncDeleteLocalDataSource.clearAll());
       },
     );
 
@@ -405,6 +418,7 @@ void main() {
       verify(
         () => muscleStimulusLocalDataSource.clearStimulusForUser('user-1'),
       ).called(1);
+      verify(() => pendingSyncDeleteLocalDataSource.clearAll()).called(1);
     });
 
     test('scopes all clears to guest bucket; skips exercises and stimulus',
@@ -425,6 +439,8 @@ void main() {
       verifyNever(
         () => muscleStimulusLocalDataSource.clearStimulusForUser(any()),
       );
+      // Pending-delete queue always wiped (guests won't have entries, harmless).
+      verify(() => pendingSyncDeleteLocalDataSource.clearAll()).called(1);
     });
   });
 }
