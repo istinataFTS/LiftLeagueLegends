@@ -211,14 +211,18 @@ class NutritionLogLocalDataSourceImpl implements NutritionLogLocalDataSource {
   @override
   Future<List<NutritionLogModel>> getPendingSyncLogs() async {
     try {
+      final userId = await _getCurrentUserId();
+      if (userId == null) return <NutritionLogModel>[];
       final db = await databaseHelper.database;
       final maps = await db.query(
         DatabaseTables.nutritionLogs,
         where:
-            '${DatabaseTables.nutritionLogSyncStatus} = ? OR ${DatabaseTables.nutritionLogSyncStatus} = ?',
+            '(${DatabaseTables.nutritionLogSyncStatus} = ? OR ${DatabaseTables.nutritionLogSyncStatus} = ?) '
+            'AND ${DatabaseTables.ownerUserId} = ?',
         whereArgs: [
           SyncStatus.pendingUpload.name,
           SyncStatus.pendingUpdate.name,
+          userId,
         ],
         orderBy: '${DatabaseTables.nutritionLogUpdatedAt} ASC',
       );
