@@ -57,7 +57,7 @@ class SettingsContent extends StatelessWidget {
                 child: SwitchListTile(
                   key: SettingsPageKeys.notificationsSwitchKey,
                   value: viewData.notificationsEnabled,
-                  activeColor: AppTheme.primaryOrange,
+                  activeThumbColor: AppTheme.primaryOrange,
                   secondary: const Icon(
                     Icons.notifications_outlined,
                     color: AppTheme.primaryOrange,
@@ -227,9 +227,9 @@ class _ErrorBanner extends StatelessWidget {
       width: double.infinity,
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
-        color: AppTheme.errorRed.withOpacity(0.12),
+        color: AppTheme.errorRed.withValues(alpha: 0.12),
         borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: AppTheme.errorRed.withOpacity(0.4)),
+        border: Border.all(color: AppTheme.errorRed.withValues(alpha: 0.4)),
       ),
       child: Row(
         crossAxisAlignment: CrossAxisAlignment.start,

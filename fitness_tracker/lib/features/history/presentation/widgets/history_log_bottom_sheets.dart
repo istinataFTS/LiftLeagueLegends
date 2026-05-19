@@ -48,9 +48,9 @@ Future<void> showHistoryNutritionTypeBottomSheet(
             children: <Widget>[
               Text(
                 'Log nutrition for ${DateFormat('EEEE, MMM d').format(selectedDate)}',
-                style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                      fontWeight: FontWeight.w700,
-                    ),
+                style: Theme.of(
+                  context,
+                ).textTheme.titleMedium?.copyWith(fontWeight: FontWeight.w700),
                 textAlign: TextAlign.center,
               ),
               const SizedBox(height: 16),
@@ -152,9 +152,7 @@ Future<void> _showHistoryFormSheet(
         child: Container(
           decoration: const BoxDecoration(
             color: AppTheme.backgroundDark,
-            borderRadius: BorderRadius.vertical(
-              top: Radius.circular(24),
-            ),
+            borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
           ),
           child: Column(
             children: <Widget>[
@@ -178,16 +176,16 @@ Future<void> _showHistoryFormSheet(
                         children: <Widget>[
                           Text(
                             title,
-                            style: Theme.of(context).textTheme.titleLarge?.copyWith(
-                                  fontWeight: FontWeight.w700,
-                                ),
+                            style: Theme.of(context).textTheme.titleLarge
+                                ?.copyWith(fontWeight: FontWeight.w700),
                           ),
                           const SizedBox(height: 4),
                           Text(
-                            DateFormat('EEEE, MMM d, yyyy').format(selectedDate),
-                            style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                                  color: AppTheme.textMedium,
-                                ),
+                            DateFormat(
+                              'EEEE, MMM d, yyyy',
+                            ).format(selectedDate),
+                            style: Theme.of(context).textTheme.bodyMedium
+                                ?.copyWith(color: AppTheme.textMedium),
                           ),
                         ],
                       ),
@@ -244,13 +242,10 @@ class _NutritionTypeOption extends StatelessWidget {
                 width: 44,
                 height: 44,
                 decoration: BoxDecoration(
-                  color: AppTheme.primaryOrange.withOpacity(0.12),
+                  color: AppTheme.primaryOrange.withValues(alpha: 0.12),
                   borderRadius: BorderRadius.circular(12),
                 ),
-                child: Icon(
-                  icon,
-                  color: AppTheme.primaryOrange,
-                ),
+                child: Icon(icon, color: AppTheme.primaryOrange),
               ),
               const SizedBox(width: 14),
               Expanded(
@@ -260,24 +255,21 @@ class _NutritionTypeOption extends StatelessWidget {
                     Text(
                       title,
                       style: Theme.of(context).textTheme.titleSmall?.copyWith(
-                            fontWeight: FontWeight.w700,
-                          ),
+                        fontWeight: FontWeight.w700,
+                      ),
                     ),
                     const SizedBox(height: 4),
                     Text(
                       subtitle,
                       style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                            color: AppTheme.textMedium,
-                          ),
+                        color: AppTheme.textMedium,
+                      ),
                     ),
                   ],
                 ),
               ),
               const SizedBox(width: 12),
-              const Icon(
-                Icons.chevron_right,
-                color: AppTheme.textDim,
-              ),
+              const Icon(Icons.chevron_right, color: AppTheme.textDim),
             ],
           ),
         ),

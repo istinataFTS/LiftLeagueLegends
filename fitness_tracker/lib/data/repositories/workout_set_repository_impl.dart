@@ -191,7 +191,7 @@ class WorkoutSetRepositoryImpl implements WorkoutSetRepository {
         if (remote != null && remote.isNotEmpty) {
           await localDataSource.mergeRemoteSets(remote);
         }
-        return await localDataSource.getAllSets();
+        return localDataSource.getAllSets();
 
       case DataSourcePreference.remoteThenLocal:
         if (!remoteDataSource.isConfigured) {
@@ -214,7 +214,7 @@ class WorkoutSetRepositoryImpl implements WorkoutSetRepository {
         );
 
         await localDataSource.mergeRemoteSets(merged);
-        return await localDataSource.getAllSets();
+        return localDataSource.getAllSets();
     }
   }
 

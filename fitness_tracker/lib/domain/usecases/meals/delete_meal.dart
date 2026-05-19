@@ -7,7 +7,7 @@ class DeleteMeal {
 
   const DeleteMeal(this.repository);
 
-  Future<Either<Failure, void>> call(String id) async {
-    return await repository.deleteMeal(id);
+  Future<Either<Failure, void>> call(String id) {
+    return repository.deleteMeal(id);
   }
 }

@@ -11,7 +11,6 @@ import 'package:fitness_tracker/domain/entities/entity_sync_metadata.dart';
 import 'package:fitness_tracker/domain/repositories/app_session_repository.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:mocktail/mocktail.dart';
-import 'package:sqflite/sqflite.dart';
 import 'package:sqflite_common_ffi/sqflite_ffi.dart';
 
 class MockDatabaseHelper extends Mock implements DatabaseHelper {}
@@ -1021,6 +1020,89 @@ void main() {
         ),
         throwsA(isA<Object>()),
       );
+    });
+  });
+
+  // ---------------------------------------------------------------------------
+  // getPendingSyncExercises — owner-scoped (Model-A Issue 2)
+  // ---------------------------------------------------------------------------
+
+  group('ExerciseLocalDataSourceImpl getPendingSyncExercises owner scope', () {
+    test('returns current-user pending rows', () async {
+      await dataSource.insertExercise(
+        buildExercise(
+          id: 'mine-upload',
+          ownerUserId: currentUserId,
+          name: 'Bench Press',
+          syncMetadata: const EntitySyncMetadata(
+            status: SyncStatus.pendingUpload,
+          ),
+        ),
+      );
+      await dataSource.insertExercise(
+        buildExercise(
+          id: 'mine-update',
+          ownerUserId: currentUserId,
+          name: 'Squat',
+          syncMetadata: const EntitySyncMetadata(
+            status: SyncStatus.pendingUpdate,
+          ),
+        ),
+      );
+
+      final result = await dataSource.getPendingSyncExercises();
+      expect(result.map((e) => e.id).toSet(), <String>{
+        'mine-upload',
+        'mine-update',
+      });
+    });
+
+    test('excludes another account\'s pending rows', () async {
+      await dataSource.insertExercise(
+        buildExercise(
+          id: 'mine',
+          ownerUserId: currentUserId,
+          name: 'Bench Press',
+          syncMetadata: const EntitySyncMetadata(
+            status: SyncStatus.pendingUpload,
+          ),
+        ),
+      );
+      await dataSource.insertExercise(
+        buildExercise(
+          id: 'theirs',
+          ownerUserId: otherUserId,
+          name: 'Squat',
+          syncMetadata: const EntitySyncMetadata(
+            status: SyncStatus.pendingUpload,
+          ),
+        ),
+      );
+
+      final result = await dataSource.getPendingSyncExercises();
+      expect(result.map((e) => e.id).toList(), <String>['mine']);
+    });
+
+    test('excludes localOnly and synced rows', () async {
+      await dataSource.insertExercise(
+        buildExercise(
+          id: 'local-only',
+          ownerUserId: currentUserId,
+          name: 'Deadlift',
+          syncMetadata: const EntitySyncMetadata(status: SyncStatus.localOnly),
+        ),
+      );
+      await dataSource.insertExercise(
+        buildExercise(
+          id: 'synced',
+          ownerUserId: currentUserId,
+          name: 'Row',
+          syncMetadata: const EntitySyncMetadata(status: SyncStatus.synced),
+        ),
+      );
+
+      final result = await dataSource.getPendingSyncExercises();
+      expect(result, isEmpty);
     });
   });
 

@@ -112,8 +112,8 @@ class _LogMacrosTabState extends State<LogMacrosTab> {
                     Text(
                       AppStrings.enterMacros,
                       style: Theme.of(context).textTheme.titleLarge?.copyWith(
-                            fontWeight: FontWeight.w700,
-                          ),
+                        fontWeight: FontWeight.w700,
+                      ),
                     ),
                     const SizedBox(height: 20),
                     _buildProteinInput(),
@@ -140,10 +140,10 @@ class _LogMacrosTabState extends State<LogMacrosTab> {
     return Container(
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
-        color: AppTheme.primaryOrange.withOpacity(0.1),
+        color: AppTheme.primaryOrange.withValues(alpha: 0.1),
         borderRadius: BorderRadius.circular(12),
         border: Border.all(
-          color: AppTheme.primaryOrange.withOpacity(0.3),
+          color: AppTheme.primaryOrange.withValues(alpha: 0.3),
         ),
       ),
       child: Row(
@@ -157,9 +157,9 @@ class _LogMacrosTabState extends State<LogMacrosTab> {
           Expanded(
             child: Text(
               'Enter macros directly when you don\'t have a meal in your library',
-              style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                    color: AppTheme.primaryOrange,
-                  ),
+              style: Theme.of(
+                context,
+              ).textTheme.bodyMedium?.copyWith(color: AppTheme.primaryOrange),
             ),
           ),
         ],
@@ -184,9 +184,9 @@ class _LogMacrosTabState extends State<LogMacrosTab> {
             const SizedBox(width: 8),
             Text(
               AppStrings.proteinGrams,
-              style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                    fontWeight: FontWeight.w600,
-                  ),
+              style: Theme.of(
+                context,
+              ).textTheme.titleMedium?.copyWith(fontWeight: FontWeight.w600),
             ),
           ],
         ),
@@ -209,9 +209,9 @@ class _LogMacrosTabState extends State<LogMacrosTab> {
         const SizedBox(height: 4),
         Text(
           '4 kcal per gram',
-          style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                color: AppTheme.textDim,
-              ),
+          style: Theme.of(
+            context,
+          ).textTheme.bodySmall?.copyWith(color: AppTheme.textDim),
         ),
       ],
     );
@@ -234,9 +234,9 @@ class _LogMacrosTabState extends State<LogMacrosTab> {
             const SizedBox(width: 8),
             Text(
               AppStrings.carbsGrams,
-              style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                    fontWeight: FontWeight.w600,
-                  ),
+              style: Theme.of(
+                context,
+              ).textTheme.titleMedium?.copyWith(fontWeight: FontWeight.w600),
             ),
           ],
         ),
@@ -259,9 +259,9 @@ class _LogMacrosTabState extends State<LogMacrosTab> {
         const SizedBox(height: 4),
         Text(
           '4 kcal per gram',
-          style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                color: AppTheme.textDim,
-              ),
+          style: Theme.of(
+            context,
+          ).textTheme.bodySmall?.copyWith(color: AppTheme.textDim),
         ),
       ],
     );
@@ -284,9 +284,9 @@ class _LogMacrosTabState extends State<LogMacrosTab> {
             const SizedBox(width: 8),
             Text(
               AppStrings.fatsGrams,
-              style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                    fontWeight: FontWeight.w600,
-                  ),
+              style: Theme.of(
+                context,
+              ).textTheme.titleMedium?.copyWith(fontWeight: FontWeight.w600),
             ),
           ],
         ),
@@ -309,9 +309,9 @@ class _LogMacrosTabState extends State<LogMacrosTab> {
         const SizedBox(height: 4),
         Text(
           '9 kcal per gram',
-          style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                color: AppTheme.textDim,
-              ),
+          style: Theme.of(
+            context,
+          ).textTheme.bodySmall?.copyWith(color: AppTheme.textDim),
         ),
       ],
     );
@@ -323,9 +323,9 @@ class _LogMacrosTabState extends State<LogMacrosTab> {
       children: [
         Text(
           'Log Date',
-          style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                fontWeight: FontWeight.w600,
-              ),
+          style: Theme.of(
+            context,
+          ).textTheme.titleMedium?.copyWith(fontWeight: FontWeight.w600),
         ),
         const SizedBox(height: 12),
         InkWell(
@@ -344,7 +344,7 @@ class _LogMacrosTabState extends State<LogMacrosTab> {
                   width: 40,
                   height: 40,
                   decoration: BoxDecoration(
-                    color: AppTheme.primaryOrange.withOpacity(0.1),
+                    color: AppTheme.primaryOrange.withValues(alpha: 0.1),
                     borderRadius: BorderRadius.circular(8),
                   ),
                   child: const Icon(
@@ -360,10 +360,7 @@ class _LogMacrosTabState extends State<LogMacrosTab> {
                     style: Theme.of(context).textTheme.bodyLarge,
                   ),
                 ),
-                const Icon(
-                  Icons.arrow_drop_down,
-                  color: AppTheme.textDim,
-                ),
+                const Icon(Icons.arrow_drop_down, color: AppTheme.textDim),
               ],
             ),
           ),
@@ -390,12 +387,12 @@ class _LogMacrosTabState extends State<LogMacrosTab> {
       padding: const EdgeInsets.all(20),
       decoration: BoxDecoration(
         color: hasAnyInput
-            ? AppTheme.primaryOrange.withOpacity(0.1)
+            ? AppTheme.primaryOrange.withValues(alpha: 0.1)
             : AppTheme.surfaceDark,
         borderRadius: BorderRadius.circular(16),
         border: Border.all(
           color: hasAnyInput
-              ? AppTheme.primaryOrange.withOpacity(0.3)
+              ? AppTheme.primaryOrange.withValues(alpha: 0.3)
               : AppTheme.borderDark,
           width: hasAnyInput ? 2 : 1,
         ),
@@ -417,21 +414,21 @@ class _LogMacrosTabState extends State<LogMacrosTab> {
                   Text(
                     AppStrings.totalCalories,
                     style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                          color: hasAnyInput
-                              ? AppTheme.primaryOrange
-                              : AppTheme.textMedium,
-                          fontWeight: FontWeight.w600,
-                        ),
+                      color: hasAnyInput
+                          ? AppTheme.primaryOrange
+                          : AppTheme.textMedium,
+                      fontWeight: FontWeight.w600,
+                    ),
                   ),
                   const SizedBox(height: 4),
                   Text(
                     '${calories.round()} ${AppStrings.kcal}',
                     style: Theme.of(context).textTheme.headlineMedium?.copyWith(
-                          color: hasAnyInput
-                              ? AppTheme.primaryOrange
-                              : AppTheme.textDim,
-                          fontWeight: FontWeight.bold,
-                        ),
+                      color: hasAnyInput
+                          ? AppTheme.primaryOrange
+                          : AppTheme.textDim,
+                      fontWeight: FontWeight.bold,
+                    ),
                   ),
                 ],
               ),
@@ -440,20 +437,17 @@ class _LogMacrosTabState extends State<LogMacrosTab> {
           if (hasAnyInput) ...[
             const SizedBox(height: 16),
             Container(
-              padding: const EdgeInsets.symmetric(
-                horizontal: 10,
-                vertical: 6,
-              ),
+              padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
               decoration: BoxDecoration(
-                color: AppTheme.primaryOrange.withOpacity(0.2),
+                color: AppTheme.primaryOrange.withValues(alpha: 0.2),
                 borderRadius: BorderRadius.circular(8),
               ),
               child: Text(
                 AppStrings.autocalculated,
                 style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                      color: AppTheme.primaryOrange,
-                      fontWeight: FontWeight.w600,
-                    ),
+                  color: AppTheme.primaryOrange,
+                  fontWeight: FontWeight.w600,
+                ),
               ),
             ),
             const SizedBox(height: 16),
@@ -507,18 +501,12 @@ class _LogMacrosTabState extends State<LogMacrosTab> {
         const SizedBox(height: 4),
         Text(
           label,
-          style: const TextStyle(
-            color: AppTheme.textMedium,
-            fontSize: 12,
-          ),
+          style: const TextStyle(color: AppTheme.textMedium, fontSize: 12),
         ),
         const SizedBox(height: 4),
         Text(
           '${calories.round()} kcal',
-          style: const TextStyle(
-            color: AppTheme.textDim,
-            fontSize: 11,
-          ),
+          style: const TextStyle(color: AppTheme.textDim, fontSize: 11),
         ),
       ],
     );
@@ -529,15 +517,14 @@ class _LogMacrosTabState extends State<LogMacrosTab> {
     final protein = double.tryParse(_proteinController.text) ?? 0.0;
     final carbs = double.tryParse(_carbsController.text) ?? 0.0;
     final fats = double.tryParse(_fatsController.text) ?? 0.0;
-    final canLog = (protein > 0 || carbs > 0 || fats > 0) && !_logCooldownActive;
+    final canLog =
+        (protein > 0 || carbs > 0 || fats > 0) && !_logCooldownActive;
 
     return Container(
       padding: const EdgeInsets.all(20),
       decoration: BoxDecoration(
         color: AppTheme.surfaceDark,
-        border: Border(
-          top: BorderSide(color: AppTheme.borderDark, width: 1),
-        ),
+        border: Border(top: BorderSide(color: AppTheme.borderDark, width: 1)),
       ),
       child: SafeArea(
         child: SizedBox(
@@ -558,10 +545,7 @@ class _LogMacrosTabState extends State<LogMacrosTab> {
                   )
                 : const Text(
                     AppStrings.logMacrosButton,
-                    style: TextStyle(
-                      fontSize: 16,
-                      fontWeight: FontWeight.w600,
-                    ),
+                    style: TextStyle(fontSize: 16, fontWeight: FontWeight.w600),
                   ),
           ),
         ),
@@ -598,12 +582,15 @@ class _LogMacrosTabState extends State<LogMacrosTab> {
   }
 
   void _handleLogMacros() {
-    final protein =
-        double.parse(_proteinController.text.isEmpty ? '0' : _proteinController.text);
-    final carbs =
-        double.parse(_carbsController.text.isEmpty ? '0' : _carbsController.text);
-    final fats =
-        double.parse(_fatsController.text.isEmpty ? '0' : _fatsController.text);
+    final protein = double.parse(
+      _proteinController.text.isEmpty ? '0' : _proteinController.text,
+    );
+    final carbs = double.parse(
+      _carbsController.text.isEmpty ? '0' : _carbsController.text,
+    );
+    final fats = double.parse(
+      _fatsController.text.isEmpty ? '0' : _fatsController.text,
+    );
 
     final nutritionLog = NutritionLog(
       id: _uuid.v4(),
@@ -638,5 +625,4 @@ class _LogMacrosTabState extends State<LogMacrosTab> {
       now.microsecond,
     );
   }
-
 }

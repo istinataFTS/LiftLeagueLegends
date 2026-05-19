@@ -11,7 +11,6 @@ import 'package:fitness_tracker/domain/entities/entity_sync_metadata.dart';
 import 'package:fitness_tracker/domain/repositories/app_session_repository.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:mocktail/mocktail.dart';
-import 'package:sqflite/sqflite.dart';
 import 'package:sqflite_common_ffi/sqflite_ffi.dart';
 
 class MockDatabaseHelper extends Mock implements DatabaseHelper {}
@@ -455,6 +454,111 @@ void main() {
 
       expect(macros['totalCalories'], 500.0);
       expect(macros['totalProtein'], 40.0);
+    });
+  });
+
+  // ---------------------------------------------------------------------------
+  // getPendingSyncLogs — owner-scoped (Model-A Issue 2)
+  // ---------------------------------------------------------------------------
+
+  group('NutritionLogLocalDataSourceImpl getPendingSyncLogs owner scope', () {
+    test('returns current-user pending rows', () async {
+      await dataSource.insertLog(
+        buildLog(
+          id: 'mine-upload',
+          loggedAt: baseDate,
+          ownerUserId: 'user-1',
+          syncMetadata: const EntitySyncMetadata(
+            status: SyncStatus.pendingUpload,
+          ),
+        ),
+      );
+      await dataSource.insertLog(
+        buildLog(
+          id: 'mine-update',
+          loggedAt: baseDate,
+          ownerUserId: 'user-1',
+          mealName: 'Salad',
+          syncMetadata: const EntitySyncMetadata(
+            status: SyncStatus.pendingUpdate,
+          ),
+        ),
+      );
+
+      final result = await dataSource.getPendingSyncLogs();
+      expect(result.map((l) => l.id).toSet(), <String>{
+        'mine-upload',
+        'mine-update',
+      });
+    });
+
+    test("excludes another account's pending rows", () async {
+      await dataSource.insertLog(
+        buildLog(
+          id: 'mine',
+          loggedAt: baseDate,
+          ownerUserId: 'user-1',
+          syncMetadata: const EntitySyncMetadata(
+            status: SyncStatus.pendingUpload,
+          ),
+        ),
+      );
+      await dataSource.insertLog(
+        buildLog(
+          id: 'theirs',
+          loggedAt: baseDate,
+          ownerUserId: 'user-2',
+          mealName: 'Their log',
+          syncMetadata: const EntitySyncMetadata(
+            status: SyncStatus.pendingUpload,
+          ),
+        ),
+      );
+
+      final result = await dataSource.getPendingSyncLogs();
+      expect(result.map((l) => l.id).toList(), <String>['mine']);
+    });
+
+    test('returns empty for a guest session', () async {
+      when(
+        () => mockSessionRepository.getCurrentSession(),
+      ).thenAnswer((_) async => const Right(AppSession.guest()));
+      await dataSource.insertLog(
+        buildLog(
+          id: 'log-1',
+          loggedAt: baseDate,
+          ownerUserId: 'user-1',
+          syncMetadata: const EntitySyncMetadata(
+            status: SyncStatus.pendingUpload,
+          ),
+        ),
+      );
+
+      final result = await dataSource.getPendingSyncLogs();
+      expect(result, isEmpty);
+    });
+
+    test('excludes localOnly and synced rows', () async {
+      await dataSource.insertLog(
+        buildLog(
+          id: 'local-only',
+          loggedAt: baseDate,
+          ownerUserId: 'user-1',
+          syncMetadata: const EntitySyncMetadata(status: SyncStatus.localOnly),
+        ),
+      );
+      await dataSource.insertLog(
+        buildLog(
+          id: 'synced',
+          loggedAt: baseDate,
+          ownerUserId: 'user-1',
+          mealName: 'Synced meal',
+          syncMetadata: const EntitySyncMetadata(status: SyncStatus.synced),
+        ),
+      );
+
+      final result = await dataSource.getPendingSyncLogs();
+      expect(result, isEmpty);
     });
   });
 

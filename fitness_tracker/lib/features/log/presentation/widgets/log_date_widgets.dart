@@ -19,10 +19,10 @@ class LogDateContextBanner extends StatelessWidget {
       width: double.infinity,
       padding: const EdgeInsets.all(14),
       decoration: BoxDecoration(
-        color: AppTheme.primaryOrange.withOpacity(0.1),
+        color: AppTheme.primaryOrange.withValues(alpha: 0.1),
         borderRadius: BorderRadius.circular(12),
         border: Border.all(
-          color: AppTheme.primaryOrange.withOpacity(0.25),
+          color: AppTheme.primaryOrange.withValues(alpha: 0.25),
         ),
       ),
       child: Row(
@@ -37,9 +37,9 @@ class LogDateContextBanner extends StatelessWidget {
             child: Text(
               '$prefix ${DateFormat('EEEE, MMM d').format(selectedDate)}',
               style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                    color: AppTheme.primaryOrange,
-                    fontWeight: FontWeight.w600,
-                  ),
+                color: AppTheme.primaryOrange,
+                fontWeight: FontWeight.w600,
+              ),
             ),
           ),
         ],
@@ -67,9 +67,9 @@ class LogDatePickerCard extends StatelessWidget {
       children: [
         Text(
           label,
-          style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                fontWeight: FontWeight.w600,
-              ),
+          style: Theme.of(
+            context,
+          ).textTheme.titleMedium?.copyWith(fontWeight: FontWeight.w600),
         ),
         const SizedBox(height: 12),
         InkWell(
@@ -88,7 +88,7 @@ class LogDatePickerCard extends StatelessWidget {
                   width: 40,
                   height: 40,
                   decoration: BoxDecoration(
-                    color: AppTheme.primaryOrange.withOpacity(0.1),
+                    color: AppTheme.primaryOrange.withValues(alpha: 0.1),
                     borderRadius: BorderRadius.circular(8),
                   ),
                   child: const Icon(
@@ -104,10 +104,7 @@ class LogDatePickerCard extends StatelessWidget {
                     style: Theme.of(context).textTheme.bodyLarge,
                   ),
                 ),
-                const Icon(
-                  Icons.arrow_drop_down,
-                  color: AppTheme.textDim,
-                ),
+                const Icon(Icons.arrow_drop_down, color: AppTheme.textDim),
               ],
             ),
           ),

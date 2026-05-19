@@ -16,7 +16,6 @@ import '../bloc/history_event.dart';
 import 'edit_set_dialog.dart';
 import 'history_log_bottom_sheets.dart';
 
-
 class DayDetailsBottomSheet extends StatelessWidget {
   const DayDetailsBottomSheet({
     required this.date,
@@ -36,9 +35,7 @@ class DayDetailsBottomSheet extends StatelessWidget {
       decoration: BoxDecoration(
         color: AppTheme.backgroundDark,
         borderRadius: const BorderRadius.vertical(
-          top: Radius.circular(
-            CalendarConstants.bottomSheetBorderRadius,
-          ),
+          top: Radius.circular(CalendarConstants.bottomSheetBorderRadius),
         ),
       ),
       child: Column(
@@ -57,10 +54,7 @@ class DayDetailsBottomSheet extends StatelessWidget {
           if (hasWorkouts) const Divider(height: 1),
           Flexible(
             child: hasWorkouts
-                ? _buildWorkoutsList(
-                    context,
-                    weightUnit,
-                  )
+                ? _buildWorkoutsList(context, weightUnit)
                 : _buildEmptyState(context),
           ),
         ],
@@ -81,17 +75,17 @@ class DayDetailsBottomSheet extends StatelessWidget {
               children: <Widget>[
                 Text(
                   dateStr,
-                  style: Theme.of(context).textTheme.titleLarge?.copyWith(
-                        fontWeight: FontWeight.w600,
-                      ),
+                  style: Theme.of(
+                    context,
+                  ).textTheme.titleLarge?.copyWith(fontWeight: FontWeight.w600),
                 ),
                 if (hasWorkouts) ...<Widget>[
                   const SizedBox(height: 4),
                   Text(
                     '${sets.length} set${sets.length != 1 ? 's' : ''} logged',
                     style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                          color: AppTheme.textMedium,
-                        ),
+                      color: AppTheme.textMedium,
+                    ),
                   ),
                 ],
               ],
@@ -113,10 +107,7 @@ class DayDetailsBottomSheet extends StatelessWidget {
     );
   }
 
-  Widget _buildWorkoutsList(
-    BuildContext context,
-    WeightUnit weightUnit,
-  ) {
+  Widget _buildWorkoutsList(BuildContext context, WeightUnit weightUnit) {
     return BlocBuilder<ExerciseBloc, ExerciseState>(
       builder: (BuildContext context, ExerciseState exerciseState) {
         if (exerciseState is! ExercisesLoaded) {
@@ -139,12 +130,7 @@ class DayDetailsBottomSheet extends StatelessWidget {
               return const SizedBox.shrink();
             }
 
-            return _buildSetCard(
-              context,
-              set,
-              exercise,
-              weightUnit,
-            );
+            return _buildSetCard(context, set, exercise, weightUnit);
           },
         );
       },
@@ -174,18 +160,14 @@ class DayDetailsBottomSheet extends StatelessWidget {
                   child: Text(
                     exercise.name,
                     style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                          fontWeight: FontWeight.w600,
-                        ),
+                      fontWeight: FontWeight.w600,
+                    ),
                   ),
                 ),
                 IconButton(
                   icon: const Icon(Icons.edit, size: 20),
-                  onPressed: () => _showEditDialog(
-                    context,
-                    set,
-                    exercise,
-                    weightUnit,
-                  ),
+                  onPressed: () =>
+                      _showEditDialog(context, set, exercise, weightUnit),
                   tooltip: 'Edit Set',
                   padding: EdgeInsets.zero,
                   constraints: const BoxConstraints(),
@@ -193,12 +175,8 @@ class DayDetailsBottomSheet extends StatelessWidget {
                 const SizedBox(width: 12),
                 IconButton(
                   icon: const Icon(Icons.delete_outline, size: 20),
-                  onPressed: () => _confirmDelete(
-                    context,
-                    set,
-                    exercise,
-                    weightUnit,
-                  ),
+                  onPressed: () =>
+                      _confirmDelete(context, set, exercise, weightUnit),
                   tooltip: 'Delete Set',
                   padding: EdgeInsets.zero,
                   constraints: const BoxConstraints(),
@@ -227,9 +205,9 @@ class DayDetailsBottomSheet extends StatelessWidget {
             const SizedBox(height: 8),
             Text(
               muscleGroupsList,
-              style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                    color: AppTheme.textMedium,
-                  ),
+              style: Theme.of(
+                context,
+              ).textTheme.bodySmall?.copyWith(color: AppTheme.textMedium),
             ),
           ],
         ),
@@ -245,7 +223,7 @@ class DayDetailsBottomSheet extends StatelessWidget {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
       decoration: BoxDecoration(
-        color: AppTheme.primaryOrange.withOpacity(0.1),
+        color: AppTheme.primaryOrange.withValues(alpha: 0.1),
         borderRadius: BorderRadius.circular(8),
       ),
       child: Row(
@@ -256,9 +234,9 @@ class DayDetailsBottomSheet extends StatelessWidget {
           Text(
             label,
             style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                  color: AppTheme.primaryOrange,
-                  fontWeight: FontWeight.w600,
-                ),
+              color: AppTheme.primaryOrange,
+              fontWeight: FontWeight.w600,
+            ),
           ),
         ],
       ),
@@ -279,9 +257,9 @@ class DayDetailsBottomSheet extends StatelessWidget {
           const SizedBox(height: 16),
           Text(
             'No workouts logged',
-            style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                  color: AppTheme.textMedium,
-                ),
+            style: Theme.of(
+              context,
+            ).textTheme.titleMedium?.copyWith(color: AppTheme.textMedium),
           ),
           const SizedBox(height: 8),
           Text(
@@ -302,10 +280,7 @@ class DayDetailsBottomSheet extends StatelessWidget {
 
   void _openAddWorkoutSheet(BuildContext context) {
     Navigator.of(context).pop();
-    showHistoryWorkoutLogBottomSheet(
-      context,
-      selectedDate: date,
-    );
+    showHistoryWorkoutLogBottomSheet(context, selectedDate: date);
   }
 
   void _showEditDialog(
@@ -356,9 +331,7 @@ class DayDetailsBottomSheet extends StatelessWidget {
               context.read<HistoryBloc>().add(DeleteSetEvent(set.id));
               Navigator.pop(dialogContext);
             },
-            style: TextButton.styleFrom(
-              foregroundColor: AppTheme.errorRed,
-            ),
+            style: TextButton.styleFrom(foregroundColor: AppTheme.errorRed),
             child: const Text('Delete'),
           ),
         ],

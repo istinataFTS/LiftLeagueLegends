@@ -302,7 +302,7 @@ class _LogMealTabState extends State<LogMealTab> {
 
     return Card(
       margin: const EdgeInsets.only(bottom: 12),
-      color: isSelected ? AppTheme.primaryOrange.withOpacity(0.1) : null,
+      color: isSelected ? AppTheme.primaryOrange.withValues(alpha: 0.1) : null,
       shape: RoundedRectangleBorder(
         borderRadius: BorderRadius.circular(12),
         side: BorderSide(
@@ -459,7 +459,7 @@ class _LogMealTabState extends State<LogMealTab> {
                   width: 40,
                   height: 40,
                   decoration: BoxDecoration(
-                    color: AppTheme.primaryOrange.withOpacity(0.1),
+                    color: AppTheme.primaryOrange.withValues(alpha: 0.1),
                     borderRadius: BorderRadius.circular(8),
                   ),
                   child: const Icon(
@@ -505,9 +505,11 @@ class _LogMealTabState extends State<LogMealTab> {
     return Container(
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
-        color: AppTheme.primaryOrange.withOpacity(0.1),
+        color: AppTheme.primaryOrange.withValues(alpha: 0.1),
         borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: AppTheme.primaryOrange.withOpacity(0.3)),
+        border: Border.all(
+          color: AppTheme.primaryOrange.withValues(alpha: 0.3),
+        ),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -695,5 +697,4 @@ class _LogMealTabState extends State<LogMealTab> {
       now.microsecond,
     );
   }
-
 }

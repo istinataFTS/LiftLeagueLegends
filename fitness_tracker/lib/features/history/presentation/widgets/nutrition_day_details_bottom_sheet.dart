@@ -72,16 +72,16 @@ class NutritionDayDetailsBottomSheet extends StatelessWidget {
                     Text(
                       dateStr,
                       style: Theme.of(context).textTheme.titleLarge?.copyWith(
-                            fontWeight: FontWeight.w600,
-                          ),
+                        fontWeight: FontWeight.w600,
+                      ),
                     ),
                     if (hasLogs) ...<Widget>[
                       const SizedBox(height: 4),
                       Text(
                         '${logs.length} nutrition entr${logs.length == 1 ? 'y' : 'ies'} logged',
                         style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                              color: AppTheme.textMedium,
-                            ),
+                          color: AppTheme.textMedium,
+                        ),
                       ),
                     ],
                   ],
@@ -114,10 +114,22 @@ class NutritionDayDetailsBottomSheet extends StatelessWidget {
                 spacing: 12,
                 runSpacing: 12,
                 children: <Widget>[
-                  _buildSummaryChip('Protein', '${totals.protein.toStringAsFixed(0)}g'),
-                  _buildSummaryChip('Carbs', '${totals.carbs.toStringAsFixed(0)}g'),
-                  _buildSummaryChip('Fats', '${totals.fats.toStringAsFixed(0)}g'),
-                  _buildSummaryChip('Calories', '${totals.calories.round()} kcal'),
+                  _buildSummaryChip(
+                    'Protein',
+                    '${totals.protein.toStringAsFixed(0)}g',
+                  ),
+                  _buildSummaryChip(
+                    'Carbs',
+                    '${totals.carbs.toStringAsFixed(0)}g',
+                  ),
+                  _buildSummaryChip(
+                    'Fats',
+                    '${totals.fats.toStringAsFixed(0)}g',
+                  ),
+                  _buildSummaryChip(
+                    'Calories',
+                    '${totals.calories.round()} kcal',
+                  ),
                 ],
               ),
             ),
@@ -131,7 +143,7 @@ class NutritionDayDetailsBottomSheet extends StatelessWidget {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
       decoration: BoxDecoration(
-        color: AppTheme.primaryOrange.withOpacity(0.12),
+        color: AppTheme.primaryOrange.withValues(alpha: 0.12),
         borderRadius: BorderRadius.circular(10),
       ),
       child: RichText(
@@ -193,15 +205,15 @@ class NutritionDayDetailsBottomSheet extends StatelessWidget {
                   child: Text(
                     log.mealName,
                     style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                          fontWeight: FontWeight.w600,
-                        ),
+                      fontWeight: FontWeight.w600,
+                    ),
                   ),
                 ),
                 Text(
                   time,
-                  style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                        color: AppTheme.textDim,
-                      ),
+                  style: Theme.of(
+                    context,
+                  ).textTheme.bodySmall?.copyWith(color: AppTheme.textDim),
                 ),
                 const SizedBox(width: 12),
                 IconButton(
@@ -227,9 +239,9 @@ class NutritionDayDetailsBottomSheet extends StatelessWidget {
                 padding: const EdgeInsets.only(bottom: 8),
                 child: Text(
                   '${log.gramsConsumed!.toStringAsFixed(0)} g consumed',
-                  style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                        color: AppTheme.textMedium,
-                      ),
+                  style: Theme.of(
+                    context,
+                  ).textTheme.bodySmall?.copyWith(color: AppTheme.textMedium),
                 ),
               ),
             Wrap(
@@ -252,7 +264,7 @@ class NutritionDayDetailsBottomSheet extends StatelessWidget {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
       decoration: BoxDecoration(
-        color: AppTheme.primaryOrange.withOpacity(0.1),
+        color: AppTheme.primaryOrange.withValues(alpha: 0.1),
         borderRadius: BorderRadius.circular(10),
       ),
       child: Text(
@@ -280,9 +292,9 @@ class NutritionDayDetailsBottomSheet extends StatelessWidget {
           const SizedBox(height: 16),
           Text(
             'No nutrition logged',
-            style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                  color: AppTheme.textMedium,
-                ),
+            style: Theme.of(
+              context,
+            ).textTheme.titleMedium?.copyWith(color: AppTheme.textMedium),
           ),
           const SizedBox(height: 8),
           Text(
@@ -303,10 +315,7 @@ class NutritionDayDetailsBottomSheet extends StatelessWidget {
 
   void _openAddNutritionSheet(BuildContext context) {
     Navigator.of(context).pop();
-    showHistoryNutritionTypeBottomSheet(
-      context,
-      selectedDate: date,
-    );
+    showHistoryNutritionTypeBottomSheet(context, selectedDate: date);
   }
 
   void _showEditDialog(BuildContext context, NutritionLog log) {
@@ -333,14 +342,12 @@ class NutritionDayDetailsBottomSheet extends StatelessWidget {
           ),
           TextButton(
             onPressed: () {
-              context
-                  .read<HistoryBloc>()
-                  .add(DeleteNutritionHistoryLogEvent(log.id));
+              context.read<HistoryBloc>().add(
+                DeleteNutritionHistoryLogEvent(log.id),
+              );
               Navigator.pop(dialogContext);
             },
-            style: TextButton.styleFrom(
-              foregroundColor: AppTheme.errorRed,
-            ),
+            style: TextButton.styleFrom(foregroundColor: AppTheme.errorRed),
             child: const Text('Delete'),
           ),
         ],

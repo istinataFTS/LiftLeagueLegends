@@ -1,6 +1,5 @@
 import 'package:dartz/dartz.dart';
 import 'package:fitness_tracker/core/enums/data_source_preference.dart';
-import 'package:fitness_tracker/core/errors/failures.dart';
 import 'package:fitness_tracker/domain/entities/exercise.dart';
 import 'package:fitness_tracker/domain/entities/workout_set.dart';
 import 'package:fitness_tracker/domain/repositories/exercise_repository.dart';
@@ -77,9 +76,9 @@ void main() {
   });
 
   test('GetAllWorkoutSets uses resolved source preference', () async {
-    when(() => resolver.resolveReadPreference()).thenAnswer(
-      (_) async => DataSourcePreference.remoteThenLocal,
-    );
+    when(
+      () => resolver.resolveReadPreference(),
+    ).thenAnswer((_) async => DataSourcePreference.remoteThenLocal);
     when(
       () => workoutSetRepository.getAllSets(
         sourcePreference: DataSourcePreference.remoteThenLocal,
@@ -97,43 +96,45 @@ void main() {
     ).called(1);
   });
 
-  test('GetSetsByDateRange uses resolved source preference for sets and exercises',
-      () async {
-    when(() => resolver.resolveReadPreference()).thenAnswer(
-      (_) async => DataSourcePreference.remoteThenLocal,
-    );
-    when(
-      () => workoutSetRepository.getSetsByDateRange(
-        startDate,
-        endDate,
-        sourcePreference: DataSourcePreference.remoteThenLocal,
-      ),
-    ).thenAnswer((_) async => Right(<WorkoutSet>[workoutSet]));
-    when(
-      () => exerciseRepository.getAllExercises(
-        sourcePreference: DataSourcePreference.remoteThenLocal,
-      ),
-    ).thenAnswer((_) async => Right(<Exercise>[exercise]));
+  test(
+    'GetSetsByDateRange uses resolved source preference for sets and exercises',
+    () async {
+      when(
+        () => resolver.resolveReadPreference(),
+      ).thenAnswer((_) async => DataSourcePreference.remoteThenLocal);
+      when(
+        () => workoutSetRepository.getSetsByDateRange(
+          startDate,
+          endDate,
+          sourcePreference: DataSourcePreference.remoteThenLocal,
+        ),
+      ).thenAnswer((_) async => Right(<WorkoutSet>[workoutSet]));
+      when(
+        () => exerciseRepository.getAllExercises(
+          sourcePreference: DataSourcePreference.remoteThenLocal,
+        ),
+      ).thenAnswer((_) async => Right(<Exercise>[exercise]));
 
-    final result = await getSetsByDateRange(
-      startDate: startDate,
-      endDate: endDate,
-      muscleGroup: 'chest',
-    );
+      final result = await getSetsByDateRange(
+        startDate: startDate,
+        endDate: endDate,
+        muscleGroup: 'chest',
+      );
 
-    expect(result.isRight(), isTrue);
-    expect((result as Right).value, <WorkoutSet>[workoutSet]);
-    verify(
-      () => workoutSetRepository.getSetsByDateRange(
-        startDate,
-        endDate,
-        sourcePreference: DataSourcePreference.remoteThenLocal,
-      ),
-    ).called(1);
-    verify(
-      () => exerciseRepository.getAllExercises(
-        sourcePreference: DataSourcePreference.remoteThenLocal,
-      ),
-    ).called(1);
-  });
+      expect(result.isRight(), isTrue);
+      expect((result as Right).value, <WorkoutSet>[workoutSet]);
+      verify(
+        () => workoutSetRepository.getSetsByDateRange(
+          startDate,
+          endDate,
+          sourcePreference: DataSourcePreference.remoteThenLocal,
+        ),
+      ).called(1);
+      verify(
+        () => exerciseRepository.getAllExercises(
+          sourcePreference: DataSourcePreference.remoteThenLocal,
+        ),
+      ).called(1);
+    },
+  );
 }

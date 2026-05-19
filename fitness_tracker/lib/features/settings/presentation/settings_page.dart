@@ -169,6 +169,7 @@ class _SettingsPageState extends State<SettingsPage> {
     SettingsPageViewData viewData,
     AppSettings settings,
   ) async {
+    final AppSettingsCubit cubit = context.read<AppSettingsCubit>();
     final WeekStartDay? selected = await showModalBottomSheet<WeekStartDay>(
       context: context,
       backgroundColor: AppTheme.surfaceDark,
@@ -192,11 +193,10 @@ class _SettingsPageState extends State<SettingsPage> {
       return;
     }
 
+    if (!context.mounted) return;
     await _saveWithFeedback(
       context,
-      operation: () {
-        return context.read<AppSettingsCubit>().setWeekStartDay(selected);
-      },
+      operation: () => cubit.setWeekStartDay(selected),
     );
   }
 
@@ -205,6 +205,7 @@ class _SettingsPageState extends State<SettingsPage> {
     SettingsPageViewData viewData,
     AppSettings settings,
   ) async {
+    final AppSettingsCubit cubit = context.read<AppSettingsCubit>();
     final WeightUnit? selected = await showModalBottomSheet<WeightUnit>(
       context: context,
       backgroundColor: AppTheme.surfaceDark,
@@ -228,11 +229,10 @@ class _SettingsPageState extends State<SettingsPage> {
       return;
     }
 
+    if (!context.mounted) return;
     await _saveWithFeedback(
       context,
-      operation: () {
-        return context.read<AppSettingsCubit>().setWeightUnit(selected);
-      },
+      operation: () => cubit.setWeightUnit(selected),
     );
   }
 

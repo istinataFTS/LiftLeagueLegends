@@ -26,9 +26,7 @@ class MealsTab extends StatefulWidget {
   static const Key clearResultsButtonKey = ValueKey<String>(
     'library_meals_clear_results_button',
   );
-  static const Key addButtonKey = ValueKey<String>(
-    'library_meals_add_button',
-  );
+  static const Key addButtonKey = ValueKey<String>('library_meals_add_button');
   static const Key loadingIndicatorKey = ValueKey<String>(
     'library_meals_loading_indicator',
   );
@@ -95,8 +93,9 @@ class _MealsTabState extends State<MealsTab> {
           return _buildErrorState(context, state.message);
         }
 
-        final List<Meal> allMeals =
-            state is MealsLoaded ? state.meals : <Meal>[];
+        final List<Meal> allMeals = state is MealsLoaded
+            ? state.meals
+            : <Meal>[];
 
         final List<Meal> filteredMeals = LibraryMealFilters.apply(
           meals: allMeals,
@@ -116,8 +115,8 @@ class _MealsTabState extends State<MealsTab> {
               child: !viewData.hasMeals
                   ? _buildEmptyState(context)
                   : !viewData.hasResults
-                      ? _buildNoResultsState(context)
-                      : _buildMealsList(context, viewData.items),
+                  ? _buildNoResultsState(context)
+                  : _buildMealsList(context, viewData.items),
             ),
             _buildAddButton(context),
           ],
@@ -132,9 +131,7 @@ class _MealsTabState extends State<MealsTab> {
   ) {
     return Container(
       padding: const EdgeInsets.fromLTRB(20, 20, 20, 12),
-      decoration: const BoxDecoration(
-        color: AppTheme.backgroundDark,
-      ),
+      decoration: const BoxDecoration(color: AppTheme.backgroundDark),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: <Widget>[
@@ -162,9 +159,9 @@ class _MealsTabState extends State<MealsTab> {
           Text(
             viewData.resultCountLabel,
             key: MealsTab.resultCountKey,
-            style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                  color: AppTheme.textMedium,
-                ),
+            style: Theme.of(
+              context,
+            ).textTheme.bodyMedium?.copyWith(color: AppTheme.textMedium),
           ),
         ],
       ),
@@ -182,7 +179,7 @@ class _MealsTabState extends State<MealsTab> {
               width: 120,
               height: 120,
               decoration: BoxDecoration(
-                color: AppTheme.primaryOrange.withOpacity(0.1),
+                color: AppTheme.primaryOrange.withValues(alpha: 0.1),
                 shape: BoxShape.circle,
               ),
               child: const Icon(
@@ -194,17 +191,17 @@ class _MealsTabState extends State<MealsTab> {
             const SizedBox(height: 24),
             Text(
               'No meals yet',
-              style: Theme.of(context).textTheme.headlineMedium?.copyWith(
-                    fontWeight: FontWeight.w700,
-                  ),
+              style: Theme.of(
+                context,
+              ).textTheme.headlineMedium?.copyWith(fontWeight: FontWeight.w700),
             ),
             const SizedBox(height: 12),
             Text(
               'Create reusable meals here so nutrition logging stays fast and consistent.',
               textAlign: TextAlign.center,
-              style: Theme.of(context).textTheme.bodyLarge?.copyWith(
-                    color: AppTheme.textMedium,
-                  ),
+              style: Theme.of(
+                context,
+              ).textTheme.bodyLarge?.copyWith(color: AppTheme.textMedium),
             ),
             const SizedBox(height: 32),
             ElevatedButton.icon(
@@ -239,18 +236,14 @@ class _MealsTabState extends State<MealsTab> {
           child: Column(
             mainAxisSize: MainAxisSize.min,
             children: <Widget>[
-              const Icon(
-                Icons.search_off,
-                size: 48,
-                color: AppTheme.textDim,
-              ),
+              const Icon(Icons.search_off, size: 48, color: AppTheme.textDim),
               const SizedBox(height: 12),
               Text(
                 'No meals match the current search.',
                 textAlign: TextAlign.center,
-                style: Theme.of(context).textTheme.bodyLarge?.copyWith(
-                      color: AppTheme.textMedium,
-                    ),
+                style: Theme.of(
+                  context,
+                ).textTheme.bodyLarge?.copyWith(color: AppTheme.textMedium),
               ),
               const SizedBox(height: 16),
               TextButton.icon(
@@ -273,25 +266,21 @@ class _MealsTabState extends State<MealsTab> {
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
           children: <Widget>[
-            const Icon(
-              Icons.error_outline,
-              size: 64,
-              color: AppTheme.errorRed,
-            ),
+            const Icon(Icons.error_outline, size: 64, color: AppTheme.errorRed),
             const SizedBox(height: 16),
             Text(
               'Error Loading Meals',
-              style: Theme.of(context).textTheme.titleLarge?.copyWith(
-                    fontWeight: FontWeight.w600,
-                  ),
+              style: Theme.of(
+                context,
+              ).textTheme.titleLarge?.copyWith(fontWeight: FontWeight.w600),
             ),
             const SizedBox(height: 8),
             Text(
               message,
               textAlign: TextAlign.center,
-              style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                    color: AppTheme.textMedium,
-                  ),
+              style: Theme.of(
+                context,
+              ).textTheme.bodyMedium?.copyWith(color: AppTheme.textMedium),
             ),
             const SizedBox(height: 24),
             ElevatedButton(
@@ -320,10 +309,7 @@ class _MealsTabState extends State<MealsTab> {
     );
   }
 
-  Widget _buildMealCard(
-    BuildContext context,
-    LibraryMealItemViewData item,
-  ) {
+  Widget _buildMealCard(BuildContext context, LibraryMealItemViewData item) {
     final Meal meal = item.meal;
 
     return Card(
@@ -339,7 +325,7 @@ class _MealsTabState extends State<MealsTab> {
                 width: 48,
                 height: 48,
                 decoration: BoxDecoration(
-                  color: AppTheme.primaryOrange.withOpacity(0.1),
+                  color: AppTheme.primaryOrange.withValues(alpha: 0.1),
                   borderRadius: BorderRadius.circular(12),
                 ),
                 child: const Icon(
@@ -356,22 +342,22 @@ class _MealsTabState extends State<MealsTab> {
                     Text(
                       item.title,
                       style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                            fontWeight: FontWeight.w600,
-                          ),
+                        fontWeight: FontWeight.w600,
+                      ),
                     ),
                     const SizedBox(height: 6),
                     Text(
                       item.subtitle,
                       style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                            color: AppTheme.textMedium,
-                          ),
+                        color: AppTheme.textMedium,
+                      ),
                     ),
                     const SizedBox(height: 6),
                     Text(
                       item.macroSummary,
-                      style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                            color: AppTheme.textDim,
-                          ),
+                      style: Theme.of(
+                        context,
+                      ).textTheme.bodySmall?.copyWith(color: AppTheme.textDim),
                     ),
                   ],
                 ),
@@ -387,34 +373,34 @@ class _MealsTabState extends State<MealsTab> {
                 },
                 itemBuilder: (BuildContext context) =>
                     const <PopupMenuEntry<String>>[
-                  PopupMenuItem<String>(
-                    value: 'edit',
-                    child: Row(
-                      children: <Widget>[
-                        Icon(Icons.edit_outlined, size: 20),
-                        SizedBox(width: 12),
-                        Text('Edit'),
-                      ],
-                    ),
-                  ),
-                  PopupMenuItem<String>(
-                    value: 'delete',
-                    child: Row(
-                      children: <Widget>[
-                        Icon(
-                          Icons.delete_outline,
-                          size: 20,
-                          color: AppTheme.errorRed,
+                      PopupMenuItem<String>(
+                        value: 'edit',
+                        child: Row(
+                          children: <Widget>[
+                            Icon(Icons.edit_outlined, size: 20),
+                            SizedBox(width: 12),
+                            Text('Edit'),
+                          ],
                         ),
-                        SizedBox(width: 12),
-                        Text(
-                          'Delete',
-                          style: TextStyle(color: AppTheme.errorRed),
+                      ),
+                      PopupMenuItem<String>(
+                        value: 'delete',
+                        child: Row(
+                          children: <Widget>[
+                            Icon(
+                              Icons.delete_outline,
+                              size: 20,
+                              color: AppTheme.errorRed,
+                            ),
+                            SizedBox(width: 12),
+                            Text(
+                              'Delete',
+                              style: TextStyle(color: AppTheme.errorRed),
+                            ),
+                          ],
                         ),
-                      ],
-                    ),
-                  ),
-                ],
+                      ),
+                    ],
               ),
             ],
           ),
@@ -428,9 +414,7 @@ class _MealsTabState extends State<MealsTab> {
       padding: const EdgeInsets.all(20),
       decoration: const BoxDecoration(
         color: AppTheme.surfaceDark,
-        border: Border(
-          top: BorderSide(color: AppTheme.borderDark, width: 1),
-        ),
+        border: Border(top: BorderSide(color: AppTheme.borderDark, width: 1)),
       ),
       child: SafeArea(
         child: SizedBox(
@@ -441,10 +425,7 @@ class _MealsTabState extends State<MealsTab> {
             icon: const Icon(Icons.add),
             label: const Text(
               'Add Meal',
-              style: TextStyle(
-                fontSize: 16,
-                fontWeight: FontWeight.w600,
-              ),
+              style: TextStyle(fontSize: 16, fontWeight: FontWeight.w600),
             ),
             style: ElevatedButton.styleFrom(
               padding: const EdgeInsets.symmetric(vertical: 16),
@@ -480,7 +461,9 @@ class _MealsTabState extends State<MealsTab> {
       context: context,
       builder: (BuildContext dialogContext) => AlertDialog(
         title: const Text('Delete Meal'),
-        content: Text('Are you sure you want to delete this meal?\n\n${meal.name}'),
+        content: Text(
+          'Are you sure you want to delete this meal?\n\n${meal.name}',
+        ),
         actions: <Widget>[
           TextButton(
             onPressed: () => Navigator.pop(dialogContext),
@@ -558,7 +541,8 @@ class _MealDialogState extends State<_MealDialog> {
 
   @override
   Widget build(BuildContext context) {
-    final bool isValid = _nameController.text.trim().isNotEmpty &&
+    final bool isValid =
+        _nameController.text.trim().isNotEmpty &&
         _parseDouble(_servingSizeController.text) > 0;
 
     return Dialog(
@@ -605,9 +589,9 @@ class _MealDialogState extends State<_MealDialog> {
           Expanded(
             child: Text(
               isEditing ? 'Edit Meal' : 'Add Meal',
-              style: Theme.of(context).textTheme.titleLarge?.copyWith(
-                    fontWeight: FontWeight.w600,
-                  ),
+              style: Theme.of(
+                context,
+              ).textTheme.titleLarge?.copyWith(fontWeight: FontWeight.w600),
             ),
           ),
           IconButton(
@@ -690,7 +674,10 @@ class _MealDialogState extends State<_MealDialog> {
     final Meal nextMeal = Meal(
       id: widget.meal?.id ?? _uuid.v4(),
       name: _nameController.text.trim(),
-      servingSizeGrams: _parseDouble(_servingSizeController.text, fallback: 100),
+      servingSizeGrams: _parseDouble(
+        _servingSizeController.text,
+        fallback: 100,
+      ),
       proteinPer100g: _parseDouble(_proteinController.text),
       carbsPer100g: _parseDouble(_carbsController.text),
       fatPer100g: _parseDouble(_fatController.text),
@@ -710,10 +697,7 @@ class _MealDialogState extends State<_MealDialog> {
     Navigator.pop(context);
   }
 
-  double _parseDouble(
-    String value, {
-    double fallback = 0,
-  }) {
+  double _parseDouble(String value, {double fallback = 0}) {
     return double.tryParse(value.trim()) ?? fallback;
   }
 }

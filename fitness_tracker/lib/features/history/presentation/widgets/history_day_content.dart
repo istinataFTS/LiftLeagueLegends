@@ -60,7 +60,7 @@ class _HistoryDayContentState extends State<HistoryDayContent> {
 
     final bool shouldTriggerHighlight =
         widget.highlightVersion != oldWidget.highlightVersion &&
-            widget.selectedDate != null;
+        widget.selectedDate != null;
 
     if (shouldTriggerHighlight) {
       _triggerHighlight();
@@ -93,12 +93,12 @@ class _HistoryDayContentState extends State<HistoryDayContent> {
       padding: const EdgeInsets.all(8),
       decoration: BoxDecoration(
         color: _isHighlighted
-            ? AppTheme.primaryOrange.withOpacity(0.06)
+            ? AppTheme.primaryOrange.withValues(alpha: 0.06)
             : Colors.transparent,
         borderRadius: BorderRadius.circular(20),
         border: Border.all(
           color: _isHighlighted
-              ? AppTheme.primaryOrange.withOpacity(0.35)
+              ? AppTheme.primaryOrange.withValues(alpha: 0.35)
               : Colors.transparent,
           width: 1.5,
         ),
@@ -175,7 +175,8 @@ class _SelectedDayStrip extends StatelessWidget {
     );
 
     final StringBuffer summary = StringBuffer(formattedDate);
-    if (setCount > 0) summary.write(' · $setCount set${setCount == 1 ? '' : 's'}');
+    if (setCount > 0)
+      summary.write(' · $setCount set${setCount == 1 ? '' : 's'}');
     if (entryCount > 0) {
       summary.write(' · $entryCount entr${entryCount == 1 ? 'y' : 'ies'}');
     }
@@ -187,9 +188,9 @@ class _SelectedDayStrip extends StatelessWidget {
           child: Text(
             summary.toString(),
             style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                  color: AppTheme.textMedium,
-                  fontWeight: FontWeight.w500,
-                ),
+              color: AppTheme.textMedium,
+              fontWeight: FontWeight.w500,
+            ),
             overflow: TextOverflow.ellipsis,
           ),
         ),
@@ -231,15 +232,16 @@ class _WorkoutHistorySection extends StatelessWidget {
       builder: (BuildContext context, ExerciseState exerciseState) {
         final Map<String, Exercise> exerciseMap =
             exerciseState is ExercisesLoaded
-                ? <String, Exercise>{
-                    for (final Exercise e in exerciseState.exercises) e.id: e,
-                  }
-                : const <String, Exercise>{};
+            ? <String, Exercise>{
+                for (final Exercise e in exerciseState.exercises) e.id: e,
+              }
+            : const <String, Exercise>{};
 
-        final HistoryWorkoutSummary summary = HistoryWorkoutSummaryBuilder.build(
-          sets: sets,
-          exerciseById: exerciseMap,
-        );
+        final HistoryWorkoutSummary summary =
+            HistoryWorkoutSummaryBuilder.build(
+              sets: sets,
+              exerciseById: exerciseMap,
+            );
 
         final List<WorkoutSet> filteredSets = muscleFilter == null
             ? sets
@@ -253,10 +255,8 @@ class _WorkoutHistorySection extends StatelessWidget {
           icon: Icons.fitness_center,
           title: 'Workout history',
           subtitle: '${sets.length} set${sets.length == 1 ? '' : 's'} logged',
-          onAddPressed: () => showHistoryWorkoutLogBottomSheet(
-            context,
-            selectedDate: date,
-          ),
+          onAddPressed: () =>
+              showHistoryWorkoutLogBottomSheet(context, selectedDate: date),
           addTooltip: 'Add workout set',
           headerTrailing: summary.muscleCounts.isEmpty
               ? null
@@ -291,10 +291,8 @@ class _WorkoutHistorySection extends StatelessWidget {
         title: 'No workouts on this day',
         message: 'Try another date or add a workout for this day.',
         ctaLabel: 'Log workout for ${DateFormat('MMM d').format(date)}',
-        onPressed: () => showHistoryWorkoutLogBottomSheet(
-          context,
-          selectedDate: date,
-        ),
+        onPressed: () =>
+            showHistoryWorkoutLogBottomSheet(context, selectedDate: date),
       );
     }
 
@@ -351,8 +349,9 @@ class _WorkoutSummaryChipRowState extends State<_WorkoutSummaryChipRow> {
   Widget build(BuildContext context) {
     final List<HistoryMuscleCount> counts = widget.summary.muscleCounts;
     final bool hasMore = counts.length > _visibleLimit;
-    final List<HistoryMuscleCount> visible =
-        _expanded ? counts : counts.take(_visibleLimit).toList();
+    final List<HistoryMuscleCount> visible = _expanded
+        ? counts
+        : counts.take(_visibleLimit).toList();
     final int hiddenCount = counts.length - _visibleLimit;
 
     return Wrap(
@@ -430,10 +429,7 @@ class _NutritionHistorySection extends StatelessWidget {
   final DateTime date;
   final List<NutritionLog> logs;
 
-  const _NutritionHistorySection({
-    required this.date,
-    required this.logs,
-  });
+  const _NutritionHistorySection({required this.date, required this.logs});
 
   @override
   Widget build(BuildContext context) {
@@ -444,10 +440,8 @@ class _NutritionHistorySection extends StatelessWidget {
       icon: Icons.restaurant_menu,
       title: 'Nutrition history',
       subtitle: '${logs.length} entr${logs.length == 1 ? 'y' : 'ies'} logged',
-      onAddPressed: () => showHistoryNutritionTypeBottomSheet(
-        context,
-        selectedDate: date,
-      ),
+      onAddPressed: () =>
+          showHistoryNutritionTypeBottomSheet(context, selectedDate: date),
       addTooltip: 'Add nutrition entry',
       headerTrailing: logs.isEmpty
           ? null
@@ -456,10 +450,8 @@ class _NutritionHistorySection extends StatelessWidget {
               runSpacing: 8,
               children: summary.metrics
                   .map(
-                    (HistoryNutritionMetricViewData metric) => _SummaryChip(
-                      label: metric.label,
-                      value: metric.value,
-                    ),
+                    (HistoryNutritionMetricViewData metric) =>
+                        _SummaryChip(label: metric.label, value: metric.value),
                   )
                   .toList(growable: false),
             ),
@@ -525,8 +517,8 @@ class _WorkoutSetCard extends StatelessWidget {
                   child: Text(
                     exercise.name,
                     style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                          fontWeight: FontWeight.w600,
-                        ),
+                      fontWeight: FontWeight.w600,
+                    ),
                   ),
                 ),
                 IconButton(
@@ -558,9 +550,9 @@ class _WorkoutSetCard extends StatelessWidget {
             const SizedBox(height: 8),
             Text(
               muscleLabel,
-              style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                    color: AppTheme.textMedium,
-                  ),
+              style: Theme.of(
+                context,
+              ).textTheme.bodySmall?.copyWith(color: AppTheme.textMedium),
             ),
           ],
         ),
@@ -618,10 +610,7 @@ class _OrphanedWorkoutSetCard extends StatelessWidget {
   final WorkoutSet set;
   final WeightUnit weightUnit;
 
-  const _OrphanedWorkoutSetCard({
-    required this.set,
-    required this.weightUnit,
-  });
+  const _OrphanedWorkoutSetCard({required this.set, required this.weightUnit});
 
   @override
   Widget build(BuildContext context) {
@@ -645,10 +634,10 @@ class _OrphanedWorkoutSetCard extends StatelessWidget {
                   child: Text(
                     'Unknown exercise',
                     style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                          fontWeight: FontWeight.w600,
-                          color: AppTheme.textMedium,
-                          fontStyle: FontStyle.italic,
-                        ),
+                      fontWeight: FontWeight.w600,
+                      color: AppTheme.textMedium,
+                      fontStyle: FontStyle.italic,
+                    ),
                   ),
                 ),
                 IconButton(
@@ -736,15 +725,15 @@ class _NutritionLogCard extends StatelessWidget {
                   child: Text(
                     log.mealName,
                     style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                          fontWeight: FontWeight.w600,
-                        ),
+                      fontWeight: FontWeight.w600,
+                    ),
                   ),
                 ),
                 Text(
                   time,
-                  style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                        color: AppTheme.textDim,
-                      ),
+                  style: Theme.of(
+                    context,
+                  ).textTheme.bodySmall?.copyWith(color: AppTheme.textDim),
                 ),
                 const SizedBox(width: 12),
                 IconButton(
@@ -770,9 +759,9 @@ class _NutritionLogCard extends StatelessWidget {
                 padding: const EdgeInsets.only(bottom: 8),
                 child: Text(
                   consumedGramsLabel,
-                  style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                        color: AppTheme.textMedium,
-                      ),
+                  style: Theme.of(
+                    context,
+                  ).textTheme.bodySmall?.copyWith(color: AppTheme.textMedium),
                 ),
               ),
             Wrap(
@@ -815,9 +804,9 @@ class _NutritionLogCard extends StatelessWidget {
           ),
           TextButton(
             onPressed: () {
-              context
-                  .read<HistoryBloc>()
-                  .add(DeleteNutritionHistoryLogEvent(log.id));
+              context.read<HistoryBloc>().add(
+                DeleteNutritionHistoryLogEvent(log.id),
+              );
               Navigator.pop(dialogContext);
             },
             style: TextButton.styleFrom(foregroundColor: AppTheme.errorRed),
@@ -844,7 +833,7 @@ class _MetricChip extends StatelessWidget {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
       decoration: BoxDecoration(
-        color: AppTheme.primaryOrange.withOpacity(0.1),
+        color: AppTheme.primaryOrange.withValues(alpha: 0.1),
         borderRadius: BorderRadius.circular(8),
       ),
       child: Row(
@@ -855,9 +844,9 @@ class _MetricChip extends StatelessWidget {
           Text(
             label,
             style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                  color: AppTheme.primaryOrange,
-                  fontWeight: FontWeight.w600,
-                ),
+              color: AppTheme.primaryOrange,
+              fontWeight: FontWeight.w600,
+            ),
           ),
         ],
       ),
@@ -880,7 +869,7 @@ class _SummaryChip extends StatelessWidget {
   Widget build(BuildContext context) {
     final Color bg = dimmed
         ? AppTheme.borderDark
-        : AppTheme.primaryOrange.withOpacity(0.12);
+        : AppTheme.primaryOrange.withValues(alpha: 0.12);
 
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
@@ -892,9 +881,9 @@ class _SummaryChip extends StatelessWidget {
           ? Text(
               label,
               style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                    color: AppTheme.textDim,
-                    fontWeight: FontWeight.w500,
-                  ),
+                color: AppTheme.textDim,
+                fontWeight: FontWeight.w500,
+              ),
             )
           : RichText(
               text: TextSpan(
@@ -933,7 +922,7 @@ class _MacroChip extends StatelessWidget {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
       decoration: BoxDecoration(
-        color: AppTheme.primaryOrange.withOpacity(0.1),
+        color: AppTheme.primaryOrange.withValues(alpha: 0.1),
         borderRadius: BorderRadius.circular(10),
       ),
       child: Text(
@@ -960,11 +949,7 @@ class _SelectionHint extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return _HintCard(
-      icon: icon,
-      title: 'No day selected',
-      message: message,
-    );
+    return _HintCard(icon: icon, title: 'No day selected', message: message);
   }
 }
 
@@ -1031,16 +1016,16 @@ class _HintCard extends StatelessWidget {
               children: <Widget>[
                 Text(
                   title,
-                  style: Theme.of(context).textTheme.titleSmall?.copyWith(
-                        fontWeight: FontWeight.w600,
-                      ),
+                  style: Theme.of(
+                    context,
+                  ).textTheme.titleSmall?.copyWith(fontWeight: FontWeight.w600),
                 ),
                 const SizedBox(height: 4),
                 Text(
                   message,
-                  style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                        color: AppTheme.textMedium,
-                      ),
+                  style: Theme.of(
+                    context,
+                  ).textTheme.bodyMedium?.copyWith(color: AppTheme.textMedium),
                 ),
                 if (ctaLabel != null && onPressed != null) ...<Widget>[
                   const SizedBox(height: 12),

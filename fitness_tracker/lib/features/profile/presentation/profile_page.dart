@@ -88,6 +88,7 @@ class _ProfileViewState extends State<_ProfileView> {
                   icon: const Icon(Icons.login),
                   tooltip: 'Sign in',
                   onPressed: () async {
+                    final ProfileCubit cubit = context.read<ProfileCubit>();
                     final didSignIn = await Navigator.of(context).push<bool>(
                       MaterialPageRoute<bool>(
                         builder: (_) => const SignInPage(),
@@ -97,7 +98,7 @@ class _ProfileViewState extends State<_ProfileView> {
                     if (!mounted) return;
 
                     if (didSignIn == true) {
-                      await context.read<ProfileCubit>().loadProfile();
+                      await cubit.loadProfile();
                     }
                   },
                 ),

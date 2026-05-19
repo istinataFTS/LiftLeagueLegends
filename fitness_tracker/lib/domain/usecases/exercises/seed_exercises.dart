@@ -86,7 +86,7 @@ class SeedExercises {
           }
 
           // Step 4: Perform seeding
-          return await _seedDefaultExercises(ownerUserId: ownerUserId);
+          return _seedDefaultExercises(ownerUserId: ownerUserId);
         },
       );
     } catch (e) {

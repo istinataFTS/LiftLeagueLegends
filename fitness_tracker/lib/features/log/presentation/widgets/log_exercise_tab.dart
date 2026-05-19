@@ -84,8 +84,9 @@ class _LogExerciseTabState extends State<LogExerciseTab> {
                   ],
                 ],
               ),
-              backgroundColor:
-                  isWarning ? AppTheme.warningAmber : AppTheme.successGreen,
+              backgroundColor: isWarning
+                  ? AppTheme.warningAmber
+                  : AppTheme.successGreen,
               behavior: SnackBarBehavior.floating,
               margin: const EdgeInsets.all(20),
               duration: Duration(seconds: isWarning ? 4 : 2),
@@ -219,17 +220,17 @@ class _LogExerciseTabState extends State<LogExerciseTab> {
             const SizedBox(height: 16),
             Text(
               AppStrings.errorLoadingExercises,
-              style: Theme.of(context).textTheme.titleLarge?.copyWith(
-                    fontWeight: FontWeight.w600,
-                  ),
+              style: Theme.of(
+                context,
+              ).textTheme.titleLarge?.copyWith(fontWeight: FontWeight.w600),
               textAlign: TextAlign.center,
             ),
             const SizedBox(height: 8),
             Text(
               errorMessage,
-              style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                    color: AppTheme.textMedium,
-                  ),
+              style: Theme.of(
+                context,
+              ).textTheme.bodySmall?.copyWith(color: AppTheme.textMedium),
               textAlign: TextAlign.center,
             ),
             const SizedBox(height: 16),
@@ -253,9 +254,9 @@ class _LogExerciseTabState extends State<LogExerciseTab> {
       children: <Widget>[
         Text(
           AppStrings.exercise,
-          style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                fontWeight: FontWeight.w600,
-              ),
+          style: Theme.of(
+            context,
+          ).textTheme.titleMedium?.copyWith(fontWeight: FontWeight.w600),
         ),
         const SizedBox(height: 12),
         InkWell(
@@ -274,7 +275,7 @@ class _LogExerciseTabState extends State<LogExerciseTab> {
                   width: 40,
                   height: 40,
                   decoration: BoxDecoration(
-                    color: AppTheme.primaryOrange.withOpacity(0.1),
+                    color: AppTheme.primaryOrange.withValues(alpha: 0.1),
                     borderRadius: BorderRadius.circular(8),
                   ),
                   child: const Icon(
@@ -314,17 +315,17 @@ class _LogExerciseTabState extends State<LogExerciseTab> {
             const SizedBox(height: 16),
             Text(
               AppStrings.noExercisesAvailable,
-              style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                    fontWeight: FontWeight.w600,
-                  ),
+              style: Theme.of(
+                context,
+              ).textTheme.titleMedium?.copyWith(fontWeight: FontWeight.w600),
               textAlign: TextAlign.center,
             ),
             const SizedBox(height: 8),
             Text(
               AppStrings.createExercisesFirst,
-              style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                    color: AppTheme.textMedium,
-                  ),
+              style: Theme.of(
+                context,
+              ).textTheme.bodyMedium?.copyWith(color: AppTheme.textMedium),
               textAlign: TextAlign.center,
             ),
           ],
@@ -339,9 +340,9 @@ class _LogExerciseTabState extends State<LogExerciseTab> {
       children: <Widget>[
         Text(
           AppStrings.reps,
-          style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                fontWeight: FontWeight.w600,
-              ),
+          style: Theme.of(
+            context,
+          ).textTheme.titleMedium?.copyWith(fontWeight: FontWeight.w600),
         ),
         const SizedBox(height: 12),
         TextField(
@@ -366,9 +367,9 @@ class _LogExerciseTabState extends State<LogExerciseTab> {
       children: <Widget>[
         Text(
           AppStrings.weight,
-          style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                fontWeight: FontWeight.w600,
-              ),
+          style: Theme.of(
+            context,
+          ).textTheme.titleMedium?.copyWith(fontWeight: FontWeight.w600),
         ),
         const SizedBox(height: 12),
         TextField(
@@ -395,9 +396,9 @@ class _LogExerciseTabState extends State<LogExerciseTab> {
       children: <Widget>[
         Text(
           AppStrings.workoutDate,
-          style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                fontWeight: FontWeight.w600,
-              ),
+          style: Theme.of(
+            context,
+          ).textTheme.titleMedium?.copyWith(fontWeight: FontWeight.w600),
         ),
         const SizedBox(height: 12),
         InkWell(
@@ -416,7 +417,7 @@ class _LogExerciseTabState extends State<LogExerciseTab> {
                   width: 40,
                   height: 40,
                   decoration: BoxDecoration(
-                    color: AppTheme.primaryOrange.withOpacity(0.1),
+                    color: AppTheme.primaryOrange.withValues(alpha: 0.1),
                     borderRadius: BorderRadius.circular(8),
                   ),
                   child: const Icon(
@@ -447,9 +448,11 @@ class _LogExerciseTabState extends State<LogExerciseTab> {
     return Container(
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
-        color: AppTheme.primaryOrange.withOpacity(0.1),
+        color: AppTheme.primaryOrange.withValues(alpha: 0.1),
         borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: AppTheme.primaryOrange.withOpacity(0.3)),
+        border: Border.all(
+          color: AppTheme.primaryOrange.withValues(alpha: 0.3),
+        ),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -465,9 +468,9 @@ class _LogExerciseTabState extends State<LogExerciseTab> {
               Text(
                 AppStrings.setWillCountToward,
                 style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                      color: AppTheme.primaryOrange,
-                      fontWeight: FontWeight.w600,
-                    ),
+                  color: AppTheme.primaryOrange,
+                  fontWeight: FontWeight.w600,
+                ),
               ),
             ],
           ),
@@ -482,7 +485,7 @@ class _LogExerciseTabState extends State<LogExerciseTab> {
                   vertical: 6,
                 ),
                 decoration: BoxDecoration(
-                  color: AppTheme.primaryOrange.withOpacity(0.2),
+                  color: AppTheme.primaryOrange.withValues(alpha: 0.2),
                   borderRadius: BorderRadius.circular(12),
                 ),
                 child: Text(
@@ -505,8 +508,9 @@ class _LogExerciseTabState extends State<LogExerciseTab> {
     BuildContext context,
     List<Exercise> exercises,
   ) async {
-    final List<String> recentIds =
-        _buildRecentExerciseIds(context.read<WorkoutBloc>().state);
+    final List<String> recentIds = _buildRecentExerciseIds(
+      context.read<WorkoutBloc>().state,
+    );
 
     final Exercise? selected = await ExercisePickerSheet.show(
       context,
@@ -611,12 +615,10 @@ class _StickyLogBar extends StatelessWidget {
     return Container(
       decoration: BoxDecoration(
         color: AppTheme.surfaceDark,
-        border: const Border(
-          top: BorderSide(color: AppTheme.borderDark),
-        ),
+        border: const Border(top: BorderSide(color: AppTheme.borderDark)),
         boxShadow: <BoxShadow>[
           BoxShadow(
-            color: Colors.black.withOpacity(0.2),
+            color: Colors.black.withValues(alpha: 0.2),
             blurRadius: 4,
             offset: const Offset(0, -1),
           ),
@@ -650,9 +652,9 @@ class _StickyLogBar extends StatelessWidget {
               padding: const EdgeInsets.only(top: 8),
               child: Text(
                 'Logged ×$todaySetCount today',
-                style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                      color: AppTheme.successGreen,
-                    ),
+                style: Theme.of(
+                  context,
+                ).textTheme.bodySmall?.copyWith(color: AppTheme.successGreen),
               ),
             ),
         ],

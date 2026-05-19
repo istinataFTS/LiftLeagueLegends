@@ -11,7 +11,6 @@ import 'package:fitness_tracker/domain/entities/entity_sync_metadata.dart';
 import 'package:fitness_tracker/domain/repositories/app_session_repository.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:mocktail/mocktail.dart';
-import 'package:sqflite/sqflite.dart';
 import 'package:sqflite_common_ffi/sqflite_ffi.dart';
 
 class MockDatabaseHelper extends Mock implements DatabaseHelper {}
@@ -389,11 +388,7 @@ void main() {
         buildMeal(id: 'meal-1', name: 'My Meal', ownerUserId: 'user-1'),
       );
       await dataSource.insertMeal(
-        buildMeal(
-          id: 'meal-2',
-          name: 'Other User Meal',
-          ownerUserId: 'user-2',
-        ),
+        buildMeal(id: 'meal-2', name: 'Other User Meal', ownerUserId: 'user-2'),
       );
 
       final meals = await dataSource.getAllMeals();
@@ -494,39 +489,36 @@ void main() {
   // independent uniqueness scope.
 
   group('MealLocalDataSourceImpl multi-owner name coexistence', () {
-    test(
-      'two users can each have a meal with the same name — '
-      'mergeRemoteMeals stores both rows without UNIQUE violation',
-      () async {
-        // User-1's meal is already stored locally.
-        await dataSource.insertMeal(
-          buildMeal(
-            id: 'meal-u1',
-            name: 'Chicken Rice',
-            ownerUserId: 'user-1',
-            syncMetadata: const EntitySyncMetadata(status: SyncStatus.synced),
-          ),
-        );
+    test('two users can each have a meal with the same name — '
+        'mergeRemoteMeals stores both rows without UNIQUE violation', () async {
+      // User-1's meal is already stored locally.
+      await dataSource.insertMeal(
+        buildMeal(
+          id: 'meal-u1',
+          name: 'Chicken Rice',
+          ownerUserId: 'user-1',
+          syncMetadata: const EntitySyncMetadata(status: SyncStatus.synced),
+        ),
+      );
 
-        // Remote pull brings user-2's meal with the same name (different ID,
-        // different owner — should not conflict).
-        await dataSource.mergeRemoteMeals(<MealModel>[
-          buildMeal(
-            id: 'meal-u2',
-            name: 'Chicken Rice',
-            ownerUserId: 'user-2',
-            syncMetadata: const EntitySyncMetadata(status: SyncStatus.synced),
-          ),
-        ]);
+      // Remote pull brings user-2's meal with the same name (different ID,
+      // different owner — should not conflict).
+      await dataSource.mergeRemoteMeals(<MealModel>[
+        buildMeal(
+          id: 'meal-u2',
+          name: 'Chicken Rice',
+          ownerUserId: 'user-2',
+          syncMetadata: const EntitySyncMetadata(status: SyncStatus.synced),
+        ),
+      ]);
 
-        final rawRows = await database.query(DatabaseTables.meals);
-        expect(rawRows, hasLength(2));
-        expect(
-          rawRows.map((r) => r[DatabaseTables.mealId]).toSet(),
-          {'meal-u1', 'meal-u2'},
-        );
-      },
-    );
+      final rawRows = await database.query(DatabaseTables.meals);
+      expect(rawRows, hasLength(2));
+      expect(rawRows.map((r) => r[DatabaseTables.mealId]).toSet(), {
+        'meal-u1',
+        'meal-u2',
+      });
+    });
   });
 
   // ---------------------------------------------------------------------------
@@ -538,61 +530,141 @@ void main() {
   // remote sync. The rewrite uses UPDATE-in-place so nutrition_logs survive.
 
   group('MealLocalDataSourceImpl nutrition_logs preservation', () {
-    test(
-      'mergeRemoteMeals does not cascade-delete nutrition_logs '
-      'for a meal that is updated in place',
-      () async {
-        // Seed a meal and a nutrition log referencing it.
-        await dataSource.insertMeal(
-          buildMeal(
-            id: 'meal-1',
-            name: 'Oats',
-            ownerUserId: 'user-1',
-            syncMetadata: const EntitySyncMetadata(
-              status: SyncStatus.synced,
-              serverId: 'server-meal-1',
-            ),
+    test('mergeRemoteMeals does not cascade-delete nutrition_logs '
+        'for a meal that is updated in place', () async {
+      // Seed a meal and a nutrition log referencing it.
+      await dataSource.insertMeal(
+        buildMeal(
+          id: 'meal-1',
+          name: 'Oats',
+          ownerUserId: 'user-1',
+          syncMetadata: const EntitySyncMetadata(
+            status: SyncStatus.synced,
+            serverId: 'server-meal-1',
           ),
-        );
-        await database.insert(DatabaseTables.nutritionLogs, {
-          DatabaseTables.nutritionLogId: 'log-1',
-          DatabaseTables.ownerUserId: 'user-1',
-          DatabaseTables.nutritionLogMealId: 'meal-1',
-          DatabaseTables.nutritionLogMealName: 'Oats',
-          DatabaseTables.nutritionLogCarbs: 30.0,
-          DatabaseTables.nutritionLogProtein: 5.0,
-          DatabaseTables.nutritionLogFat: 3.0,
-          DatabaseTables.nutritionLogCalories: 167.0,
-          DatabaseTables.nutritionLogDate: '2026-01-01',
-          DatabaseTables.nutritionLogCreatedAt: '2026-01-01T09:00:00.000',
-          DatabaseTables.nutritionLogUpdatedAt: '2026-01-01T09:00:00.000',
-          DatabaseTables.nutritionLogSyncStatus: 'localOnly',
-        });
+        ),
+      );
+      await database.insert(DatabaseTables.nutritionLogs, {
+        DatabaseTables.nutritionLogId: 'log-1',
+        DatabaseTables.ownerUserId: 'user-1',
+        DatabaseTables.nutritionLogMealId: 'meal-1',
+        DatabaseTables.nutritionLogMealName: 'Oats',
+        DatabaseTables.nutritionLogCarbs: 30.0,
+        DatabaseTables.nutritionLogProtein: 5.0,
+        DatabaseTables.nutritionLogFat: 3.0,
+        DatabaseTables.nutritionLogCalories: 167.0,
+        DatabaseTables.nutritionLogDate: '2026-01-01',
+        DatabaseTables.nutritionLogCreatedAt: '2026-01-01T09:00:00.000',
+        DatabaseTables.nutritionLogUpdatedAt: '2026-01-01T09:00:00.000',
+        DatabaseTables.nutritionLogSyncStatus: 'localOnly',
+      });
 
-        // Remote sync brings back the same meal with an updated name.
-        await dataSource.mergeRemoteMeals(<MealModel>[
-          buildMeal(
-            id: 'meal-1',
-            name: 'Rolled Oats',
-            ownerUserId: 'user-1',
-            updatedAt: baseDate.add(const Duration(hours: 1)),
-            syncMetadata: const EntitySyncMetadata(
-              status: SyncStatus.synced,
-              serverId: 'server-meal-1',
-            ),
+      // Remote sync brings back the same meal with an updated name.
+      await dataSource.mergeRemoteMeals(<MealModel>[
+        buildMeal(
+          id: 'meal-1',
+          name: 'Rolled Oats',
+          ownerUserId: 'user-1',
+          updatedAt: baseDate.add(const Duration(hours: 1)),
+          syncMetadata: const EntitySyncMetadata(
+            status: SyncStatus.synced,
+            serverId: 'server-meal-1',
           ),
-        ]);
+        ),
+      ]);
 
-        // The nutrition log must still exist — it was not cascade-deleted.
-        final logs = await database.query(
-          DatabaseTables.nutritionLogs,
-          where: '${DatabaseTables.nutritionLogMealId} = ?',
-          whereArgs: <Object?>['meal-1'],
-        );
-        expect(logs, hasLength(1));
-        expect(logs.first[DatabaseTables.nutritionLogId], 'log-1');
-      },
-    );
+      // The nutrition log must still exist — it was not cascade-deleted.
+      final logs = await database.query(
+        DatabaseTables.nutritionLogs,
+        where: '${DatabaseTables.nutritionLogMealId} = ?',
+        whereArgs: <Object?>['meal-1'],
+      );
+      expect(logs, hasLength(1));
+      expect(logs.first[DatabaseTables.nutritionLogId], 'log-1');
+    });
+  });
+
+  // ---------------------------------------------------------------------------
+  // getPendingSyncMeals — owner-scoped (Model-A Issue 2)
+  // ---------------------------------------------------------------------------
+
+  group('MealLocalDataSourceImpl getPendingSyncMeals owner scope', () {
+    test('returns current-user pending rows', () async {
+      await dataSource.insertMeal(
+        buildMeal(
+          id: 'mine-upload',
+          name: 'Chicken Bowl',
+          ownerUserId: 'user-1',
+          syncMetadata: const EntitySyncMetadata(
+            status: SyncStatus.pendingUpload,
+          ),
+        ),
+      );
+      await dataSource.insertMeal(
+        buildMeal(
+          id: 'mine-update',
+          name: 'Oats',
+          ownerUserId: 'user-1',
+          syncMetadata: const EntitySyncMetadata(
+            status: SyncStatus.pendingUpdate,
+          ),
+        ),
+      );
+
+      final result = await dataSource.getPendingSyncMeals();
+      expect(result.map((m) => m.id).toSet(), <String>{
+        'mine-upload',
+        'mine-update',
+      });
+    });
+
+    test("excludes another account's pending rows", () async {
+      await dataSource.insertMeal(
+        buildMeal(
+          id: 'mine',
+          name: 'Chicken Bowl',
+          ownerUserId: 'user-1',
+          syncMetadata: const EntitySyncMetadata(
+            status: SyncStatus.pendingUpload,
+          ),
+        ),
+      );
+      await dataSource.insertMeal(
+        buildMeal(
+          id: 'theirs',
+          name: 'Rice',
+          ownerUserId: 'user-2',
+          syncMetadata: const EntitySyncMetadata(
+            status: SyncStatus.pendingUpload,
+          ),
+        ),
+      );
+
+      final result = await dataSource.getPendingSyncMeals();
+      expect(result.map((m) => m.id).toList(), <String>['mine']);
+    });
+
+    test('excludes localOnly and synced rows', () async {
+      await dataSource.insertMeal(
+        buildMeal(
+          id: 'local-only',
+          name: 'Yogurt',
+          ownerUserId: 'user-1',
+          syncMetadata: const EntitySyncMetadata(status: SyncStatus.localOnly),
+        ),
+      );
+      await dataSource.insertMeal(
+        buildMeal(
+          id: 'synced',
+          name: 'Toast',
+          ownerUserId: 'user-1',
+          syncMetadata: const EntitySyncMetadata(status: SyncStatus.synced),
+        ),
+      );
+
+      final result = await dataSource.getPendingSyncMeals();
+      expect(result, isEmpty);
+    });
   });
 
   // ---------------------------------------------------------------------------
@@ -600,29 +672,26 @@ void main() {
   // ---------------------------------------------------------------------------
 
   group('MealLocalDataSourceImpl incoming duplicate deduplication', () {
-    test(
-      'replaceAllMeals with duplicate (name, owner) in the incoming list '
-      'keeps only the most-recently-updated row',
-      () async {
-        final older = buildMeal(
-          id: 'm-old',
-          name: 'Oats',
-          ownerUserId: 'user-1',
-          updatedAt: baseDate,
-        );
-        final newer = buildMeal(
-          id: 'm-new',
-          name: 'Oats',
-          ownerUserId: 'user-1',
-          updatedAt: baseDate.add(const Duration(hours: 1)),
-        );
+    test('replaceAllMeals with duplicate (name, owner) in the incoming list '
+        'keeps only the most-recently-updated row', () async {
+      final older = buildMeal(
+        id: 'm-old',
+        name: 'Oats',
+        ownerUserId: 'user-1',
+        updatedAt: baseDate,
+      );
+      final newer = buildMeal(
+        id: 'm-new',
+        name: 'Oats',
+        ownerUserId: 'user-1',
+        updatedAt: baseDate.add(const Duration(hours: 1)),
+      );
 
-        await dataSource.replaceAllMeals(<MealModel>[older, newer]);
+      await dataSource.replaceAllMeals(<MealModel>[older, newer]);
 
-        final rawRows = await database.query(DatabaseTables.meals);
-        expect(rawRows, hasLength(1));
-        expect(rawRows.first[DatabaseTables.mealId], 'm-new');
-      },
-    );
+      final rawRows = await database.query(DatabaseTables.meals);
+      expect(rawRows, hasLength(1));
+      expect(rawRows.first[DatabaseTables.mealId], 'm-new');
+    });
   });
 }
