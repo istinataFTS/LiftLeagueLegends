@@ -4,7 +4,6 @@ import 'package:fitness_tracker/data/datasources/local/muscle_stimulus_local_dat
 import 'package:fitness_tracker/data/models/muscle_stimulus_model.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:mocktail/mocktail.dart';
-import 'package:sqflite/sqflite.dart';
 import 'package:sqflite_common_ffi/sqflite_ffi.dart';
 
 class MockDatabaseHelper extends Mock implements DatabaseHelper {}
@@ -129,16 +128,18 @@ void main() {
       expect(result, isNull);
     });
 
-    test('returns null when no record exists for the user on that date',
-        () async {
-      final result = await dataSource.getStimulusByMuscleAndDate(
-        userId: userA,
-        muscleGroup: 'chest',
-        date: baseDate,
-      );
+    test(
+      'returns null when no record exists for the user on that date',
+      () async {
+        final result = await dataSource.getStimulusByMuscleAndDate(
+          userId: userA,
+          muscleGroup: 'chest',
+          date: baseDate,
+        );
 
-      expect(result, isNull);
-    });
+        expect(result, isNull);
+      },
+    );
   });
 
   // ---------------------------------------------------------------------------
@@ -320,28 +321,31 @@ void main() {
   // ---------------------------------------------------------------------------
 
   group('deleteOlderThan user isolation', () {
-    test('only deletes records older than the cutoff for the specified user',
-        () async {
-      await dataSource.upsertStimulus(
-        buildStimulus(id: 'a-old', ownerUserId: userA, date: twoDaysAgo),
-      );
-      await dataSource.upsertStimulus(
-        buildStimulus(id: 'a-new', ownerUserId: userA, date: baseDate),
-      );
-      await dataSource.upsertStimulus(
-        buildStimulus(id: 'b-old', ownerUserId: userB, date: twoDaysAgo),
-      );
+    test(
+      'only deletes records older than the cutoff for the specified user',
+      () async {
+        await dataSource.upsertStimulus(
+          buildStimulus(id: 'a-old', ownerUserId: userA, date: twoDaysAgo),
+        );
+        await dataSource.upsertStimulus(
+          buildStimulus(id: 'a-new', ownerUserId: userA, date: baseDate),
+        );
+        await dataSource.upsertStimulus(
+          buildStimulus(id: 'b-old', ownerUserId: userB, date: twoDaysAgo),
+        );
 
-      await dataSource.deleteOlderThan(userA, yesterday);
+        await dataSource.deleteOlderThan(userA, yesterday);
 
-      final allRows = await database.query(DatabaseTables.muscleStimulus);
-      final ids =
-          allRows.map((r) => r[DatabaseTables.stimulusId] as String).toSet();
+        final allRows = await database.query(DatabaseTables.muscleStimulus);
+        final ids = allRows
+            .map((r) => r[DatabaseTables.stimulusId] as String)
+            .toSet();
 
-      // user A's old record deleted; user A's new record and user B's old record survive
-      expect(ids, containsAll(<String>['a-new', 'b-old']));
-      expect(ids, isNot(contains('a-old')));
-    });
+        // user A's old record deleted; user A's new record and user B's old record survive
+        expect(ids, containsAll(<String>['a-new', 'b-old']));
+        expect(ids, isNot(contains('a-old')));
+      },
+    );
   });
 
   // ---------------------------------------------------------------------------
@@ -354,18 +358,15 @@ void main() {
         buildStimulus(id: 'a-chest', ownerUserId: userA),
       );
       await dataSource.upsertStimulus(
-        buildStimulus(
-          id: 'b-chest',
-          ownerUserId: userB,
-          muscleGroup: 'back',
-        ),
+        buildStimulus(id: 'b-chest', ownerUserId: userB, muscleGroup: 'back'),
       );
 
       await dataSource.clearStimulusForUser(userA);
 
       final allRows = await database.query(DatabaseTables.muscleStimulus);
-      final ids =
-          allRows.map((r) => r[DatabaseTables.stimulusId] as String).toSet();
+      final ids = allRows
+          .map((r) => r[DatabaseTables.stimulusId] as String)
+          .toSet();
 
       expect(ids, isNot(contains('a-chest')));
       expect(ids, contains('b-chest'));
@@ -382,36 +383,39 @@ void main() {
       expect(allRows, hasLength(1));
     });
 
-    test('deletes all records for the user across every muscle group', () async {
-      await dataSource.upsertStimulus(
-        buildStimulus(
-          id: 'a-chest',
-          ownerUserId: userA,
-          muscleGroup: 'chest',
-        ),
-      );
-      await dataSource.upsertStimulus(
-        buildStimulus(
-          id: 'a-back',
-          ownerUserId: userA,
-          muscleGroup: 'back',
-          date: yesterday,
-        ),
-      );
-      await dataSource.upsertStimulus(
-        buildStimulus(
-          id: 'a-legs',
-          ownerUserId: userA,
-          muscleGroup: 'quads',
-          date: twoDaysAgo,
-        ),
-      );
+    test(
+      'deletes all records for the user across every muscle group',
+      () async {
+        await dataSource.upsertStimulus(
+          buildStimulus(
+            id: 'a-chest',
+            ownerUserId: userA,
+            muscleGroup: 'chest',
+          ),
+        );
+        await dataSource.upsertStimulus(
+          buildStimulus(
+            id: 'a-back',
+            ownerUserId: userA,
+            muscleGroup: 'back',
+            date: yesterday,
+          ),
+        );
+        await dataSource.upsertStimulus(
+          buildStimulus(
+            id: 'a-legs',
+            ownerUserId: userA,
+            muscleGroup: 'quads',
+            date: twoDaysAgo,
+          ),
+        );
 
-      await dataSource.clearStimulusForUser(userA);
+        await dataSource.clearStimulusForUser(userA);
 
-      final allRows = await database.query(DatabaseTables.muscleStimulus);
-      expect(allRows, isEmpty);
-    });
+        final allRows = await database.query(DatabaseTables.muscleStimulus);
+        expect(allRows, isEmpty);
+      },
+    );
   });
 
   // ---------------------------------------------------------------------------

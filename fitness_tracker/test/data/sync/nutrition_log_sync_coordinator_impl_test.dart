@@ -6,6 +6,7 @@ import 'package:fitness_tracker/data/datasources/remote/nutrition_log_remote_dat
 import 'package:fitness_tracker/data/sync/nutrition_log_sync_coordinator_impl.dart';
 import 'package:fitness_tracker/data/models/nutrition_log_model.dart';
 import 'package:fitness_tracker/domain/entities/entity_sync_metadata.dart';
+import 'package:fitness_tracker/domain/entities/nutrition_log.dart';
 import 'package:fitness_tracker/domain/entities/pending_sync_delete.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:mocktail/mocktail.dart';
@@ -67,10 +68,7 @@ void main() {
       loggedAt: baseDate,
       createdAt: baseDate,
       updatedAt: baseDate,
-      syncMetadata: EntitySyncMetadata(
-        status: status,
-        serverId: serverId,
-      ),
+      syncMetadata: EntitySyncMetadata(status: status, serverId: serverId),
     );
   }
 
@@ -86,66 +84,71 @@ void main() {
     );
   });
 
-  test('prepareForInitialCloudMigration delegates to local datasource', () async {
-    when(
-      () => localDataSource.prepareForInitialCloudMigration(userId: 'user-1'),
-    ).thenAnswer((_) async {});
+  test(
+    'prepareForInitialCloudMigration delegates to local datasource',
+    () async {
+      when(
+        () => localDataSource.prepareForInitialCloudMigration(userId: 'user-1'),
+      ).thenAnswer((_) async {});
 
-    await coordinator.prepareForInitialCloudMigration('user-1');
+      await coordinator.prepareForInitialCloudMigration('user-1');
 
-    verify(
-      () => localDataSource.prepareForInitialCloudMigration(userId: 'user-1'),
-    ).called(1);
-    verifyNever(() => remoteDataSource.upsertLog(any()));
-  });
+      verify(
+        () => localDataSource.prepareForInitialCloudMigration(userId: 'user-1'),
+      ).called(1);
+      verifyNever(() => remoteDataSource.upsertLog(any()));
+    },
+  );
 
-  test('delete marks synced row as pending delete before remote delete',
-      () async {
-    final NutritionLogModel existing = buildLog(id: 'log-1');
+  test(
+    'delete marks synced row as pending delete before remote delete',
+    () async {
+      final NutritionLogModel existing = buildLog(id: 'log-1');
 
-    when(() => remoteDataSource.isConfigured).thenReturn(true);
-    when(() => localDataSource.getLogById('log-1')).thenAnswer(
-      (_) async => existing,
-    );
-    when(() => pendingDeleteDataSource.enqueue(any())).thenAnswer((_) async {});
-    when(() => localDataSource.markAsPendingDelete('log-1')).thenAnswer(
-      (_) async {},
-    );
-    when(
-      () => pendingDeleteDataSource.getPendingByEntityType(
-        SyncEntityType.nutritionLog,
-      ),
-    ).thenAnswer(
-      (_) async => <PendingSyncDelete>[
-        PendingSyncDelete(
-          id: 'delete-1',
-          entityType: SyncEntityType.nutritionLog,
-          localEntityId: 'log-1',
-          serverEntityId: 'server-1',
-          createdAt: DateTime.now(),
+      when(() => remoteDataSource.isConfigured).thenReturn(true);
+      when(
+        () => localDataSource.getLogById('log-1'),
+      ).thenAnswer((_) async => existing);
+      when(
+        () => pendingDeleteDataSource.enqueue(any()),
+      ).thenAnswer((_) async {});
+      when(
+        () => localDataSource.markAsPendingDelete('log-1'),
+      ).thenAnswer((_) async {});
+      when(
+        () => pendingDeleteDataSource.getPendingByEntityType(
+          SyncEntityType.nutritionLog,
         ),
-      ],
-    );
-    when(
-      () => remoteDataSource.deleteLog(
-        localId: 'log-1',
-        serverId: 'server-1',
-      ),
-    ).thenAnswer((_) async {});
-    when(() => pendingDeleteDataSource.remove('delete-1')).thenAnswer(
-      (_) async {},
-    );
-    when(() => localDataSource.deleteLog('log-1')).thenAnswer((_) async {});
+      ).thenAnswer(
+        (_) async => <PendingSyncDelete>[
+          PendingSyncDelete(
+            id: 'delete-1',
+            entityType: SyncEntityType.nutritionLog,
+            localEntityId: 'log-1',
+            serverEntityId: 'server-1',
+            createdAt: DateTime.now(),
+          ),
+        ],
+      );
+      when(
+        () =>
+            remoteDataSource.deleteLog(localId: 'log-1', serverId: 'server-1'),
+      ).thenAnswer((_) async {});
+      when(
+        () => pendingDeleteDataSource.remove('delete-1'),
+      ).thenAnswer((_) async {});
+      when(() => localDataSource.deleteLog('log-1')).thenAnswer((_) async {});
 
-    await coordinator.persistDeletedLog('log-1');
+      await coordinator.persistDeletedLog('log-1');
 
-    verify(() => localDataSource.markAsPendingDelete('log-1')).called(1);
-    verify(() => remoteDataSource.deleteLog(
-          localId: 'log-1',
-          serverId: 'server-1',
-        )).called(1);
-    verify(() => localDataSource.deleteLog('log-1')).called(1);
-  });
+      verify(() => localDataSource.markAsPendingDelete('log-1')).called(1);
+      verify(
+        () =>
+            remoteDataSource.deleteLog(localId: 'log-1', serverId: 'server-1'),
+      ).called(1);
+      verify(() => localDataSource.deleteLog('log-1')).called(1);
+    },
+  );
 
   test('delete removes purely local row immediately', () async {
     final NutritionLogModel existing = buildLog(
@@ -155,9 +158,9 @@ void main() {
     );
 
     when(() => remoteDataSource.isConfigured).thenReturn(false);
-    when(() => localDataSource.getLogById('log-1')).thenAnswer(
-      (_) async => existing,
-    );
+    when(
+      () => localDataSource.getLogById('log-1'),
+    ).thenAnswer((_) async => existing);
     when(() => localDataSource.deleteLog('log-1')).thenAnswer((_) async {});
 
     await coordinator.persistDeletedLog('log-1');
@@ -170,13 +173,13 @@ void main() {
     final NutritionLogModel existing = buildLog(id: 'log-1');
 
     when(() => remoteDataSource.isConfigured).thenReturn(true);
-    when(() => localDataSource.getLogById('log-1')).thenAnswer(
-      (_) async => existing,
-    );
+    when(
+      () => localDataSource.getLogById('log-1'),
+    ).thenAnswer((_) async => existing);
     when(() => pendingDeleteDataSource.enqueue(any())).thenAnswer((_) async {});
-    when(() => localDataSource.markAsPendingDelete('log-1')).thenAnswer(
-      (_) async {},
-    );
+    when(
+      () => localDataSource.markAsPendingDelete('log-1'),
+    ).thenAnswer((_) async {});
     when(
       () => pendingDeleteDataSource.getPendingByEntityType(
         SyncEntityType.nutritionLog,
@@ -193,10 +196,7 @@ void main() {
       ],
     );
     when(
-      () => remoteDataSource.deleteLog(
-        localId: 'log-1',
-        serverId: 'server-1',
-      ),
+      () => remoteDataSource.deleteLog(localId: 'log-1', serverId: 'server-1'),
     ).thenThrow(StateError('network'));
     when(
       () => pendingDeleteDataSource.markAttempted(
@@ -210,10 +210,97 @@ void main() {
 
     verify(() => localDataSource.markAsPendingDelete('log-1')).called(1);
     verifyNever(() => localDataSource.deleteLog('log-1'));
-    verify(() => pendingDeleteDataSource.markAttempted(
-          'delete-1',
-          attemptedAt: any(named: 'attemptedAt'),
-          errorMessage: 'Bad state: network',
-        )).called(1);
+    verify(
+      () => pendingDeleteDataSource.markAttempted(
+        'delete-1',
+        attemptedAt: any(named: 'attemptedAt'),
+        errorMessage: 'Bad state: network',
+      ),
+    ).called(1);
+  });
+
+  // ---------------------------------------------------------------------------
+  // Guest-owner guard
+  // ---------------------------------------------------------------------------
+
+  group('guest-owner guard', () {
+    NutritionLog buildLogEntity({String? ownerUserId}) => NutritionLog(
+      id: 'log-1',
+      ownerUserId: ownerUserId,
+      mealName: 'Chicken Bowl',
+      proteinGrams: 25,
+      carbsGrams: 30,
+      fatGrams: 10,
+      calories: 310,
+      loggedAt: baseDate,
+      createdAt: baseDate,
+    );
+
+    test('buildAddedLocalEntity stamps null-owner log as localOnly even when '
+        'remote is configured', () {
+      when(() => remoteDataSource.isConfigured).thenReturn(true);
+
+      final result = coordinator.buildAddedLocalEntity(
+        buildLogEntity(ownerUserId: null),
+        baseDate,
+      );
+
+      expect(result.syncMetadata.status, SyncStatus.localOnly);
+    });
+
+    test(
+      "buildAddedLocalEntity stamps guest-sentinel ('') log as localOnly",
+      () {
+        when(() => remoteDataSource.isConfigured).thenReturn(true);
+
+        final result = coordinator.buildAddedLocalEntity(
+          buildLogEntity(ownerUserId: ''),
+          baseDate,
+        );
+
+        expect(result.syncMetadata.status, SyncStatus.localOnly);
+      },
+    );
+
+    test(
+      'buildAddedLocalEntity stamps authenticated-user log as pendingUpload',
+      () {
+        when(() => remoteDataSource.isConfigured).thenReturn(true);
+
+        final result = coordinator.buildAddedLocalEntity(
+          buildLogEntity(ownerUserId: 'user-1'),
+          baseDate,
+        );
+
+        expect(result.syncMetadata.status, SyncStatus.pendingUpload);
+      },
+    );
+
+    test('buildUpdatedLocalEntity stamps null-owner log as localOnly', () {
+      when(() => remoteDataSource.isConfigured).thenReturn(true);
+
+      final result = coordinator.buildUpdatedLocalEntity(
+        entity: buildLogEntity(ownerUserId: null),
+        existingLocal: null,
+        now: baseDate,
+      );
+
+      expect(result.syncMetadata.status, SyncStatus.localOnly);
+    });
+
+    test(
+      "buildUpdatedLocalEntity stamps guest-sentinel ('') log as localOnly",
+      () {
+        when(() => remoteDataSource.isConfigured).thenReturn(true);
+
+        final result = coordinator.buildUpdatedLocalEntity(
+          entity: buildLogEntity(ownerUserId: ''),
+          existingLocal: null,
+          now: baseDate,
+        );
+
+        expect(result.syncMetadata.status, SyncStatus.localOnly);
+      },
+    );
   });
 }

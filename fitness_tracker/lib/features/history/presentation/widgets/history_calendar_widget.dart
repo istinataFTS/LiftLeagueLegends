@@ -62,7 +62,10 @@ class HistoryCalendarWidget extends StatelessWidget {
 
   Widget _buildMonthHeader(BuildContext context) {
     final String monthName = DateFormat('MMMM yyyy').format(displayedMonth);
-    final bool isCurrentMonth = WeekDateUtils.isSameMonth(displayedMonth, today);
+    final bool isCurrentMonth = WeekDateUtils.isSameMonth(
+      displayedMonth,
+      today,
+    );
 
     return SizedBox(
       height: _monthHeaderHeight,
@@ -80,9 +83,9 @@ class HistoryCalendarWidget extends StatelessWidget {
               child: Text(
                 monthName,
                 textAlign: TextAlign.center,
-                style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                      fontWeight: FontWeight.w600,
-                    ),
+                style: Theme.of(
+                  context,
+                ).textTheme.titleMedium?.copyWith(fontWeight: FontWeight.w600),
               ),
             ),
             if (!isCurrentMonth)
@@ -117,29 +120,37 @@ class HistoryCalendarWidget extends StatelessWidget {
       child: Padding(
         padding: const EdgeInsets.symmetric(horizontal: 6),
         child: Row(
-          children: weekdays.map((String day) {
-            return Expanded(
-              child: Center(
-                child: Text(
-                  day,
-                  style: Theme.of(context).textTheme.bodySmall?.copyWith(
+          children: weekdays
+              .map((String day) {
+                return Expanded(
+                  child: Center(
+                    child: Text(
+                      day,
+                      style: Theme.of(context).textTheme.bodySmall?.copyWith(
                         color: AppTheme.textDim,
                         fontWeight: FontWeight.w600,
                       ),
-                ),
-              ),
-            );
-          }).toList(growable: false),
+                    ),
+                  ),
+                );
+              })
+              .toList(growable: false),
         ),
       ),
     );
   }
 
   Widget _buildCalendarGrid(BuildContext context) {
-    final DateTime firstDayOfMonth =
-        DateTime(displayedMonth.year, displayedMonth.month, 1);
-    final DateTime lastDayOfMonth =
-        DateTime(displayedMonth.year, displayedMonth.month + 1, 0);
+    final DateTime firstDayOfMonth = DateTime(
+      displayedMonth.year,
+      displayedMonth.month,
+      1,
+    );
+    final DateTime lastDayOfMonth = DateTime(
+      displayedMonth.year,
+      displayedMonth.month + 1,
+      0,
+    );
 
     final int leadingEmptyCells = WeekDateUtils.leadingEmptyCellCount(
       firstDayOfMonth,
@@ -168,9 +179,7 @@ class HistoryCalendarWidget extends StatelessWidget {
                 dayNumber,
               );
 
-              return Expanded(
-                child: _buildDateCell(context, date),
-              );
+              return Expanded(child: _buildDateCell(context, date));
             }),
           );
         }),
@@ -180,10 +189,11 @@ class HistoryCalendarWidget extends StatelessWidget {
 
   Widget _buildDateCell(BuildContext context, DateTime date) {
     final bool isToday = WeekDateUtils.isSameDay(date, today);
-    final bool isSelected = selectedDate != null &&
-        WeekDateUtils.isSameDay(date, selectedDate!);
+    final bool isSelected =
+        selectedDate != null && WeekDateUtils.isSameDay(date, selectedDate!);
     final DateTime normalizedDate = WeekDateUtils.normalizeDate(date);
-    final DayActivity activity = dayActivity[normalizedDate] ?? DayActivity.none;
+    final DayActivity activity =
+        dayActivity[normalizedDate] ?? DayActivity.none;
     final bool hasActivity = activity.hasAny;
 
     final DateTime normalizedToday = WeekDateUtils.normalizeDate(today);
@@ -191,16 +201,16 @@ class HistoryCalendarWidget extends StatelessWidget {
 
     Color? backgroundColor;
     if (isSelected) {
-      backgroundColor = AppTheme.primaryOrange.withOpacity(0.2);
+      backgroundColor = AppTheme.primaryOrange.withValues(alpha: 0.2);
     } else if (hasActivity) {
-      backgroundColor = AppTheme.primaryOrange.withOpacity(0.08);
+      backgroundColor = AppTheme.primaryOrange.withValues(alpha: 0.08);
     }
 
     Color? borderColor;
     if (isToday) {
       borderColor = AppTheme.primaryOrange;
     } else if (isSelected) {
-      borderColor = AppTheme.primaryOrange.withOpacity(0.5);
+      borderColor = AppTheme.primaryOrange.withValues(alpha: 0.5);
     }
 
     return GestureDetector(
@@ -224,15 +234,15 @@ class HistoryCalendarWidget extends StatelessWidget {
               child: Text(
                 '${date.day}',
                 style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                      color: isFutureDate
-                          ? AppTheme.textDim
-                          : hasActivity
-                              ? AppTheme.textLight
-                              : AppTheme.textMedium,
-                      fontWeight: isToday || hasActivity
-                          ? FontWeight.w600
-                          : FontWeight.w400,
-                    ),
+                  color: isFutureDate
+                      ? AppTheme.textDim
+                      : hasActivity
+                      ? AppTheme.textLight
+                      : AppTheme.textMedium,
+                  fontWeight: isToday || hasActivity
+                      ? FontWeight.w600
+                      : FontWeight.w400,
+                ),
               ),
             ),
             if (hasActivity)
@@ -262,7 +272,9 @@ class _ActivityIndicators extends StatelessWidget {
     }
     if (activity.hasNutrition) {
       if (dots.isNotEmpty) {
-        dots.add(const SizedBox(width: HistoryCalendarWidget._indicatorSpacing));
+        dots.add(
+          const SizedBox(width: HistoryCalendarWidget._indicatorSpacing),
+        );
       }
       dots.add(const _Dot(color: HistoryCalendarWidget._nutritionDotColor));
     }
@@ -285,10 +297,7 @@ class _Dot extends StatelessWidget {
     return Container(
       width: HistoryCalendarWidget._indicatorSize,
       height: HistoryCalendarWidget._indicatorSize,
-      decoration: BoxDecoration(
-        color: color,
-        shape: BoxShape.circle,
-      ),
+      decoration: BoxDecoration(color: color, shape: BoxShape.circle),
     );
   }
 }

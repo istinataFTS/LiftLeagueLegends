@@ -1,5 +1,4 @@
 import 'package:fitness_tracker/core/auth/auth_session_service.dart';
-import 'package:fitness_tracker/data/datasources/remote/auth_remote_datasource.dart';
 import 'package:fitness_tracker/domain/entities/app_user.dart';
 import 'package:fitness_tracker/features/auth/application/sign_up_cubit.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -21,7 +20,8 @@ void main() {
 
   const confirmationResult = AuthSessionActionResult(
     status: AuthSessionActionStatus.completed,
-    message: 'registration successful; check your email to confirm your account',
+    message:
+        'registration successful; check your email to confirm your account',
     user: user,
     requiresEmailConfirmation: true,
   );
@@ -127,10 +127,7 @@ void main() {
       );
 
       expect(cubit.state.isFailure, isTrue);
-      expect(
-        cubit.state.errorMessage,
-        contains('between 3 and 30 characters'),
-      );
+      expect(cubit.state.errorMessage, contains('between 3 and 30 characters'));
     });
 
     test('rejects username with special characters', () async {
@@ -173,37 +170,38 @@ void main() {
   // ---------------------------------------------------------------------------
 
   group('success', () {
-    test('transitions to success when sign-up completes without confirmation',
-        () async {
-      when(
-        () => authSessionService.signUpWithEmail(
-          email: any(named: 'email'),
-          password: any(named: 'password'),
-          username: any(named: 'username'),
-        ),
-      ).thenAnswer((_) async => successResult);
-
-      await cubit.submit(
-        email: ' marin@test.com ',
-        password: 'password123',
-        confirmPassword: 'password123',
-        username: ' marin ',
-      );
-
-      expect(cubit.state.isSuccess, isTrue);
-      expect(cubit.state.errorMessage, isNull);
-
-      verify(
-        () => authSessionService.signUpWithEmail(
-          email: 'marin@test.com',
-          password: 'password123',
-          username: 'marin',
-        ),
-      ).called(1);
-    });
-
     test(
-        'transitions to awaitingEmailConfirmation when backend requires '
+      'transitions to success when sign-up completes without confirmation',
+      () async {
+        when(
+          () => authSessionService.signUpWithEmail(
+            email: any(named: 'email'),
+            password: any(named: 'password'),
+            username: any(named: 'username'),
+          ),
+        ).thenAnswer((_) async => successResult);
+
+        await cubit.submit(
+          email: ' marin@test.com ',
+          password: 'password123',
+          confirmPassword: 'password123',
+          username: ' marin ',
+        );
+
+        expect(cubit.state.isSuccess, isTrue);
+        expect(cubit.state.errorMessage, isNull);
+
+        verify(
+          () => authSessionService.signUpWithEmail(
+            email: 'marin@test.com',
+            password: 'password123',
+            username: 'marin',
+          ),
+        ).called(1);
+      },
+    );
+
+    test('transitions to awaitingEmailConfirmation when backend requires '
         'confirmation', () async {
       when(
         () => authSessionService.signUpWithEmail(
@@ -224,26 +222,28 @@ void main() {
       expect(cubit.state.errorMessage, isNull);
     });
 
-    test('stores trimmed email in state when awaiting email confirmation',
-        () async {
-      when(
-        () => authSessionService.signUpWithEmail(
-          email: any(named: 'email'),
-          password: any(named: 'password'),
-          username: any(named: 'username'),
-        ),
-      ).thenAnswer((_) async => confirmationResult);
+    test(
+      'stores trimmed email in state when awaiting email confirmation',
+      () async {
+        when(
+          () => authSessionService.signUpWithEmail(
+            email: any(named: 'email'),
+            password: any(named: 'password'),
+            username: any(named: 'username'),
+          ),
+        ).thenAnswer((_) async => confirmationResult);
 
-      await cubit.submit(
-        email: '  marin@test.com  ',
-        password: 'password123',
-        confirmPassword: 'password123',
-        username: 'marin',
-      );
+        await cubit.submit(
+          email: '  marin@test.com  ',
+          password: 'password123',
+          confirmPassword: 'password123',
+          username: 'marin',
+        );
 
-      expect(cubit.state.isAwaitingEmailConfirmation, isTrue);
-      expect(cubit.state.email, 'marin@test.com');
-    });
+        expect(cubit.state.isAwaitingEmailConfirmation, isTrue);
+        expect(cubit.state.email, 'marin@test.com');
+      },
+    );
   });
 
   // ---------------------------------------------------------------------------
@@ -304,12 +304,10 @@ void main() {
           password: any(named: 'password'),
           username: any(named: 'username'),
         ),
-      ).thenAnswer(
-        (_) async {
-          await Future<void>.delayed(const Duration(milliseconds: 50));
-          return successResult;
-        },
-      );
+      ).thenAnswer((_) async {
+        await Future<void>.delayed(const Duration(milliseconds: 50));
+        return successResult;
+      });
 
       // First submit — do not await.
       final firstSubmit = cubit.submit(

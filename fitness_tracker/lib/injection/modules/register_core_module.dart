@@ -16,8 +16,10 @@ import '../../data/datasources/remote/supabase_auth_remote_datasource.dart';
 import '../../data/datasources/remote/supabase_client_provider.dart';
 import '../../data/repositories/app_session_repository_impl.dart';
 import '../../data/repositories/app_settings_repository_impl.dart';
+import '../../data/repositories/catalog_init_flag_repository_impl.dart';
 import '../../domain/repositories/app_session_repository.dart';
 import '../../domain/repositories/app_settings_repository.dart';
+import '../../domain/repositories/catalog_init_flag_repository.dart';
 import '../../domain/services/authenticated_data_source_preference_resolver.dart';
 
 void registerCoreModule(GetIt sl) {
@@ -27,6 +29,10 @@ void registerCoreModule(GetIt sl) {
 
   sl.registerLazySingleton<AppMetadataLocalDataSource>(
     () => AppMetadataLocalDataSourceImpl(databaseHelper: sl()),
+  );
+
+  sl.registerLazySingleton<CatalogInitFlagRepository>(
+    () => CatalogInitFlagRepositoryImpl(sl()),
   );
 
   sl.registerLazySingleton(
@@ -58,10 +64,8 @@ void registerCoreModule(GetIt sl) {
   );
 
   sl.registerLazySingleton(
-    () => RemoteSyncAvailability(
-      runtimePolicy: sl(),
-      networkStatusService: sl(),
-    ),
+    () =>
+        RemoteSyncAvailability(runtimePolicy: sl(), networkStatusService: sl()),
   );
 
   sl.registerLazySingleton<AppSessionRepository>(
@@ -73,14 +77,10 @@ void registerCoreModule(GetIt sl) {
   );
 
   sl.registerLazySingleton<AppSettingsRepository>(
-    () => AppSettingsRepositoryImpl(
-      localDataSource: sl(),
-    ),
+    () => AppSettingsRepositoryImpl(localDataSource: sl()),
   );
 
   sl.registerLazySingleton(
-    () => AuthenticatedDataSourcePreferenceResolver(
-      appSessionRepository: sl(),
-    ),
+    () => AuthenticatedDataSourcePreferenceResolver(appSessionRepository: sl()),
   );
 }

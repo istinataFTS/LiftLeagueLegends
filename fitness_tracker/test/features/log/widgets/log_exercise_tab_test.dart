@@ -1,7 +1,6 @@
 import 'package:bloc_test/bloc_test.dart';
 import 'package:fitness_tracker/app/app.dart';
 import 'package:fitness_tracker/core/constants/app_strings.dart';
-import 'package:fitness_tracker/domain/entities/app_settings.dart';
 import 'package:fitness_tracker/domain/entities/exercise.dart';
 import 'package:fitness_tracker/features/library/application/exercise_bloc.dart';
 import 'package:fitness_tracker/features/log/log.dart';

@@ -46,7 +46,10 @@ class WorkoutSetSyncCoordinatorImpl
   WorkoutSet buildAddedLocalEntity(WorkoutSet entity, DateTime now) {
     return entity.copyWith(
       updatedAt: now,
-      syncMetadata: buildAddedSyncMetadata(entity.syncMetadata),
+      syncMetadata: guestAwareAddedSyncMetadata(
+        entity.syncMetadata,
+        entity.ownerUserId,
+      ),
     );
   }
 
@@ -58,9 +61,10 @@ class WorkoutSetSyncCoordinatorImpl
   }) {
     return entity.copyWith(
       updatedAt: now,
-      syncMetadata: buildUpdatedSyncMetadata(
+      syncMetadata: guestAwareUpdatedSyncMetadata(
         incomingMetadata: entity.syncMetadata,
         existingLocalMetadata: existingLocal?.syncMetadata,
+        ownerUserId: entity.ownerUserId,
       ),
     );
   }
@@ -100,10 +104,7 @@ class WorkoutSetSyncCoordinatorImpl
     required String localId,
     required String? serverId,
   }) {
-    return remoteDataSource.deleteSet(
-      localId: localId,
-      serverId: serverId,
-    );
+    return remoteDataSource.deleteSet(localId: localId, serverId: serverId);
   }
 
   @override

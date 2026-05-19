@@ -96,7 +96,7 @@ class _ProfileHeader extends StatelessWidget {
             color: AppTheme.primaryOrange,
             shape: BoxShape.circle,
             border: Border.all(
-              color: AppTheme.primaryOrange.withOpacity(0.3),
+              color: AppTheme.primaryOrange.withValues(alpha: 0.3),
               width: 4,
             ),
           ),
@@ -182,9 +182,11 @@ class _AccountModeBanner extends StatelessWidget {
       width: double.infinity,
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
-        color: AppTheme.primaryOrange.withOpacity(0.08),
+        color: AppTheme.primaryOrange.withValues(alpha: 0.08),
         borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: AppTheme.primaryOrange.withOpacity(0.2)),
+        border: Border.all(
+          color: AppTheme.primaryOrange.withValues(alpha: 0.2),
+        ),
       ),
       child: Row(
         children: <Widget>[
@@ -291,7 +293,7 @@ class _NavigationTile extends StatelessWidget {
           width: 40,
           height: 40,
           decoration: BoxDecoration(
-            color: AppTheme.primaryOrange.withOpacity(0.1),
+            color: AppTheme.primaryOrange.withValues(alpha: 0.1),
             borderRadius: BorderRadius.circular(10),
           ),
           child: Icon(icon, color: AppTheme.primaryOrange, size: 24),

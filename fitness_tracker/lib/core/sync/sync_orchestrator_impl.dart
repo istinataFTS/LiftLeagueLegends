@@ -158,6 +158,25 @@ class SyncOrchestratorImpl implements SyncOrchestrator {
           message: 'initial cloud migration completed successfully',
         );
 
+      case InitialCloudMigrationStatus.completedWithErrors:
+        // The session must still be established (the user is not locked out
+        // of their own account). Run only the always-on local hooks (empty
+        // pulledFeatures): a step failed, so feature-gated hooks must not
+        // assume their feature pulled cleanly. Deliberately do NOT record a
+        // successful cloud sync — the migration is incomplete and must
+        // re-run its failed steps on the next sync.
+        await _runPostSyncHooks(
+          trigger: trigger,
+          session: session,
+          pulledFeatures: const <String>{},
+        );
+
+        return SyncRunResult(
+          status: SyncRunStatus.completed,
+          trigger: trigger,
+          message: migrationResult.message,
+        );
+
       case InitialCloudMigrationStatus.skipped:
         return SyncRunResult(
           status: SyncRunStatus.skipped,

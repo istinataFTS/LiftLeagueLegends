@@ -46,55 +46,54 @@ class RecordWorkoutSet {
         intensity: intensity,
       );
 
-      return await stimulusResult.fold(
-        (failure) async => Left(failure),
-        (muscleStimuli) async {
-          if (muscleStimuli.isEmpty) {
-            // No factors matched this exercise — the workout_set is already
-            // persisted, but the body map will have nothing to highlight.
-            // `CalculateMuscleStimulus` has logged the root cause; we log
-            // here too so the call site (bloc + UI) is greppable.
-            AppLogger.warning(
-              'No muscle mapping applied for exerciseId=$exerciseId '
-              '(userId=$userId).  Check that muscle factors are seeded '
-              'for this exercise.',
-              category: 'stimulus',
-            );
-            return const Right([]);
-          }
+      return await stimulusResult.fold((failure) async => Left(failure), (
+        muscleStimuli,
+      ) async {
+        if (muscleStimuli.isEmpty) {
+          // No factors matched this exercise — the workout_set is already
+          // persisted, but the body map will have nothing to highlight.
+          // `CalculateMuscleStimulus` has logged the root cause; we log
+          // here too so the call site (bloc + UI) is greppable.
+          AppLogger.warning(
+            'No muscle mapping applied for exerciseId=$exerciseId '
+            '(userId=$userId).  Check that muscle factors are seeded '
+            'for this exercise.',
+            category: 'stimulus',
+          );
+          return const Right([]);
+        }
 
-          final affectedMuscles = <String>[];
+        final affectedMuscles = <String>[];
 
-          for (final entry in muscleStimuli.entries) {
-            final muscleGroup = entry.key;
-            final setStimulus = entry.value;
+        for (final entry in muscleStimuli.entries) {
+          final muscleGroup = entry.key;
+          final setStimulus = entry.value;
 
-            final updateResult = await _updateMuscleStimulus(
-              userId: userId,
-              muscleGroup: muscleGroup,
-              setStimulus: setStimulus,
-              setTimestamp: setTimestamp.millisecondsSinceEpoch,
-              now: now,
-            );
+          final updateResult = await _updateMuscleStimulus(
+            userId: userId,
+            muscleGroup: muscleGroup,
+            setStimulus: setStimulus,
+            setTimestamp: setTimestamp.millisecondsSinceEpoch,
+            now: now,
+          );
 
-            updateResult.fold(
-              (failure) {
-                if (EnvConfig.enableDebugLogs) {
-                  AppLogger.debug(
-                    'Failed to update stimulus for $muscleGroup: ${failure.message}',
-                    category: 'stimulus',
-                  );
-                }
-              },
-              (_) {
-                affectedMuscles.add(muscleGroup);
-              },
-            );
-          }
+          updateResult.fold(
+            (failure) {
+              if (EnvConfig.enableDebugLogs) {
+                AppLogger.debug(
+                  'Failed to update stimulus for $muscleGroup: ${failure.message}',
+                  category: 'stimulus',
+                );
+              }
+            },
+            (_) {
+              affectedMuscles.add(muscleGroup);
+            },
+          );
+        }
 
-          return Right(affectedMuscles);
-        },
-      );
+        return Right(affectedMuscles);
+      });
     } catch (e) {
       return Left(UnexpectedFailure('Failed to record workout set: $e'));
     }
@@ -114,33 +113,32 @@ class RecordWorkoutSet {
       final setDate = DateTime.fromMillisecondsSinceEpoch(setTimestamp);
       final today = DateTime(setDate.year, setDate.month, setDate.day);
 
-      final existingResult =
-          await muscleStimulusRepository.getStimulusByMuscleAndDate(
-        userId: userId,
-        muscleGroup: muscleGroup,
-        date: today,
-      );
+      final existingResult = await muscleStimulusRepository
+          .getStimulusByMuscleAndDate(
+            userId: userId,
+            muscleGroup: muscleGroup,
+            date: today,
+          );
 
-      return await existingResult.fold(
-        (failure) async => Left(failure),
-        (existingStimulus) async {
-          if (existingStimulus == null) {
-            return await _createNewStimulusRecord(
-              userId: userId,
-              muscleGroup: muscleGroup,
-              setStimulus: setStimulus,
-              setTimestamp: setTimestamp,
-              date: today,
-            );
-          } else {
-            return await _updateExistingStimulusRecord(
-              existing: existingStimulus,
-              setStimulus: setStimulus,
-              setTimestamp: setTimestamp,
-            );
-          }
-        },
-      );
+      return await existingResult.fold((failure) async => Left(failure), (
+        existingStimulus,
+      ) async {
+        if (existingStimulus == null) {
+          return _createNewStimulusRecord(
+            userId: userId,
+            muscleGroup: muscleGroup,
+            setStimulus: setStimulus,
+            setTimestamp: setTimestamp,
+            date: today,
+          );
+        } else {
+          return _updateExistingStimulusRecord(
+            existing: existingStimulus,
+            setStimulus: setStimulus,
+            setTimestamp: setTimestamp,
+          );
+        }
+      });
     } catch (e) {
       return Left(UnexpectedFailure('Failed to update muscle stimulus: $e'));
     }
@@ -158,35 +156,33 @@ class RecordWorkoutSet {
       // time-based decay: decayedLoad = storedLoad * 0.6^daysSince.
       // This avoids any batch-decay mutations and correctly handles multi-day gaps.
       final lookbackStart = date.subtract(const Duration(days: 30));
-      final pastRecordsResult =
-          await muscleStimulusRepository.getStimulusByDateRange(
-        userId: userId,
-        muscleGroup: muscleGroup,
-        startDate: lookbackStart,
-        endDate: date.subtract(const Duration(days: 1)),
-      );
+      final pastRecordsResult = await muscleStimulusRepository
+          .getStimulusByDateRange(
+            userId: userId,
+            muscleGroup: muscleGroup,
+            startDate: lookbackStart,
+            endDate: date.subtract(const Duration(days: 1)),
+          );
 
       double previousDecayedLoad = 0.0;
-      pastRecordsResult.fold(
-        (_) {},
-        (records) {
-          if (records.isNotEmpty) {
-            // Records are returned DESC by date, so first = most recent.
-            final mostRecent = records.first;
-            final daysSince = date
-                .difference(
-                  DateTime(
-                    mostRecent.date.year,
-                    mostRecent.date.month,
-                    mostRecent.date.day,
-                  ),
-                )
-                .inDays;
-            previousDecayedLoad = mostRecent.rollingWeeklyLoad *
-                pow(MuscleStimulus.weeklyDecayFactor, daysSince).toDouble();
-          }
-        },
-      );
+      pastRecordsResult.fold((_) {}, (records) {
+        if (records.isNotEmpty) {
+          // Records are returned DESC by date, so first = most recent.
+          final mostRecent = records.first;
+          final daysSince = date
+              .difference(
+                DateTime(
+                  mostRecent.date.year,
+                  mostRecent.date.month,
+                  mostRecent.date.day,
+                ),
+              )
+              .inDays;
+          previousDecayedLoad =
+              mostRecent.rollingWeeklyLoad *
+              pow(MuscleStimulus.weeklyDecayFactor, daysSince).toDouble();
+        }
+      });
 
       final newWeeklyLoad = previousDecayedLoad + setStimulus;
 

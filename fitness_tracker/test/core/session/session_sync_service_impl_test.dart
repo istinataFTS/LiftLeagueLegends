@@ -83,30 +83,37 @@ void main() {
     rebuildMuscleStimulus = MockRebuildMuscleStimulus();
 
     // Default stub: rebuild succeeds silently.
-    when(() => rebuildMuscleStimulus(any()))
-        .thenAnswer((_) async => const Right(null));
+    when(
+      () => rebuildMuscleStimulus(any()),
+    ).thenAnswer((_) async => const Right(null));
 
-    when(() => repository.syncPolicy).thenReturn(AppSyncPolicy.productionDefault);
+    when(
+      () => repository.syncPolicy,
+    ).thenReturn(AppSyncPolicy.productionDefault);
 
     // signOut reads the session upfront to capture userId for targeted cleanup.
-    when(() => repository.getCurrentSession()).thenAnswer(
-      (_) async => Right(authenticatedSession),
-    );
+    when(
+      () => repository.getCurrentSession(),
+    ).thenAnswer((_) async => Right(authenticatedSession));
 
     // Default stubs so tests that don't exercise these paths don't crash.
     when(() => authRemoteDataSource.signOut()).thenAnswer((_) async {});
-    when(() => repository.clearSession())
-        .thenAnswer((_) async => const Right(null));
+    when(
+      () => repository.clearSession(),
+    ).thenAnswer((_) async => const Right(null));
     when(
       () => exerciseLocalDataSource.clearUserOwnedExercises(any()),
     ).thenAnswer((_) async {});
     when(() => mealLocalDataSource.clearAllMeals()).thenAnswer((_) async {});
-    when(() => nutritionLogLocalDataSource.clearAllLogs())
-        .thenAnswer((_) async {});
-    when(() => workoutSetLocalDataSource.clearAllSets())
-        .thenAnswer((_) async {});
-    when(() => muscleStimulusLocalDataSource.clearStimulusForUser(any()))
-        .thenAnswer((_) async {});
+    when(
+      () => nutritionLogLocalDataSource.clearAllLogs(),
+    ).thenAnswer((_) async {});
+    when(
+      () => workoutSetLocalDataSource.clearAllSets(),
+    ).thenAnswer((_) async {});
+    when(
+      () => muscleStimulusLocalDataSource.clearStimulusForUser(any()),
+    ).thenAnswer((_) async {});
 
     service = SessionSyncServiceImpl(
       appSessionRepository: repository,
@@ -121,21 +128,63 @@ void main() {
     );
   });
 
-  test('persists session and delegates initial sign-in flow to orchestrator',
-      () async {
+  test(
+    'persists session and delegates initial sign-in flow to orchestrator',
+    () async {
+      when(
+        () => repository.startAuthenticatedSession(
+          any(),
+          requiresInitialCloudMigration: any(
+            named: 'requiresInitialCloudMigration',
+          ),
+        ),
+      ).thenAnswer((_) async => const Right(null));
+
+      when(() => syncOrchestrator.run(SyncTrigger.initialSignIn)).thenAnswer(
+        (_) async => const SyncRunResult(
+          status: SyncRunStatus.completed,
+          trigger: SyncTrigger.initialSignIn,
+          message: 'initial cloud migration completed successfully',
+          featureResults: <SyncFeatureRunResult>[],
+        ),
+      );
+
+      final result = await service.establishAuthenticatedSession(user);
+
+      expect(result.isSuccess, isTrue);
+      expect(result.message, 'authenticated session established');
+
+      verify(
+        () => repository.startAuthenticatedSession(
+          user,
+          requiresInitialCloudMigration: true,
+        ),
+      ).called(1);
+      verify(() => syncOrchestrator.run(SyncTrigger.initialSignIn)).called(1);
+      verifyNever(() => repository.completeInitialCloudMigration());
+    },
+  );
+
+  test('sign-in still succeeds when initial migration completed with errors '
+      '(a failed step must not lock the user out)', () async {
     when(
       () => repository.startAuthenticatedSession(
         any(),
-        requiresInitialCloudMigration:
-            any(named: 'requiresInitialCloudMigration'),
+        requiresInitialCloudMigration: any(
+          named: 'requiresInitialCloudMigration',
+        ),
       ),
     ).thenAnswer((_) async => const Right(null));
 
+    // The orchestrator maps a partial migration to SyncRunStatus.completed
+    // (see SyncOrchestratorImpl.completedWithErrors handling), so the
+    // session layer sees a non-failure and establishes the session.
     when(() => syncOrchestrator.run(SyncTrigger.initialSignIn)).thenAnswer(
       (_) async => const SyncRunResult(
         status: SyncRunStatus.completed,
         trigger: SyncTrigger.initialSignIn,
-        message: 'initial cloud migration completed successfully',
+        message:
+            'initial migration completed with errors; will retry: exercises',
         featureResults: <SyncFeatureRunResult>[],
       ),
     );
@@ -143,15 +192,7 @@ void main() {
     final result = await service.establishAuthenticatedSession(user);
 
     expect(result.isSuccess, isTrue);
-    expect(result.message, 'authenticated session established');
-
-    verify(
-      () => repository.startAuthenticatedSession(
-        user,
-        requiresInitialCloudMigration: true,
-      ),
-    ).called(1);
-    verify(() => syncOrchestrator.run(SyncTrigger.initialSignIn)).called(1);
+    // Migration left incomplete on purpose → not marked complete here.
     verifyNever(() => repository.completeInitialCloudMigration());
   });
 
@@ -159,12 +200,11 @@ void main() {
     when(
       () => repository.startAuthenticatedSession(
         any(),
-        requiresInitialCloudMigration:
-            any(named: 'requiresInitialCloudMigration'),
+        requiresInitialCloudMigration: any(
+          named: 'requiresInitialCloudMigration',
+        ),
       ),
-    ).thenAnswer(
-      (_) async => const Left(CacheFailure('write failed')),
-    );
+    ).thenAnswer((_) async => const Left(CacheFailure('write failed')));
 
     final result = await service.establishAuthenticatedSession(user);
 
@@ -182,8 +222,9 @@ void main() {
     when(
       () => repository.startAuthenticatedSession(
         any(),
-        requiresInitialCloudMigration:
-            any(named: 'requiresInitialCloudMigration'),
+        requiresInitialCloudMigration: any(
+          named: 'requiresInitialCloudMigration',
+        ),
       ),
     ).thenAnswer((_) async => const Right(null));
 
@@ -209,8 +250,9 @@ void main() {
     when(
       () => repository.startAuthenticatedSession(
         any(),
-        requiresInitialCloudMigration:
-            any(named: 'requiresInitialCloudMigration'),
+        requiresInitialCloudMigration: any(
+          named: 'requiresInitialCloudMigration',
+        ),
       ),
     ).thenAnswer((_) async => const Right(null));
 
@@ -273,53 +315,57 @@ void main() {
   );
 
   group('signOut', () {
-    test('signs out remotely, clears session, and wipes all local user data',
-        () async {
-      final result = await service.signOut();
+    test(
+      'signs out remotely, clears session, and wipes all local user data',
+      () async {
+        final result = await service.signOut();
 
-      expect(result.isSuccess, isTrue);
-      expect(result.message, 'sign-out completed successfully');
+        expect(result.isSuccess, isTrue);
+        expect(result.message, 'sign-out completed successfully');
 
-      verify(() => authRemoteDataSource.signOut()).called(1);
-      verify(() => repository.clearSession()).called(1);
-      // All user-scoped tables must be cleared.
-      verify(() => mealLocalDataSource.clearAllMeals()).called(1);
-      verify(() => nutritionLogLocalDataSource.clearAllLogs()).called(1);
-      verify(() => workoutSetLocalDataSource.clearAllSets()).called(1);
-      // Only user-owned exercises — seeded rows are preserved.
-      verify(
-        () => exerciseLocalDataSource.clearUserOwnedExercises('user-1'),
-      ).called(1);
-      // Muscle stimulus cleared for this user only.
-      verify(
-        () => muscleStimulusLocalDataSource.clearStimulusForUser('user-1'),
-      ).called(1);
-    });
-
-    test('fails when remote sign-out throws; no local state is touched',
-        () async {
-      when(() => authRemoteDataSource.signOut())
-          .thenThrow('remote sign-out failed');
-
-      final result = await service.signOut();
-
-      expect(result.isFailure, isTrue);
-      expect(result.message, 'sign-out failed: remote sign-out failed');
-
-      verifyNever(() => repository.clearSession());
-      verifyNever(() => mealLocalDataSource.clearAllMeals());
-      verifyNever(() => nutritionLogLocalDataSource.clearAllLogs());
-      verifyNever(() => workoutSetLocalDataSource.clearAllSets());
-      verifyNever(
-        () => exerciseLocalDataSource.clearUserOwnedExercises(any()),
-      );
-      verifyNever(
-        () => muscleStimulusLocalDataSource.clearStimulusForUser(any()),
-      );
-    });
+        verify(() => authRemoteDataSource.signOut()).called(1);
+        verify(() => repository.clearSession()).called(1);
+        // All user-scoped tables must be cleared.
+        verify(() => mealLocalDataSource.clearAllMeals()).called(1);
+        verify(() => nutritionLogLocalDataSource.clearAllLogs()).called(1);
+        verify(() => workoutSetLocalDataSource.clearAllSets()).called(1);
+        // Only user-owned exercises — seeded rows are preserved.
+        verify(
+          () => exerciseLocalDataSource.clearUserOwnedExercises('user-1'),
+        ).called(1);
+        // Muscle stimulus cleared for this user only.
+        verify(
+          () => muscleStimulusLocalDataSource.clearStimulusForUser('user-1'),
+        ).called(1);
+      },
+    );
 
     test(
-        'fails when local session clear fails but still performs best-effort '
+      'fails when remote sign-out throws; no local state is touched',
+      () async {
+        when(
+          () => authRemoteDataSource.signOut(),
+        ).thenThrow('remote sign-out failed');
+
+        final result = await service.signOut();
+
+        expect(result.isFailure, isTrue);
+        expect(result.message, 'sign-out failed: remote sign-out failed');
+
+        verifyNever(() => repository.clearSession());
+        verifyNever(() => mealLocalDataSource.clearAllMeals());
+        verifyNever(() => nutritionLogLocalDataSource.clearAllLogs());
+        verifyNever(() => workoutSetLocalDataSource.clearAllSets());
+        verifyNever(
+          () => exerciseLocalDataSource.clearUserOwnedExercises(any()),
+        );
+        verifyNever(
+          () => muscleStimulusLocalDataSource.clearStimulusForUser(any()),
+        );
+      },
+    );
+
+    test('fails when local session clear fails but still performs best-effort '
         'data cleanup', () async {
       when(() => repository.clearSession()).thenAnswer(
         (_) async => const Left(CacheFailure('session reset failed')),
@@ -348,17 +394,15 @@ void main() {
     });
 
     test('skips clearUserOwnedExercises when no authenticated user', () async {
-      when(() => repository.getCurrentSession()).thenAnswer(
-        (_) async => const Right(AppSession.guest()),
-      );
+      when(
+        () => repository.getCurrentSession(),
+      ).thenAnswer((_) async => const Right(AppSession.guest()));
 
       final result = await service.signOut();
 
       expect(result.isSuccess, isTrue);
       // Exercises: nothing to delete — no userId.
-      verifyNever(
-        () => exerciseLocalDataSource.clearUserOwnedExercises(any()),
-      );
+      verifyNever(() => exerciseLocalDataSource.clearUserOwnedExercises(any()));
       // Muscle stimulus: nothing to delete — no userId.
       verifyNever(
         () => muscleStimulusLocalDataSource.clearStimulusForUser(any()),

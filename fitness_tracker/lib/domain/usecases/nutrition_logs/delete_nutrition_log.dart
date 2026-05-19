@@ -7,7 +7,7 @@ class DeleteNutritionLog {
 
   const DeleteNutritionLog(this.repository);
 
-  Future<Either<Failure, void>> call(String id) async {
-    return await repository.deleteLog(id);
+  Future<Either<Failure, void>> call(String id) {
+    return repository.deleteLog(id);
   }
 }

@@ -11,9 +11,7 @@ class SupabaseMealRemoteDataSource implements MealRemoteDataSource {
 
   final SupabaseClientProvider clientProvider;
 
-  const SupabaseMealRemoteDataSource({
-    required this.clientProvider,
-  });
+  const SupabaseMealRemoteDataSource({required this.clientProvider});
 
   @override
   bool get isConfigured => clientProvider.isConfigured;
@@ -109,14 +107,14 @@ class SupabaseMealRemoteDataSource implements MealRemoteDataSource {
       final userId = _requireAuthenticatedUserId();
 
       final dto = SupabaseMealDto.fromEntity(meal);
-      final payload = <String, dynamic>{
-        ...dto.toMap(),
-        _userIdColumn: userId,
-      };
+      final payload = <String, dynamic>{...dto.toMap(), _userIdColumn: userId};
 
+      // Conflict on the server's UNIQUE(user_id, name), not just the PK —
+      // same rationale as exercises: idempotent for deterministic default
+      // ids (db v21) and robust against any (user_id, name) collision.
       final dynamic data = await clientProvider.client
           .from(_tableName)
-          .upsert(payload)
+          .upsert(payload, onConflict: 'user_id,name')
           .select()
           .single();
 
@@ -126,10 +124,7 @@ class SupabaseMealRemoteDataSource implements MealRemoteDataSource {
   }
 
   @override
-  Future<void> deleteMeal({
-    required String localId,
-    String? serverId,
-  }) {
+  Future<void> deleteMeal({required String localId, String? serverId}) {
     return RemoteDatasourceGuard.run(() async {
       final userId = _requireAuthenticatedUserId();
       final remoteId = serverId ?? localId;
@@ -143,10 +138,7 @@ class SupabaseMealRemoteDataSource implements MealRemoteDataSource {
   }
 
   @override
-  Future<List<Meal>> fetchSince({
-    required String userId,
-    DateTime? since,
-  }) {
+  Future<List<Meal>> fetchSince({required String userId, DateTime? since}) {
     return RemoteDatasourceGuard.run(() async {
       var query = clientProvider.client
           .from(_tableName)
@@ -165,10 +157,7 @@ class SupabaseMealRemoteDataSource implements MealRemoteDataSource {
 
   Meal _mapRowToEntity(Map<String, dynamic> row) {
     final dto = SupabaseMealDto.fromMap(row);
-    return dto.toEntity(
-      localId: dto.id,
-      syncMetadata: dto.toSyncedMetadata(),
-    );
+    return dto.toEntity(localId: dto.id, syncMetadata: dto.toSyncedMetadata());
   }
 
   List<Map<String, dynamic>> _asMapList(dynamic data) {

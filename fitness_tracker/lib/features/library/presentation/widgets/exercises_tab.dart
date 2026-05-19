@@ -137,11 +137,11 @@ class _ExercisesTabState extends State<ExercisesTab> {
 
         final LibraryExercisePageViewData viewData =
             LibraryExerciseViewDataMapper.map(
-          allExercises: _cachedExercises,
-          filteredExercises: filteredExercises,
-          searchQuery: _searchQuery,
-          selectedMuscle: _selectedMuscleFilter,
-        );
+              allExercises: _cachedExercises,
+              filteredExercises: filteredExercises,
+              searchQuery: _searchQuery,
+              selectedMuscle: _selectedMuscleFilter,
+            );
 
         return Column(
           children: <Widget>[
@@ -150,8 +150,8 @@ class _ExercisesTabState extends State<ExercisesTab> {
               child: !viewData.hasExercises
                   ? _buildEmptyState(context)
                   : !viewData.hasResults
-                      ? _buildNoResultsState(context)
-                      : _buildExercisesList(context, viewData.items),
+                  ? _buildNoResultsState(context)
+                  : _buildExercisesList(context, viewData.items),
             ),
             _buildAddButton(context),
           ],
@@ -166,9 +166,7 @@ class _ExercisesTabState extends State<ExercisesTab> {
   ) {
     return Container(
       padding: const EdgeInsets.fromLTRB(20, 20, 20, 12),
-      decoration: const BoxDecoration(
-        color: AppTheme.backgroundDark,
-      ),
+      decoration: const BoxDecoration(color: AppTheme.backgroundDark),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: <Widget>[
@@ -214,7 +212,9 @@ class _ExercisesTabState extends State<ExercisesTab> {
                         _selectedMuscleFilter = null;
                       });
                     },
-                    selectedColor: AppTheme.primaryOrange.withOpacity(0.2),
+                    selectedColor: AppTheme.primaryOrange.withValues(
+                      alpha: 0.2,
+                    ),
                     labelStyle: TextStyle(
                       color: _selectedMuscleFilter == null
                           ? AppTheme.primaryOrange
@@ -236,7 +236,9 @@ class _ExercisesTabState extends State<ExercisesTab> {
                               _selectedMuscleFilter == muscle ? null : muscle;
                         });
                       },
-                      selectedColor: AppTheme.primaryOrange.withOpacity(0.2),
+                      selectedColor: AppTheme.primaryOrange.withValues(
+                        alpha: 0.2,
+                      ),
                       labelStyle: TextStyle(
                         color: _selectedMuscleFilter == muscle
                             ? AppTheme.primaryOrange
@@ -253,9 +255,9 @@ class _ExercisesTabState extends State<ExercisesTab> {
           Text(
             viewData.resultCountLabel,
             key: ExercisesTab.resultCountKey,
-            style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                  color: AppTheme.textMedium,
-                ),
+            style: Theme.of(
+              context,
+            ).textTheme.bodyMedium?.copyWith(color: AppTheme.textMedium),
           ),
         ],
       ),
@@ -273,7 +275,7 @@ class _ExercisesTabState extends State<ExercisesTab> {
               width: 120,
               height: 120,
               decoration: BoxDecoration(
-                color: AppTheme.primaryOrange.withOpacity(0.1),
+                color: AppTheme.primaryOrange.withValues(alpha: 0.1),
                 shape: BoxShape.circle,
               ),
               child: const Icon(
@@ -285,17 +287,17 @@ class _ExercisesTabState extends State<ExercisesTab> {
             const SizedBox(height: 24),
             Text(
               AppStrings.noExercisesYet,
-              style: Theme.of(context).textTheme.headlineMedium?.copyWith(
-                    fontWeight: FontWeight.w700,
-                  ),
+              style: Theme.of(
+                context,
+              ).textTheme.headlineMedium?.copyWith(fontWeight: FontWeight.w700),
             ),
             const SizedBox(height: 12),
             Text(
               AppStrings.createExercisesDescription,
               textAlign: TextAlign.center,
-              style: Theme.of(context).textTheme.bodyLarge?.copyWith(
-                    color: AppTheme.textMedium,
-                  ),
+              style: Theme.of(
+                context,
+              ).textTheme.bodyLarge?.copyWith(color: AppTheme.textMedium),
             ),
             const SizedBox(height: 32),
             ElevatedButton.icon(
@@ -330,18 +332,14 @@ class _ExercisesTabState extends State<ExercisesTab> {
           child: Column(
             mainAxisSize: MainAxisSize.min,
             children: <Widget>[
-              const Icon(
-                Icons.search_off,
-                size: 48,
-                color: AppTheme.textDim,
-              ),
+              const Icon(Icons.search_off, size: 48, color: AppTheme.textDim),
               const SizedBox(height: 12),
               Text(
                 'No exercises match the current search or filter.',
                 textAlign: TextAlign.center,
-                style: Theme.of(context).textTheme.bodyLarge?.copyWith(
-                      color: AppTheme.textMedium,
-                    ),
+                style: Theme.of(
+                  context,
+                ).textTheme.bodyLarge?.copyWith(color: AppTheme.textMedium),
               ),
               const SizedBox(height: 16),
               TextButton.icon(
@@ -364,25 +362,21 @@ class _ExercisesTabState extends State<ExercisesTab> {
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
           children: <Widget>[
-            const Icon(
-              Icons.error_outline,
-              size: 64,
-              color: AppTheme.errorRed,
-            ),
+            const Icon(Icons.error_outline, size: 64, color: AppTheme.errorRed),
             const SizedBox(height: 16),
             Text(
               'Error Loading Exercises',
-              style: Theme.of(context).textTheme.titleLarge?.copyWith(
-                    fontWeight: FontWeight.w600,
-                  ),
+              style: Theme.of(
+                context,
+              ).textTheme.titleLarge?.copyWith(fontWeight: FontWeight.w600),
             ),
             const SizedBox(height: 8),
             Text(
               message,
               textAlign: TextAlign.center,
-              style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                    color: AppTheme.textMedium,
-                  ),
+              style: Theme.of(
+                context,
+              ).textTheme.bodyMedium?.copyWith(color: AppTheme.textMedium),
             ),
             const SizedBox(height: 24),
             ElevatedButton(
@@ -430,7 +424,7 @@ class _ExercisesTabState extends State<ExercisesTab> {
                 width: 48,
                 height: 48,
                 decoration: BoxDecoration(
-                  color: AppTheme.primaryOrange.withOpacity(0.1),
+                  color: AppTheme.primaryOrange.withValues(alpha: 0.1),
                   borderRadius: BorderRadius.circular(12),
                 ),
                 child: const Icon(
@@ -447,8 +441,8 @@ class _ExercisesTabState extends State<ExercisesTab> {
                     Text(
                       item.title,
                       style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                            fontWeight: FontWeight.w600,
-                          ),
+                        fontWeight: FontWeight.w600,
+                      ),
                     ),
                     const SizedBox(height: 8),
                     Wrap(
@@ -461,7 +455,9 @@ class _ExercisesTabState extends State<ExercisesTab> {
                             vertical: 4,
                           ),
                           decoration: BoxDecoration(
-                            color: AppTheme.primaryOrange.withOpacity(0.1),
+                            color: AppTheme.primaryOrange.withValues(
+                              alpha: 0.1,
+                            ),
                             borderRadius: BorderRadius.circular(12),
                           ),
                           child: Text(
@@ -480,9 +476,8 @@ class _ExercisesTabState extends State<ExercisesTab> {
                         padding: const EdgeInsets.only(top: 4),
                         child: Text(
                           item.overflowLabel!,
-                          style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                                color: AppTheme.textDim,
-                              ),
+                          style: Theme.of(context).textTheme.bodySmall
+                              ?.copyWith(color: AppTheme.textDim),
                         ),
                       ),
                   ],
@@ -499,34 +494,34 @@ class _ExercisesTabState extends State<ExercisesTab> {
                 },
                 itemBuilder: (BuildContext context) =>
                     const <PopupMenuEntry<String>>[
-                  PopupMenuItem<String>(
-                    value: 'edit',
-                    child: Row(
-                      children: <Widget>[
-                        Icon(Icons.edit_outlined, size: 20),
-                        SizedBox(width: 12),
-                        Text(AppStrings.edit),
-                      ],
-                    ),
-                  ),
-                  PopupMenuItem<String>(
-                    value: 'delete',
-                    child: Row(
-                      children: <Widget>[
-                        Icon(
-                          Icons.delete_outline,
-                          size: 20,
-                          color: AppTheme.errorRed,
+                      PopupMenuItem<String>(
+                        value: 'edit',
+                        child: Row(
+                          children: <Widget>[
+                            Icon(Icons.edit_outlined, size: 20),
+                            SizedBox(width: 12),
+                            Text(AppStrings.edit),
+                          ],
                         ),
-                        SizedBox(width: 12),
-                        Text(
-                          AppStrings.delete,
-                          style: TextStyle(color: AppTheme.errorRed),
+                      ),
+                      PopupMenuItem<String>(
+                        value: 'delete',
+                        child: Row(
+                          children: <Widget>[
+                            Icon(
+                              Icons.delete_outline,
+                              size: 20,
+                              color: AppTheme.errorRed,
+                            ),
+                            SizedBox(width: 12),
+                            Text(
+                              AppStrings.delete,
+                              style: TextStyle(color: AppTheme.errorRed),
+                            ),
+                          ],
                         ),
-                      ],
-                    ),
-                  ),
-                ],
+                      ),
+                    ],
               ),
             ],
           ),
@@ -540,9 +535,7 @@ class _ExercisesTabState extends State<ExercisesTab> {
       padding: const EdgeInsets.all(20),
       decoration: const BoxDecoration(
         color: AppTheme.surfaceDark,
-        border: Border(
-          top: BorderSide(color: AppTheme.borderDark, width: 1),
-        ),
+        border: Border(top: BorderSide(color: AppTheme.borderDark, width: 1)),
       ),
       child: SafeArea(
         child: SizedBox(
@@ -553,10 +546,7 @@ class _ExercisesTabState extends State<ExercisesTab> {
             icon: const Icon(Icons.add),
             label: const Text(
               AppStrings.addExercise,
-              style: TextStyle(
-                fontSize: 16,
-                fontWeight: FontWeight.w600,
-              ),
+              style: TextStyle(fontSize: 16, fontWeight: FontWeight.w600),
             ),
             style: ElevatedButton.styleFrom(
               padding: const EdgeInsets.symmetric(vertical: 16),
@@ -592,7 +582,9 @@ class _ExercisesTabState extends State<ExercisesTab> {
       context: context,
       builder: (BuildContext dialogContext) => AlertDialog(
         title: const Text(AppStrings.deleteExercise),
-        content: Text('${AppStrings.deleteExerciseConfirm}\n\n${exercise.name}'),
+        content: Text(
+          '${AppStrings.deleteExerciseConfirm}\n\n${exercise.name}',
+        ),
         actions: <Widget>[
           TextButton(
             onPressed: () => Navigator.pop(dialogContext),
@@ -600,7 +592,9 @@ class _ExercisesTabState extends State<ExercisesTab> {
           ),
           TextButton(
             onPressed: () {
-              context.read<ExerciseBloc>().add(DeleteExerciseEvent(exercise.id));
+              context.read<ExerciseBloc>().add(
+                DeleteExerciseEvent(exercise.id),
+              );
               Navigator.pop(dialogContext);
             },
             style: TextButton.styleFrom(foregroundColor: AppTheme.errorRed),
@@ -654,9 +648,9 @@ class _ExerciseDialogState extends State<_ExerciseDialog> {
       // Dispatch after the first frame so the BlocProvider is in the tree.
       WidgetsBinding.instance.addPostFrameCallback((_) {
         if (mounted) {
-          context
-              .read<ExerciseBloc>()
-              .add(LoadExerciseFactorsEvent(widget.exercise!.id));
+          context.read<ExerciseBloc>().add(
+            LoadExerciseFactorsEvent(widget.exercise!.id),
+          );
         }
       });
     }
@@ -732,9 +726,7 @@ class _ExerciseDialogState extends State<_ExerciseDialog> {
                       child: ElevatedButton(
                         onPressed: isValid ? _handleSave : null,
                         child: Text(
-                          isEditing
-                              ? AppStrings.saveChanges
-                              : AppStrings.add,
+                          isEditing ? AppStrings.saveChanges : AppStrings.add,
                         ),
                       ),
                     ),
@@ -756,9 +748,9 @@ class _ExerciseDialogState extends State<_ExerciseDialog> {
           Expanded(
             child: Text(
               isEditing ? AppStrings.editExercise : AppStrings.addExercise,
-              style: Theme.of(context).textTheme.titleLarge?.copyWith(
-                    fontWeight: FontWeight.w600,
-                  ),
+              style: Theme.of(
+                context,
+              ).textTheme.titleLarge?.copyWith(fontWeight: FontWeight.w600),
             ),
           ),
           IconButton(
@@ -772,10 +764,7 @@ class _ExerciseDialogState extends State<_ExerciseDialog> {
 
   Widget _buildContent(BuildContext context) {
     return StatefulBuilder(
-      builder: (
-        BuildContext context,
-        void Function(void Function()) setInnerState,
-      ) {
+      builder: (BuildContext context, void Function(void Function()) setInnerState) {
         return SingleChildScrollView(
           padding: const EdgeInsets.all(20),
           child: Column(
@@ -795,17 +784,18 @@ class _ExerciseDialogState extends State<_ExerciseDialog> {
               const SizedBox(height: 24),
               Text(
                 AppStrings.muscleGroups,
-                style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                      fontWeight: FontWeight.w600,
-                    ),
+                style: Theme.of(
+                  context,
+                ).textTheme.titleMedium?.copyWith(fontWeight: FontWeight.w600),
               ),
               const SizedBox(height: 12),
               Wrap(
                 spacing: 8,
                 runSpacing: 8,
                 children: MuscleGroups.all.map((String muscle) {
-                  final bool isSelected =
-                      _selectedMuscleFactors.containsKey(muscle);
+                  final bool isSelected = _selectedMuscleFactors.containsKey(
+                    muscle,
+                  );
                   return FilterChip(
                     label: Text(MuscleGroups.getDisplayName(muscle)),
                     selected: isSelected,
@@ -820,7 +810,9 @@ class _ExerciseDialogState extends State<_ExerciseDialog> {
                       // Re-evaluate isValid (name + at-least-one-muscle check).
                       setState(() {});
                     },
-                    selectedColor: AppTheme.primaryOrange.withOpacity(0.2),
+                    selectedColor: AppTheme.primaryOrange.withValues(
+                      alpha: 0.2,
+                    ),
                     checkmarkColor: AppTheme.primaryOrange,
                     backgroundColor: AppTheme.surfaceDark,
                   );
@@ -842,8 +834,8 @@ class _ExerciseDialogState extends State<_ExerciseDialog> {
                       child: Text(
                         AppStrings.muscleFactorHint,
                         style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                              color: AppTheme.textDim,
-                            ),
+                          color: AppTheme.textDim,
+                        ),
                       ),
                     ),
                   ],
@@ -852,33 +844,32 @@ class _ExerciseDialogState extends State<_ExerciseDialog> {
                 Text(
                   AppStrings.muscleFactorTitle,
                   key: ExercisesTab.factorEditorKey,
-                  style: Theme.of(context).textTheme.titleSmall?.copyWith(
-                        fontWeight: FontWeight.w600,
-                      ),
+                  style: Theme.of(
+                    context,
+                  ).textTheme.titleSmall?.copyWith(fontWeight: FontWeight.w600),
                 ),
                 const SizedBox(height: 4),
-                ..._selectedMuscleFactors.entries.map(
-                  (MapEntry<String, double> entry) {
-                    return _FactorRow(
-                      key: ExercisesTab.factorSliderKey(entry.key),
-                      muscle: entry.key,
-                      value: entry.value,
-                      onChanged: (double newValue) {
-                        setInnerState(() {
-                          _selectedMuscleFactors[entry.key] = newValue;
-                        });
-                      },
-                    );
-                  },
-                ),
+                ..._selectedMuscleFactors.entries.map((
+                  MapEntry<String, double> entry,
+                ) {
+                  return _FactorRow(
+                    key: ExercisesTab.factorSliderKey(entry.key),
+                    muscle: entry.key,
+                    value: entry.value,
+                    onChanged: (double newValue) {
+                      setInnerState(() {
+                        _selectedMuscleFactors[entry.key] = newValue;
+                      });
+                    },
+                  );
+                }),
                 Align(
                   alignment: Alignment.centerRight,
                   child: TextButton(
                     key: ExercisesTab.resetFactorsButtonKey,
                     onPressed: () {
                       setInnerState(() {
-                        for (final String key
-                            in _selectedMuscleFactors.keys) {
+                        for (final String key in _selectedMuscleFactors.keys) {
                           _selectedMuscleFactors[key] = 1.0;
                         }
                       });
@@ -897,8 +888,9 @@ class _ExerciseDialogState extends State<_ExerciseDialog> {
   void _handleSave() {
     final String name = _nameController.text.trim();
     // Snapshot the factor map so the event carries an immutable copy.
-    final Map<String, double> muscleFactors =
-        Map<String, double>.of(_selectedMuscleFactors);
+    final Map<String, double> muscleFactors = Map<String, double>.of(
+      _selectedMuscleFactors,
+    );
 
     if (isEditing) {
       final Exercise updatedExercise = widget.exercise!.copyWith(
@@ -906,8 +898,8 @@ class _ExerciseDialogState extends State<_ExerciseDialog> {
         muscleGroups: muscleFactors.keys.toList(),
       );
       context.read<ExerciseBloc>().add(
-            UpdateExerciseEvent(updatedExercise, muscleFactors: muscleFactors),
-          );
+        UpdateExerciseEvent(updatedExercise, muscleFactors: muscleFactors),
+      );
     } else {
       final Exercise newExercise = Exercise(
         id: _uuid.v4(),
@@ -916,8 +908,8 @@ class _ExerciseDialogState extends State<_ExerciseDialog> {
         createdAt: DateTime.now(),
       );
       context.read<ExerciseBloc>().add(
-            AddExerciseEvent(newExercise, muscleFactors: muscleFactors),
-          );
+        AddExerciseEvent(newExercise, muscleFactors: muscleFactors),
+      );
     }
 
     Navigator.pop(context);
@@ -1007,9 +999,9 @@ class _FactorRowState extends State<_FactorRow> {
               key: ExercisesTab.factorValueKey(widget.muscle),
               '${_localValue.toStringAsFixed(2)}x',
               style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                    color: AppTheme.textMedium,
-                    fontWeight: FontWeight.w500,
-                  ),
+                color: AppTheme.textMedium,
+                fontWeight: FontWeight.w500,
+              ),
               textAlign: TextAlign.end,
             ),
           ),

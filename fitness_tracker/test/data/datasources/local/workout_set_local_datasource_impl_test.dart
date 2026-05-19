@@ -11,7 +11,6 @@ import 'package:fitness_tracker/domain/entities/workout_set.dart';
 import 'package:fitness_tracker/domain/repositories/app_session_repository.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:mocktail/mocktail.dart';
-import 'package:sqflite/sqflite.dart';
 import 'package:sqflite_common_ffi/sqflite_ffi.dart';
 
 class MockDatabaseHelper extends Mock implements DatabaseHelper {}
@@ -427,6 +426,108 @@ void main() {
       );
 
       expect(sets.map((s) => s.id).toList(), <String>['set-1']);
+    });
+  });
+
+  // ---------------------------------------------------------------------------
+  // getPendingSyncSets — owner-scoped (Model-A Issue 2)
+  // ---------------------------------------------------------------------------
+
+  group('WorkoutSetLocalDataSourceImpl getPendingSyncSets owner scope', () {
+    test('returns current-user pending rows', () async {
+      await dataSource.addSet(
+        buildSet(
+          id: 'mine-upload',
+          exerciseId: 'bench',
+          date: baseDate,
+          syncMetadata: const EntitySyncMetadata(
+            status: SyncStatus.pendingUpload,
+          ),
+        ),
+      );
+      await dataSource.addSet(
+        buildSet(
+          id: 'mine-update',
+          exerciseId: 'squat',
+          date: baseDate,
+          syncMetadata: const EntitySyncMetadata(
+            status: SyncStatus.pendingUpdate,
+          ),
+        ),
+      );
+
+      final result = await dataSource.getPendingSyncSets();
+      expect(result.map((s) => s.id).toSet(), <String>{
+        'mine-upload',
+        'mine-update',
+      });
+    });
+
+    test("excludes another account's pending rows", () async {
+      await dataSource.addSet(
+        buildSet(
+          id: 'mine',
+          exerciseId: 'bench',
+          date: baseDate,
+          syncMetadata: const EntitySyncMetadata(
+            status: SyncStatus.pendingUpload,
+          ),
+        ),
+      );
+      await dataSource.addSet(
+        buildSet(
+          id: 'theirs',
+          exerciseId: 'squat',
+          date: baseDate,
+          syncMetadata: const EntitySyncMetadata(
+            status: SyncStatus.pendingUpload,
+          ),
+        ).copyWith(ownerUserId: 'user-2'),
+      );
+
+      final result = await dataSource.getPendingSyncSets();
+      expect(result.map((s) => s.id).toList(), <String>['mine']);
+    });
+
+    test('returns empty for a guest session', () async {
+      when(
+        () => mockSessionRepository.getCurrentSession(),
+      ).thenAnswer((_) async => const Right(AppSession.guest()));
+      await dataSource.addSet(
+        buildSet(
+          id: 'set-1',
+          exerciseId: 'bench',
+          date: baseDate,
+          syncMetadata: const EntitySyncMetadata(
+            status: SyncStatus.pendingUpload,
+          ),
+        ),
+      );
+
+      final result = await dataSource.getPendingSyncSets();
+      expect(result, isEmpty);
+    });
+
+    test('excludes localOnly and synced rows', () async {
+      await dataSource.addSet(
+        buildSet(
+          id: 'local-only',
+          exerciseId: 'bench',
+          date: baseDate,
+          syncMetadata: const EntitySyncMetadata(status: SyncStatus.localOnly),
+        ),
+      );
+      await dataSource.addSet(
+        buildSet(
+          id: 'synced',
+          exerciseId: 'squat',
+          date: baseDate,
+          syncMetadata: const EntitySyncMetadata(status: SyncStatus.synced),
+        ),
+      );
+
+      final result = await dataSource.getPendingSyncSets();
+      expect(result, isEmpty);
     });
   });
 

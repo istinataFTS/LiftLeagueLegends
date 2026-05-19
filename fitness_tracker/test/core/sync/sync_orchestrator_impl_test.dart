@@ -284,6 +284,31 @@ void main() {
     verifyNever(() => repository.recordSuccessfulCloudSync(any()));
   });
 
+  test('completedWithErrors establishes the session but does not record '
+      'a successful cloud sync (so it retries)', () async {
+    when(() => repository.getCurrentSession()).thenAnswer(
+      (_) async =>
+          Right(authenticatedSession(requiresInitialCloudMigration: true)),
+    );
+    when(() => initialCloudMigrationCoordinator.runIfRequired()).thenAnswer(
+      (_) async => const InitialCloudMigrationResult(
+        status: InitialCloudMigrationStatus.completedWithErrors,
+        message:
+            'initial migration completed with errors; will retry: exercises',
+      ),
+    );
+
+    final result = await orchestrator.run(SyncTrigger.initialSignIn);
+
+    // Not a failure → the session is established and the user is not
+    // locked out of their own account.
+    expect(result.status, SyncRunStatus.completed);
+    expect(result.message, contains('will retry: exercises'));
+    verify(() => initialCloudMigrationCoordinator.runIfRequired()).called(1);
+    // Migration is incomplete: must NOT advance the cloud-sync watermark.
+    verifyNever(() => repository.recordSuccessfulCloudSync(any()));
+  });
+
   test('skips when network is unavailable', () async {
     when(
       () => repository.getCurrentSession(),

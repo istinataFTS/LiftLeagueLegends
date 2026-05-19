@@ -29,14 +29,9 @@ void main() {
   late InitialCloudMigrationCoordinator coordinator;
   late List<String> executionLog;
 
-  const AppUser user = AppUser(
-    id: 'user-1',
-    email: 'user@test.com',
-  );
+  const AppUser user = AppUser(id: 'user-1', email: 'user@test.com');
 
-  AppSession authenticatedSession({
-    bool requiresInitialCloudMigration = true,
-  }) {
+  AppSession authenticatedSession({bool requiresInitialCloudMigration = true}) {
     return AppSession(
       authMode: AuthMode.authenticated,
       user: user,
@@ -48,17 +43,21 @@ void main() {
     repository = MockAppSessionRepository();
     executionLog = <String>[];
 
-    when(() => repository.syncPolicy)
-        .thenReturn(AppSyncPolicy.productionDefault);
+    when(
+      () => repository.syncPolicy,
+    ).thenReturn(AppSyncPolicy.productionDefault);
 
-    when(() => repository.saveInitialCloudMigrationState(any()))
-        .thenAnswer((_) async => const Right(null));
+    when(
+      () => repository.saveInitialCloudMigrationState(any()),
+    ).thenAnswer((_) async => const Right(null));
 
-    when(() => repository.completeInitialCloudMigration())
-        .thenAnswer((_) async => const Right(null));
+    when(
+      () => repository.completeInitialCloudMigration(),
+    ).thenAnswer((_) async => const Right(null));
 
-    when(() => repository.clearInitialCloudMigrationState())
-        .thenAnswer((_) async => const Right(null));
+    when(
+      () => repository.clearInitialCloudMigrationState(),
+    ).thenAnswer((_) async => const Right(null));
 
     coordinator = InitialCloudMigrationCoordinatorImpl(
       appSessionRepository: repository,
@@ -80,9 +79,9 @@ void main() {
   });
 
   test('skips when session is guest', () async {
-    when(() => repository.getCurrentSession()).thenAnswer(
-      (_) async => const Right(AppSession.guest()),
-    );
+    when(
+      () => repository.getCurrentSession(),
+    ).thenAnswer((_) async => const Right(AppSession.guest()));
 
     final result = await coordinator.runIfRequired();
 
@@ -93,9 +92,8 @@ void main() {
 
   test('skips when migration is already completed', () async {
     when(() => repository.getCurrentSession()).thenAnswer(
-      (_) async => Right(
-        authenticatedSession(requiresInitialCloudMigration: false),
-      ),
+      (_) async =>
+          Right(authenticatedSession(requiresInitialCloudMigration: false)),
     );
 
     final result = await coordinator.runIfRequired();
@@ -106,29 +104,27 @@ void main() {
   });
 
   test('runs all steps and completes migration', () async {
-    when(() => repository.getCurrentSession()).thenAnswer(
-      (_) async => Right(authenticatedSession()),
-    );
-    when(() => repository.getInitialCloudMigrationState()).thenAnswer(
-      (_) async => const Right(null),
-    );
+    when(
+      () => repository.getCurrentSession(),
+    ).thenAnswer((_) async => Right(authenticatedSession()));
+    when(
+      () => repository.getInitialCloudMigrationState(),
+    ).thenAnswer((_) async => const Right(null));
 
     final result = await coordinator.runIfRequired();
 
     expect(result.status, InitialCloudMigrationStatus.completed);
-    expect(
-      executionLog,
-      <String>['meals:user-1', 'nutrition_logs:user-1'],
-    );
-    verify(() => repository.saveInitialCloudMigrationState(any()))
-        .called(greaterThanOrEqualTo(3));
+    expect(executionLog, <String>['meals:user-1', 'nutrition_logs:user-1']);
+    verify(
+      () => repository.saveInitialCloudMigrationState(any()),
+    ).called(greaterThanOrEqualTo(3));
     verify(() => repository.completeInitialCloudMigration()).called(1);
   });
 
   test('resumes from existing partial state', () async {
-    when(() => repository.getCurrentSession()).thenAnswer(
-      (_) async => Right(authenticatedSession()),
-    );
+    when(
+      () => repository.getCurrentSession(),
+    ).thenAnswer((_) async => Right(authenticatedSession()));
     when(() => repository.getInitialCloudMigrationState()).thenAnswer(
       (_) async => Right(
         InitialCloudMigrationState(
@@ -149,9 +145,9 @@ void main() {
   });
 
   test('resets migration state when authenticated user changes', () async {
-    when(() => repository.getCurrentSession()).thenAnswer(
-      (_) async => Right(authenticatedSession()),
-    );
+    when(
+      () => repository.getCurrentSession(),
+    ).thenAnswer((_) async => Right(authenticatedSession()));
     when(() => repository.getInitialCloudMigrationState()).thenAnswer(
       (_) async => Right(
         InitialCloudMigrationState(
@@ -167,26 +163,24 @@ void main() {
     final result = await coordinator.runIfRequired();
 
     expect(result.status, InitialCloudMigrationStatus.completed);
-    expect(
-      executionLog,
-      <String>['meals:user-1', 'nutrition_logs:user-1'],
-    );
+    expect(executionLog, <String>['meals:user-1', 'nutrition_logs:user-1']);
   });
 
   test('passes authenticated user id into migration steps', () async {
-    when(() => repository.getCurrentSession()).thenAnswer(
-      (_) async => Right(authenticatedSession()),
-    );
-    when(() => repository.getInitialCloudMigrationState()).thenAnswer(
-      (_) async => const Right(null),
-    );
+    when(
+      () => repository.getCurrentSession(),
+    ).thenAnswer((_) async => Right(authenticatedSession()));
+    when(
+      () => repository.getInitialCloudMigrationState(),
+    ).thenAnswer((_) async => const Right(null));
 
     await coordinator.runIfRequired();
 
     expect(executionLog, everyElement(contains('user-1')));
   });
 
-  test('fails and stores error when a step throws', () async {
+  test('a failed step is non-fatal: continues, reports completedWithErrors, '
+      'and leaves the migration incomplete for retry', () async {
     coordinator = InitialCloudMigrationCoordinatorImpl(
       appSessionRepository: repository,
       steps: <InitialCloudMigrationStep>[
@@ -202,29 +196,39 @@ void main() {
             throw StateError('boom');
           },
         ),
+        InitialCloudMigrationStep(
+          key: 'workout_sets',
+          run: (userId) async {
+            executionLog.add('workout_sets:$userId');
+          },
+        ),
       ],
     );
 
-    when(() => repository.getCurrentSession()).thenAnswer(
-      (_) async => Right(authenticatedSession()),
-    );
-    when(() => repository.getInitialCloudMigrationState()).thenAnswer(
-      (_) async => const Right(null),
-    );
+    when(
+      () => repository.getCurrentSession(),
+    ).thenAnswer((_) async => Right(authenticatedSession()));
+    when(
+      () => repository.getInitialCloudMigrationState(),
+    ).thenAnswer((_) async => const Right(null));
 
     final result = await coordinator.runIfRequired();
 
-    expect(result.status, InitialCloudMigrationStatus.failed);
-    expect(executionLog, <String>['meals:user-1']);
+    expect(result.status, InitialCloudMigrationStatus.completedWithErrors);
+    expect(result.message, contains('nutrition_logs'));
+    // The step after the failing one still ran (continue-on-failure).
+    expect(executionLog, <String>['meals:user-1', 'workout_sets:user-1']);
+    // Migration must NOT be marked complete, so the next sync retries it.
     verifyNever(() => repository.completeInitialCloudMigration());
-    verify(() => repository.saveInitialCloudMigrationState(any()))
-        .called(greaterThanOrEqualTo(2));
+    verify(
+      () => repository.saveInitialCloudMigrationState(any()),
+    ).called(greaterThanOrEqualTo(2));
   });
 
   test('fails when session lookup fails', () async {
-    when(() => repository.getCurrentSession()).thenAnswer(
-      (_) async => const Left(CacheFailure('session unavailable')),
-    );
+    when(
+      () => repository.getCurrentSession(),
+    ).thenAnswer((_) async => const Left(CacheFailure('session unavailable')));
 
     final result = await coordinator.runIfRequired();
 

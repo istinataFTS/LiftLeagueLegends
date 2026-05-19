@@ -6,7 +6,6 @@ import '../features/home/application/home_bloc.dart';
 import '../features/home/application/muscle_visual_bloc.dart';
 import '../features/library/application/exercise_bloc.dart';
 import '../features/library/application/meal_bloc.dart';
-import '../features/log/application/nutrition_log_bloc.dart';
 import '../features/log/log.dart';
 import '../features/profile/application/profile_cubit.dart';
 import '../features/voice/application/voice_bloc.dart';
@@ -59,30 +58,18 @@ class AuthSessionShell extends StatelessWidget {
           key: ValueKey<String>(sessionKey),
           child: MultiBlocProvider(
             providers: <BlocProvider<dynamic>>[
-              BlocProvider<WorkoutBloc>.value(
-                value: di.sl<WorkoutBloc>(),
-              ),
-              BlocProvider<HomeBloc>(
-                create: (_) => di.sl<HomeBloc>(),
-              ),
+              BlocProvider<WorkoutBloc>.value(value: di.sl<WorkoutBloc>()),
+              BlocProvider<HomeBloc>(create: (_) => di.sl<HomeBloc>()),
               BlocProvider<MuscleVisualBloc>(
                 create: (_) => di.sl<MuscleVisualBloc>(),
               ),
-              BlocProvider<ExerciseBloc>(
-                create: (_) => di.sl<ExerciseBloc>(),
-              ),
-              BlocProvider<HistoryBloc>.value(
-                value: di.sl<HistoryBloc>(),
-              ),
-              BlocProvider<MealBloc>(
-                create: (_) => di.sl<MealBloc>(),
-              ),
+              BlocProvider<ExerciseBloc>(create: (_) => di.sl<ExerciseBloc>()),
+              BlocProvider<HistoryBloc>.value(value: di.sl<HistoryBloc>()),
+              BlocProvider<MealBloc>(create: (_) => di.sl<MealBloc>()),
               BlocProvider<NutritionLogBloc>.value(
                 value: di.sl<NutritionLogBloc>(),
               ),
-              BlocProvider<VoiceBloc>(
-                create: (_) => di.sl<VoiceBloc>(),
-              ),
+              BlocProvider<VoiceBloc>(create: (_) => di.sl<VoiceBloc>()),
               BlocProvider<VoiceSettingsCubit>(
                 create: (_) => di.sl<VoiceSettingsCubit>(),
               ),

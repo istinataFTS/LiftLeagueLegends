@@ -9,10 +9,10 @@ import '../../repositories/exercise_repository.dart';
 import '../../repositories/muscle_factor_repository.dart';
 
 /// Use case to seed exercise muscle factors into the database
-/// 
+///
 /// This populates the exercise_muscle_factors table with comprehensive
 /// biomechanically-accurate factor assignments for all seeded exercises.
-/// 
+///
 /// Should be executed after exercises are seeded.
 class SeedExerciseFactors {
   final MuscleFactorRepository muscleFactorRepository;
@@ -61,7 +61,9 @@ class SeedExerciseFactors {
         },
         (exercises) async {
           if (exercises.isEmpty) {
-            _logWarning('No exercises found in database. Seed exercises first.');
+            _logWarning(
+              'No exercises found in database. Seed exercises first.',
+            );
             return const Left(
               DatabaseFailure('No exercises to assign factors to'),
             );
@@ -72,10 +74,10 @@ class SeedExerciseFactors {
           if (EnvConfig.forceReseed) {
             _logWarning('Force reseed enabled - clearing existing factors');
             await _clearExistingFactors();
-            return await _seedAllFactors(exercises);
+            return _seedAllFactors(exercises);
           }
 
-          return await _seedMissingFactors(exercises);
+          return _seedMissingFactors(exercises);
         },
       );
     } catch (e) {
@@ -87,7 +89,7 @@ class SeedExerciseFactors {
   /// Clear existing muscle factor data (used with force reseed)
   Future<void> _clearExistingFactors() async {
     _log('Clearing existing muscle factor data...');
-    
+
     try {
       await muscleFactorRepository.clearAllFactors();
       _log('Successfully cleared existing factors');
@@ -124,8 +126,9 @@ class SeedExerciseFactors {
 
       // Name-normalized lookup — tolerates "Sit Ups" vs "Sit-ups" etc.
       // See [ExerciseMuscleFactorsData._normalizeName].
-      final factorsData =
-          ExerciseMuscleFactorsData.getFactorsForExercise(exercise.name);
+      final factorsData = ExerciseMuscleFactorsData.getFactorsForExercise(
+        exercise.name,
+      );
       if (factorsData == null) {
         noDataDefined++;
         continue;
@@ -191,8 +194,9 @@ class SeedExerciseFactors {
     // the force-reseed path tolerant of the same spelling drift handled in
     // [_seedMissingFactors] (e.g. "Sit Ups" vs seed key "Sit-ups").
     for (final exercise in exercises) {
-      final factorsData =
-          ExerciseMuscleFactorsData.getFactorsForExercise(exercise.name);
+      final factorsData = ExerciseMuscleFactorsData.getFactorsForExercise(
+        exercise.name,
+      );
       if (factorsData == null) {
         _logWarning(
           'No factor data defined for exercise "${exercise.name}", skipping',
@@ -242,11 +246,9 @@ class SeedExerciseFactors {
   void _validateSeeding(List<dynamic> exercises) {
     muscleFactorRepository.getAllFactors().then((result) {
       result.fold(
-        (failure) =>
-            _logError('Validation query failed: ${failure.message}'),
+        (failure) => _logError('Validation query failed: ${failure.message}'),
         (allFactors) {
-          final coveredIds =
-              allFactors.map((f) => f.exerciseId).toSet();
+          final coveredIds = allFactors.map((f) => f.exerciseId).toSet();
           final missing = exercises
               .where((e) => !coveredIds.contains(e.id))
               .map((e) => e.name)

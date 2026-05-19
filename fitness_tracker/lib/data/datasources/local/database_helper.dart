@@ -4,8 +4,11 @@ import 'package:sqflite/sqflite.dart';
 
 import '../../../config/env_config.dart';
 import '../../../core/constants/database_tables.dart';
+import '../../../core/constants/default_exercises_data.dart';
+import '../../../core/constants/default_meals_data.dart';
 import '../../../core/constants/muscle_stimulus_constants.dart';
 import '../../../core/logging/app_logger.dart';
+import '../../../core/utils/deterministic_catalog_id.dart';
 
 class UnsupportedDatabaseVersionException implements Exception {
   const UnsupportedDatabaseVersionException({
@@ -491,7 +494,189 @@ class DatabaseHelper {
       await _collapseNullCatalogOwnersToGuestBucket(db);
     }
 
+    if (oldVersion < 21) {
+      // Deterministic default-catalog identity. Pre-existing installs have
+      // default exercises/meals under random v4 ids; rewrite them to the
+      // stable name-derived UUIDv5 and repoint children so existing workout
+      // history and nutrition logs keep resolving (no "Unknown exercise",
+      // no FK-orphaned logs) and the next sync is idempotent by id.
+      await rewriteDefaultCatalogIdsToDeterministic(db);
+    }
+
     await _createIndexes(db);
+  }
+
+  /// Rewrites every default exercise/meal row to its deterministic,
+  /// name-derived id and repoints child references (db v21).
+  ///
+  /// Exposed as a static entry point — like [createSchema] — so the data
+  /// migration can be exercised directly in tests without reaching into the
+  /// private upgrade path.
+  ///
+  /// Properties:
+  /// - **Idempotent**: a second run finds each default already at its
+  ///   deterministic id and does nothing.
+  /// - **Index-safe**: an id rewrite stays within the same
+  ///   `(name, COALESCE(owner,''))` bucket, so `idx_*_name_owner` keys are
+  ///   unchanged. The deterministic id is name-derived, so if a default name
+  ///   exists under several owner buckets they necessarily collapse to one
+  ///   row (the local PK is the id alone); the surviving row keeps its owner
+  ///   and all children are repointed to it — no history is lost, only the
+  ///   transient duplicate row.
+  /// - **No orphans**: `workout_sets` / `exercise_muscle_factors` /
+  ///   `nutrition_logs` are repointed before any stale catalog row is
+  ///   deleted; factor repoints use `UPDATE OR IGNORE` + cleanup to respect
+  ///   `UNIQUE(exercise_id, muscle_group)`.
+  static Future<void> rewriteDefaultCatalogIdsToDeterministic(
+    Database db,
+  ) async {
+    await _rewriteCatalogGroup(
+      db,
+      table: DatabaseTables.exercises,
+      idColumn: DatabaseTables.exerciseId,
+      nameColumn: DatabaseTables.exerciseName,
+      updatedAtColumn: DatabaseTables.exerciseUpdatedAt,
+      createdAtColumn: DatabaseTables.exerciseCreatedAt,
+      defaultNames: DefaultExercisesData.getDefaultExercises()
+          .map((e) => e.name)
+          .toList(),
+      childRepoints: const <_CatalogChildRepoint>[
+        _CatalogChildRepoint(
+          table: DatabaseTables.workoutSets,
+          column: DatabaseTables.setExerciseId,
+        ),
+        _CatalogChildRepoint(
+          table: DatabaseTables.exerciseMuscleFactors,
+          column: DatabaseTables.factorExerciseId,
+          dedupeOnConflict: true,
+        ),
+      ],
+    );
+
+    await _rewriteCatalogGroup(
+      db,
+      table: DatabaseTables.meals,
+      idColumn: DatabaseTables.mealId,
+      nameColumn: DatabaseTables.mealName,
+      updatedAtColumn: DatabaseTables.mealUpdatedAt,
+      createdAtColumn: DatabaseTables.mealCreatedAt,
+      defaultNames: DefaultMealsData.getDefaultMeals()
+          .map((m) => m.name)
+          .toList(),
+      childRepoints: const <_CatalogChildRepoint>[
+        _CatalogChildRepoint(
+          table: DatabaseTables.nutritionLogs,
+          column: DatabaseTables.nutritionLogMealId,
+        ),
+      ],
+    );
+  }
+
+  /// Collapses every local row whose name equals a default [defaultNames]
+  /// entry onto a single row carrying the deterministic id, repointing the
+  /// declared [childRepoints] first so no child is left dangling.
+  static Future<void> _rewriteCatalogGroup(
+    Database db, {
+    required String table,
+    required String idColumn,
+    required String nameColumn,
+    required String updatedAtColumn,
+    required String createdAtColumn,
+    required List<String> defaultNames,
+    required List<_CatalogChildRepoint> childRepoints,
+  }) async {
+    var rewritten = 0;
+
+    for (final name in defaultNames) {
+      final detId = DeterministicCatalogId.fromName(name);
+
+      // Copy out of the read-only QueryResultSet so the survivor sort below
+      // can reorder in place.
+      final rows = List<Map<String, Object?>>.from(
+        await db.query(
+          table,
+          columns: [idColumn, updatedAtColumn, createdAtColumn],
+          where: '$nameColumn = ?',
+          whereArgs: [name],
+        ),
+      );
+      if (rows.isEmpty) continue;
+
+      // Survivor: an already-deterministic row if present (idempotent
+      // re-run), otherwise the newest row (updated → created → id desc).
+      final String survivorOldId;
+      if (rows.any((r) => r[idColumn] == detId)) {
+        survivorOldId = detId;
+      } else {
+        rows.sort((a, b) {
+          String ts(Map<String, Object?> r) =>
+              (r[updatedAtColumn] as String?) ??
+              (r[createdAtColumn] as String?) ??
+              '';
+          final byTime = ts(b).compareTo(ts(a));
+          if (byTime != 0) return byTime;
+          return (b[idColumn] as String).compareTo(a[idColumn] as String);
+        });
+        survivorOldId = rows.first[idColumn] as String;
+      }
+
+      // Repoint children of every non-deterministic row onto the det id.
+      for (final row in rows) {
+        final oldId = row[idColumn] as String;
+        if (oldId == detId) continue;
+
+        for (final child in childRepoints) {
+          if (child.dedupeOnConflict) {
+            await db.rawUpdate(
+              'UPDATE OR IGNORE ${child.table} '
+              'SET ${child.column} = ? WHERE ${child.column} = ?',
+              [detId, oldId],
+            );
+            // Rows that lost the race to a pre-existing (det id, key) pair
+            // are now redundant duplicates — drop them so the delete of the
+            // stale catalog row below does not cascade away anything live.
+            await db.delete(
+              child.table,
+              where: '${child.column} = ?',
+              whereArgs: [oldId],
+            );
+          } else {
+            await db.update(
+              child.table,
+              <String, Object?>{child.column: detId},
+              where: '${child.column} = ?',
+              whereArgs: [oldId],
+            );
+          }
+        }
+      }
+
+      // Drop every stale catalog row; children no longer reference them.
+      for (final row in rows) {
+        final oldId = row[idColumn] as String;
+        if (oldId == survivorOldId) continue;
+        await db.delete(table, where: '$idColumn = ?', whereArgs: [oldId]);
+      }
+
+      // Finally adopt the deterministic id on the survivor.
+      if (survivorOldId != detId) {
+        await db.update(
+          table,
+          <String, Object?>{idColumn: detId},
+          where: '$idColumn = ?',
+          whereArgs: [survivorOldId],
+        );
+        rewritten++;
+      }
+    }
+
+    if (rewritten > 0) {
+      AppLogger.info(
+        'v21 migration: rewrote $rewritten default "$table" row(s) to '
+        'deterministic ids',
+        category: 'db_migration',
+      );
+    }
   }
 
   /// Rewrites `owner_user_id IS NULL` to the guest sentinel `''` for the
@@ -1172,4 +1357,23 @@ class DatabaseHelper {
     await db.close();
     _database = null;
   }
+}
+
+/// A child table/column that references a catalog row's id and must be
+/// repointed when that id is rewritten (db v21).
+///
+/// [dedupeOnConflict] is set for tables with a uniqueness constraint on the
+/// reference (e.g. `exercise_muscle_factors UNIQUE(exercise_id,
+/// muscle_group)`): the repoint uses `UPDATE OR IGNORE` and the losing rows
+/// are deleted instead of aborting the migration.
+class _CatalogChildRepoint {
+  const _CatalogChildRepoint({
+    required this.table,
+    required this.column,
+    this.dedupeOnConflict = false,
+  });
+
+  final String table;
+  final String column;
+  final bool dedupeOnConflict;
 }

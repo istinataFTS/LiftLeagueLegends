@@ -10,14 +10,10 @@ import '../../../library/application/meal_bloc.dart';
 import '../bloc/history_bloc.dart';
 import '../bloc/history_event.dart';
 
-
 class EditNutritionLogDialog extends StatefulWidget {
   final NutritionLog log;
 
-  const EditNutritionLogDialog({
-    super.key,
-    required this.log,
-  });
+  const EditNutritionLogDialog({super.key, required this.log});
 
   @override
   State<EditNutritionLogDialog> createState() => _EditNutritionLogDialogState();
@@ -61,9 +57,7 @@ class _EditNutritionLogDialogState extends State<EditNutritionLogDialog> {
   Widget build(BuildContext context) {
     return AlertDialog(
       backgroundColor: AppTheme.surfaceDark,
-      title: Text(
-        isMealLog ? 'Edit Meal Entry' : 'Edit Macro Entry',
-      ),
+      title: Text(isMealLog ? 'Edit Meal Entry' : 'Edit Macro Entry'),
       content: SizedBox(
         width: 420,
         child: isMealLog ? _buildMealEditor(context) : _buildMacroEditor(),
@@ -74,7 +68,8 @@ class _EditNutritionLogDialogState extends State<EditNutritionLogDialog> {
           child: const Text('Cancel'),
         ),
         ElevatedButton(
-          onPressed: () => isMealLog ? _saveMealLog(context) : _saveMacroLog(context),
+          onPressed: () =>
+              isMealLog ? _saveMealLog(context) : _saveMacroLog(context),
           child: const Text('Save Changes'),
         ),
       ],
@@ -87,15 +82,15 @@ class _EditNutritionLogDialogState extends State<EditNutritionLogDialog> {
         if (state is! MealsLoaded) {
           return const SizedBox(
             height: 120,
-            child: Center(
-              child: CircularProgressIndicator(),
-            ),
+            child: Center(child: CircularProgressIndicator()),
           );
         }
 
         Meal? meal;
         try {
-          meal = state.meals.firstWhere((Meal item) => item.id == widget.log.mealId);
+          meal = state.meals.firstWhere(
+            (Meal item) => item.id == widget.log.mealId,
+          );
         } catch (_) {
           meal = null;
         }
@@ -117,9 +112,9 @@ class _EditNutritionLogDialogState extends State<EditNutritionLogDialog> {
               const SizedBox(height: 8),
               Text(
                 'You can still delete it from history.',
-                style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                      color: AppTheme.textMedium,
-                    ),
+                style: Theme.of(
+                  context,
+                ).textTheme.bodySmall?.copyWith(color: AppTheme.textMedium),
                 textAlign: TextAlign.center,
               ),
             ],
@@ -135,14 +130,16 @@ class _EditNutritionLogDialogState extends State<EditNutritionLogDialog> {
           children: <Widget>[
             Text(
               meal.name,
-              style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                    fontWeight: FontWeight.w600,
-                  ),
+              style: Theme.of(
+                context,
+              ).textTheme.titleMedium?.copyWith(fontWeight: FontWeight.w600),
             ),
             const SizedBox(height: 16),
             TextField(
               controller: _gramsController,
-              keyboardType: const TextInputType.numberWithOptions(decimal: true),
+              keyboardType: const TextInputType.numberWithOptions(
+                decimal: true,
+              ),
               inputFormatters: <TextInputFormatter>[
                 FilteringTextInputFormatter.allow(RegExp(r'^\d+\.?\d{0,1}')),
               ],
@@ -158,10 +155,10 @@ class _EditNutritionLogDialogState extends State<EditNutritionLogDialog> {
               width: double.infinity,
               padding: const EdgeInsets.all(14),
               decoration: BoxDecoration(
-                color: AppTheme.primaryOrange.withOpacity(0.08),
+                color: AppTheme.primaryOrange.withValues(alpha: 0.08),
                 borderRadius: BorderRadius.circular(12),
                 border: Border.all(
-                  color: AppTheme.primaryOrange.withOpacity(0.25),
+                  color: AppTheme.primaryOrange.withValues(alpha: 0.25),
                 ),
               ),
               child: nutrition == null
@@ -171,13 +168,16 @@ class _EditNutritionLogDialogState extends State<EditNutritionLogDialog> {
                       children: <Widget>[
                         Text(
                           'Updated nutrition',
-                          style: Theme.of(context).textTheme.titleSmall?.copyWith(
+                          style: Theme.of(context).textTheme.titleSmall
+                              ?.copyWith(
                                 color: AppTheme.primaryOrange,
                                 fontWeight: FontWeight.w600,
                               ),
                         ),
                         const SizedBox(height: 10),
-                        Text('Protein: ${nutrition.protein.toStringAsFixed(1)}g'),
+                        Text(
+                          'Protein: ${nutrition.protein.toStringAsFixed(1)}g',
+                        ),
                         Text('Carbs: ${nutrition.carbs.toStringAsFixed(1)}g'),
                         Text('Fats: ${nutrition.fat.toStringAsFixed(1)}g'),
                         Text('Calories: ${nutrition.calories.round()} kcal'),
@@ -250,10 +250,10 @@ class _EditNutritionLogDialogState extends State<EditNutritionLogDialog> {
           width: double.infinity,
           padding: const EdgeInsets.all(14),
           decoration: BoxDecoration(
-            color: AppTheme.primaryOrange.withOpacity(0.08),
+            color: AppTheme.primaryOrange.withValues(alpha: 0.08),
             borderRadius: BorderRadius.circular(12),
             border: Border.all(
-              color: AppTheme.primaryOrange.withOpacity(0.25),
+              color: AppTheme.primaryOrange.withValues(alpha: 0.25),
             ),
           ),
           child: Text(
@@ -276,7 +276,9 @@ class _EditNutritionLogDialogState extends State<EditNutritionLogDialog> {
 
     Meal? meal;
     try {
-      meal = mealState.meals.firstWhere((Meal item) => item.id == widget.log.mealId);
+      meal = mealState.meals.firstWhere(
+        (Meal item) => item.id == widget.log.mealId,
+      );
     } catch (_) {
       meal = null;
     }
@@ -308,7 +310,8 @@ class _EditNutritionLogDialogState extends State<EditNutritionLogDialog> {
   }
 
   void _saveMacroLog(BuildContext context) {
-    final double protein = double.tryParse(_proteinController.text.trim()) ?? 0.0;
+    final double protein =
+        double.tryParse(_proteinController.text.trim()) ?? 0.0;
     final double carbs = double.tryParse(_carbsController.text.trim()) ?? 0.0;
     final double fats = double.tryParse(_fatsController.text.trim()) ?? 0.0;
 

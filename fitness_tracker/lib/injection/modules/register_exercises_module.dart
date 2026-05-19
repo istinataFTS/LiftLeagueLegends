@@ -19,7 +19,6 @@ import '../../domain/usecases/exercises/seed_exercises.dart';
 import '../../domain/usecases/exercises/update_exercise.dart';
 import '../../domain/usecases/muscle_factors/get_muscle_factors_for_exercise.dart';
 import '../../domain/usecases/muscle_factors/sync_exercise_muscle_factors.dart';
-import '../../domain/usecases/muscle_stimulus/rebuild_muscle_stimulus_from_workout_history.dart';
 import '../../features/library/application/exercise_bloc.dart';
 
 void registerExercisesModule(GetIt sl) {
@@ -68,7 +67,7 @@ void registerExercisesModule(GetIt sl) {
       rebuildMuscleStimulusFromWorkoutHistory: sl(),
     ),
   );
-  sl.registerLazySingleton(() => SeedExercises(sl()));
+  sl.registerLazySingleton(() => SeedExercises(sl(), catalogInitFlags: sl()));
   sl.registerLazySingleton(
     () => EnsureDefaultExercises(
       appSessionRepository: sl(),
