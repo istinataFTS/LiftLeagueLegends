@@ -183,15 +183,18 @@ class ExerciseLocalDataSourceImpl implements ExerciseLocalDataSource {
   @override
   Future<List<ExerciseModel>> getPendingSyncExercises() async {
     try {
+      final ownerId = await _resolveOwnerId();
       final db = await databaseHelper.database;
       final maps = await db.query(
         DatabaseTables.exercises,
         where:
-            '${DatabaseTables.exerciseSyncStatus} = ? OR '
-            '${DatabaseTables.exerciseSyncStatus} = ?',
+            '(${DatabaseTables.exerciseSyncStatus} = ? OR '
+            '${DatabaseTables.exerciseSyncStatus} = ?) AND '
+            '${DatabaseTables.ownerUserId} = ?',
         whereArgs: [
           SyncStatus.pendingUpload.name,
           SyncStatus.pendingUpdate.name,
+          ownerId,
         ],
         orderBy: '${DatabaseTables.exerciseUpdatedAt} ASC',
       );
