@@ -398,6 +398,20 @@ class MealLocalDataSourceImpl implements MealLocalDataSource {
   }
 
   @override
+  Future<void> clearMealsForOwner(String ownerId) async {
+    try {
+      final db = await databaseHelper.database;
+      await db.delete(
+        DatabaseTables.meals,
+        where: '${DatabaseTables.ownerUserId} = ?',
+        whereArgs: <Object?>[ownerId],
+      );
+    } catch (e) {
+      throw CacheDatabaseException('Failed to clear meals for owner: $e');
+    }
+  }
+
+  @override
   Future<int> getMealsCount() async {
     try {
       final ownerId = await _resolveOwnerId();

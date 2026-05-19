@@ -62,5 +62,7 @@ abstract class MealLocalDataSource {
 
   Future<void> clearAllMeals();
 
+  Future<void> clearMealsForOwner(String ownerId);
+
   Future<int> getMealsCount();
 }

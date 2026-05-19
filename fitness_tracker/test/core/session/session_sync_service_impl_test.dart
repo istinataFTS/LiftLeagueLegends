@@ -104,12 +104,14 @@ void main() {
     when(
       () => exerciseLocalDataSource.clearUserOwnedExercises(any()),
     ).thenAnswer((_) async {});
-    when(() => mealLocalDataSource.clearAllMeals()).thenAnswer((_) async {});
     when(
-      () => nutritionLogLocalDataSource.clearAllLogs(),
+      () => mealLocalDataSource.clearMealsForOwner(any()),
     ).thenAnswer((_) async {});
     when(
-      () => workoutSetLocalDataSource.clearAllSets(),
+      () => nutritionLogLocalDataSource.clearLogsForOwner(any()),
+    ).thenAnswer((_) async {});
+    when(
+      () => workoutSetLocalDataSource.clearSetsForOwner(any()),
     ).thenAnswer((_) async {});
     when(
       () => muscleStimulusLocalDataSource.clearStimulusForUser(any()),
@@ -325,10 +327,16 @@ void main() {
 
         verify(() => authRemoteDataSource.signOut()).called(1);
         verify(() => repository.clearSession()).called(1);
-        // All user-scoped tables must be cleared.
-        verify(() => mealLocalDataSource.clearAllMeals()).called(1);
-        verify(() => nutritionLogLocalDataSource.clearAllLogs()).called(1);
-        verify(() => workoutSetLocalDataSource.clearAllSets()).called(1);
+        // All user-scoped tables cleared for this owner only.
+        verify(
+          () => mealLocalDataSource.clearMealsForOwner('user-1'),
+        ).called(1);
+        verify(
+          () => nutritionLogLocalDataSource.clearLogsForOwner('user-1'),
+        ).called(1);
+        verify(
+          () => workoutSetLocalDataSource.clearSetsForOwner('user-1'),
+        ).called(1);
         // Only user-owned exercises — seeded rows are preserved.
         verify(
           () => exerciseLocalDataSource.clearUserOwnedExercises('user-1'),
@@ -353,9 +361,9 @@ void main() {
         expect(result.message, 'sign-out failed: remote sign-out failed');
 
         verifyNever(() => repository.clearSession());
-        verifyNever(() => mealLocalDataSource.clearAllMeals());
-        verifyNever(() => nutritionLogLocalDataSource.clearAllLogs());
-        verifyNever(() => workoutSetLocalDataSource.clearAllSets());
+        verifyNever(() => mealLocalDataSource.clearMealsForOwner(any()));
+        verifyNever(() => nutritionLogLocalDataSource.clearLogsForOwner(any()));
+        verifyNever(() => workoutSetLocalDataSource.clearSetsForOwner(any()));
         verifyNever(
           () => exerciseLocalDataSource.clearUserOwnedExercises(any()),
         );
@@ -382,9 +390,15 @@ void main() {
       // Best-effort cleanup must still run even when the session clear fails.
       // The AuthSessionShell key change is the primary data-isolation guard,
       // but a clean database matters for reinstall / edge-case scenarios.
-      verify(() => mealLocalDataSource.clearAllMeals()).called(1);
-      verify(() => nutritionLogLocalDataSource.clearAllLogs()).called(1);
-      verify(() => workoutSetLocalDataSource.clearAllSets()).called(1);
+      verify(
+        () => mealLocalDataSource.clearMealsForOwner('user-1'),
+      ).called(1);
+      verify(
+        () => nutritionLogLocalDataSource.clearLogsForOwner('user-1'),
+      ).called(1);
+      verify(
+        () => workoutSetLocalDataSource.clearSetsForOwner('user-1'),
+      ).called(1);
       verify(
         () => exerciseLocalDataSource.clearUserOwnedExercises('user-1'),
       ).called(1);
@@ -393,7 +407,8 @@ void main() {
       ).called(1);
     });
 
-    test('skips clearUserOwnedExercises when no authenticated user', () async {
+    test('scopes all clears to guest bucket; skips exercises and stimulus',
+        () async {
       when(
         () => repository.getCurrentSession(),
       ).thenAnswer((_) async => const Right(AppSession.guest()));
@@ -401,14 +416,15 @@ void main() {
       final result = await service.signOut();
 
       expect(result.isSuccess, isTrue);
-      // Exercises: nothing to delete — no userId.
+      // Guest data cleared from the '' bucket only.
+      verify(() => mealLocalDataSource.clearMealsForOwner('')).called(1);
+      verify(() => nutritionLogLocalDataSource.clearLogsForOwner('')).called(1);
+      verify(() => workoutSetLocalDataSource.clearSetsForOwner('')).called(1);
+      // Exercises and stimulus: not cleared for guest ('' catalog must survive).
       verifyNever(() => exerciseLocalDataSource.clearUserOwnedExercises(any()));
-      // Muscle stimulus: nothing to delete — no userId.
       verifyNever(
         () => muscleStimulusLocalDataSource.clearStimulusForUser(any()),
       );
-      // Other tables are always cleared.
-      verify(() => mealLocalDataSource.clearAllMeals()).called(1);
     });
   });
 }

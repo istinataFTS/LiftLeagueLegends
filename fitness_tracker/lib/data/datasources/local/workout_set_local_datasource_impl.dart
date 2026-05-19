@@ -348,6 +348,20 @@ class WorkoutSetLocalDataSourceImpl implements WorkoutSetLocalDataSource {
     }
   }
 
+  @override
+  Future<void> clearSetsForOwner(String ownerId) async {
+    try {
+      final db = await databaseHelper.database;
+      await db.delete(
+        DatabaseTables.workoutSets,
+        where: '${DatabaseTables.ownerUserId} = ?',
+        whereArgs: <Object?>[ownerId],
+      );
+    } catch (e) {
+      throw CacheDatabaseException('Failed to clear sets for owner: $e');
+    }
+  }
+
   Future<List<WorkoutSet>> _getVisibleSets() async {
     final userId = await _getCurrentUserId();
     final userFilter =

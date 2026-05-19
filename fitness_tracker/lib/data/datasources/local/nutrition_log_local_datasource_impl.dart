@@ -480,6 +480,20 @@ class NutritionLogLocalDataSourceImpl implements NutritionLogLocalDataSource {
   }
 
   @override
+  Future<void> clearLogsForOwner(String ownerId) async {
+    try {
+      final db = await databaseHelper.database;
+      await db.delete(
+        DatabaseTables.nutritionLogs,
+        where: '${DatabaseTables.ownerUserId} = ?',
+        whereArgs: <Object?>[ownerId],
+      );
+    } catch (e) {
+      throw CacheDatabaseException('Failed to clear logs for owner: $e');
+    }
+  }
+
+  @override
   Future<Map<String, double>> getDailyMacros(DateTime date) async {
     try {
       final userId = await _getCurrentUserId();

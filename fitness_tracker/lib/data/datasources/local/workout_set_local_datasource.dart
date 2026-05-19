@@ -43,4 +43,6 @@ abstract class WorkoutSetLocalDataSource {
   Future<void> deleteSet(String id);
 
   Future<void> clearAllSets();
+
+  Future<void> clearSetsForOwner(String ownerId);
 }
