@@ -51,3 +51,7 @@ Users can log workouts, record meals, monitor nutrition, create/remove/edit exer
 - Deeper AI integration for personalized workout and nutrition recommendations
 - Push notifications for goal reminders and training streaks
 - Social features for sharing progress and competing with friends
+
+## Developer Reference
+
+- [`fitness_tracker/KNOWN_ISSUES.md`](fitness_tracker/KNOWN_ISSUES.md) — recurring stack gotchas (sync quirks, SQLite migration rules, voice constraints, DI pitfalls, CI tooling); consult before debugging, update after any fix that took >15 minutes
