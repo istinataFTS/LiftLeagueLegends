@@ -30,9 +30,7 @@ abstract class NutritionLogLocalDataSource {
 
   Future<void> upsertLog(NutritionLogModel log);
 
-  Future<void> prepareForInitialCloudMigration({
-    required String userId,
-  });
+  Future<void> prepareForInitialCloudMigration({required String userId});
 
   Future<void> mergeRemoteLogs(List<NutritionLogModel> logs);
 
@@ -42,20 +40,11 @@ abstract class NutritionLogLocalDataSource {
     required DateTime syncedAt,
   });
 
-  Future<void> markAsPendingUpload(
-    String localId, {
-    String? errorMessage,
-  });
+  Future<void> markAsPendingUpload(String localId, {String? errorMessage});
 
-  Future<void> markAsPendingUpdate(
-    String localId, {
-    String? errorMessage,
-  });
+  Future<void> markAsPendingUpdate(String localId, {String? errorMessage});
 
-  Future<void> markAsPendingDelete(
-    String localId, {
-    String? errorMessage,
-  });
+  Future<void> markAsPendingDelete(String localId, {String? errorMessage});
 
   Future<void> replaceAllLogs(List<NutritionLogModel> logs);
 

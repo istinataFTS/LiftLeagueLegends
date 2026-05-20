@@ -70,47 +70,48 @@ void main() {
       });
 
       test(
-          'returns remoteThenLocal when authenticated and syncPolicy enables remote',
-          () async {
-        when(() => mockRepository.getCurrentSession()).thenAnswer(
-          (_) async => const Right(_authenticatedSession),
-        );
-        when(() => mockRepository.syncPolicy).thenReturn(_remoteOnPolicy);
+        'returns remoteThenLocal when authenticated and syncPolicy enables remote',
+        () async {
+          when(
+            () => mockRepository.getCurrentSession(),
+          ).thenAnswer((_) async => const Right(_authenticatedSession));
+          when(() => mockRepository.syncPolicy).thenReturn(_remoteOnPolicy);
 
-        final result = await resolver.resolveReadPreference();
+          final result = await resolver.resolveReadPreference();
 
-        expect(result, DataSourcePreference.remoteThenLocal);
-      });
+          expect(result, DataSourcePreference.remoteThenLocal);
+        },
+      );
 
       test(
-          'returns localOnly when authenticated but syncPolicy disables remote',
-          () async {
-        when(() => mockRepository.getCurrentSession()).thenAnswer(
-          (_) async => const Right(_authenticatedSession),
-        );
-        when(() => mockRepository.syncPolicy).thenReturn(_remoteOffPolicy);
+        'returns localOnly when authenticated but syncPolicy disables remote',
+        () async {
+          when(
+            () => mockRepository.getCurrentSession(),
+          ).thenAnswer((_) async => const Right(_authenticatedSession));
+          when(() => mockRepository.syncPolicy).thenReturn(_remoteOffPolicy);
 
-        final result = await resolver.resolveReadPreference();
+          final result = await resolver.resolveReadPreference();
 
-        expect(result, DataSourcePreference.localOnly);
-      });
+          expect(result, DataSourcePreference.localOnly);
+        },
+      );
 
       test('returns localOnly for unauthenticated guest session', () async {
-        when(() => mockRepository.getCurrentSession()).thenAnswer(
-          (_) async => const Right(AppSession.guest()),
-        );
+        when(
+          () => mockRepository.getCurrentSession(),
+        ).thenAnswer((_) async => const Right(AppSession.guest()));
 
         final result = await resolver.resolveReadPreference();
 
         expect(result, DataSourcePreference.localOnly);
       });
 
-      test(
-          'returns localOnly when initial cloud migration is pending, '
+      test('returns localOnly when initial cloud migration is pending, '
           'even if syncPolicy enables remote', () async {
-        when(() => mockRepository.getCurrentSession()).thenAnswer(
-          (_) async => const Right(_migrationPendingSession),
-        );
+        when(
+          () => mockRepository.getCurrentSession(),
+        ).thenAnswer((_) async => const Right(_migrationPendingSession));
         when(() => mockRepository.syncPolicy).thenReturn(_remoteOnPolicy);
 
         final result = await resolver.resolveReadPreference();

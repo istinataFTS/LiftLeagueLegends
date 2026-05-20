@@ -29,9 +29,7 @@ abstract class MealLocalDataSource {
     required String? ownerUserId,
   });
 
-  Future<void> prepareForInitialCloudMigration({
-    required String userId,
-  });
+  Future<void> prepareForInitialCloudMigration({required String userId});
 
   Future<void> mergeRemoteMeals(List<MealModel> meals);
 
@@ -41,20 +39,11 @@ abstract class MealLocalDataSource {
     required DateTime syncedAt,
   });
 
-  Future<void> markAsPendingUpload(
-    String localId, {
-    String? errorMessage,
-  });
+  Future<void> markAsPendingUpload(String localId, {String? errorMessage});
 
-  Future<void> markAsPendingUpdate(
-    String localId, {
-    String? errorMessage,
-  });
+  Future<void> markAsPendingUpdate(String localId, {String? errorMessage});
 
-  Future<void> markAsPendingDelete(
-    String localId, {
-    String? errorMessage,
-  });
+  Future<void> markAsPendingDelete(String localId, {String? errorMessage});
 
   Future<void> replaceAllMeals(List<MealModel> meals);
 

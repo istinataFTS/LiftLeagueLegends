@@ -20,9 +20,7 @@ abstract class WorkoutSetLocalDataSource {
 
   Future<void> upsertSet(WorkoutSet set);
 
-  Future<void> prepareForInitialCloudMigration({
-    required String userId,
-  });
+  Future<void> prepareForInitialCloudMigration({required String userId});
 
   Future<void> replaceAll(List<WorkoutSet> sets);
 
