@@ -4,11 +4,9 @@ import '../../../core/constants/database_tables.dart';
 import '../../../core/errors/exceptions.dart';
 import '../../../core/enums/sync_status.dart';
 import '../../../core/logging/app_logger.dart';
-import '../../../core/session/current_user_id_resolver.dart';
 import '../../../core/sync/local_remote_merge.dart';
-import '../../../domain/repositories/app_session_repository.dart';
 import '../../models/exercise_model.dart';
-import 'database_helper.dart';
+import 'user_scoped_local_datasource.dart';
 
 abstract class ExerciseLocalDataSource {
   Future<List<ExerciseModel>> getAllExercises();
@@ -68,10 +66,8 @@ abstract class ExerciseLocalDataSource {
   Future<void> clearUserOwnedExercises(String userId);
 }
 
-class ExerciseLocalDataSourceImpl implements ExerciseLocalDataSource {
-  final DatabaseHelper databaseHelper;
-  final AppSessionRepository appSessionRepository;
-
+class ExerciseLocalDataSourceImpl extends UserScopedLocalDatasource
+    implements ExerciseLocalDataSource {
   static final LocalRemoteMerge<ExerciseModel> _merge =
       LocalRemoteMerge<ExerciseModel>(
         getId: (exercise) => exercise.id,
@@ -79,9 +75,9 @@ class ExerciseLocalDataSourceImpl implements ExerciseLocalDataSource {
         getSyncMetadata: (exercise) => exercise.syncMetadata,
       );
 
-  const ExerciseLocalDataSourceImpl({
-    required this.databaseHelper,
-    required this.appSessionRepository,
+  ExerciseLocalDataSourceImpl({
+    required super.databaseHelper,
+    required super.currentUserIdResolver,
   });
 
   // ---------------------------------------------------------------------------
@@ -109,16 +105,19 @@ class ExerciseLocalDataSourceImpl implements ExerciseLocalDataSource {
   @override
   Future<ExerciseModel?> getExerciseByName(String name) async {
     try {
-      final ownerId = await _resolveOwnerId();
-      final filter = _visibilityFilter(
-        ownerId,
-        extraPrefix: 'LOWER(${DatabaseTables.exerciseName}) = LOWER(?)',
+      final ownerId = await resolveOwnerId();
+      final f = whereOwned(
+        ownerId: ownerId,
+        extra:
+            'LOWER(${DatabaseTables.exerciseName}) = LOWER(?) AND '
+            '(${DatabaseTables.exerciseSyncStatus} IS NULL OR ${DatabaseTables.exerciseSyncStatus} != ?)',
+        extraArgs: [name, SyncStatus.pendingDelete.name],
       );
       final db = await databaseHelper.database;
       final maps = await db.query(
         DatabaseTables.exercises,
-        where: filter.where,
-        whereArgs: <Object?>[name, ...filter.whereArgs],
+        where: f.where,
+        whereArgs: f.whereArgs,
         limit: 1,
       );
 
@@ -162,16 +161,19 @@ class ExerciseLocalDataSourceImpl implements ExerciseLocalDataSource {
   @override
   Future<List<ExerciseModel>> getExercisesForMuscle(String muscleGroup) async {
     try {
-      final ownerId = await _resolveOwnerId();
-      final filter = _visibilityFilter(
-        ownerId,
-        extraPrefix: '${DatabaseTables.exerciseMuscleGroups} LIKE ?',
+      final ownerId = await resolveOwnerId();
+      final f = whereOwned(
+        ownerId: ownerId,
+        extra:
+            '${DatabaseTables.exerciseMuscleGroups} LIKE ? AND '
+            '(${DatabaseTables.exerciseSyncStatus} IS NULL OR ${DatabaseTables.exerciseSyncStatus} != ?)',
+        extraArgs: ['%"$muscleGroup"%', SyncStatus.pendingDelete.name],
       );
       final db = await databaseHelper.database;
       final maps = await db.query(
         DatabaseTables.exercises,
-        where: filter.where,
-        whereArgs: <Object?>['%"$muscleGroup"%', ...filter.whereArgs],
+        where: f.where,
+        whereArgs: f.whereArgs,
         orderBy: '${DatabaseTables.exerciseName} ASC',
       );
       return maps.map(ExerciseModel.fromMap).toList();
@@ -183,19 +185,22 @@ class ExerciseLocalDataSourceImpl implements ExerciseLocalDataSource {
   @override
   Future<List<ExerciseModel>> getPendingSyncExercises() async {
     try {
-      final ownerId = await _resolveOwnerId();
+      final ownerId = await resolveOwnerId();
       final db = await databaseHelper.database;
-      final maps = await db.query(
-        DatabaseTables.exercises,
-        where:
+      final f = whereOwned(
+        ownerId: ownerId,
+        extra:
             '(${DatabaseTables.exerciseSyncStatus} = ? OR '
-            '${DatabaseTables.exerciseSyncStatus} = ?) AND '
-            '${DatabaseTables.ownerUserId} = ?',
-        whereArgs: [
+            '${DatabaseTables.exerciseSyncStatus} = ?)',
+        extraArgs: [
           SyncStatus.pendingUpload.name,
           SyncStatus.pendingUpdate.name,
-          ownerId,
         ],
+      );
+      final maps = await db.query(
+        DatabaseTables.exercises,
+        where: f.where,
+        whereArgs: f.whereArgs,
         orderBy: '${DatabaseTables.exerciseUpdatedAt} ASC',
       );
 
@@ -290,6 +295,9 @@ class ExerciseLocalDataSourceImpl implements ExerciseLocalDataSource {
 
   @override
   Future<void> prepareForInitialCloudMigration({required String userId}) async {
+    await requireAuthenticatedOwnerId(
+      operation: 'prepareForInitialCloudMigration',
+    );
     try {
       final storedExercises = await _getStoredExercises();
       final preparedExercises = storedExercises
@@ -476,69 +484,43 @@ class ExerciseLocalDataSourceImpl implements ExerciseLocalDataSource {
   // Private helpers
   // ---------------------------------------------------------------------------
 
-  /// Resolves the active account's owner id: the authenticated user's id, or
-  /// [kGuestUserId] (`''`) for guest sessions.
-  ///
-  /// Never null — under the per-user catalog model (db v20+) every row is
-  /// owned, so readers and writers share one non-null identifier.
-  Future<String> _resolveOwnerId() async {
-    final result = await appSessionRepository.getCurrentSession();
-    return result.fold(
-      (_) => kGuestUserId,
-      (session) => session.user?.id ?? kGuestUserId,
-    );
-  }
-
-  /// Builds the WHERE clause and bound args for strict per-account
-  /// visibility.
-  ///
-  /// Every catalog row is owned (guest = `''`, authenticated = `uid`;
-  /// db v20+). A row is visible only to its owning account — there is no
-  /// shared NULL-owner bucket — so cross-account exposure is impossible by
-  /// construction. Soft-deleted rows (sync_status = pendingDelete) are
-  /// always excluded.
-  ({String where, List<Object?> whereArgs}) _visibilityFilter(
-    String ownerId, {
-    String? extraPrefix,
-  }) {
-    final prefix = extraPrefix != null ? '$extraPrefix AND ' : '';
-    return (
-      where:
-          '${prefix}'
-          '(${DatabaseTables.exerciseSyncStatus} IS NULL OR '
-          '${DatabaseTables.exerciseSyncStatus} != ?) AND '
-          '${DatabaseTables.ownerUserId} = ?',
-      whereArgs: <Object?>[SyncStatus.pendingDelete.name, ownerId],
-    );
-  }
-
   /// Exercises visible to the active account:
   /// - Only rows owned by the active account (guest `''` or `uid`).
   /// - Soft-deleted exercises (sync_status = pendingDelete) are excluded.
   Future<List<ExerciseModel>> _getVisibleExercises() async {
-    final ownerId = await _resolveOwnerId();
-    final filter = _visibilityFilter(ownerId);
+    final ownerId = await resolveOwnerId();
+    final f = whereOwned(
+      ownerId: ownerId,
+      extra:
+          '(${DatabaseTables.exerciseSyncStatus} IS NULL OR '
+          '${DatabaseTables.exerciseSyncStatus} != ?)',
+      extraArgs: <Object?>[SyncStatus.pendingDelete.name],
+    );
     final db = await databaseHelper.database;
     final maps = await db.query(
       DatabaseTables.exercises,
-      where: filter.where,
-      whereArgs: filter.whereArgs,
+      where: f.where,
+      whereArgs: f.whereArgs,
       orderBy: '${DatabaseTables.exerciseName} ASC',
     );
     return maps.map(ExerciseModel.fromMap).toList();
   }
 
   Future<ExerciseModel?> _getVisibleExerciseById(String id) async {
-    final ownerId = await _resolveOwnerId();
-    final filter = _visibilityFilter(
-      ownerId,
-      extraPrefix: '${DatabaseTables.exerciseId} = ?',
+    final ownerId = await resolveOwnerId();
+    final f = whereOwned(
+      ownerId: ownerId,
+      extra:
+          '${DatabaseTables.exerciseId} = ? AND '
+          '(${DatabaseTables.exerciseSyncStatus} IS NULL OR '
+          '${DatabaseTables.exerciseSyncStatus} != ?)',
+      extraArgs: <Object?>[id, SyncStatus.pendingDelete.name],
     );
     final db = await databaseHelper.database;
     final maps = await db.query(
       DatabaseTables.exercises,
-      where: filter.where,
-      whereArgs: <Object?>[id, ...filter.whereArgs],
+      where: f.where,
+      whereArgs: f.whereArgs,
       limit: 1,
     );
 

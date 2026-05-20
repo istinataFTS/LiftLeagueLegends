@@ -20,19 +20,14 @@
 /// here is identical to the production path.
 library;
 
-import 'package:dartz/dartz.dart';
 import 'package:fitness_tracker/core/constants/database_tables.dart';
-import 'package:fitness_tracker/core/enums/auth_mode.dart';
 import 'package:fitness_tracker/core/session/current_user_id_resolver.dart';
 import 'package:fitness_tracker/data/datasources/local/meal_local_datasource_impl.dart';
 import 'package:fitness_tracker/data/datasources/local/nutrition_log_local_datasource_impl.dart';
 import 'package:fitness_tracker/data/datasources/local/workout_set_local_datasource_impl.dart';
 import 'package:fitness_tracker/data/models/meal_model.dart';
 import 'package:fitness_tracker/data/models/nutrition_log_model.dart';
-import 'package:fitness_tracker/domain/entities/app_session.dart';
-import 'package:fitness_tracker/domain/entities/app_user.dart';
 import 'package:fitness_tracker/domain/entities/workout_set.dart';
-import 'package:fitness_tracker/domain/repositories/app_session_repository.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:mocktail/mocktail.dart';
 
@@ -41,19 +36,6 @@ import 'support/in_memory_db_harness.dart';
 // ─── Test doubles ────────────────────────────────────────────────────────────
 
 class MockCurrentUserIdResolver extends Mock implements CurrentUserIdResolver {}
-
-class MockAppSessionRepository extends Mock implements AppSessionRepository {}
-
-// ─── Helpers ─────────────────────────────────────────────────────────────────
-
-/// Returns an authenticated session for [userId].
-AppSession _sessionFor(String userId) => AppSession(
-  authMode: AuthMode.authenticated,
-  user: AppUser(id: userId, email: '$userId@test.com'),
-);
-
-/// Returns a guest session.
-const AppSession _guestSession = AppSession.guest();
 
 // ─── Fixtures ────────────────────────────────────────────────────────────────
 
@@ -112,7 +94,6 @@ void main() {
   late InMemoryDbHarness dbHarness;
 
   late MockCurrentUserIdResolver resolver;
-  late MockAppSessionRepository sessionRepo;
 
   late WorkoutSetLocalDataSourceImpl setDs;
   late NutritionLogLocalDataSourceImpl logDs;
@@ -122,7 +103,6 @@ void main() {
     dbHarness = await InMemoryDbHarness.open();
 
     resolver = MockCurrentUserIdResolver();
-    sessionRepo = MockAppSessionRepository();
 
     setDs = WorkoutSetLocalDataSourceImpl(
       databaseHelper: dbHarness.helper,
@@ -136,7 +116,7 @@ void main() {
 
     mealDs = MealLocalDataSourceImpl(
       databaseHelper: dbHarness.helper,
-      appSessionRepository: sessionRepo,
+      currentUserIdResolver: resolver,
     );
   });
 
@@ -144,16 +124,11 @@ void main() {
     await dbHarness.close();
   });
 
-  /// Configures the session/resolver mocks to the given identity.
+  /// Configures the resolver mock to the given identity.
   ///
   /// Pass [kGuestUserId] (`''`) to simulate a guest session.
   void switchIdentity(String userId) {
     when(() => resolver.resolve()).thenAnswer((_) async => userId);
-
-    final session = userId.isEmpty ? _guestSession : _sessionFor(userId);
-    when(
-      () => sessionRepo.getCurrentSession(),
-    ).thenAnswer((_) async => Right(session));
   }
 
   test(

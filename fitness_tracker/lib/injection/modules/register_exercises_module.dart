@@ -98,7 +98,7 @@ void registerExercisesModule(GetIt sl) {
   sl.registerLazySingleton<ExerciseLocalDataSource>(
     () => ExerciseLocalDataSourceImpl(
       databaseHelper: sl(),
-      appSessionRepository: sl(),
+      currentUserIdResolver: sl(),
     ),
   );
 
