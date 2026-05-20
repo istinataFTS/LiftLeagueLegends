@@ -51,6 +51,12 @@ flutter run \
   --dart-define=SUPABASE_ANON_KEY=eyJ...
 ```
 
+## Known issues and the 15-minute rule
+
+**The 15-minute rule.** If you spend more than 15 minutes debugging something that is specific to this codebase's stack (not generic Flutter behaviour), add an entry to [`KNOWN_ISSUES.md`](KNOWN_ISSUES.md) using the template at the top of that file. Do this *before* opening a PR with the fix — the entry is part of the PR.
+
+`KNOWN_ISSUES.md` covers recurring traps: SQLite migration quirks, sync-ordering constraints, voice budget enforcement, dart-define behaviour, DI registration rules, and CI tooling gotchas. Consult it at the start of any debugging session — the problem may already be documented.
+
 ## Architecture
 
 ### Flutter app — Clean Architecture
