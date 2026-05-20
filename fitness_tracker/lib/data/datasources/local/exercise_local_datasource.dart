@@ -678,21 +678,13 @@ class ExerciseLocalDataSourceImpl implements ExerciseLocalDataSource {
     String userId,
   ) {
     final ownerUserId = exercise.ownerUserId;
-
-    // A different account's exercise — never touch it.
-    if (ownerUserId != null &&
-        ownerUserId.isNotEmpty &&
-        ownerUserId != userId) {
+    if (ownerUserId == null || ownerUserId.isEmpty) {
+      return exercise;
+    }
+    if (ownerUserId != userId) {
       return exercise;
     }
 
-    // Guest catalog (the '' sentinel, or a legacy NULL row pre-v20) or a
-    // row already owned by the signing-in user: adopt it to that user and
-    // queue it for upload. This is the step that makes a workout set logged
-    // against a default exercise pushable — the Supabase FK
-    // workout_sets.exercise_id -> exercises(id) is only satisfiable once the
-    // referenced exercise is owned by the user and synced. Mirrors the
-    // meals / workout_sets prepare logic so all three behave identically.
     final currentMetadata = exercise.syncMetadata;
     final updatedMetadata = switch (currentMetadata.status) {
       SyncStatus.localOnly => currentMetadata.copyWith(
@@ -712,10 +704,7 @@ class ExerciseLocalDataSourceImpl implements ExerciseLocalDataSource {
     };
 
     return ExerciseModel.fromEntity(
-      exercise.copyWith(
-        ownerUserId: ownerUserId == null || ownerUserId.isEmpty ? userId : null,
-        syncMetadata: updatedMetadata,
-      ),
+      exercise.copyWith(syncMetadata: updatedMetadata),
     );
   }
 }

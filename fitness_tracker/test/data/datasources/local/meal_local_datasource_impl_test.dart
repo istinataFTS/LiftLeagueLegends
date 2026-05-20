@@ -434,7 +434,17 @@ void main() {
   });
 
   group('MealLocalDataSourceImpl prepareForInitialCloudMigration', () {
-    test('claims guest localOnly meal and queues upload', () async {
+    Future<Map<String, Object?>> rawMeal(String id) async {
+      final rows = await database.query(
+        DatabaseTables.meals,
+        where: '${DatabaseTables.mealId} = ?',
+        whereArgs: <Object?>[id],
+      );
+      expect(rows, hasLength(1));
+      return rows.single;
+    }
+
+    test('leaves guest localOnly meal untouched', () async {
       await dataSource.insertMeal(
         buildMeal(
           id: 'meal-1',
@@ -449,14 +459,13 @@ void main() {
 
       await dataSource.prepareForInitialCloudMigration(userId: 'user-1');
 
-      final meal = await dataSource.getMealById('meal-1');
-      expect(meal, isNotNull);
-      expect(meal!.ownerUserId, 'user-1');
-      expect(meal.syncMetadata.status, SyncStatus.pendingUpload);
-      expect(meal.syncMetadata.lastSyncError, isNull);
+      final row = await rawMeal('meal-1');
+      expect(row[DatabaseTables.ownerUserId], isNull);
+      expect(row[DatabaseTables.mealSyncStatus], SyncStatus.localOnly.name);
+      expect(row[DatabaseTables.mealLastSyncError], 'offline');
     });
 
-    test('recovers guest syncError meal into pendingUpload', () async {
+    test('leaves guest syncError meal untouched', () async {
       await dataSource.insertMeal(
         buildMeal(
           id: 'meal-1',
@@ -471,11 +480,77 @@ void main() {
 
       await dataSource.prepareForInitialCloudMigration(userId: 'user-1');
 
-      final meal = await dataSource.getMealById('meal-1');
-      expect(meal, isNotNull);
-      expect(meal!.ownerUserId, 'user-1');
-      expect(meal.syncMetadata.status, SyncStatus.pendingUpload);
-      expect(meal.syncMetadata.lastSyncError, isNull);
+      final row = await rawMeal('meal-1');
+      expect(row[DatabaseTables.ownerUserId], isNull);
+      expect(row[DatabaseTables.mealSyncStatus], SyncStatus.syncError.name);
+      expect(row[DatabaseTables.mealLastSyncError], 'offline');
+    });
+  });
+
+  // ---------------------------------------------------------------------------
+  // clearMealsForOwner — owner-scoped destructive clear (Phase 2 / Bug 2 fix)
+  // ---------------------------------------------------------------------------
+
+  group('MealLocalDataSourceImpl clearMealsForOwner', () {
+    test(
+      'deletes only the target owner\'s meals — guest and bystander survive',
+      () async {
+        await dataSource.insertMeal(
+          buildMeal(id: 'guest-meal', name: 'Guest Oats', ownerUserId: ''),
+        );
+        // 'user-1' is the default owner in buildMeal.
+        await dataSource.insertMeal(
+          buildMeal(id: 'user-a-meal', name: 'User A Chicken'),
+        );
+        await dataSource.insertMeal(
+          buildMeal(
+            id: 'user-b-meal',
+            name: 'User B Rice',
+            ownerUserId: 'user-2',
+          ),
+        );
+
+        await dataSource.clearMealsForOwner('user-1');
+
+        final remaining = await database.query(DatabaseTables.meals);
+        final ids =
+            remaining.map((r) => r[DatabaseTables.mealId] as String).toSet();
+
+        expect(ids, equals(<String>{'guest-meal', 'user-b-meal'}));
+        expect(ids, isNot(contains('user-a-meal')));
+      },
+    );
+
+    test(
+      'clears the guest bucket (\'\') without touching authenticated owners',
+      () async {
+        await dataSource.insertMeal(
+          buildMeal(id: 'guest-meal', name: 'Guest Oats', ownerUserId: ''),
+        );
+        await dataSource.insertMeal(
+          buildMeal(id: 'user-meal', name: 'User Chicken'),
+        );
+
+        await dataSource.clearMealsForOwner('');
+
+        final remaining = await database.query(DatabaseTables.meals);
+        final ids =
+            remaining.map((r) => r[DatabaseTables.mealId] as String).toSet();
+
+        expect(ids, equals(<String>{'user-meal'}));
+        expect(ids, isNot(contains('guest-meal')));
+      },
+    );
+
+    test('is a no-op when the target owner has no meals', () async {
+      await dataSource.insertMeal(
+        buildMeal(id: 'meal-1', name: 'Oats'),
+      );
+
+      await dataSource.clearMealsForOwner('nonexistent-user');
+
+      final remaining = await database.query(DatabaseTables.meals);
+      expect(remaining, hasLength(1));
     });
   });
 

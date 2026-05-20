@@ -2,6 +2,7 @@ import 'package:dartz/dartz.dart';
 import 'package:fitness_tracker/core/config/app_sync_policy.dart';
 import 'package:fitness_tracker/core/enums/auth_mode.dart';
 import 'package:fitness_tracker/core/enums/sync_trigger.dart';
+import 'package:fitness_tracker/core/session/current_user_id_resolver.dart';
 import 'package:fitness_tracker/core/errors/failures.dart';
 import 'package:fitness_tracker/core/session/session_sync_service.dart';
 import 'package:fitness_tracker/core/session/session_sync_service_impl.dart';
@@ -11,6 +12,7 @@ import 'package:fitness_tracker/data/datasources/local/exercise_local_datasource
 import 'package:fitness_tracker/data/datasources/local/meal_local_datasource.dart';
 import 'package:fitness_tracker/data/datasources/local/nutrition_log_local_datasource.dart';
 import 'package:fitness_tracker/data/datasources/local/muscle_stimulus_local_datasource.dart';
+import 'package:fitness_tracker/data/datasources/local/pending_sync_delete_local_datasource.dart';
 import 'package:fitness_tracker/data/datasources/local/workout_set_local_datasource.dart';
 import 'package:fitness_tracker/data/datasources/remote/auth_remote_datasource.dart';
 import 'package:fitness_tracker/domain/entities/app_session.dart';
@@ -40,6 +42,9 @@ class MockWorkoutSetLocalDataSource extends Mock
 class MockMuscleStimulusLocalDataSource extends Mock
     implements MuscleStimulusLocalDataSource {}
 
+class MockPendingSyncDeleteLocalDataSource extends Mock
+    implements PendingSyncDeleteLocalDataSource {}
+
 class MockRebuildMuscleStimulus extends Mock
     implements RebuildMuscleStimulusFromWorkoutHistory {}
 
@@ -57,6 +62,7 @@ void main() {
   late MockNutritionLogLocalDataSource nutritionLogLocalDataSource;
   late MockWorkoutSetLocalDataSource workoutSetLocalDataSource;
   late MockMuscleStimulusLocalDataSource muscleStimulusLocalDataSource;
+  late MockPendingSyncDeleteLocalDataSource pendingSyncDeleteLocalDataSource;
   late MockRebuildMuscleStimulus rebuildMuscleStimulus;
   late SessionSyncService service;
 
@@ -80,6 +86,7 @@ void main() {
     nutritionLogLocalDataSource = MockNutritionLogLocalDataSource();
     workoutSetLocalDataSource = MockWorkoutSetLocalDataSource();
     muscleStimulusLocalDataSource = MockMuscleStimulusLocalDataSource();
+    pendingSyncDeleteLocalDataSource = MockPendingSyncDeleteLocalDataSource();
     rebuildMuscleStimulus = MockRebuildMuscleStimulus();
 
     // Default stub: rebuild succeeds silently.
@@ -104,15 +111,20 @@ void main() {
     when(
       () => exerciseLocalDataSource.clearUserOwnedExercises(any()),
     ).thenAnswer((_) async {});
-    when(() => mealLocalDataSource.clearAllMeals()).thenAnswer((_) async {});
     when(
-      () => nutritionLogLocalDataSource.clearAllLogs(),
+      () => mealLocalDataSource.clearMealsForOwner(any()),
     ).thenAnswer((_) async {});
     when(
-      () => workoutSetLocalDataSource.clearAllSets(),
+      () => nutritionLogLocalDataSource.clearLogsForOwner(any()),
+    ).thenAnswer((_) async {});
+    when(
+      () => workoutSetLocalDataSource.clearSetsForOwner(any()),
     ).thenAnswer((_) async {});
     when(
       () => muscleStimulusLocalDataSource.clearStimulusForUser(any()),
+    ).thenAnswer((_) async {});
+    when(
+      () => pendingSyncDeleteLocalDataSource.clearAll(),
     ).thenAnswer((_) async {});
 
     service = SessionSyncServiceImpl(
@@ -125,6 +137,7 @@ void main() {
       nutritionLogLocalDataSource: nutritionLogLocalDataSource,
       workoutSetLocalDataSource: workoutSetLocalDataSource,
       muscleStimulusLocalDataSource: muscleStimulusLocalDataSource,
+      pendingSyncDeleteLocalDataSource: pendingSyncDeleteLocalDataSource,
     );
   });
 
@@ -325,10 +338,16 @@ void main() {
 
         verify(() => authRemoteDataSource.signOut()).called(1);
         verify(() => repository.clearSession()).called(1);
-        // All user-scoped tables must be cleared.
-        verify(() => mealLocalDataSource.clearAllMeals()).called(1);
-        verify(() => nutritionLogLocalDataSource.clearAllLogs()).called(1);
-        verify(() => workoutSetLocalDataSource.clearAllSets()).called(1);
+        // All user-scoped tables cleared for this owner only.
+        verify(
+          () => mealLocalDataSource.clearMealsForOwner('user-1'),
+        ).called(1);
+        verify(
+          () => nutritionLogLocalDataSource.clearLogsForOwner('user-1'),
+        ).called(1);
+        verify(
+          () => workoutSetLocalDataSource.clearSetsForOwner('user-1'),
+        ).called(1);
         // Only user-owned exercises — seeded rows are preserved.
         verify(
           () => exerciseLocalDataSource.clearUserOwnedExercises('user-1'),
@@ -337,6 +356,10 @@ void main() {
         verify(
           () => muscleStimulusLocalDataSource.clearStimulusForUser('user-1'),
         ).called(1);
+        // Pending-delete queue wiped so orphaned ops don't bleed into next session.
+        verify(() => pendingSyncDeleteLocalDataSource.clearAll()).called(1);
+        // Guest stimulus rebuilt so body map reflects guest's own history.
+        verify(() => rebuildMuscleStimulus(kGuestUserId)).called(1);
       },
     );
 
@@ -353,15 +376,17 @@ void main() {
         expect(result.message, 'sign-out failed: remote sign-out failed');
 
         verifyNever(() => repository.clearSession());
-        verifyNever(() => mealLocalDataSource.clearAllMeals());
-        verifyNever(() => nutritionLogLocalDataSource.clearAllLogs());
-        verifyNever(() => workoutSetLocalDataSource.clearAllSets());
+        verifyNever(() => mealLocalDataSource.clearMealsForOwner(any()));
+        verifyNever(() => nutritionLogLocalDataSource.clearLogsForOwner(any()));
+        verifyNever(() => workoutSetLocalDataSource.clearSetsForOwner(any()));
         verifyNever(
           () => exerciseLocalDataSource.clearUserOwnedExercises(any()),
         );
         verifyNever(
           () => muscleStimulusLocalDataSource.clearStimulusForUser(any()),
         );
+        verifyNever(() => pendingSyncDeleteLocalDataSource.clearAll());
+        verifyNever(() => rebuildMuscleStimulus(any()));
       },
     );
 
@@ -382,18 +407,28 @@ void main() {
       // Best-effort cleanup must still run even when the session clear fails.
       // The AuthSessionShell key change is the primary data-isolation guard,
       // but a clean database matters for reinstall / edge-case scenarios.
-      verify(() => mealLocalDataSource.clearAllMeals()).called(1);
-      verify(() => nutritionLogLocalDataSource.clearAllLogs()).called(1);
-      verify(() => workoutSetLocalDataSource.clearAllSets()).called(1);
+      verify(
+        () => mealLocalDataSource.clearMealsForOwner('user-1'),
+      ).called(1);
+      verify(
+        () => nutritionLogLocalDataSource.clearLogsForOwner('user-1'),
+      ).called(1);
+      verify(
+        () => workoutSetLocalDataSource.clearSetsForOwner('user-1'),
+      ).called(1);
       verify(
         () => exerciseLocalDataSource.clearUserOwnedExercises('user-1'),
       ).called(1);
       verify(
         () => muscleStimulusLocalDataSource.clearStimulusForUser('user-1'),
       ).called(1);
+      verify(() => pendingSyncDeleteLocalDataSource.clearAll()).called(1);
+      // Failure path: sign-out did not complete, so guest rebuild is skipped.
+      verifyNever(() => rebuildMuscleStimulus(any()));
     });
 
-    test('skips clearUserOwnedExercises when no authenticated user', () async {
+    test('scopes all clears to guest bucket; skips exercises and stimulus',
+        () async {
       when(
         () => repository.getCurrentSession(),
       ).thenAnswer((_) async => const Right(AppSession.guest()));
@@ -401,14 +436,19 @@ void main() {
       final result = await service.signOut();
 
       expect(result.isSuccess, isTrue);
-      // Exercises: nothing to delete — no userId.
+      // Guest data cleared from the '' bucket only.
+      verify(() => mealLocalDataSource.clearMealsForOwner('')).called(1);
+      verify(() => nutritionLogLocalDataSource.clearLogsForOwner('')).called(1);
+      verify(() => workoutSetLocalDataSource.clearSetsForOwner('')).called(1);
+      // Exercises and stimulus: not cleared for guest ('' catalog must survive).
       verifyNever(() => exerciseLocalDataSource.clearUserOwnedExercises(any()));
-      // Muscle stimulus: nothing to delete — no userId.
       verifyNever(
         () => muscleStimulusLocalDataSource.clearStimulusForUser(any()),
       );
-      // Other tables are always cleared.
-      verify(() => mealLocalDataSource.clearAllMeals()).called(1);
+      // Pending-delete queue always wiped (guests won't have entries, harmless).
+      verify(() => pendingSyncDeleteLocalDataSource.clearAll()).called(1);
+      // Guest stimulus rebuilt after guest sign-out too.
+      verify(() => rebuildMuscleStimulus(kGuestUserId)).called(1);
     });
   });
 }

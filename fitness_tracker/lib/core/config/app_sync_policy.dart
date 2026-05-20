@@ -9,7 +9,6 @@ class AppSyncPolicy {
   final bool remoteIsSourceOfTruthWhenAuthenticated;
   final bool guestModeUsesLocalStorageOnly;
   final bool authenticatedModeUsesUserScopedData;
-  final bool initialCloudSyncUploadsLocalData;
   final ConflictResolutionStrategy conflictResolutionStrategy;
   final List<SyncTrigger> syncTriggers;
 
@@ -19,7 +18,6 @@ class AppSyncPolicy {
     required this.remoteIsSourceOfTruthWhenAuthenticated,
     required this.guestModeUsesLocalStorageOnly,
     required this.authenticatedModeUsesUserScopedData,
-    required this.initialCloudSyncUploadsLocalData,
     required this.conflictResolutionStrategy,
     required this.syncTriggers,
   });
@@ -39,7 +37,6 @@ class AppSyncPolicy {
   /// - authenticated data is user-scoped
   /// - remote becomes authoritative after login
   /// - local storage remains available for offline behavior and migration
-  /// - initial authenticated session may upload guest/local data
   static const AppSyncPolicy productionDefault = AppSyncPolicy(
     offlineFirst: AppDataArchitecture.offlineFirst,
     localStoreAcceptsWrites: AppDataArchitecture.localStoreAcceptsWrites,
@@ -49,8 +46,6 @@ class AppSyncPolicy {
         AppDataArchitecture.guestModeUsesLocalStorageOnly,
     authenticatedModeUsesUserScopedData:
         AppDataArchitecture.authenticatedModeUsesUserScopedData,
-    initialCloudSyncUploadsLocalData:
-        AppDataArchitecture.initialAuthenticatedSessionMigratesGuestData,
     conflictResolutionStrategy: ConflictResolutionStrategy.serverWins,
     syncTriggers: <SyncTrigger>[
       SyncTrigger.appLaunch,

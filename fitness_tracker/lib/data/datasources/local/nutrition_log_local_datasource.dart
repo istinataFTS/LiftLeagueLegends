@@ -67,5 +67,7 @@ abstract class NutritionLogLocalDataSource {
 
   Future<void> clearAllLogs();
 
+  Future<void> clearLogsForOwner(String ownerId);
+
   Future<Map<String, double>> getDailyMacros(DateTime date);
 }

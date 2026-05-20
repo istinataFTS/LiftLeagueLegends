@@ -20,6 +20,7 @@ import '../../data/repositories/catalog_init_flag_repository_impl.dart';
 import '../../domain/repositories/app_session_repository.dart';
 import '../../domain/repositories/app_settings_repository.dart';
 import '../../domain/repositories/catalog_init_flag_repository.dart';
+import '../../core/session/current_user_id_resolver.dart';
 import '../../domain/services/authenticated_data_source_preference_resolver.dart';
 
 void registerCoreModule(GetIt sl) {
@@ -82,5 +83,9 @@ void registerCoreModule(GetIt sl) {
 
   sl.registerLazySingleton(
     () => AuthenticatedDataSourcePreferenceResolver(appSessionRepository: sl()),
+  );
+
+  sl.registerLazySingleton(
+    () => CurrentUserIdResolver(appSessionRepository: sl()),
   );
 }

@@ -1,28 +1,24 @@
-import 'package:dartz/dartz.dart';
 import 'package:fitness_tracker/core/constants/database_tables.dart';
-import 'package:fitness_tracker/core/enums/auth_mode.dart';
 import 'package:fitness_tracker/core/enums/sync_status.dart';
+import 'package:fitness_tracker/core/session/current_user_id_resolver.dart';
 import 'package:fitness_tracker/data/datasources/local/database_helper.dart';
 import 'package:fitness_tracker/data/datasources/local/nutrition_log_local_datasource_impl.dart';
 import 'package:fitness_tracker/data/models/nutrition_log_model.dart';
-import 'package:fitness_tracker/domain/entities/app_session.dart';
-import 'package:fitness_tracker/domain/entities/app_user.dart';
 import 'package:fitness_tracker/domain/entities/entity_sync_metadata.dart';
-import 'package:fitness_tracker/domain/repositories/app_session_repository.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:mocktail/mocktail.dart';
 import 'package:sqflite_common_ffi/sqflite_ffi.dart';
 
 class MockDatabaseHelper extends Mock implements DatabaseHelper {}
 
-class MockAppSessionRepository extends Mock implements AppSessionRepository {}
+class MockCurrentUserIdResolver extends Mock implements CurrentUserIdResolver {}
 
 void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
 
   late Database database;
   late MockDatabaseHelper databaseHelper;
-  late MockAppSessionRepository mockSessionRepository;
+  late MockCurrentUserIdResolver mockCurrentUserIdResolver;
   late NutritionLogLocalDataSourceImpl dataSource;
 
   final DateTime baseDate = DateTime(2026, 3, 22, 10, 0);
@@ -96,19 +92,14 @@ void main() {
     databaseHelper = MockDatabaseHelper();
     when(() => databaseHelper.database).thenAnswer((_) async => database);
 
-    mockSessionRepository = MockAppSessionRepository();
-    when(() => mockSessionRepository.getCurrentSession()).thenAnswer(
-      (_) async => const Right(
-        AppSession(
-          authMode: AuthMode.authenticated,
-          user: AppUser(id: 'user-1', email: 'user1@test.com'),
-        ),
-      ),
-    );
+    mockCurrentUserIdResolver = MockCurrentUserIdResolver();
+    when(
+      () => mockCurrentUserIdResolver.resolve(),
+    ).thenAnswer((_) async => 'user-1');
 
     dataSource = NutritionLogLocalDataSourceImpl(
       databaseHelper: databaseHelper,
-      appSessionRepository: mockSessionRepository,
+      currentUserIdResolver: mockCurrentUserIdResolver,
     );
   });
 
@@ -521,8 +512,8 @@ void main() {
 
     test('returns empty for a guest session', () async {
       when(
-        () => mockSessionRepository.getCurrentSession(),
-      ).thenAnswer((_) async => const Right(AppSession.guest()));
+        () => mockCurrentUserIdResolver.resolve(),
+      ).thenAnswer((_) async => kGuestUserId);
       await dataSource.insertLog(
         buildLog(
           id: 'log-1',
@@ -563,7 +554,17 @@ void main() {
   });
 
   group('NutritionLogLocalDataSourceImpl prepareForInitialCloudMigration', () {
-    test('claims guest localOnly log and queues upload', () async {
+    Future<Map<String, Object?>> rawLog(String id) async {
+      final rows = await database.query(
+        DatabaseTables.nutritionLogs,
+        where: '${DatabaseTables.nutritionLogId} = ?',
+        whereArgs: <Object?>[id],
+      );
+      expect(rows, hasLength(1));
+      return rows.single;
+    }
+
+    test('leaves guest localOnly log untouched', () async {
       await dataSource.insertLog(
         buildLog(
           id: 'log-1',
@@ -578,14 +579,16 @@ void main() {
 
       await dataSource.prepareForInitialCloudMigration(userId: 'user-1');
 
-      final log = await dataSource.getLogById('log-1');
-      expect(log, isNotNull);
-      expect(log!.ownerUserId, 'user-1');
-      expect(log.syncMetadata.status, SyncStatus.pendingUpload);
-      expect(log.syncMetadata.lastSyncError, isNull);
+      final row = await rawLog('log-1');
+      expect(row[DatabaseTables.ownerUserId], isNull);
+      expect(
+        row[DatabaseTables.nutritionLogSyncStatus],
+        SyncStatus.localOnly.name,
+      );
+      expect(row[DatabaseTables.nutritionLogLastSyncError], 'offline');
     });
 
-    test('recovers guest syncError log into pendingUpload', () async {
+    test('leaves guest syncError log untouched', () async {
       await dataSource.insertLog(
         buildLog(
           id: 'log-1',
@@ -600,11 +603,93 @@ void main() {
 
       await dataSource.prepareForInitialCloudMigration(userId: 'user-1');
 
-      final log = await dataSource.getLogById('log-1');
-      expect(log, isNotNull);
-      expect(log!.ownerUserId, 'user-1');
-      expect(log.syncMetadata.status, SyncStatus.pendingUpload);
-      expect(log.syncMetadata.lastSyncError, isNull);
+      final row = await rawLog('log-1');
+      expect(row[DatabaseTables.ownerUserId], isNull);
+      expect(
+        row[DatabaseTables.nutritionLogSyncStatus],
+        SyncStatus.syncError.name,
+      );
+      expect(row[DatabaseTables.nutritionLogLastSyncError], 'offline');
+    });
+  });
+
+  // ---------------------------------------------------------------------------
+  // clearLogsForOwner — owner-scoped destructive clear (Phase 2 / Bug 2 fix)
+  // ---------------------------------------------------------------------------
+
+  group('NutritionLogLocalDataSourceImpl clearLogsForOwner', () {
+    test(
+      'deletes only the target owner\'s logs — guest and bystander survive',
+      () async {
+        await dataSource.insertLog(
+          buildLog(
+            id: 'guest-log',
+            loggedAt: baseDate,
+            ownerUserId: kGuestUserId,
+            mealId: null,
+          ),
+        );
+        // 'user-1' is the default owner in buildLog.
+        await dataSource.insertLog(
+          buildLog(id: 'user-a-log', loggedAt: baseDate, mealId: null),
+        );
+        await dataSource.insertLog(
+          buildLog(
+            id: 'user-b-log',
+            loggedAt: baseDate,
+            ownerUserId: 'user-2',
+            mealId: null,
+          ),
+        );
+
+        await dataSource.clearLogsForOwner('user-1');
+
+        final remaining = await database.query(DatabaseTables.nutritionLogs);
+        final ids = remaining
+            .map((r) => r[DatabaseTables.nutritionLogId] as String)
+            .toSet();
+
+        expect(ids, equals(<String>{'guest-log', 'user-b-log'}));
+        expect(ids, isNot(contains('user-a-log')));
+      },
+    );
+
+    test(
+      'clears the guest bucket (\'\') without touching authenticated owners',
+      () async {
+        await dataSource.insertLog(
+          buildLog(
+            id: 'guest-log',
+            loggedAt: baseDate,
+            ownerUserId: kGuestUserId,
+            mealId: null,
+          ),
+        );
+        await dataSource.insertLog(
+          buildLog(id: 'user-log', loggedAt: baseDate, mealId: null),
+        );
+
+        await dataSource.clearLogsForOwner(kGuestUserId);
+
+        final remaining = await database.query(DatabaseTables.nutritionLogs);
+        final ids = remaining
+            .map((r) => r[DatabaseTables.nutritionLogId] as String)
+            .toSet();
+
+        expect(ids, equals(<String>{'user-log'}));
+        expect(ids, isNot(contains('guest-log')));
+      },
+    );
+
+    test('is a no-op when the target owner has no logs', () async {
+      await dataSource.insertLog(
+        buildLog(id: 'log-1', loggedAt: baseDate, mealId: null),
+      );
+
+      await dataSource.clearLogsForOwner('nonexistent-user');
+
+      final remaining = await database.query(DatabaseTables.nutritionLogs);
+      expect(remaining, hasLength(1));
     });
   });
 }

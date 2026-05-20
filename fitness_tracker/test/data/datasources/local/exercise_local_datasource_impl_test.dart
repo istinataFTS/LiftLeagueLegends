@@ -654,10 +654,6 @@ void main() {
   // ---------------------------------------------------------------------------
 
   group('ExerciseLocalDataSourceImpl prepareForInitialCloudMigration', () {
-    // Guest catalog adoption — on sign-in the guest catalog ('' sentinel,
-    // or a legacy NULL row pre-v20) is reassigned to the signing-in user
-    // and queued for upload so workout sets that reference it can sync.
-
     Future<Map<String, Object?>> rawExercise(String id) async {
       final rows = await database.query(
         DatabaseTables.exercises,
@@ -669,7 +665,7 @@ void main() {
     }
 
     test(
-      "adopts guest-sentinel ('') localOnly exercise as pendingUpload",
+      "leaves guest-sentinel ('') localOnly exercise untouched",
       () async {
         await dataSource.insertExercise(
           buildExercise(
@@ -685,16 +681,16 @@ void main() {
         await dataSource.prepareForInitialCloudMigration(userId: 'user-1');
 
         final row = await rawExercise('exercise-1');
-        expect(row[DatabaseTables.ownerUserId], 'user-1');
+        expect(row[DatabaseTables.ownerUserId], '');
         expect(
           row[DatabaseTables.exerciseSyncStatus],
-          SyncStatus.pendingUpload.name,
+          SyncStatus.localOnly.name,
         );
       },
     );
 
     test(
-      'adopts legacy NULL-owner localOnly exercise as pendingUpload',
+      'leaves legacy NULL-owner localOnly exercise untouched',
       () async {
         await dataSource.insertExercise(
           buildExercise(
@@ -710,16 +706,16 @@ void main() {
         await dataSource.prepareForInitialCloudMigration(userId: 'user-1');
 
         final row = await rawExercise('exercise-1');
-        expect(row[DatabaseTables.ownerUserId], 'user-1');
+        expect(row[DatabaseTables.ownerUserId], isNull);
         expect(
           row[DatabaseTables.exerciseSyncStatus],
-          SyncStatus.pendingUpload.name,
+          SyncStatus.localOnly.name,
         );
       },
     );
 
     test(
-      'adopts guest syncError exercise as pendingUpload and clears error',
+      'leaves guest syncError exercise untouched',
       () async {
         await dataSource.insertExercise(
           buildExercise(
@@ -736,17 +732,17 @@ void main() {
         await dataSource.prepareForInitialCloudMigration(userId: 'user-1');
 
         final row = await rawExercise('exercise-1');
-        expect(row[DatabaseTables.ownerUserId], 'user-1');
+        expect(row[DatabaseTables.ownerUserId], '');
         expect(
           row[DatabaseTables.exerciseSyncStatus],
-          SyncStatus.pendingUpload.name,
+          SyncStatus.syncError.name,
         );
-        expect(row[DatabaseTables.exerciseLastSyncError], isNull);
+        expect(row[DatabaseTables.exerciseLastSyncError], 'prior error');
       },
     );
 
     test(
-      'adopts guest pendingUpload exercise (kept pendingUpload, error cleared)',
+      'leaves guest pendingUpload exercise untouched',
       () async {
         await dataSource.insertExercise(
           buildExercise(
@@ -763,17 +759,17 @@ void main() {
         await dataSource.prepareForInitialCloudMigration(userId: 'user-1');
 
         final row = await rawExercise('exercise-1');
-        expect(row[DatabaseTables.ownerUserId], 'user-1');
+        expect(row[DatabaseTables.ownerUserId], '');
         expect(
           row[DatabaseTables.exerciseSyncStatus],
           SyncStatus.pendingUpload.name,
         );
-        expect(row[DatabaseTables.exerciseLastSyncError], isNull);
+        expect(row[DatabaseTables.exerciseLastSyncError], 'prior error');
       },
     );
 
     test(
-      'adopts guest pendingUpdate exercise (owner reassigned, metadata kept)',
+      'leaves guest pendingUpdate exercise untouched',
       () async {
         await dataSource.insertExercise(
           buildExercise(
@@ -790,8 +786,7 @@ void main() {
         await dataSource.prepareForInitialCloudMigration(userId: 'user-1');
 
         final row = await rawExercise('exercise-1');
-        expect(row[DatabaseTables.ownerUserId], 'user-1');
-        // pendingUpdate is preserved as-is by the status switch.
+        expect(row[DatabaseTables.ownerUserId], '');
         expect(
           row[DatabaseTables.exerciseSyncStatus],
           SyncStatus.pendingUpdate.name,

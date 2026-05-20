@@ -1,8 +1,10 @@
 import '../../core/logging/app_logger.dart';
+import '../../core/session/current_user_id_resolver.dart';
 import '../../data/datasources/local/exercise_local_datasource.dart';
 import '../../data/datasources/local/meal_local_datasource.dart';
 import '../../data/datasources/local/muscle_stimulus_local_datasource.dart';
 import '../../data/datasources/local/nutrition_log_local_datasource.dart';
+import '../../data/datasources/local/pending_sync_delete_local_datasource.dart';
 import '../../data/datasources/local/workout_set_local_datasource.dart';
 import '../../data/datasources/remote/auth_remote_datasource.dart';
 import '../enums/sync_trigger.dart';
@@ -22,6 +24,7 @@ class SessionSyncServiceImpl implements SessionSyncService {
   final MuscleStimulusLocalDataSource muscleStimulusLocalDataSource;
   final NutritionLogLocalDataSource nutritionLogLocalDataSource;
   final WorkoutSetLocalDataSource workoutSetLocalDataSource;
+  final PendingSyncDeleteLocalDataSource pendingSyncDeleteLocalDataSource;
 
   const SessionSyncServiceImpl({
     required this.appSessionRepository,
@@ -33,20 +36,15 @@ class SessionSyncServiceImpl implements SessionSyncService {
     required this.muscleStimulusLocalDataSource,
     required this.nutritionLogLocalDataSource,
     required this.workoutSetLocalDataSource,
+    required this.pendingSyncDeleteLocalDataSource,
   });
 
   @override
   Future<SessionSyncActionResult> establishAuthenticatedSession(
     AppUser user,
   ) async {
-    final bool requiresInitialCloudMigration =
-        appSessionRepository.syncPolicy.initialCloudSyncUploadsLocalData;
-
     final startSessionResult = await appSessionRepository
-        .startAuthenticatedSession(
-          user,
-          requiresInitialCloudMigration: requiresInitialCloudMigration,
-        );
+        .startAuthenticatedSession(user);
 
     return await startSessionResult.fold(
       (failure) async {
@@ -131,10 +129,10 @@ class SessionSyncServiceImpl implements SessionSyncService {
 
   @override
   Future<SessionSyncActionResult> signOut() async {
-    // Capture the user id now, before the session is cleared.  We need it
-    // to perform a targeted exercise delete (only user-owned rows, not seeds).
+    // Capture the owner id now, before the session is cleared.
+    // '' resolves to the guest bucket; null means session lookup failed (skip clear).
     final sessionResult = await appSessionRepository.getCurrentSession();
-    final userId = sessionResult.fold((_) => null, (s) => s.user?.id);
+    final ownerId = sessionResult.fold((_) => null, (s) => s.user?.id ?? '');
 
     try {
       await authRemoteDataSource.signOut();
@@ -160,7 +158,7 @@ class SessionSyncServiceImpl implements SessionSyncService {
         // Best-effort data cleanup even when the session clear failed.
         // The AuthSessionShell key change is the primary safeguard, but a
         // clean database is still important for fresh installs or edge cases.
-        await _clearAllLocalUserData(userId);
+        await _clearAllLocalUserData(ownerId);
 
         return SessionSyncActionResult(
           status: SessionSyncActionStatus.failed,
@@ -169,7 +167,13 @@ class SessionSyncServiceImpl implements SessionSyncService {
         );
       },
       (_) async {
-        await _clearAllLocalUserData(userId);
+        await _clearAllLocalUserData(ownerId);
+
+        // Rebuild the guest stimulus projection so the body map immediately
+        // reflects the returning guest's own workout history, not the
+        // just-signed-out account's. Failure is non-fatal — the map
+        // self-heals on the next workout log.
+        await _rebuildMuscleStimulus(kGuestUserId);
 
         AppLogger.info(
           'Session signed out, local session reset, and local user data cleared',
@@ -220,34 +224,35 @@ class SessionSyncServiceImpl implements SessionSyncService {
     );
   }
 
-  /// Clears all local data belonging to the signing-out user.
+  /// Clears local data belonging to [ownerId] ('' for the guest bucket).
   ///
-  /// Ordering matters for FK integrity:
-  /// - meals before nutrition_logs (nutrition_logs.meal_id → meals.id)
-  /// - workout_sets and muscle_stimulus are independent of the above
-  /// - exercises: only the signing-out user's own rows (owner_user_id =
-  ///   userId); the guest '' catalog and other accounts' rows are preserved
-  ///   (per-user catalog model, db v20+)
-  Future<void> _clearAllLocalUserData(String? userId) async {
+  /// If [ownerId] is null the session lookup failed and nothing is cleared.
+  /// Ordering matters for FK integrity: meals before nutrition_logs.
+  Future<void> _clearAllLocalUserData(String? ownerId) async {
+    if (ownerId == null) return;
+
     try {
-      // meals first — nutrition_logs reference meal_id via FK
-      await mealLocalDataSource.clearAllMeals();
-      await nutritionLogLocalDataSource.clearAllLogs();
+      // meals first — nutrition_logs.meal_id → meals.id FK
+      await mealLocalDataSource.clearMealsForOwner(ownerId);
+      await nutritionLogLocalDataSource.clearLogsForOwner(ownerId);
+      await workoutSetLocalDataSource.clearSetsForOwner(ownerId);
 
-      await workoutSetLocalDataSource.clearAllSets();
-
-      // User-scoped tables: only clear when a real authenticated userId is
-      // present.  Guest sessions have no owned rows to remove.
-      if (userId != null) {
+      // exercises and muscle_stimulus: only for authenticated owners.
+      // The guest '' catalog must survive so a returning guest still has
+      // exercises; stimulus is irrelevant for guest sessions.
+      if (ownerId.isNotEmpty) {
         await Future.wait(<Future<void>>[
-          // exercises: targeted delete (owner_user_id = userId) so the
-          // guest '' catalog and any other account's rows are preserved.
-          exerciseLocalDataSource.clearUserOwnedExercises(userId),
-          // Scope muscle_stimulus removal to the signing-out user only so
-          // other profiles' training history is not affected.
-          muscleStimulusLocalDataSource.clearStimulusForUser(userId),
+          exerciseLocalDataSource.clearUserOwnedExercises(ownerId),
+          muscleStimulusLocalDataSource.clearStimulusForUser(ownerId),
         ]);
       }
+
+      // Clear the pending-delete queue regardless of account type.
+      // The table has no owner column, so all entries belong to whichever user
+      // was active. Leaving them in causes the next session's sync to attempt
+      // the old user's server deletes with the new user's auth token (Supabase
+      // RLS would block them, but they'd keep retrying and polluting logs).
+      await pendingSyncDeleteLocalDataSource.clearAll();
     } catch (error) {
       AppLogger.warning(
         'Failed to fully clear local user data on sign-out: $error',

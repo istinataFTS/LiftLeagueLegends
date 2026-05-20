@@ -1,28 +1,24 @@
-import 'package:dartz/dartz.dart';
 import 'package:fitness_tracker/core/constants/database_tables.dart';
-import 'package:fitness_tracker/core/enums/auth_mode.dart';
 import 'package:fitness_tracker/core/enums/sync_status.dart';
+import 'package:fitness_tracker/core/session/current_user_id_resolver.dart';
 import 'package:fitness_tracker/data/datasources/local/database_helper.dart';
 import 'package:fitness_tracker/data/datasources/local/workout_set_local_datasource_impl.dart';
-import 'package:fitness_tracker/domain/entities/app_session.dart';
-import 'package:fitness_tracker/domain/entities/app_user.dart';
 import 'package:fitness_tracker/domain/entities/entity_sync_metadata.dart';
 import 'package:fitness_tracker/domain/entities/workout_set.dart';
-import 'package:fitness_tracker/domain/repositories/app_session_repository.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:mocktail/mocktail.dart';
 import 'package:sqflite_common_ffi/sqflite_ffi.dart';
 
 class MockDatabaseHelper extends Mock implements DatabaseHelper {}
 
-class MockAppSessionRepository extends Mock implements AppSessionRepository {}
+class MockCurrentUserIdResolver extends Mock implements CurrentUserIdResolver {}
 
 void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
 
   late Database database;
   late MockDatabaseHelper databaseHelper;
-  late MockAppSessionRepository mockSessionRepository;
+  late MockCurrentUserIdResolver mockCurrentUserIdResolver;
   late WorkoutSetLocalDataSourceImpl dataSource;
 
   final DateTime baseDate = DateTime(2026, 3, 22, 10, 0);
@@ -84,19 +80,14 @@ void main() {
     databaseHelper = MockDatabaseHelper();
     when(() => databaseHelper.database).thenAnswer((_) async => database);
 
-    mockSessionRepository = MockAppSessionRepository();
-    when(() => mockSessionRepository.getCurrentSession()).thenAnswer(
-      (_) async => const Right(
-        AppSession(
-          authMode: AuthMode.authenticated,
-          user: AppUser(id: 'user-1', email: 'user1@test.com'),
-        ),
-      ),
-    );
+    mockCurrentUserIdResolver = MockCurrentUserIdResolver();
+    when(
+      () => mockCurrentUserIdResolver.resolve(),
+    ).thenAnswer((_) async => 'user-1');
 
     dataSource = WorkoutSetLocalDataSourceImpl(
       databaseHelper: databaseHelper,
-      appSessionRepository: mockSessionRepository,
+      currentUserIdResolver: mockCurrentUserIdResolver,
     );
   });
 
@@ -491,8 +482,8 @@ void main() {
 
     test('returns empty for a guest session', () async {
       when(
-        () => mockSessionRepository.getCurrentSession(),
-      ).thenAnswer((_) async => const Right(AppSession.guest()));
+        () => mockCurrentUserIdResolver.resolve(),
+      ).thenAnswer((_) async => kGuestUserId);
       await dataSource.addSet(
         buildSet(
           id: 'set-1',
@@ -532,7 +523,17 @@ void main() {
   });
 
   group('WorkoutSetLocalDataSourceImpl prepareForInitialCloudMigration', () {
-    test('claims guest rows and converts localOnly to pendingUpload', () async {
+    Future<Map<String, Object?>> rawSet(String id) async {
+      final rows = await database.query(
+        DatabaseTables.workoutSets,
+        where: '${DatabaseTables.setId} = ?',
+        whereArgs: <Object?>[id],
+      );
+      expect(rows, hasLength(1));
+      return rows.single;
+    }
+
+    test('leaves guest localOnly rows untouched', () async {
       await dataSource.addSet(
         buildSet(
           id: 'set-1',
@@ -547,14 +548,13 @@ void main() {
 
       await dataSource.prepareForInitialCloudMigration(userId: 'user-1');
 
-      final set = await dataSource.getSetById('set-1');
-      expect(set, isNotNull);
-      expect(set!.ownerUserId, 'user-1');
-      expect(set.syncMetadata.status, SyncStatus.pendingUpload);
-      expect(set.syncMetadata.lastSyncError, isNull);
+      final row = await rawSet('set-1');
+      expect(row[DatabaseTables.ownerUserId], isNull);
+      expect(row[DatabaseTables.setSyncStatus], SyncStatus.localOnly.name);
+      expect(row[DatabaseTables.setLastSyncError], 'offline');
     });
 
-    test('recovers guest syncError rows into pendingUpload', () async {
+    test('leaves guest syncError rows untouched', () async {
       await dataSource.addSet(
         buildSet(
           id: 'set-1',
@@ -569,14 +569,13 @@ void main() {
 
       await dataSource.prepareForInitialCloudMigration(userId: 'user-1');
 
-      final set = await dataSource.getSetById('set-1');
-      expect(set, isNotNull);
-      expect(set!.ownerUserId, 'user-1');
-      expect(set.syncMetadata.status, SyncStatus.pendingUpload);
-      expect(set.syncMetadata.lastSyncError, isNull);
+      final row = await rawSet('set-1');
+      expect(row[DatabaseTables.ownerUserId], isNull);
+      expect(row[DatabaseTables.setSyncStatus], SyncStatus.syncError.name);
+      expect(row[DatabaseTables.setLastSyncError], 'offline');
     });
 
-    test('preserves pendingDelete and different-user ownership', () async {
+    test('leaves guest and different-user rows untouched', () async {
       await dataSource.addSet(
         buildSet(
           id: 'set-1',
@@ -598,7 +597,7 @@ void main() {
       await dataSource.prepareForInitialCloudMigration(userId: 'user-1');
 
       final rows = await database.query(DatabaseTables.workoutSets);
-      final pendingDelete = rows.firstWhere(
+      final guestRow = rows.firstWhere(
         (row) => row[DatabaseTables.setId] == 'set-1',
       );
       final otherUser = rows.firstWhere(
@@ -606,15 +605,81 @@ void main() {
       );
 
       expect(
-        pendingDelete[DatabaseTables.setSyncStatus],
+        guestRow[DatabaseTables.setSyncStatus],
         SyncStatus.pendingDelete.name,
       );
-      expect(pendingDelete[DatabaseTables.ownerUserId], 'user-1');
+      expect(guestRow[DatabaseTables.ownerUserId], isNull);
       expect(otherUser[DatabaseTables.ownerUserId], 'another-user');
       expect(
         otherUser[DatabaseTables.setSyncStatus],
         SyncStatus.localOnly.name,
       );
+    });
+  });
+
+  // ---------------------------------------------------------------------------
+  // clearSetsForOwner — owner-scoped destructive clear (Phase 2 / Bug 2 fix)
+  // ---------------------------------------------------------------------------
+
+  group('WorkoutSetLocalDataSourceImpl clearSetsForOwner', () {
+    test(
+      'deletes only the target owner\'s rows — guest and bystander survive',
+      () async {
+        await dataSource.addSet(
+          buildSet(id: 'guest-set', exerciseId: 'squat', date: baseDate)
+              .copyWith(ownerUserId: kGuestUserId),
+        );
+        // 'user-1' is the default owner in buildSet.
+        await dataSource.addSet(
+          buildSet(id: 'user-a-set', exerciseId: 'bench', date: baseDate),
+        );
+        await dataSource.addSet(
+          buildSet(id: 'user-b-set', exerciseId: 'deadlift', date: baseDate)
+              .copyWith(ownerUserId: 'user-2'),
+        );
+
+        await dataSource.clearSetsForOwner('user-1');
+
+        final remaining = await database.query(DatabaseTables.workoutSets);
+        final ids =
+            remaining.map((r) => r[DatabaseTables.setId] as String).toSet();
+
+        expect(ids, equals(<String>{'guest-set', 'user-b-set'}));
+        expect(ids, isNot(contains('user-a-set')));
+      },
+    );
+
+    test(
+      'clears the guest bucket (\'\') without touching authenticated owners',
+      () async {
+        await dataSource.addSet(
+          buildSet(id: 'guest-set', exerciseId: 'squat', date: baseDate)
+              .copyWith(ownerUserId: kGuestUserId),
+        );
+        await dataSource.addSet(
+          buildSet(id: 'user-set', exerciseId: 'bench', date: baseDate),
+        );
+
+        await dataSource.clearSetsForOwner(kGuestUserId);
+
+        final remaining = await database.query(DatabaseTables.workoutSets);
+        final ids =
+            remaining.map((r) => r[DatabaseTables.setId] as String).toSet();
+
+        expect(ids, equals(<String>{'user-set'}));
+        expect(ids, isNot(contains('guest-set')));
+      },
+    );
+
+    test('is a no-op when the target owner has no rows', () async {
+      await dataSource.addSet(
+        buildSet(id: 'user-set', exerciseId: 'bench', date: baseDate),
+      );
+
+      await dataSource.clearSetsForOwner('nonexistent-user');
+
+      final remaining = await database.query(DatabaseTables.workoutSets);
+      expect(remaining, hasLength(1));
     });
   });
 }

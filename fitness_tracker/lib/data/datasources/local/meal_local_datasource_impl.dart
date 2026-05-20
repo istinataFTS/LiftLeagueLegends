@@ -398,6 +398,20 @@ class MealLocalDataSourceImpl implements MealLocalDataSource {
   }
 
   @override
+  Future<void> clearMealsForOwner(String ownerId) async {
+    try {
+      final db = await databaseHelper.database;
+      await db.delete(
+        DatabaseTables.meals,
+        where: '${DatabaseTables.ownerUserId} = ?',
+        whereArgs: <Object?>[ownerId],
+      );
+    } catch (e) {
+      throw CacheDatabaseException('Failed to clear meals for owner: $e');
+    }
+  }
+
+  @override
   Future<int> getMealsCount() async {
     try {
       final ownerId = await _resolveOwnerId();
@@ -578,9 +592,10 @@ class MealLocalDataSourceImpl implements MealLocalDataSource {
     String userId,
   ) {
     final ownerUserId = meal.ownerUserId;
-    if (ownerUserId != null &&
-        ownerUserId.isNotEmpty &&
-        ownerUserId != userId) {
+    if (ownerUserId == null || ownerUserId.isEmpty) {
+      return meal;
+    }
+    if (ownerUserId != userId) {
       return meal;
     }
 
@@ -602,11 +617,6 @@ class MealLocalDataSourceImpl implements MealLocalDataSource {
       SyncStatus.pendingDelete => currentMetadata,
     };
 
-    return MealModel.fromEntity(
-      meal.copyWith(
-        ownerUserId: ownerUserId == null || ownerUserId.isEmpty ? userId : null,
-        syncMetadata: updatedMetadata,
-      ),
-    );
+    return MealModel.fromEntity(meal.copyWith(syncMetadata: updatedMetadata));
   }
 }

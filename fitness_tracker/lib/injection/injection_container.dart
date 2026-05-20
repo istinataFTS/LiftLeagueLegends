@@ -208,6 +208,7 @@ void _registerAppComposition(GetIt sl) {
       muscleStimulusLocalDataSource: sl(),
       nutritionLogLocalDataSource: sl(),
       workoutSetLocalDataSource: sl(),
+      pendingSyncDeleteLocalDataSource: sl(),
     ),
   );
 

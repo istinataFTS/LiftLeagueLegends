@@ -60,10 +60,6 @@ class AppDataArchitecture {
   /// offline capture, and later sync.
   static const bool localStoreAcceptsWrites = true;
 
-  /// Existing guest/local data may be uploaded when a user authenticates for
-  /// the first time.
-  static const bool initialAuthenticatedSessionMigratesGuestData = true;
-
   /// Feature ownership decisions that later repository and schema work should
   /// follow.
   static const List<FeatureOwnershipDecision> featureOwnership =
