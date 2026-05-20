@@ -513,8 +513,9 @@ void main() {
         await dataSource.clearMealsForOwner('user-1');
 
         final remaining = await database.query(DatabaseTables.meals);
-        final ids =
-            remaining.map((r) => r[DatabaseTables.mealId] as String).toSet();
+        final ids = remaining
+            .map((r) => r[DatabaseTables.mealId] as String)
+            .toSet();
 
         expect(ids, equals(<String>{'guest-meal', 'user-b-meal'}));
         expect(ids, isNot(contains('user-a-meal')));
@@ -534,8 +535,9 @@ void main() {
         await dataSource.clearMealsForOwner('');
 
         final remaining = await database.query(DatabaseTables.meals);
-        final ids =
-            remaining.map((r) => r[DatabaseTables.mealId] as String).toSet();
+        final ids = remaining
+            .map((r) => r[DatabaseTables.mealId] as String)
+            .toSet();
 
         expect(ids, equals(<String>{'user-meal'}));
         expect(ids, isNot(contains('guest-meal')));
@@ -543,9 +545,7 @@ void main() {
     );
 
     test('is a no-op when the target owner has no meals', () async {
-      await dataSource.insertMeal(
-        buildMeal(id: 'meal-1', name: 'Oats'),
-      );
+      await dataSource.insertMeal(buildMeal(id: 'meal-1', name: 'Oats'));
 
       await dataSource.clearMealsForOwner('nonexistent-user');
 

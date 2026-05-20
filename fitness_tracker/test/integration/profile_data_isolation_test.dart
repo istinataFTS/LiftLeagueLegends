@@ -63,49 +63,48 @@ const String _userBId = 'user-b';
 
 final DateTime _date = DateTime(2026, 4, 20, 10);
 
-WorkoutSet _buildSet({
-  required String id,
-  required String ownerId,
-}) => WorkoutSet(
-  id: id,
-  ownerUserId: ownerId,
-  exerciseId: 'bench-press',
-  reps: 8,
-  weight: 80.0,
-  intensity: 7,
-  date: _date,
-  createdAt: _date,
-);
-
-MealModel _buildMeal({required String id, required String ownerId, required String name}) =>
-    MealModel(
+WorkoutSet _buildSet({required String id, required String ownerId}) =>
+    WorkoutSet(
       id: id,
       ownerUserId: ownerId,
-      name: name,
-      servingSizeGrams: 100,
-      carbsPer100g: 30,
-      proteinPer100g: 20,
-      fatPer100g: 10,
-      caloriesPer100g: 290,
+      exerciseId: 'bench-press',
+      reps: 8,
+      weight: 80.0,
+      intensity: 7,
+      date: _date,
       createdAt: _date,
-      updatedAt: _date,
     );
 
-NutritionLogModel _buildLog({
+MealModel _buildMeal({
   required String id,
   required String ownerId,
-}) => NutritionLogModel(
+  required String name,
+}) => MealModel(
   id: id,
   ownerUserId: ownerId,
-  mealName: 'Direct log',
-  proteinGrams: 25,
-  carbsGrams: 40,
-  fatGrams: 10,
-  calories: 350,
-  loggedAt: _date,
+  name: name,
+  servingSizeGrams: 100,
+  carbsPer100g: 30,
+  proteinPer100g: 20,
+  fatPer100g: 10,
+  caloriesPer100g: 290,
   createdAt: _date,
   updatedAt: _date,
 );
+
+NutritionLogModel _buildLog({required String id, required String ownerId}) =>
+    NutritionLogModel(
+      id: id,
+      ownerUserId: ownerId,
+      mealName: 'Direct log',
+      proteinGrams: 25,
+      carbsGrams: 40,
+      fatGrams: 10,
+      calories: 350,
+      loggedAt: _date,
+      createdAt: _date,
+      updatedAt: _date,
+    );
 
 // ─── Tests ───────────────────────────────────────────────────────────────────
 
@@ -211,66 +210,65 @@ void main() {
     },
   );
 
-  test(
-    'sign-out of user-a removes only user-a rows; '
-    'guest rows survive intact (Phase 2 — owner-scoped clears)',
-    () async {
-      // ── Seed all three owners ────────────────────────────────────────────
-      await setDs.addSet(_buildSet(id: 'guest-set', ownerId: _guestId));
-      await setDs.addSet(_buildSet(id: 'a-set', ownerId: _userAId));
-      await setDs.addSet(_buildSet(id: 'b-set', ownerId: _userBId));
+  test('sign-out of user-a removes only user-a rows; '
+      'guest rows survive intact (Phase 2 — owner-scoped clears)', () async {
+    // ── Seed all three owners ────────────────────────────────────────────
+    await setDs.addSet(_buildSet(id: 'guest-set', ownerId: _guestId));
+    await setDs.addSet(_buildSet(id: 'a-set', ownerId: _userAId));
+    await setDs.addSet(_buildSet(id: 'b-set', ownerId: _userBId));
 
-      await logDs.insertLog(_buildLog(id: 'guest-log', ownerId: _guestId));
-      await logDs.insertLog(_buildLog(id: 'a-log', ownerId: _userAId));
-      await logDs.insertLog(_buildLog(id: 'b-log', ownerId: _userBId));
+    await logDs.insertLog(_buildLog(id: 'guest-log', ownerId: _guestId));
+    await logDs.insertLog(_buildLog(id: 'a-log', ownerId: _userAId));
+    await logDs.insertLog(_buildLog(id: 'b-log', ownerId: _userBId));
 
-      await mealDs.insertMeal(
-        _buildMeal(id: 'guest-meal', ownerId: _guestId, name: 'Guest Oats'),
-      );
-      await mealDs.insertMeal(
-        _buildMeal(id: 'a-meal', ownerId: _userAId, name: 'User A Chicken'),
-      );
-      await mealDs.insertMeal(
-        _buildMeal(id: 'b-meal', ownerId: _userBId, name: 'User B Rice'),
-      );
+    await mealDs.insertMeal(
+      _buildMeal(id: 'guest-meal', ownerId: _guestId, name: 'Guest Oats'),
+    );
+    await mealDs.insertMeal(
+      _buildMeal(id: 'a-meal', ownerId: _userAId, name: 'User A Chicken'),
+    );
+    await mealDs.insertMeal(
+      _buildMeal(id: 'b-meal', ownerId: _userBId, name: 'User B Rice'),
+    );
 
-      // ── Simulate user-a sign-out: owner-scoped clears ────────────────────
-      await setDs.clearSetsForOwner(_userAId);
-      await logDs.clearLogsForOwner(_userAId);
-      await mealDs.clearMealsForOwner(_userAId);
+    // ── Simulate user-a sign-out: owner-scoped clears ────────────────────
+    await setDs.clearSetsForOwner(_userAId);
+    await logDs.clearLogsForOwner(_userAId);
+    await mealDs.clearMealsForOwner(_userAId);
 
-      // ── Inspect raw DB — no resolver needed ──────────────────────────────
-      final db = dbHarness.database;
+    // ── Inspect raw DB — no resolver needed ──────────────────────────────
+    final db = dbHarness.database;
 
-      final setRows = await db.query(DatabaseTables.workoutSets);
-      final setIds =
-          setRows.map((r) => r[DatabaseTables.setId] as String).toSet();
-      expect(
-        setIds,
-        equals(<String>{'guest-set', 'b-set'}),
-        reason: 'only user-a sets must be removed; guest and user-b survive',
-      );
+    final setRows = await db.query(DatabaseTables.workoutSets);
+    final setIds = setRows
+        .map((r) => r[DatabaseTables.setId] as String)
+        .toSet();
+    expect(
+      setIds,
+      equals(<String>{'guest-set', 'b-set'}),
+      reason: 'only user-a sets must be removed; guest and user-b survive',
+    );
 
-      final logRows = await db.query(DatabaseTables.nutritionLogs);
-      final logIds = logRows
-          .map((r) => r[DatabaseTables.nutritionLogId] as String)
-          .toSet();
-      expect(
-        logIds,
-        equals(<String>{'guest-log', 'b-log'}),
-        reason: 'only user-a logs must be removed; guest and user-b survive',
-      );
+    final logRows = await db.query(DatabaseTables.nutritionLogs);
+    final logIds = logRows
+        .map((r) => r[DatabaseTables.nutritionLogId] as String)
+        .toSet();
+    expect(
+      logIds,
+      equals(<String>{'guest-log', 'b-log'}),
+      reason: 'only user-a logs must be removed; guest and user-b survive',
+    );
 
-      final mealRows = await db.query(DatabaseTables.meals);
-      final mealIds =
-          mealRows.map((r) => r[DatabaseTables.mealId] as String).toSet();
-      expect(
-        mealIds,
-        equals(<String>{'guest-meal', 'b-meal'}),
-        reason: 'only user-a meals must be removed; guest and user-b survive',
-      );
-    },
-  );
+    final mealRows = await db.query(DatabaseTables.meals);
+    final mealIds = mealRows
+        .map((r) => r[DatabaseTables.mealId] as String)
+        .toSet();
+    expect(
+      mealIds,
+      equals(<String>{'guest-meal', 'b-meal'}),
+      reason: 'only user-a meals must be removed; guest and user-b survive',
+    );
+  });
 
   test(
     'full multi-profile lifecycle: '
