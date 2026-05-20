@@ -32,3 +32,15 @@ class ValidationException implements Exception {
   @override
   String toString() => 'ValidationException: $message';
 }
+
+/// Thrown by [UserScopedLocalDatasource.requireAuthenticatedOwnerId] when
+/// an auth-only datasource operation is invoked during a guest session.
+class MissingUserContextException implements Exception {
+  const MissingUserContextException({required this.operation});
+
+  final String operation;
+
+  @override
+  String toString() =>
+      'MissingUserContextException(operation: $operation): cannot run in guest mode';
+}

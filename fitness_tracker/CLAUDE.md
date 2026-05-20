@@ -90,6 +90,17 @@ All repository methods return `Either<Failure, T>` (via `dartz`). Use `Repositor
 - **Initial sign-in**: guest data is migrated to the authenticated user before any pull (prepare → push → pull, ordered by FK dependency: exercises → meals → workout_sets → nutrition_logs).
 - **Post-sync hooks**: after every sync, `MuscleFactorHealHook` runs first (ensures exercise factors are present), then `MuscleStimulusRebuildHook` rebuilds derived stimulus data.
 
+### User-scoped local datasources
+
+Every local datasource whose rows are owned by a user **must** extend `UserScopedLocalDatasource` (`lib/data/datasources/local/user_scoped_local_datasource.dart`). This is a structural requirement, not a convention — adding a new user-scoped datasource without extending the base class will fail CI in Adoption 04.
+
+The base class provides:
+- `resolveOwnerId()` — returns the current owner ID; returns `''` (guest sentinel) for guests.
+- `requireAuthenticatedOwnerId({required String operation})` — throws `MissingUserContextException` if called in guest mode. Use for auth-only operations (push, pull, initial-sync prepare).
+- `whereOwned({required String ownerId, String? extra, List<Object?> extraArgs})` — builds a scoped `WHERE` clause for `db.query()` calls.
+
+Three datasources are **exempt** (documented in the base class doc comment): `AppMetadataLocalDataSource`, `MuscleFactorLocalDataSource`, `PendingSyncDeleteLocalDataSource`.
+
 ### Local database
 
 SQLite via `sqflite`. Current schema version: **19**. Migration history is documented inline in `EnvConfig.databaseVersion`. Version upgrades are additive; version 15+ rejects incompatible legacy databases rather than destroying data.

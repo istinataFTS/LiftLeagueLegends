@@ -2,41 +2,33 @@ import 'package:sqflite/sqflite.dart';
 import '../../../core/constants/database_tables.dart';
 import '../../../core/errors/exceptions.dart';
 import '../../models/muscle_stimulus_model.dart';
-import 'database_helper.dart';
+import 'user_scoped_local_datasource.dart';
 
 /// Local data source interface for MuscleStimulus operations.
 ///
-/// Every query method that reads or writes user-specific records accepts a
-/// [userId] parameter so that data from different profiles never leaks across
-/// accounts.  An empty string (`''`) represents the guest / unauthenticated
-/// state, matching the `DEFAULT ''` set on the `owner_user_id` column.
+/// User scoping is resolved internally via [UserScopedLocalDatasource] —
+/// callers no longer pass a [userId] parameter. The exception is
+/// [clearStimulusForUser], which is invoked during sign-out with the
+/// signing-out user's ID (not the current session).
 abstract class MuscleStimulusLocalDataSource {
   /// Get stimulus for a specific muscle on a specific date.
   Future<MuscleStimulusModel?> getStimulusByMuscleAndDate({
-    required String userId,
     required String muscleGroup,
     required DateTime date,
   });
 
   /// Get all stimulus records for a muscle within a date range.
   Future<List<MuscleStimulusModel>> getStimulusByDateRange({
-    required String userId,
     required String muscleGroup,
     required DateTime startDate,
     required DateTime endDate,
   });
 
   /// Get today's stimulus for a specific muscle.
-  Future<MuscleStimulusModel?> getTodayStimulus(
-    String userId,
-    String muscleGroup,
-  );
+  Future<MuscleStimulusModel?> getTodayStimulus(String muscleGroup);
 
   /// Get all stimulus records for all muscles on a specific date.
-  Future<List<MuscleStimulusModel>> getAllStimulusForDate(
-    String userId,
-    DateTime date,
-  );
+  Future<List<MuscleStimulusModel>> getAllStimulusForDate(DateTime date);
 
   /// Insert or update a stimulus record.
   /// The [userId] is embedded on the model's [ownerUserId] field.
@@ -51,14 +43,14 @@ abstract class MuscleStimulusLocalDataSource {
     double? lastSetStimulus,
   });
 
-  /// Apply daily decay to all muscle records owned by [userId].
-  Future<void> applyDailyDecayToAll(String userId);
+  /// Apply daily decay to all muscle records owned by the current user.
+  Future<void> applyDailyDecayToAll();
 
-  /// Get maximum daily stimulus ever recorded for a muscle owned by [userId].
-  Future<double> getMaxStimulusForMuscle(String userId, String muscleGroup);
+  /// Get maximum daily stimulus ever recorded for a muscle owned by the current user.
+  Future<double> getMaxStimulusForMuscle(String muscleGroup);
 
-  /// Delete stimulus records older than [date] for [userId].
-  Future<void> deleteOlderThan(String userId, DateTime date);
+  /// Delete stimulus records older than [date] for the current user.
+  Future<void> deleteOlderThan(DateTime date);
 
   /// Clear all stimulus records across every user.
   /// Use this only when performing a full per-user rebuild via
@@ -67,32 +59,40 @@ abstract class MuscleStimulusLocalDataSource {
 
   /// Remove all stimulus records belonging to [userId].
   /// Called on sign-out to prevent data leaking to the next session.
+  /// Accepts an explicit [userId] because this runs after the session has
+  /// already been cleared — the resolver would return the guest sentinel.
   Future<void> clearStimulusForUser(String userId);
 }
 
 /// SQLite implementation of [MuscleStimulusLocalDataSource].
-class MuscleStimulusLocalDataSourceImpl
+class MuscleStimulusLocalDataSourceImpl extends UserScopedLocalDatasource
     implements MuscleStimulusLocalDataSource {
-  final DatabaseHelper databaseHelper;
-
-  const MuscleStimulusLocalDataSourceImpl({required this.databaseHelper});
+  MuscleStimulusLocalDataSourceImpl({
+    required super.databaseHelper,
+    required super.currentUserIdResolver,
+  });
 
   @override
   Future<MuscleStimulusModel?> getStimulusByMuscleAndDate({
-    required String userId,
     required String muscleGroup,
     required DateTime date,
   }) async {
     try {
+      final ownerId = await resolveOwnerId();
       final db = await databaseHelper.database;
       final dateString = MuscleStimulusModel.formatDateForDb(date);
+      final f = whereOwned(
+        ownerId: ownerId,
+        extra:
+            '${DatabaseTables.stimulusMuscleGroup} = ? '
+            'AND ${DatabaseTables.stimulusDate} = ?',
+        extraArgs: [muscleGroup, dateString],
+      );
 
       final maps = await db.query(
         DatabaseTables.muscleStimulus,
-        where: '${DatabaseTables.ownerUserId} = ? '
-            'AND ${DatabaseTables.stimulusMuscleGroup} = ? '
-            'AND ${DatabaseTables.stimulusDate} = ?',
-        whereArgs: [userId, muscleGroup, dateString],
+        where: f.where,
+        whereArgs: f.whereArgs,
         limit: 1,
       );
 
@@ -105,23 +105,28 @@ class MuscleStimulusLocalDataSourceImpl
 
   @override
   Future<List<MuscleStimulusModel>> getStimulusByDateRange({
-    required String userId,
     required String muscleGroup,
     required DateTime startDate,
     required DateTime endDate,
   }) async {
     try {
+      final ownerId = await resolveOwnerId();
       final db = await databaseHelper.database;
       final startDateString = MuscleStimulusModel.formatDateForDb(startDate);
       final endDateString = MuscleStimulusModel.formatDateForDb(endDate);
+      final f = whereOwned(
+        ownerId: ownerId,
+        extra:
+            '${DatabaseTables.stimulusMuscleGroup} = ? '
+            'AND ${DatabaseTables.stimulusDate} >= ? '
+            'AND ${DatabaseTables.stimulusDate} <= ?',
+        extraArgs: [muscleGroup, startDateString, endDateString],
+      );
 
       final maps = await db.query(
         DatabaseTables.muscleStimulus,
-        where: '${DatabaseTables.ownerUserId} = ? '
-            'AND ${DatabaseTables.stimulusMuscleGroup} = ? '
-            'AND ${DatabaseTables.stimulusDate} >= ? '
-            'AND ${DatabaseTables.stimulusDate} <= ?',
-        whereArgs: [userId, muscleGroup, startDateString, endDateString],
+        where: f.where,
+        whereArgs: f.whereArgs,
         orderBy: '${DatabaseTables.stimulusDate} DESC',
       );
 
@@ -132,31 +137,29 @@ class MuscleStimulusLocalDataSourceImpl
   }
 
   @override
-  Future<MuscleStimulusModel?> getTodayStimulus(
-    String userId,
-    String muscleGroup,
-  ) {
+  Future<MuscleStimulusModel?> getTodayStimulus(String muscleGroup) {
     return getStimulusByMuscleAndDate(
-      userId: userId,
       muscleGroup: muscleGroup,
       date: DateTime.now(),
     );
   }
 
   @override
-  Future<List<MuscleStimulusModel>> getAllStimulusForDate(
-    String userId,
-    DateTime date,
-  ) async {
+  Future<List<MuscleStimulusModel>> getAllStimulusForDate(DateTime date) async {
     try {
+      final ownerId = await resolveOwnerId();
       final db = await databaseHelper.database;
       final dateString = MuscleStimulusModel.formatDateForDb(date);
+      final f = whereOwned(
+        ownerId: ownerId,
+        extra: '${DatabaseTables.stimulusDate} = ?',
+        extraArgs: [dateString],
+      );
 
       final maps = await db.query(
         DatabaseTables.muscleStimulus,
-        where: '${DatabaseTables.ownerUserId} = ? '
-            'AND ${DatabaseTables.stimulusDate} = ?',
-        whereArgs: [userId, dateString],
+        where: f.where,
+        whereArgs: f.whereArgs,
       );
 
       return maps.map((map) => MuscleStimulusModel.fromMap(map)).toList();
@@ -215,17 +218,20 @@ class MuscleStimulusLocalDataSourceImpl
   }
 
   @override
-  Future<void> applyDailyDecayToAll(String userId) async {
+  Future<void> applyDailyDecayToAll() async {
     try {
+      final ownerId = await resolveOwnerId();
       final db = await databaseHelper.database;
+      final f = whereOwned(ownerId: ownerId);
 
       final maps = await db.query(
         DatabaseTables.muscleStimulus,
-        where: '${DatabaseTables.ownerUserId} = ?',
-        whereArgs: [userId],
+        where: f.where,
+        whereArgs: f.whereArgs,
       );
-      final stimulusRecords =
-          maps.map((map) => MuscleStimulusModel.fromMap(map)).toList();
+      final stimulusRecords = maps
+          .map((map) => MuscleStimulusModel.fromMap(map))
+          .toList();
 
       final batch = db.batch();
       for (final stimulus in stimulusRecords) {
@@ -248,11 +254,9 @@ class MuscleStimulusLocalDataSourceImpl
   }
 
   @override
-  Future<double> getMaxStimulusForMuscle(
-    String userId,
-    String muscleGroup,
-  ) async {
+  Future<double> getMaxStimulusForMuscle(String muscleGroup) async {
     try {
+      final ownerId = await resolveOwnerId();
       final db = await databaseHelper.database;
 
       final result = await db.rawQuery(
@@ -260,7 +264,7 @@ class MuscleStimulusLocalDataSourceImpl
         'FROM ${DatabaseTables.muscleStimulus} '
         'WHERE ${DatabaseTables.ownerUserId} = ? '
         'AND ${DatabaseTables.stimulusMuscleGroup} = ?',
-        [userId, muscleGroup],
+        [ownerId, muscleGroup],
       );
 
       if (result.isEmpty || result.first['max_stimulus'] == null) {
@@ -274,16 +278,21 @@ class MuscleStimulusLocalDataSourceImpl
   }
 
   @override
-  Future<void> deleteOlderThan(String userId, DateTime date) async {
+  Future<void> deleteOlderThan(DateTime date) async {
     try {
+      final ownerId = await resolveOwnerId();
       final db = await databaseHelper.database;
       final dateString = MuscleStimulusModel.formatDateForDb(date);
+      final f = whereOwned(
+        ownerId: ownerId,
+        extra: '${DatabaseTables.stimulusDate} < ?',
+        extraArgs: [dateString],
+      );
 
       await db.delete(
         DatabaseTables.muscleStimulus,
-        where: '${DatabaseTables.ownerUserId} = ? '
-            'AND ${DatabaseTables.stimulusDate} < ?',
-        whereArgs: [userId, dateString],
+        where: f.where,
+        whereArgs: f.whereArgs,
       );
     } catch (e) {
       throw CacheDatabaseException('Failed to delete old stimulus records: $e');

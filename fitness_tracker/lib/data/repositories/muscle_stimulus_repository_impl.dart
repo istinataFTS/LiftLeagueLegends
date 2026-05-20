@@ -12,9 +12,7 @@ import '../models/muscle_stimulus_model.dart';
 class MuscleStimulusRepositoryImpl implements MuscleStimulusRepository {
   final MuscleStimulusLocalDataSource localDataSource;
 
-  const MuscleStimulusRepositoryImpl({
-    required this.localDataSource,
-  });
+  const MuscleStimulusRepositoryImpl({required this.localDataSource});
 
   @override
   Future<Either<Failure, MuscleStimulus?>> getStimulusByMuscleAndDate({
@@ -24,7 +22,6 @@ class MuscleStimulusRepositoryImpl implements MuscleStimulusRepository {
   }) {
     return RepositoryGuard.run(() async {
       return localDataSource.getStimulusByMuscleAndDate(
-        userId: userId,
         muscleGroup: muscleGroup,
         date: date,
       );
@@ -40,7 +37,6 @@ class MuscleStimulusRepositoryImpl implements MuscleStimulusRepository {
   }) {
     return RepositoryGuard.run(() async {
       return localDataSource.getStimulusByDateRange(
-        userId: userId,
         muscleGroup: muscleGroup,
         startDate: startDate,
         endDate: endDate,
@@ -54,7 +50,7 @@ class MuscleStimulusRepositoryImpl implements MuscleStimulusRepository {
     String muscleGroup,
   ) {
     return RepositoryGuard.run(() async {
-      return localDataSource.getTodayStimulus(userId, muscleGroup);
+      return localDataSource.getTodayStimulus(muscleGroup);
     });
   }
 
@@ -64,15 +60,16 @@ class MuscleStimulusRepositoryImpl implements MuscleStimulusRepository {
     DateTime date,
   ) {
     return RepositoryGuard.run(() async {
-      return localDataSource.getAllStimulusForDate(userId, date);
+      return localDataSource.getAllStimulusForDate(date);
     });
   }
 
   @override
   Future<Either<Failure, void>> upsertStimulus(MuscleStimulus stimulus) {
     return RepositoryGuard.run(() async {
-      final MuscleStimulusModel model =
-          MuscleStimulusModel.fromEntity(stimulus);
+      final MuscleStimulusModel model = MuscleStimulusModel.fromEntity(
+        stimulus,
+      );
       await localDataSource.upsertStimulus(model);
     });
   }
@@ -99,7 +96,7 @@ class MuscleStimulusRepositoryImpl implements MuscleStimulusRepository {
   @override
   Future<Either<Failure, void>> applyDailyDecayToAll(String userId) {
     return RepositoryGuard.run(() async {
-      await localDataSource.applyDailyDecayToAll(userId);
+      await localDataSource.applyDailyDecayToAll();
     });
   }
 
@@ -109,14 +106,14 @@ class MuscleStimulusRepositoryImpl implements MuscleStimulusRepository {
     String muscleGroup,
   ) {
     return RepositoryGuard.run(() async {
-      return localDataSource.getMaxStimulusForMuscle(userId, muscleGroup);
+      return localDataSource.getMaxStimulusForMuscle(muscleGroup);
     });
   }
 
   @override
   Future<Either<Failure, void>> deleteOlderThan(String userId, DateTime date) {
     return RepositoryGuard.run(() async {
-      await localDataSource.deleteOlderThan(userId, date);
+      await localDataSource.deleteOlderThan(date);
     });
   }
 

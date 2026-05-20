@@ -1,5 +1,6 @@
 import 'package:fitness_tracker/core/constants/database_tables.dart';
 import 'package:fitness_tracker/core/enums/sync_status.dart';
+import 'package:fitness_tracker/core/errors/exceptions.dart';
 import 'package:fitness_tracker/core/session/current_user_id_resolver.dart';
 import 'package:fitness_tracker/data/datasources/local/database_helper.dart';
 import 'package:fitness_tracker/data/datasources/local/nutrition_log_local_datasource_impl.dart';
@@ -552,6 +553,25 @@ void main() {
       expect(result, isEmpty);
     });
   });
+
+  group(
+    'NutritionLogLocalDataSourceImpl prepareForInitialCloudMigration auth guard',
+    () {
+      test(
+        'throws MissingUserContextException when called in guest mode',
+        () async {
+          when(
+            () => mockCurrentUserIdResolver.resolve(),
+          ).thenAnswer((_) async => '');
+
+          await expectLater(
+            dataSource.prepareForInitialCloudMigration(userId: 'user-1'),
+            throwsA(isA<MissingUserContextException>()),
+          );
+        },
+      );
+    },
+  );
 
   group('NutritionLogLocalDataSourceImpl prepareForInitialCloudMigration', () {
     Future<Map<String, Object?>> rawLog(String id) async {

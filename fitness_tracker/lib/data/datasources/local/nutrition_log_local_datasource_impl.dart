@@ -3,16 +3,13 @@ import 'package:sqflite/sqflite.dart';
 import '../../../core/constants/database_tables.dart';
 import '../../../core/errors/exceptions.dart';
 import '../../../core/enums/sync_status.dart';
-import '../../../core/session/current_user_id_resolver.dart';
 import '../../../core/sync/local_remote_merge.dart';
 import '../../models/nutrition_log_model.dart';
-import 'database_helper.dart';
 import 'nutrition_log_local_datasource.dart';
+import 'user_scoped_local_datasource.dart';
 
-class NutritionLogLocalDataSourceImpl implements NutritionLogLocalDataSource {
-  final DatabaseHelper databaseHelper;
-  final CurrentUserIdResolver currentUserIdResolver;
-
+class NutritionLogLocalDataSourceImpl extends UserScopedLocalDatasource
+    implements NutritionLogLocalDataSource {
   static final LocalRemoteMerge<NutritionLogModel> _merge =
       LocalRemoteMerge<NutritionLogModel>(
         getId: (log) => log.id,
@@ -20,9 +17,9 @@ class NutritionLogLocalDataSourceImpl implements NutritionLogLocalDataSource {
         getSyncMetadata: (log) => log.syncMetadata,
       );
 
-  const NutritionLogLocalDataSourceImpl({
-    required this.databaseHelper,
-    required this.currentUserIdResolver,
+  NutritionLogLocalDataSourceImpl({
+    required super.databaseHelper,
+    required super.currentUserIdResolver,
   });
 
   @override
@@ -46,23 +43,27 @@ class NutritionLogLocalDataSourceImpl implements NutritionLogLocalDataSource {
   @override
   Future<List<NutritionLogModel>> getLogsByDate(DateTime date) async {
     try {
-      final ownerId = await currentUserIdResolver.resolve();
+      final ownerId = await resolveOwnerId();
       final db = await databaseHelper.database;
       final startOfDay = DateTime(date.year, date.month, date.day);
       final endOfDay = DateTime(date.year, date.month, date.day, 23, 59, 59);
 
-      final maps = await db.query(
-        DatabaseTables.nutritionLogs,
-        where:
-            '${DatabaseTables.nutritionLogDate} >= ? AND ${DatabaseTables.nutritionLogDate} <= ? AND '
-            '(${DatabaseTables.nutritionLogSyncStatus} IS NULL OR ${DatabaseTables.nutritionLogSyncStatus} != ?) AND '
-            '${DatabaseTables.ownerUserId} = ?',
-        whereArgs: [
+      final f = whereOwned(
+        ownerId: ownerId,
+        extra:
+            '${DatabaseTables.nutritionLogDate} >= ? AND '
+            '${DatabaseTables.nutritionLogDate} <= ? AND '
+            '(${DatabaseTables.nutritionLogSyncStatus} IS NULL OR ${DatabaseTables.nutritionLogSyncStatus} != ?)',
+        extraArgs: [
           startOfDay.toIso8601String(),
           endOfDay.toIso8601String(),
           SyncStatus.pendingDelete.name,
-          ownerId,
         ],
+      );
+      final maps = await db.query(
+        DatabaseTables.nutritionLogs,
+        where: f.where,
+        whereArgs: f.whereArgs,
         orderBy: '${DatabaseTables.nutritionLogCreatedAt} DESC',
       );
 
@@ -78,7 +79,7 @@ class NutritionLogLocalDataSourceImpl implements NutritionLogLocalDataSource {
     DateTime endDate,
   ) async {
     try {
-      final ownerId = await currentUserIdResolver.resolve();
+      final ownerId = await resolveOwnerId();
       final db = await databaseHelper.database;
       final start = DateTime(startDate.year, startDate.month, startDate.day);
       final end = DateTime(
@@ -90,18 +91,22 @@ class NutritionLogLocalDataSourceImpl implements NutritionLogLocalDataSource {
         59,
       );
 
-      final maps = await db.query(
-        DatabaseTables.nutritionLogs,
-        where:
-            '${DatabaseTables.nutritionLogDate} >= ? AND ${DatabaseTables.nutritionLogDate} <= ? AND '
-            '(${DatabaseTables.nutritionLogSyncStatus} IS NULL OR ${DatabaseTables.nutritionLogSyncStatus} != ?) AND '
-            '${DatabaseTables.ownerUserId} = ?',
-        whereArgs: [
+      final f = whereOwned(
+        ownerId: ownerId,
+        extra:
+            '${DatabaseTables.nutritionLogDate} >= ? AND '
+            '${DatabaseTables.nutritionLogDate} <= ? AND '
+            '(${DatabaseTables.nutritionLogSyncStatus} IS NULL OR ${DatabaseTables.nutritionLogSyncStatus} != ?)',
+        extraArgs: [
           start.toIso8601String(),
           end.toIso8601String(),
           SyncStatus.pendingDelete.name,
-          ownerId,
         ],
+      );
+      final maps = await db.query(
+        DatabaseTables.nutritionLogs,
+        where: f.where,
+        whereArgs: f.whereArgs,
         orderBy: '${DatabaseTables.nutritionLogCreatedAt} DESC',
       );
 
@@ -114,15 +119,19 @@ class NutritionLogLocalDataSourceImpl implements NutritionLogLocalDataSource {
   @override
   Future<List<NutritionLogModel>> getLogsByMealId(String mealId) async {
     try {
-      final ownerId = await currentUserIdResolver.resolve();
+      final ownerId = await resolveOwnerId();
       final db = await databaseHelper.database;
+      final f = whereOwned(
+        ownerId: ownerId,
+        extra:
+            '${DatabaseTables.nutritionLogMealId} = ? AND '
+            '(${DatabaseTables.nutritionLogSyncStatus} IS NULL OR ${DatabaseTables.nutritionLogSyncStatus} != ?)',
+        extraArgs: [mealId, SyncStatus.pendingDelete.name],
+      );
       final maps = await db.query(
         DatabaseTables.nutritionLogs,
-        where:
-            '${DatabaseTables.nutritionLogMealId} = ? AND '
-            '(${DatabaseTables.nutritionLogSyncStatus} IS NULL OR ${DatabaseTables.nutritionLogSyncStatus} != ?) AND '
-            '${DatabaseTables.ownerUserId} = ?',
-        whereArgs: [mealId, SyncStatus.pendingDelete.name, ownerId],
+        where: f.where,
+        whereArgs: f.whereArgs,
         orderBy: '${DatabaseTables.nutritionLogCreatedAt} DESC',
       );
       return maps.map(NutritionLogModel.fromMap).toList();
@@ -161,15 +170,19 @@ class NutritionLogLocalDataSourceImpl implements NutritionLogLocalDataSource {
   @override
   Future<List<NutritionLogModel>> getMealLogs() async {
     try {
-      final ownerId = await currentUserIdResolver.resolve();
+      final ownerId = await resolveOwnerId();
       final db = await databaseHelper.database;
+      final f = whereOwned(
+        ownerId: ownerId,
+        extra:
+            '${DatabaseTables.nutritionLogMealId} IS NOT NULL AND '
+            '(${DatabaseTables.nutritionLogSyncStatus} IS NULL OR ${DatabaseTables.nutritionLogSyncStatus} != ?)',
+        extraArgs: [SyncStatus.pendingDelete.name],
+      );
       final maps = await db.query(
         DatabaseTables.nutritionLogs,
-        where:
-            '${DatabaseTables.nutritionLogMealId} IS NOT NULL AND '
-            '(${DatabaseTables.nutritionLogSyncStatus} IS NULL OR ${DatabaseTables.nutritionLogSyncStatus} != ?) AND '
-            '${DatabaseTables.ownerUserId} = ?',
-        whereArgs: [SyncStatus.pendingDelete.name, ownerId],
+        where: f.where,
+        whereArgs: f.whereArgs,
         orderBy: '${DatabaseTables.nutritionLogCreatedAt} DESC',
       );
       return maps.map(NutritionLogModel.fromMap).toList();
@@ -181,15 +194,19 @@ class NutritionLogLocalDataSourceImpl implements NutritionLogLocalDataSource {
   @override
   Future<List<NutritionLogModel>> getDirectMacroLogs() async {
     try {
-      final ownerId = await currentUserIdResolver.resolve();
+      final ownerId = await resolveOwnerId();
       final db = await databaseHelper.database;
+      final f = whereOwned(
+        ownerId: ownerId,
+        extra:
+            '${DatabaseTables.nutritionLogMealId} IS NULL AND '
+            '(${DatabaseTables.nutritionLogSyncStatus} IS NULL OR ${DatabaseTables.nutritionLogSyncStatus} != ?)',
+        extraArgs: [SyncStatus.pendingDelete.name],
+      );
       final maps = await db.query(
         DatabaseTables.nutritionLogs,
-        where:
-            '${DatabaseTables.nutritionLogMealId} IS NULL AND '
-            '(${DatabaseTables.nutritionLogSyncStatus} IS NULL OR ${DatabaseTables.nutritionLogSyncStatus} != ?) AND '
-            '${DatabaseTables.ownerUserId} = ?',
-        whereArgs: [SyncStatus.pendingDelete.name, ownerId],
+        where: f.where,
+        whereArgs: f.whereArgs,
         orderBy: '${DatabaseTables.nutritionLogCreatedAt} DESC',
       );
       return maps.map(NutritionLogModel.fromMap).toList();
@@ -201,19 +218,22 @@ class NutritionLogLocalDataSourceImpl implements NutritionLogLocalDataSource {
   @override
   Future<List<NutritionLogModel>> getPendingSyncLogs() async {
     try {
-      final ownerId = await currentUserIdResolver.resolve();
+      final ownerId = await resolveOwnerId();
       if (ownerId.isEmpty) return <NutritionLogModel>[];
       final db = await databaseHelper.database;
-      final maps = await db.query(
-        DatabaseTables.nutritionLogs,
-        where:
-            '(${DatabaseTables.nutritionLogSyncStatus} = ? OR ${DatabaseTables.nutritionLogSyncStatus} = ?) '
-            'AND ${DatabaseTables.ownerUserId} = ?',
-        whereArgs: [
+      final f = whereOwned(
+        ownerId: ownerId,
+        extra:
+            '(${DatabaseTables.nutritionLogSyncStatus} = ? OR ${DatabaseTables.nutritionLogSyncStatus} = ?)',
+        extraArgs: [
           SyncStatus.pendingUpload.name,
           SyncStatus.pendingUpdate.name,
-          ownerId,
         ],
+      );
+      final maps = await db.query(
+        DatabaseTables.nutritionLogs,
+        where: f.where,
+        whereArgs: f.whereArgs,
         orderBy: '${DatabaseTables.nutritionLogUpdatedAt} ASC',
       );
       return maps.map(NutritionLogModel.fromMap).toList();
@@ -269,6 +289,9 @@ class NutritionLogLocalDataSourceImpl implements NutritionLogLocalDataSource {
 
   @override
   Future<void> prepareForInitialCloudMigration({required String userId}) async {
+    await requireAuthenticatedOwnerId(
+      operation: 'prepareForInitialCloudMigration',
+    );
     try {
       final storedLogs = await _getStoredLogs();
       final preparedLogs = storedLogs
@@ -486,7 +509,7 @@ class NutritionLogLocalDataSourceImpl implements NutritionLogLocalDataSource {
   @override
   Future<Map<String, double>> getDailyMacros(DateTime date) async {
     try {
-      final ownerId = await currentUserIdResolver.resolve();
+      final ownerId = await resolveOwnerId();
       final db = await databaseHelper.database;
       final startOfDay = DateTime(date.year, date.month, date.day);
       final endOfDay = DateTime(date.year, date.month, date.day, 23, 59, 59);
@@ -537,29 +560,37 @@ class NutritionLogLocalDataSourceImpl implements NutritionLogLocalDataSource {
   }
 
   Future<List<NutritionLogModel>> _getVisibleLogs() async {
-    final ownerId = await currentUserIdResolver.resolve();
+    final ownerId = await resolveOwnerId();
     final db = await databaseHelper.database;
+    final f = whereOwned(
+      ownerId: ownerId,
+      extra:
+          '(${DatabaseTables.nutritionLogSyncStatus} IS NULL OR ${DatabaseTables.nutritionLogSyncStatus} != ?)',
+      extraArgs: <Object?>[SyncStatus.pendingDelete.name],
+    );
     final maps = await db.query(
       DatabaseTables.nutritionLogs,
-      where:
-          '(${DatabaseTables.nutritionLogSyncStatus} IS NULL OR ${DatabaseTables.nutritionLogSyncStatus} != ?) AND '
-          '${DatabaseTables.ownerUserId} = ?',
-      whereArgs: <Object?>[SyncStatus.pendingDelete.name, ownerId],
+      where: f.where,
+      whereArgs: f.whereArgs,
       orderBy: '${DatabaseTables.nutritionLogCreatedAt} DESC',
     );
     return maps.map(NutritionLogModel.fromMap).toList();
   }
 
   Future<NutritionLogModel?> _getVisibleLogById(String id) async {
-    final ownerId = await currentUserIdResolver.resolve();
+    final ownerId = await resolveOwnerId();
     final db = await databaseHelper.database;
+    final f = whereOwned(
+      ownerId: ownerId,
+      extra:
+          '${DatabaseTables.nutritionLogId} = ? AND '
+          '(${DatabaseTables.nutritionLogSyncStatus} IS NULL OR ${DatabaseTables.nutritionLogSyncStatus} != ?)',
+      extraArgs: <Object?>[id, SyncStatus.pendingDelete.name],
+    );
     final maps = await db.query(
       DatabaseTables.nutritionLogs,
-      where:
-          '${DatabaseTables.nutritionLogId} = ? AND '
-          '(${DatabaseTables.nutritionLogSyncStatus} IS NULL OR ${DatabaseTables.nutritionLogSyncStatus} != ?) AND '
-          '${DatabaseTables.ownerUserId} = ?',
-      whereArgs: <Object?>[id, SyncStatus.pendingDelete.name, ownerId],
+      where: f.where,
+      whereArgs: f.whereArgs,
       limit: 1,
     );
 

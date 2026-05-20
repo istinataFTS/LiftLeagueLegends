@@ -1,37 +1,29 @@
-import 'package:dartz/dartz.dart';
 import 'package:fitness_tracker/core/constants/database_tables.dart';
-import 'package:fitness_tracker/core/enums/auth_mode.dart';
 import 'package:fitness_tracker/core/enums/sync_status.dart';
+import 'package:fitness_tracker/core/errors/exceptions.dart';
+import 'package:fitness_tracker/core/session/current_user_id_resolver.dart';
 import 'package:fitness_tracker/data/datasources/local/database_helper.dart';
 import 'package:fitness_tracker/data/datasources/local/exercise_local_datasource.dart';
 import 'package:fitness_tracker/data/models/exercise_model.dart';
-import 'package:fitness_tracker/domain/entities/app_session.dart';
-import 'package:fitness_tracker/domain/entities/app_user.dart';
 import 'package:fitness_tracker/domain/entities/entity_sync_metadata.dart';
-import 'package:fitness_tracker/domain/repositories/app_session_repository.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:mocktail/mocktail.dart';
 import 'package:sqflite_common_ffi/sqflite_ffi.dart';
 
 class MockDatabaseHelper extends Mock implements DatabaseHelper {}
 
-class MockAppSessionRepository extends Mock implements AppSessionRepository {}
+class MockCurrentUserIdResolver extends Mock implements CurrentUserIdResolver {}
 
 void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
 
   late Database database;
   late MockDatabaseHelper databaseHelper;
-  late MockAppSessionRepository appSessionRepository;
+  late MockCurrentUserIdResolver mockResolver;
   late ExerciseLocalDataSourceImpl dataSource;
 
   const String currentUserId = 'user-1';
   const String otherUserId = 'user-2';
-
-  final AppSession authenticatedSession = AppSession(
-    authMode: AuthMode.authenticated,
-    user: const AppUser(id: currentUserId, email: 'user@test.com'),
-  );
 
   final DateTime baseDate = DateTime(2026, 3, 22, 10, 0);
 
@@ -110,14 +102,12 @@ void main() {
     databaseHelper = MockDatabaseHelper();
     when(() => databaseHelper.database).thenAnswer((_) async => database);
 
-    appSessionRepository = MockAppSessionRepository();
-    when(
-      () => appSessionRepository.getCurrentSession(),
-    ).thenAnswer((_) async => Right(authenticatedSession));
+    mockResolver = MockCurrentUserIdResolver();
+    when(() => mockResolver.resolve()).thenAnswer((_) async => currentUserId);
 
     dataSource = ExerciseLocalDataSourceImpl(
       databaseHelper: databaseHelper,
-      appSessionRepository: appSessionRepository,
+      currentUserIdResolver: mockResolver,
     );
   });
 
@@ -269,9 +259,7 @@ void main() {
     test(
       "getAllExercises returns only guest-owned ('') rows for a guest session",
       () async {
-        when(
-          () => appSessionRepository.getCurrentSession(),
-        ).thenAnswer((_) async => const Right(AppSession.guest()));
+        when(() => mockResolver.resolve()).thenAnswer((_) async => '');
 
         await dataSource.insertExercise(
           buildExercise(id: 'guest-ex', ownerUserId: '', name: 'Squat'),
@@ -439,21 +427,12 @@ void main() {
 
       // A subsequent guest session sees only its own '' catalog —
       // never user-1's cleared data or user-2's rows.
-      when(
-        () => appSessionRepository.getCurrentSession(),
-      ).thenAnswer((_) async => const Right(AppSession.guest()));
+      when(() => mockResolver.resolve()).thenAnswer((_) async => '');
       final asGuest = await dataSource.getAllExercises();
       expect(asGuest.map((e) => e.id).toList(), <String>['guest-cat']);
 
       // A different signed-in user sees only their own rows.
-      when(() => appSessionRepository.getCurrentSession()).thenAnswer(
-        (_) async => Right(
-          AppSession(
-            authMode: AuthMode.authenticated,
-            user: const AppUser(id: otherUserId, email: 'b@test.com'),
-          ),
-        ),
-      );
+      when(() => mockResolver.resolve()).thenAnswer((_) async => otherUserId);
       final asOther = await dataSource.getAllExercises();
       expect(asOther.map((e) => e.id).toList(), <String>['b-ex']);
     });
@@ -652,6 +631,23 @@ void main() {
   // ---------------------------------------------------------------------------
   // prepareForInitialCloudMigration
   // ---------------------------------------------------------------------------
+
+  group(
+    'ExerciseLocalDataSourceImpl prepareForInitialCloudMigration auth guard',
+    () {
+      test(
+        'throws MissingUserContextException when called in guest mode',
+        () async {
+          when(() => mockResolver.resolve()).thenAnswer((_) async => '');
+
+          await expectLater(
+            dataSource.prepareForInitialCloudMigration(userId: 'user-1'),
+            throwsA(isA<MissingUserContextException>()),
+          );
+        },
+      );
+    },
+  );
 
   group('ExerciseLocalDataSourceImpl prepareForInitialCloudMigration', () {
     Future<Map<String, Object?>> rawExercise(String id) async {

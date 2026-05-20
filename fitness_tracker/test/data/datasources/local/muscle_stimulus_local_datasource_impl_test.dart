@@ -1,4 +1,5 @@
 import 'package:fitness_tracker/core/constants/database_tables.dart';
+import 'package:fitness_tracker/core/session/current_user_id_resolver.dart';
 import 'package:fitness_tracker/data/datasources/local/database_helper.dart';
 import 'package:fitness_tracker/data/datasources/local/muscle_stimulus_local_datasource.dart';
 import 'package:fitness_tracker/data/models/muscle_stimulus_model.dart';
@@ -8,11 +9,14 @@ import 'package:sqflite_common_ffi/sqflite_ffi.dart';
 
 class MockDatabaseHelper extends Mock implements DatabaseHelper {}
 
+class MockCurrentUserIdResolver extends Mock implements CurrentUserIdResolver {}
+
 void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
 
   late Database database;
   late MockDatabaseHelper databaseHelper;
+  late MockCurrentUserIdResolver mockResolver;
   late MuscleStimulusLocalDataSourceImpl dataSource;
 
   const String userA = 'user-a';
@@ -84,8 +88,12 @@ void main() {
     databaseHelper = MockDatabaseHelper();
     when(() => databaseHelper.database).thenAnswer((_) async => database);
 
+    mockResolver = MockCurrentUserIdResolver();
+    when(() => mockResolver.resolve()).thenAnswer((_) async => userA);
+
     dataSource = MuscleStimulusLocalDataSourceImpl(
       databaseHelper: databaseHelper,
+      currentUserIdResolver: mockResolver,
     );
   });
 
@@ -104,7 +112,6 @@ void main() {
       );
 
       final result = await dataSource.getStimulusByMuscleAndDate(
-        userId: userA,
         muscleGroup: 'chest',
         date: baseDate,
       );
@@ -119,8 +126,9 @@ void main() {
         buildStimulus(id: 'stim-a', ownerUserId: userA),
       );
 
+      when(() => mockResolver.resolve()).thenAnswer((_) async => userB);
+
       final result = await dataSource.getStimulusByMuscleAndDate(
-        userId: userB,
         muscleGroup: 'chest',
         date: baseDate,
       );
@@ -132,7 +140,6 @@ void main() {
       'returns null when no record exists for the user on that date',
       () async {
         final result = await dataSource.getStimulusByMuscleAndDate(
-          userId: userA,
           muscleGroup: 'chest',
           date: baseDate,
         );
@@ -159,7 +166,6 @@ void main() {
       );
 
       final results = await dataSource.getStimulusByDateRange(
-        userId: userA,
         muscleGroup: 'chest',
         startDate: yesterday,
         endDate: baseDate,
@@ -176,7 +182,6 @@ void main() {
       );
 
       final results = await dataSource.getStimulusByDateRange(
-        userId: userA,
         muscleGroup: 'chest',
         startDate: yesterday,
         endDate: baseDate,
@@ -217,7 +222,7 @@ void main() {
         ),
       );
 
-      final results = await dataSource.getAllStimulusForDate(userA, baseDate);
+      final results = await dataSource.getAllStimulusForDate(baseDate);
       final ids = results.map((r) => r.id).toSet();
 
       expect(ids, containsAll(<String>['a-chest', 'a-back']));
@@ -229,7 +234,7 @@ void main() {
         buildStimulus(id: 'b-chest', ownerUserId: userB, date: baseDate),
       );
 
-      final results = await dataSource.getAllStimulusForDate(userA, baseDate);
+      final results = await dataSource.getAllStimulusForDate(baseDate);
       expect(results, isEmpty);
     });
   });
@@ -239,7 +244,7 @@ void main() {
   // ---------------------------------------------------------------------------
 
   group('applyDailyDecayToAll user isolation', () {
-    test('only decays records belonging to the specified user', () async {
+    test('only decays records belonging to the current user', () async {
       await dataSource.upsertStimulus(
         buildStimulus(
           id: 'a-chest',
@@ -256,7 +261,7 @@ void main() {
         ),
       );
 
-      await dataSource.applyDailyDecayToAll(userA);
+      await dataSource.applyDailyDecayToAll();
 
       final allRows = await database.query(DatabaseTables.muscleStimulus);
       final byId = {for (final r in allRows) r[DatabaseTables.stimulusId]: r};
@@ -282,7 +287,7 @@ void main() {
   // ---------------------------------------------------------------------------
 
   group('getMaxStimulusForMuscle user isolation', () {
-    test('returns max daily stimulus for the specified user only', () async {
+    test('returns max daily stimulus for the current user only', () async {
       await dataSource.upsertStimulus(
         buildStimulus(
           id: 'a-chest',
@@ -301,7 +306,7 @@ void main() {
         ),
       );
 
-      final max = await dataSource.getMaxStimulusForMuscle(userA, 'chest');
+      final max = await dataSource.getMaxStimulusForMuscle('chest');
 
       expect(max, closeTo(8.0, 0.001));
     });
@@ -311,7 +316,7 @@ void main() {
         buildStimulus(id: 'b-chest', ownerUserId: userB, dailyStimulus: 15.0),
       );
 
-      final max = await dataSource.getMaxStimulusForMuscle(userA, 'chest');
+      final max = await dataSource.getMaxStimulusForMuscle('chest');
       expect(max, closeTo(0.0, 0.001));
     });
   });
@@ -322,7 +327,7 @@ void main() {
 
   group('deleteOlderThan user isolation', () {
     test(
-      'only deletes records older than the cutoff for the specified user',
+      'only deletes records older than the cutoff for the current user',
       () async {
         await dataSource.upsertStimulus(
           buildStimulus(id: 'a-old', ownerUserId: userA, date: twoDaysAgo),
@@ -334,7 +339,7 @@ void main() {
           buildStimulus(id: 'b-old', ownerUserId: userB, date: twoDaysAgo),
         );
 
-        await dataSource.deleteOlderThan(userA, yesterday);
+        await dataSource.deleteOlderThan(yesterday);
 
         final allRows = await database.query(DatabaseTables.muscleStimulus);
         final ids = allRows
@@ -428,7 +433,6 @@ void main() {
       await dataSource.upsertStimulus(model);
 
       final result = await dataSource.getStimulusByMuscleAndDate(
-        userId: userA,
         muscleGroup: 'chest',
         date: baseDate,
       );
@@ -448,7 +452,6 @@ void main() {
       );
 
       final result = await dataSource.getStimulusByMuscleAndDate(
-        userId: userA,
         muscleGroup: 'chest',
         date: baseDate,
       );
@@ -477,7 +480,6 @@ void main() {
       );
 
       final result = await dataSource.getStimulusByMuscleAndDate(
-        userId: userA,
         muscleGroup: 'chest',
         date: baseDate,
       );

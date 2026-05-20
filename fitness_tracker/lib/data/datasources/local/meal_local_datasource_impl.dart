@@ -4,39 +4,23 @@ import '../../../core/constants/database_tables.dart';
 import '../../../core/errors/exceptions.dart';
 import '../../../core/enums/sync_status.dart';
 import '../../../core/logging/app_logger.dart';
-import '../../../core/session/current_user_id_resolver.dart';
 import '../../../core/sync/local_remote_merge.dart';
-import '../../../domain/repositories/app_session_repository.dart';
 import '../../models/meal_model.dart';
-import 'database_helper.dart';
 import 'meal_local_datasource.dart';
+import 'user_scoped_local_datasource.dart';
 
-class MealLocalDataSourceImpl implements MealLocalDataSource {
-  final DatabaseHelper databaseHelper;
-  final AppSessionRepository appSessionRepository;
-
+class MealLocalDataSourceImpl extends UserScopedLocalDatasource
+    implements MealLocalDataSource {
   static final LocalRemoteMerge<MealModel> _merge = LocalRemoteMerge<MealModel>(
     getId: (meal) => meal.id,
     getUpdatedAt: (meal) => meal.updatedAt,
     getSyncMetadata: (meal) => meal.syncMetadata,
   );
 
-  const MealLocalDataSourceImpl({
-    required this.databaseHelper,
-    required this.appSessionRepository,
+  MealLocalDataSourceImpl({
+    required super.databaseHelper,
+    required super.currentUserIdResolver,
   });
-
-  /// Active account owner id; [kGuestUserId] (`''`) for guest sessions.
-  ///
-  /// Never null — under the per-user catalog model (db v20+) every meal row
-  /// is owned, so visibility is strict per-account with no shared bucket.
-  Future<String> _resolveOwnerId() async {
-    final result = await appSessionRepository.getCurrentSession();
-    return result.fold(
-      (_) => kGuestUserId,
-      (session) => session.user?.id ?? kGuestUserId,
-    );
-  }
 
   @override
   Future<List<MealModel>> getAllMeals() async {
@@ -59,16 +43,19 @@ class MealLocalDataSourceImpl implements MealLocalDataSource {
   @override
   Future<MealModel?> getMealByName(String name) async {
     try {
-      final ownerId = await _resolveOwnerId();
-      const userFilter = ' AND ${DatabaseTables.ownerUserId} = ?';
-      final userArgs = <Object?>[ownerId];
+      final ownerId = await resolveOwnerId();
       final db = await databaseHelper.database;
+      final f = whereOwned(
+        ownerId: ownerId,
+        extra:
+            'LOWER(${DatabaseTables.mealName}) = LOWER(?) AND '
+            '(${DatabaseTables.mealSyncStatus} IS NULL OR ${DatabaseTables.mealSyncStatus} != ?)',
+        extraArgs: [name, SyncStatus.pendingDelete.name],
+      );
       final maps = await db.query(
         DatabaseTables.meals,
-        where:
-            'LOWER(${DatabaseTables.mealName}) = LOWER(?) AND '
-            '(${DatabaseTables.mealSyncStatus} IS NULL OR ${DatabaseTables.mealSyncStatus} != ?)$userFilter',
-        whereArgs: [name, SyncStatus.pendingDelete.name, ...userArgs],
+        where: f.where,
+        whereArgs: f.whereArgs,
         limit: 1,
       );
 
@@ -85,20 +72,19 @@ class MealLocalDataSourceImpl implements MealLocalDataSource {
   @override
   Future<List<MealModel>> searchMealsByName(String searchTerm) async {
     try {
-      final ownerId = await _resolveOwnerId();
-      const userFilter = ' AND ${DatabaseTables.ownerUserId} = ?';
-      final userArgs = <Object?>[ownerId];
+      final ownerId = await resolveOwnerId();
       final db = await databaseHelper.database;
+      final f = whereOwned(
+        ownerId: ownerId,
+        extra:
+            'LOWER(${DatabaseTables.mealName}) LIKE LOWER(?) AND '
+            '(${DatabaseTables.mealSyncStatus} IS NULL OR ${DatabaseTables.mealSyncStatus} != ?)',
+        extraArgs: ['%$searchTerm%', SyncStatus.pendingDelete.name],
+      );
       final maps = await db.query(
         DatabaseTables.meals,
-        where:
-            'LOWER(${DatabaseTables.mealName}) LIKE LOWER(?) AND '
-            '(${DatabaseTables.mealSyncStatus} IS NULL OR ${DatabaseTables.mealSyncStatus} != ?)$userFilter',
-        whereArgs: [
-          '%$searchTerm%',
-          SyncStatus.pendingDelete.name,
-          ...userArgs,
-        ],
+        where: f.where,
+        whereArgs: f.whereArgs,
         orderBy: DatabaseTables.mealName,
       );
       return maps.map(MealModel.fromMap).toList();
@@ -110,15 +96,18 @@ class MealLocalDataSourceImpl implements MealLocalDataSource {
   @override
   Future<List<MealModel>> getRecentMeals({int limit = 10}) async {
     try {
-      final ownerId = await _resolveOwnerId();
-      const userFilter = ' AND ${DatabaseTables.ownerUserId} = ?';
-      final userArgs = <Object?>[ownerId];
+      final ownerId = await resolveOwnerId();
       final db = await databaseHelper.database;
+      final f = whereOwned(
+        ownerId: ownerId,
+        extra:
+            '(${DatabaseTables.mealSyncStatus} IS NULL OR ${DatabaseTables.mealSyncStatus} != ?)',
+        extraArgs: [SyncStatus.pendingDelete.name],
+      );
       final maps = await db.query(
         DatabaseTables.meals,
-        where:
-            '(${DatabaseTables.mealSyncStatus} IS NULL OR ${DatabaseTables.mealSyncStatus} != ?)$userFilter',
-        whereArgs: [SyncStatus.pendingDelete.name, ...userArgs],
+        where: f.where,
+        whereArgs: f.whereArgs,
         orderBy: '${DatabaseTables.mealCreatedAt} DESC',
         limit: limit,
       );
@@ -136,18 +125,21 @@ class MealLocalDataSourceImpl implements MealLocalDataSource {
   @override
   Future<List<MealModel>> getPendingSyncMeals() async {
     try {
-      final ownerId = await _resolveOwnerId();
+      final ownerId = await resolveOwnerId();
       final db = await databaseHelper.database;
-      final maps = await db.query(
-        DatabaseTables.meals,
-        where:
-            '(${DatabaseTables.mealSyncStatus} = ? OR ${DatabaseTables.mealSyncStatus} = ?) '
-            'AND ${DatabaseTables.ownerUserId} = ?',
-        whereArgs: [
+      final f = whereOwned(
+        ownerId: ownerId,
+        extra:
+            '(${DatabaseTables.mealSyncStatus} = ? OR ${DatabaseTables.mealSyncStatus} = ?)',
+        extraArgs: [
           SyncStatus.pendingUpload.name,
           SyncStatus.pendingUpdate.name,
-          ownerId,
         ],
+      );
+      final maps = await db.query(
+        DatabaseTables.meals,
+        where: f.where,
+        whereArgs: f.whereArgs,
         orderBy: '${DatabaseTables.mealUpdatedAt} ASC',
       );
       return maps.map(MealModel.fromMap).toList();
@@ -238,6 +230,9 @@ class MealLocalDataSourceImpl implements MealLocalDataSource {
 
   @override
   Future<void> prepareForInitialCloudMigration({required String userId}) async {
+    await requireAuthenticatedOwnerId(
+      operation: 'prepareForInitialCloudMigration',
+    );
     try {
       final storedMeals = await _getStoredMeals();
       final preparedMeals = storedMeals
@@ -414,9 +409,7 @@ class MealLocalDataSourceImpl implements MealLocalDataSource {
   @override
   Future<int> getMealsCount() async {
     try {
-      final ownerId = await _resolveOwnerId();
-      const userFilter = 'AND ${DatabaseTables.ownerUserId} = ?';
-      final userArgs = <Object?>[ownerId];
+      final ownerId = await resolveOwnerId();
       final db = await databaseHelper.database;
       final result = await db.rawQuery(
         '''
@@ -424,9 +417,9 @@ class MealLocalDataSourceImpl implements MealLocalDataSource {
         FROM ${DatabaseTables.meals}
         WHERE (${DatabaseTables.mealSyncStatus} IS NULL
            OR ${DatabaseTables.mealSyncStatus} != ?)
-        $userFilter
+        AND ${DatabaseTables.ownerUserId} = ?
         ''',
-        [SyncStatus.pendingDelete.name, ...userArgs],
+        [SyncStatus.pendingDelete.name, ownerId],
       );
       return Sqflite.firstIntValue(result) ?? 0;
     } catch (e) {
@@ -435,15 +428,18 @@ class MealLocalDataSourceImpl implements MealLocalDataSource {
   }
 
   Future<List<MealModel>> _getVisibleMeals() async {
-    final ownerId = await _resolveOwnerId();
-    const userFilter = ' AND ${DatabaseTables.ownerUserId} = ?';
-    final userArgs = <Object?>[ownerId];
+    final ownerId = await resolveOwnerId();
     final db = await databaseHelper.database;
+    final f = whereOwned(
+      ownerId: ownerId,
+      extra:
+          '(${DatabaseTables.mealSyncStatus} IS NULL OR ${DatabaseTables.mealSyncStatus} != ?)',
+      extraArgs: <Object?>[SyncStatus.pendingDelete.name],
+    );
     final maps = await db.query(
       DatabaseTables.meals,
-      where:
-          '(${DatabaseTables.mealSyncStatus} IS NULL OR ${DatabaseTables.mealSyncStatus} != ?)$userFilter',
-      whereArgs: <Object?>[SyncStatus.pendingDelete.name, ...userArgs],
+      where: f.where,
+      whereArgs: f.whereArgs,
       orderBy: '${DatabaseTables.mealName} ASC',
     );
 
@@ -451,15 +447,19 @@ class MealLocalDataSourceImpl implements MealLocalDataSource {
   }
 
   Future<MealModel?> _getVisibleMealById(String id) async {
-    final ownerId = await _resolveOwnerId();
-    const userFilter = ' AND ${DatabaseTables.ownerUserId} = ?';
-    final userArgs = <Object?>[ownerId];
+    final ownerId = await resolveOwnerId();
     final db = await databaseHelper.database;
+    final f = whereOwned(
+      ownerId: ownerId,
+      extra:
+          '${DatabaseTables.mealId} = ? AND '
+          '(${DatabaseTables.mealSyncStatus} IS NULL OR ${DatabaseTables.mealSyncStatus} != ?)',
+      extraArgs: <Object?>[id, SyncStatus.pendingDelete.name],
+    );
     final maps = await db.query(
       DatabaseTables.meals,
-      where:
-          '${DatabaseTables.mealId} = ? AND (${DatabaseTables.mealSyncStatus} IS NULL OR ${DatabaseTables.mealSyncStatus} != ?)$userFilter',
-      whereArgs: <Object?>[id, SyncStatus.pendingDelete.name, ...userArgs],
+      where: f.where,
+      whereArgs: f.whereArgs,
       limit: 1,
     );
 

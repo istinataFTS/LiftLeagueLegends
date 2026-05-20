@@ -68,6 +68,9 @@ void registerMuscleStimulusModule(GetIt sl) {
   );
 
   sl.registerLazySingleton<MuscleStimulusLocalDataSource>(
-    () => MuscleStimulusLocalDataSourceImpl(databaseHelper: sl()),
+    () => MuscleStimulusLocalDataSourceImpl(
+      databaseHelper: sl(),
+      currentUserIdResolver: sl(),
+    ),
   );
 }

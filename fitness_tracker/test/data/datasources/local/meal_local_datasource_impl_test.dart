@@ -1,28 +1,25 @@
-import 'package:dartz/dartz.dart';
 import 'package:fitness_tracker/core/constants/database_tables.dart';
-import 'package:fitness_tracker/core/enums/auth_mode.dart';
 import 'package:fitness_tracker/core/enums/sync_status.dart';
+import 'package:fitness_tracker/core/errors/exceptions.dart';
+import 'package:fitness_tracker/core/session/current_user_id_resolver.dart';
 import 'package:fitness_tracker/data/datasources/local/database_helper.dart';
 import 'package:fitness_tracker/data/datasources/local/meal_local_datasource_impl.dart';
 import 'package:fitness_tracker/data/models/meal_model.dart';
-import 'package:fitness_tracker/domain/entities/app_session.dart';
-import 'package:fitness_tracker/domain/entities/app_user.dart';
 import 'package:fitness_tracker/domain/entities/entity_sync_metadata.dart';
-import 'package:fitness_tracker/domain/repositories/app_session_repository.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:mocktail/mocktail.dart';
 import 'package:sqflite_common_ffi/sqflite_ffi.dart';
 
 class MockDatabaseHelper extends Mock implements DatabaseHelper {}
 
-class MockAppSessionRepository extends Mock implements AppSessionRepository {}
+class MockCurrentUserIdResolver extends Mock implements CurrentUserIdResolver {}
 
 void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
 
   late Database database;
   late MockDatabaseHelper databaseHelper;
-  late MockAppSessionRepository mockSessionRepository;
+  late MockCurrentUserIdResolver mockResolver;
   late MealLocalDataSourceImpl dataSource;
 
   final DateTime baseDate = DateTime(2026, 3, 22, 10, 0);
@@ -119,19 +116,12 @@ void main() {
     databaseHelper = MockDatabaseHelper();
     when(() => databaseHelper.database).thenAnswer((_) async => database);
 
-    mockSessionRepository = MockAppSessionRepository();
-    when(() => mockSessionRepository.getCurrentSession()).thenAnswer(
-      (_) async => const Right(
-        AppSession(
-          authMode: AuthMode.authenticated,
-          user: AppUser(id: 'user-1', email: 'user1@test.com'),
-        ),
-      ),
-    );
+    mockResolver = MockCurrentUserIdResolver();
+    when(() => mockResolver.resolve()).thenAnswer((_) async => 'user-1');
 
     dataSource = MealLocalDataSourceImpl(
       databaseHelper: databaseHelper,
-      appSessionRepository: mockSessionRepository,
+      currentUserIdResolver: mockResolver,
     );
   });
 
@@ -432,6 +422,23 @@ void main() {
       expect(count, 1);
     });
   });
+
+  group(
+    'MealLocalDataSourceImpl prepareForInitialCloudMigration auth guard',
+    () {
+      test(
+        'throws MissingUserContextException when called in guest mode',
+        () async {
+          when(() => mockResolver.resolve()).thenAnswer((_) async => '');
+
+          await expectLater(
+            dataSource.prepareForInitialCloudMigration(userId: 'user-1'),
+            throwsA(isA<MissingUserContextException>()),
+          );
+        },
+      );
+    },
+  );
 
   group('MealLocalDataSourceImpl prepareForInitialCloudMigration', () {
     Future<Map<String, Object?>> rawMeal(String id) async {
