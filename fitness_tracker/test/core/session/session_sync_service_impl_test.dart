@@ -407,9 +407,7 @@ void main() {
       // Best-effort cleanup must still run even when the session clear fails.
       // The AuthSessionShell key change is the primary data-isolation guard,
       // but a clean database matters for reinstall / edge-case scenarios.
-      verify(
-        () => mealLocalDataSource.clearMealsForOwner('user-1'),
-      ).called(1);
+      verify(() => mealLocalDataSource.clearMealsForOwner('user-1')).called(1);
       verify(
         () => nutritionLogLocalDataSource.clearLogsForOwner('user-1'),
       ).called(1);
@@ -427,28 +425,34 @@ void main() {
       verifyNever(() => rebuildMuscleStimulus(any()));
     });
 
-    test('scopes all clears to guest bucket; skips exercises and stimulus',
-        () async {
-      when(
-        () => repository.getCurrentSession(),
-      ).thenAnswer((_) async => const Right(AppSession.guest()));
+    test(
+      'scopes all clears to guest bucket; skips exercises and stimulus',
+      () async {
+        when(
+          () => repository.getCurrentSession(),
+        ).thenAnswer((_) async => const Right(AppSession.guest()));
 
-      final result = await service.signOut();
+        final result = await service.signOut();
 
-      expect(result.isSuccess, isTrue);
-      // Guest data cleared from the '' bucket only.
-      verify(() => mealLocalDataSource.clearMealsForOwner('')).called(1);
-      verify(() => nutritionLogLocalDataSource.clearLogsForOwner('')).called(1);
-      verify(() => workoutSetLocalDataSource.clearSetsForOwner('')).called(1);
-      // Exercises and stimulus: not cleared for guest ('' catalog must survive).
-      verifyNever(() => exerciseLocalDataSource.clearUserOwnedExercises(any()));
-      verifyNever(
-        () => muscleStimulusLocalDataSource.clearStimulusForUser(any()),
-      );
-      // Pending-delete queue always wiped (guests won't have entries, harmless).
-      verify(() => pendingSyncDeleteLocalDataSource.clearAll()).called(1);
-      // Guest stimulus rebuilt after guest sign-out too.
-      verify(() => rebuildMuscleStimulus(kGuestUserId)).called(1);
-    });
+        expect(result.isSuccess, isTrue);
+        // Guest data cleared from the '' bucket only.
+        verify(() => mealLocalDataSource.clearMealsForOwner('')).called(1);
+        verify(
+          () => nutritionLogLocalDataSource.clearLogsForOwner(''),
+        ).called(1);
+        verify(() => workoutSetLocalDataSource.clearSetsForOwner('')).called(1);
+        // Exercises and stimulus: not cleared for guest ('' catalog must survive).
+        verifyNever(
+          () => exerciseLocalDataSource.clearUserOwnedExercises(any()),
+        );
+        verifyNever(
+          () => muscleStimulusLocalDataSource.clearStimulusForUser(any()),
+        );
+        // Pending-delete queue always wiped (guests won't have entries, harmless).
+        verify(() => pendingSyncDeleteLocalDataSource.clearAll()).called(1);
+        // Guest stimulus rebuilt after guest sign-out too.
+        verify(() => rebuildMuscleStimulus(kGuestUserId)).called(1);
+      },
+    );
   });
 }

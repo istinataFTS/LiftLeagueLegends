@@ -51,7 +51,8 @@ class WorkoutSetLocalDataSourceImpl implements WorkoutSetLocalDataSource {
       final db = await databaseHelper.database;
       final maps = await db.query(
         DatabaseTables.workoutSets,
-        where: '''
+        where:
+            '''
           ${DatabaseTables.setExerciseId} = ? AND
           (${DatabaseTables.setSyncStatus} IS NULL OR ${DatabaseTables.setSyncStatus} != ?) AND
           ${DatabaseTables.ownerUserId} = ?
@@ -77,7 +78,8 @@ class WorkoutSetLocalDataSourceImpl implements WorkoutSetLocalDataSource {
       final db = await databaseHelper.database;
       final maps = await db.query(
         DatabaseTables.workoutSets,
-        where: '''
+        where:
+            '''
           ${DatabaseTables.setDate} >= ? AND
           ${DatabaseTables.setDate} <= ? AND
           (${DatabaseTables.setSyncStatus} IS NULL OR ${DatabaseTables.setSyncStatus} != ?) AND
@@ -374,7 +376,8 @@ class WorkoutSetLocalDataSourceImpl implements WorkoutSetLocalDataSource {
     final db = await databaseHelper.database;
     final maps = await db.query(
       DatabaseTables.workoutSets,
-      where: '''
+      where:
+          '''
         ${DatabaseTables.setId} = ? AND
         (${DatabaseTables.setSyncStatus} IS NULL OR ${DatabaseTables.setSyncStatus} != ?) AND
         ${DatabaseTables.ownerUserId} = ?

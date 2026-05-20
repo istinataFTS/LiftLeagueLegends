@@ -1,6 +1,4 @@
-enum BackendTarget {
-  supabasePrimary,
-}
+enum BackendTarget { supabasePrimary }
 
 enum LocalStorageRole {
   guestPrimaryStore,
@@ -8,11 +6,7 @@ enum LocalStorageRole {
   transitionalMigrationLayer,
 }
 
-enum SourceOfTruth {
-  localOnly,
-  supabase,
-  derivedFromUserScopedData,
-}
+enum SourceOfTruth { localOnly, supabase, derivedFromUserScopedData }
 
 class FeatureOwnershipDecision {
   final String featureKey;
@@ -64,33 +58,33 @@ class AppDataArchitecture {
   /// follow.
   static const List<FeatureOwnershipDecision> featureOwnership =
       <FeatureOwnershipDecision>[
-    FeatureOwnershipDecision(
-      featureKey: 'workouts',
-      userScoped: true,
-      sourceOfTruth: SourceOfTruth.supabase,
-    ),
-    FeatureOwnershipDecision(
-      featureKey: 'nutrition_logs',
-      userScoped: true,
-      sourceOfTruth: SourceOfTruth.supabase,
-    ),
-    FeatureOwnershipDecision(
-      featureKey: 'meals',
-      userScoped: true,
-      sourceOfTruth: SourceOfTruth.supabase,
-    ),
-    FeatureOwnershipDecision(
-      featureKey: 'targets',
-      userScoped: true,
-      sourceOfTruth: SourceOfTruth.supabase,
-    ),
-    FeatureOwnershipDecision(
-      featureKey: 'history',
-      userScoped: true,
-      sourceOfTruth: SourceOfTruth.derivedFromUserScopedData,
-      derived: true,
-    ),
-  ];
+        FeatureOwnershipDecision(
+          featureKey: 'workouts',
+          userScoped: true,
+          sourceOfTruth: SourceOfTruth.supabase,
+        ),
+        FeatureOwnershipDecision(
+          featureKey: 'nutrition_logs',
+          userScoped: true,
+          sourceOfTruth: SourceOfTruth.supabase,
+        ),
+        FeatureOwnershipDecision(
+          featureKey: 'meals',
+          userScoped: true,
+          sourceOfTruth: SourceOfTruth.supabase,
+        ),
+        FeatureOwnershipDecision(
+          featureKey: 'targets',
+          userScoped: true,
+          sourceOfTruth: SourceOfTruth.supabase,
+        ),
+        FeatureOwnershipDecision(
+          featureKey: 'history',
+          userScoped: true,
+          sourceOfTruth: SourceOfTruth.derivedFromUserScopedData,
+          derived: true,
+        ),
+      ];
 
   /// Presentation code should stay backend-agnostic.
   static const bool keepBackendApisOutOfPresentation = true;
