@@ -612,4 +612,84 @@ void main() {
       expect(row[DatabaseTables.nutritionLogLastSyncError], 'offline');
     });
   });
+
+  // ---------------------------------------------------------------------------
+  // clearLogsForOwner — owner-scoped destructive clear (Phase 2 / Bug 2 fix)
+  // ---------------------------------------------------------------------------
+
+  group('NutritionLogLocalDataSourceImpl clearLogsForOwner', () {
+    test(
+      'deletes only the target owner\'s logs — guest and bystander survive',
+      () async {
+        await dataSource.insertLog(
+          buildLog(
+            id: 'guest-log',
+            loggedAt: baseDate,
+            ownerUserId: kGuestUserId,
+            mealId: null,
+          ),
+        );
+        // 'user-1' is the default owner in buildLog.
+        await dataSource.insertLog(
+          buildLog(id: 'user-a-log', loggedAt: baseDate, mealId: null),
+        );
+        await dataSource.insertLog(
+          buildLog(
+            id: 'user-b-log',
+            loggedAt: baseDate,
+            ownerUserId: 'user-2',
+            mealId: null,
+          ),
+        );
+
+        await dataSource.clearLogsForOwner('user-1');
+
+        final remaining = await database.query(DatabaseTables.nutritionLogs);
+        final ids = remaining
+            .map((r) => r[DatabaseTables.nutritionLogId] as String)
+            .toSet();
+
+        expect(ids, equals(<String>{'guest-log', 'user-b-log'}));
+        expect(ids, isNot(contains('user-a-log')));
+      },
+    );
+
+    test(
+      'clears the guest bucket (\'\') without touching authenticated owners',
+      () async {
+        await dataSource.insertLog(
+          buildLog(
+            id: 'guest-log',
+            loggedAt: baseDate,
+            ownerUserId: kGuestUserId,
+            mealId: null,
+          ),
+        );
+        await dataSource.insertLog(
+          buildLog(id: 'user-log', loggedAt: baseDate, mealId: null),
+        );
+
+        await dataSource.clearLogsForOwner(kGuestUserId);
+
+        final remaining = await database.query(DatabaseTables.nutritionLogs);
+        final ids = remaining
+            .map((r) => r[DatabaseTables.nutritionLogId] as String)
+            .toSet();
+
+        expect(ids, equals(<String>{'user-log'}));
+        expect(ids, isNot(contains('guest-log')));
+      },
+    );
+
+    test('is a no-op when the target owner has no logs', () async {
+      await dataSource.insertLog(
+        buildLog(id: 'log-1', loggedAt: baseDate, mealId: null),
+      );
+
+      await dataSource.clearLogsForOwner('nonexistent-user');
+
+      final remaining = await database.query(DatabaseTables.nutritionLogs);
+      expect(remaining, hasLength(1));
+    });
+  });
 }

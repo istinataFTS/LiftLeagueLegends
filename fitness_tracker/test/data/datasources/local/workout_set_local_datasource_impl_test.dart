@@ -616,4 +616,70 @@ void main() {
       );
     });
   });
+
+  // ---------------------------------------------------------------------------
+  // clearSetsForOwner — owner-scoped destructive clear (Phase 2 / Bug 2 fix)
+  // ---------------------------------------------------------------------------
+
+  group('WorkoutSetLocalDataSourceImpl clearSetsForOwner', () {
+    test(
+      'deletes only the target owner\'s rows — guest and bystander survive',
+      () async {
+        await dataSource.addSet(
+          buildSet(id: 'guest-set', exerciseId: 'squat', date: baseDate)
+              .copyWith(ownerUserId: kGuestUserId),
+        );
+        // 'user-1' is the default owner in buildSet.
+        await dataSource.addSet(
+          buildSet(id: 'user-a-set', exerciseId: 'bench', date: baseDate),
+        );
+        await dataSource.addSet(
+          buildSet(id: 'user-b-set', exerciseId: 'deadlift', date: baseDate)
+              .copyWith(ownerUserId: 'user-2'),
+        );
+
+        await dataSource.clearSetsForOwner('user-1');
+
+        final remaining = await database.query(DatabaseTables.workoutSets);
+        final ids =
+            remaining.map((r) => r[DatabaseTables.setId] as String).toSet();
+
+        expect(ids, equals(<String>{'guest-set', 'user-b-set'}));
+        expect(ids, isNot(contains('user-a-set')));
+      },
+    );
+
+    test(
+      'clears the guest bucket (\'\') without touching authenticated owners',
+      () async {
+        await dataSource.addSet(
+          buildSet(id: 'guest-set', exerciseId: 'squat', date: baseDate)
+              .copyWith(ownerUserId: kGuestUserId),
+        );
+        await dataSource.addSet(
+          buildSet(id: 'user-set', exerciseId: 'bench', date: baseDate),
+        );
+
+        await dataSource.clearSetsForOwner(kGuestUserId);
+
+        final remaining = await database.query(DatabaseTables.workoutSets);
+        final ids =
+            remaining.map((r) => r[DatabaseTables.setId] as String).toSet();
+
+        expect(ids, equals(<String>{'user-set'}));
+        expect(ids, isNot(contains('guest-set')));
+      },
+    );
+
+    test('is a no-op when the target owner has no rows', () async {
+      await dataSource.addSet(
+        buildSet(id: 'user-set', exerciseId: 'bench', date: baseDate),
+      );
+
+      await dataSource.clearSetsForOwner('nonexistent-user');
+
+      final remaining = await database.query(DatabaseTables.workoutSets);
+      expect(remaining, hasLength(1));
+    });
+  });
 }

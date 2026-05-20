@@ -488,6 +488,73 @@ void main() {
   });
 
   // ---------------------------------------------------------------------------
+  // clearMealsForOwner — owner-scoped destructive clear (Phase 2 / Bug 2 fix)
+  // ---------------------------------------------------------------------------
+
+  group('MealLocalDataSourceImpl clearMealsForOwner', () {
+    test(
+      'deletes only the target owner\'s meals — guest and bystander survive',
+      () async {
+        await dataSource.insertMeal(
+          buildMeal(id: 'guest-meal', name: 'Guest Oats', ownerUserId: ''),
+        );
+        // 'user-1' is the default owner in buildMeal.
+        await dataSource.insertMeal(
+          buildMeal(id: 'user-a-meal', name: 'User A Chicken'),
+        );
+        await dataSource.insertMeal(
+          buildMeal(
+            id: 'user-b-meal',
+            name: 'User B Rice',
+            ownerUserId: 'user-2',
+          ),
+        );
+
+        await dataSource.clearMealsForOwner('user-1');
+
+        final remaining = await database.query(DatabaseTables.meals);
+        final ids =
+            remaining.map((r) => r[DatabaseTables.mealId] as String).toSet();
+
+        expect(ids, equals(<String>{'guest-meal', 'user-b-meal'}));
+        expect(ids, isNot(contains('user-a-meal')));
+      },
+    );
+
+    test(
+      'clears the guest bucket (\'\') without touching authenticated owners',
+      () async {
+        await dataSource.insertMeal(
+          buildMeal(id: 'guest-meal', name: 'Guest Oats', ownerUserId: ''),
+        );
+        await dataSource.insertMeal(
+          buildMeal(id: 'user-meal', name: 'User Chicken'),
+        );
+
+        await dataSource.clearMealsForOwner('');
+
+        final remaining = await database.query(DatabaseTables.meals);
+        final ids =
+            remaining.map((r) => r[DatabaseTables.mealId] as String).toSet();
+
+        expect(ids, equals(<String>{'user-meal'}));
+        expect(ids, isNot(contains('guest-meal')));
+      },
+    );
+
+    test('is a no-op when the target owner has no meals', () async {
+      await dataSource.insertMeal(
+        buildMeal(id: 'meal-1', name: 'Oats'),
+      );
+
+      await dataSource.clearMealsForOwner('nonexistent-user');
+
+      final remaining = await database.query(DatabaseTables.meals);
+      expect(remaining, hasLength(1));
+    });
+  });
+
+  // ---------------------------------------------------------------------------
   // Multi-owner name coexistence (regression for v18 schema migration)
   // ---------------------------------------------------------------------------
   // Before v18 the schema had UNIQUE(name) globally on meals. If two different
