@@ -31,9 +31,7 @@ Future<void> main() async {
     exit(0);
   }
 
-  stderr.writeln(
-    '\n── [state-freshness] ${violations.length} violation(s) ──',
-  );
+  stderr.writeln('\n── [state-freshness] ${violations.length} violation(s) ──');
   for (final v in violations) {
     stderr.writeln(v.toString());
   }
@@ -94,6 +92,10 @@ final class StateFreshnessChecker {
     'workout_sets': 'workoutSets',
   };
 
+  /// Number of hex chars retained from the SHA-256 digest in fingerprints.
+  /// Locked at 16 to keep state.json values short and human-comparable.
+  static const int _fingerprintLength = 16;
+
   // ── Regex constants (locked per plan Section 3.8) ───────────────────────
 
   /// Matches the start of a Dart class declaration.
@@ -152,7 +154,12 @@ final class StateFreshnessChecker {
     }
 
     // ── 3. Required top-level keys ─────────────────────────────────────────
-    for (final key in ['schemaVersion', 'generatedAt', 'fingerprint', 'features']) {
+    for (final key in [
+      'schemaVersion',
+      'generatedAt',
+      'fingerprint',
+      'features',
+    ]) {
       if (!data.containsKey(key)) {
         violations.add(
           Violation(
@@ -351,7 +358,8 @@ final class StateFreshnessChecker {
           Violation(
             ruleId: 'state-freshness',
             filePath: _stateJsonPath,
-            message: 'Feature "$featureName" fingerprint stale\n'
+            message:
+                'Feature "$featureName" fingerprint stale\n'
                 '  Expected: $expectedFp\n'
                 '  Actual:   $storedFp',
             fixHint:
@@ -369,7 +377,8 @@ final class StateFreshnessChecker {
         Violation(
           ruleId: 'state-freshness',
           filePath: _stateJsonPath,
-          message: 'Top-level fingerprint stale\n'
+          message:
+              'Top-level fingerprint stale\n'
               '  Expected: $expectedTopFp\n'
               '  Actual:   $storedTopFp',
           fixHint:
@@ -385,6 +394,17 @@ final class StateFreshnessChecker {
   // ---------------------------------------------------------------------------
   // Fingerprint computation
   // ---------------------------------------------------------------------------
+
+  /// Computes a deterministic 16-hex-char fingerprint over [inputs].
+  ///
+  /// Serialises with `jsonEncode` (key order is the caller's responsibility —
+  /// pass an already-sorted map), then takes the first [_fingerprintLength]
+  /// hex chars of the SHA-256 digest.
+  static String _sha16(Object inputs) {
+    final encoded = jsonEncode(inputs);
+    final digest = sha256.convert(utf8.encode(encoded));
+    return digest.toString().substring(0, _fingerprintLength);
+  }
 
   /// Computes the per-feature fingerprint per plan Section 3.1.
   ///
@@ -427,9 +447,7 @@ final class StateFreshnessChecker {
       'tables': (List<String>.from(tables))..sort(),
     };
 
-    final encoded = jsonEncode(inputMap);
-    final digest = sha256.convert(utf8.encode(encoded));
-    return digest.toString().substring(0, 16);
+    return _sha16(inputMap);
   }
 
   /// Combines per-feature fingerprints into one top-level fingerprint.
@@ -438,9 +456,7 @@ final class StateFreshnessChecker {
       featureFingerprints.entries.toList()
         ..sort((a, b) => a.key.compareTo(b.key)),
     );
-    final encoded = jsonEncode(sorted);
-    final digest = sha256.convert(utf8.encode(encoded));
-    return digest.toString().substring(0, 16);
+    return _sha16(sorted);
   }
 
   // ---------------------------------------------------------------------------
