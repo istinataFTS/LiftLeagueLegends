@@ -97,6 +97,10 @@ final class FakeRepoView implements RepoView {
 
   final Map<String, String> _files;
 
+  /// Exposes the backing map so tests can copy and mutate it for partial
+  /// failure-case fixtures without having to reconstruct the whole map.
+  Map<String, String> get testFiles => _files;
+
   @override
   Future<List<String>> listDartFiles(String relPath) async {
     final prefix = relPath.endsWith('/') ? relPath : '$relPath/';

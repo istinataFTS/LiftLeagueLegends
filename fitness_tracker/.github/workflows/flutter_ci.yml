@@ -47,6 +47,9 @@ jobs:
       - name: Check conventions
         run: dart run tool/check_conventions.dart
 
+      - name: Check state freshness
+        run: dart run tool/check_state_freshness.dart
+
       - name: Run tests
         run: flutter test
 
