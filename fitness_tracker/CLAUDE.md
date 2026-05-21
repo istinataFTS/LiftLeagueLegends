@@ -82,9 +82,19 @@ Before starting any of the recurring tasks below, read the matching playbook in 
 - [Add a SQLite schema migration](.claude/skills/add-migration.md) — `databaseVersion` bump, `_onUpgrade` branch, additive-only rules, migration test
 - [Add a Supabase edge function](.claude/skills/add-edge-function.md) — shared budget enforcement, `voice_usage_log`, OpenAI wrapper, Deno tests
 
+## Codebase map
+
+Before exploring the codebase, read [`.claude/memory/state.json`](.claude/memory/state.json). It lists every feature (`home`, `log`, `history`, `library`, `profile`, `settings`, `auth`, `voice`) with its BLoC class names, repository interfaces, use case files, injection module path, and database tables. Loading this file first eliminates the exploration phase for common questions about feature wiring.
+
+**If you change feature wiring** (add a BLoC, rename a use case, add a table, change an injection module), update `state.json` in the same PR. `tool/check_state_freshness.dart` runs as a CI step after `check_conventions` and fails the build if any per-feature fingerprint is stale. Run it locally to get the expected fingerprint values to paste in:
+
+```sh
+dart run tool/check_state_freshness.dart
+```
+
 ## Convention checker
 
-`tool/check_conventions.dart` runs as a CI step (between `flutter analyze` and `flutter test`). It enforces six invariants that the Dart analyzer cannot express:
+`tool/check_conventions.dart` runs as a CI step (between `flutter analyze` and `flutter test`). A sibling step `tool/check_state_freshness.dart` runs immediately after it to validate the codebase map. Together they enforce seven invariants that the Dart analyzer cannot express:
 
 1. **`user-scoped-datasource`** — Every concrete local datasource under `lib/data/datasources/local/` must extend `UserScopedLocalDatasource`, or be on the documented exemption list in `tool/convention_rules/user_scoped_datasource.dart`.
 2. **`presentation-layer-data-import`** — No file under `lib/features/*/presentation/` may import from `lib/data/`. Use domain repository interfaces or use cases instead.
@@ -92,8 +102,11 @@ Before starting any of the recurring tasks below, read the matching playbook in 
 4. **`sql-userid-interpolation`** — SQL queries must not interpolate owner-id variables into the string literal. Use parameterised `whereArgs` or `whereOwned(...)`.
 5. **`known-issues-schema`** — Every entry in `KNOWN_ISSUES.md` must have the nine mandatory fields (Severity, Status, First observed, Last verified, Area, Symptom, Root cause, Workaround / fix, References) with valid controlled-vocabulary values and ISO-8601 dates.
 6. **`playbook-canonical-link`** — Every file in `.claude/skills/` must declare the locked metadata schema, have `Estimated steps:` match the actual step count, and resolve every `[[canonical]]` reference, KNOWN_ISSUES.md anchor, and backtick-wrapped source-file path it cites.
+7. **`state-freshness`** *(sibling script)* — `.claude/memory/state.json` must have per-feature fingerprints that match the live source tree. Enforced by `tool/check_state_freshness.dart` (not part of `check_conventions.dart`). Run `dart run tool/check_state_freshness.dart` to see expected values when stale.
 
 Run locally: `dart run tool/check_conventions.dart` from `fitness_tracker/`.
+
+To run the codebase-map check locally: `dart run tool/check_state_freshness.dart` from `fitness_tracker/`.
 
 ### Waivers
 
@@ -181,5 +194,5 @@ The voice feature is split across Flutter (on-device I/O) and a single Supabase 
 ### CI
 
 Two GitHub Actions jobs on push/PR to `main`, `develop`, `feature/**`, `fix/**`, `refactor/**`:
-- **Flutter**: format check → `flutter analyze` → `flutter test`
+- **Flutter**: format check → `flutter analyze` → `check_conventions` → `check_state_freshness` → `flutter test`
 - **Backend**: `deno fmt --check` → `deno lint` → `deno test --allow-all`

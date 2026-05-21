@@ -1,0 +1,222 @@
+{
+  "schemaVersion": 1,
+  "generatedAt": "2026-05-21",
+  "fingerprint": "e5667da208136e63",
+  "features": {
+    "auth": {
+      "summary": "Authentication cubits for sign-in, sign-up, and OTP verification.",
+      "paths": [
+        "lib/features/auth/"
+      ],
+      "blocs": [
+        "OtpVerificationCubit",
+        "SignInCubit",
+        "SignUpCubit"
+      ],
+      "repositories": [
+        "lib/domain/repositories/app_session_repository.dart"
+      ],
+      "useCases": [],
+      "injectionModule": "lib/injection/modules/register_core_module.dart",
+      "tables": [],
+      "notes": "Auth cubits are not registered via GetIt; they are created inline via BlocProvider in each presentation page. injectionModule points to where AppSessionRepository is wired.",
+      "fingerprint": "c586111c276f8328"
+    },
+    "history": {
+      "summary": "Read-only view of past workout and nutrition history with edit/delete.",
+      "paths": [
+        "lib/features/history/"
+      ],
+      "blocs": [
+        "HistoryBloc"
+      ],
+      "repositories": [
+        "lib/domain/repositories/nutrition_log_repository.dart",
+        "lib/domain/repositories/workout_set_repository.dart"
+      ],
+      "useCases": [
+        "lib/domain/usecases/nutrition_logs/delete_nutrition_log.dart",
+        "lib/domain/usecases/nutrition_logs/get_logs_by_date_range.dart",
+        "lib/domain/usecases/nutrition_logs/update_nutrition_log.dart",
+        "lib/domain/usecases/workout_sets/delete_workout_set.dart",
+        "lib/domain/usecases/workout_sets/get_all_workout_sets.dart",
+        "lib/domain/usecases/workout_sets/get_sets_by_date_range.dart",
+        "lib/domain/usecases/workout_sets/update_workout_set.dart"
+      ],
+      "injectionModule": "lib/injection/modules/register_history_module.dart",
+      "tables": [
+        "nutrition_logs",
+        "workout_sets"
+      ],
+      "notes": "Read-only consumer of log's data; shares repository singletons. HistoryBloc is registered as lazySingleton — the convention-checker misses this because the factory lambda wraps to a new line (tracked as a separate fix).",
+      "fingerprint": "3c660e1cdff5ab29"
+    },
+    "home": {
+      "summary": "Dashboard surface aggregating muscle visual state and nutrition summary.",
+      "paths": [
+        "lib/features/home/"
+      ],
+      "blocs": [
+        "HomeBloc",
+        "MuscleVisualBloc"
+      ],
+      "repositories": [
+        "lib/domain/repositories/app_session_repository.dart",
+        "lib/domain/repositories/muscle_factor_repository.dart",
+        "lib/domain/repositories/muscle_stimulus_repository.dart",
+        "lib/domain/repositories/nutrition_log_repository.dart"
+      ],
+      "useCases": [
+        "lib/domain/usecases/muscle_stimulus/get_muscle_visual_data.dart",
+        "lib/features/home/application/usecases/load_home_dashboard_data.dart"
+      ],
+      "injectionModule": [
+        "lib/injection/injection_container.dart",
+        "lib/injection/modules/register_muscle_stimulus_module.dart"
+      ],
+      "tables": [
+        "exercise_muscle_factors",
+        "muscle_stimulus"
+      ],
+      "notes": "HomeBloc is registered directly in injection_container.dart (no dedicated module file). MuscleVisualBloc is in register_muscle_stimulus_module.dart. LoadHomeDashboardData is a feature-local use case wrapper under lib/features/home/application/usecases/.",
+      "fingerprint": "59d5b6a3a0f82cc1"
+    },
+    "library": {
+      "summary": "Exercise and meal catalog management (browse, create, edit, delete).",
+      "paths": [
+        "lib/features/library/"
+      ],
+      "blocs": [
+        "ExerciseBloc",
+        "MealBloc"
+      ],
+      "repositories": [
+        "lib/domain/repositories/exercise_repository.dart",
+        "lib/domain/repositories/meal_repository.dart"
+      ],
+      "useCases": [
+        "lib/domain/usecases/exercises/add_exercise.dart",
+        "lib/domain/usecases/exercises/delete_exercise.dart",
+        "lib/domain/usecases/exercises/ensure_default_exercises.dart",
+        "lib/domain/usecases/exercises/get_all_exercises.dart",
+        "lib/domain/usecases/exercises/get_exercise_by_id.dart",
+        "lib/domain/usecases/exercises/get_exercises_for_muscle.dart",
+        "lib/domain/usecases/exercises/update_exercise.dart",
+        "lib/domain/usecases/meals/add_meal.dart",
+        "lib/domain/usecases/meals/delete_meal.dart",
+        "lib/domain/usecases/meals/ensure_default_meals.dart",
+        "lib/domain/usecases/meals/get_all_meals.dart",
+        "lib/domain/usecases/meals/get_meal_by_id.dart",
+        "lib/domain/usecases/meals/get_meal_by_name.dart",
+        "lib/domain/usecases/meals/update_meal.dart",
+        "lib/domain/usecases/muscle_factors/get_muscle_factors_for_exercise.dart"
+      ],
+      "injectionModule": [
+        "lib/injection/modules/register_exercises_module.dart",
+        "lib/injection/modules/register_meals_nutrition_module.dart"
+      ],
+      "tables": [
+        "exercises",
+        "meals"
+      ],
+      "notes": "ExerciseBloc uses get_muscle_factors_for_exercise (from muscle_factors use cases) for muscle-group display in the catalog.",
+      "fingerprint": "d408efb23688c7b8"
+    },
+    "log": {
+      "summary": "Workout set logging and nutrition logging for the current day.",
+      "paths": [
+        "lib/features/log/"
+      ],
+      "blocs": [
+        "NutritionLogBloc",
+        "WorkoutBloc"
+      ],
+      "repositories": [
+        "lib/domain/repositories/exercise_repository.dart",
+        "lib/domain/repositories/meal_repository.dart",
+        "lib/domain/repositories/nutrition_log_repository.dart",
+        "lib/domain/repositories/workout_set_repository.dart"
+      ],
+      "useCases": [
+        "lib/domain/usecases/muscle_stimulus/calculate_muscle_stimulus.dart",
+        "lib/domain/usecases/nutrition_logs/add_nutrition_log.dart",
+        "lib/domain/usecases/nutrition_logs/delete_nutrition_log.dart",
+        "lib/domain/usecases/nutrition_logs/get_daily_macros.dart",
+        "lib/domain/usecases/nutrition_logs/get_logs_for_date.dart",
+        "lib/domain/usecases/nutrition_logs/update_nutrition_log.dart",
+        "lib/domain/usecases/workout_sets/add_workout_set.dart",
+        "lib/domain/usecases/workout_sets/get_weekly_sets.dart"
+      ],
+      "injectionModule": [
+        "lib/injection/modules/register_meals_nutrition_module.dart",
+        "lib/injection/modules/register_workout_module.dart"
+      ],
+      "tables": [
+        "exercises",
+        "meals",
+        "nutrition_logs",
+        "workout_sets"
+      ],
+      "notes": "WorkoutBloc also consumes calculate_muscle_stimulus (from the muscle_stimulus domain layer) to compute stimulation scores on each rep-set log.",
+      "fingerprint": "bd7ce935b8a1bcdb"
+    },
+    "profile": {
+      "summary": "User profile view and sign-out; manages authenticated-user metadata.",
+      "paths": [
+        "lib/features/profile/"
+      ],
+      "blocs": [
+        "ProfileCubit"
+      ],
+      "repositories": [
+        "lib/domain/repositories/user_profile_repository.dart"
+      ],
+      "useCases": [],
+      "injectionModule": "lib/injection/modules/register_profile_module.dart",
+      "tables": [],
+      "notes": "Remote-only repository (Supabase). No local SQLite tables. ProfileCubit also consumes AppSessionRepository and AuthSessionService via the injection module.",
+      "fingerprint": "95cdac165eaeda64"
+    },
+    "settings": {
+      "summary": "App settings surface (units, voice settings, theme preferences).",
+      "paths": [
+        "lib/features/settings/"
+      ],
+      "blocs": [
+        "AppSettingsCubit"
+      ],
+      "repositories": [
+        "lib/domain/repositories/app_settings_repository.dart"
+      ],
+      "useCases": [],
+      "injectionModule": "lib/injection/modules/register_settings_module.dart",
+      "tables": [
+        "app_metadata"
+      ],
+      "notes": "AppSettingsCubit is registered as lazySingleton (intentional waiver — see register_settings_module.dart:9 and KNOWN_ISSUES.md #blocs-must-be-factories-repositories-singletons).",
+      "fingerprint": "e56e70ae91480f9b"
+    },
+    "voice": {
+      "summary": "Wake-word-triggered voice bot: STT on-device, LLM via edge function, TTS on-device.",
+      "paths": [
+        "lib/features/voice/"
+      ],
+      "blocs": [
+        "VoiceBloc",
+        "VoiceSettingsCubit"
+      ],
+      "repositories": [
+        "lib/domain/repositories/voice_repository.dart"
+      ],
+      "useCases": [
+        "lib/domain/usecases/voice/delete_voice_history.dart",
+        "lib/domain/usecases/voice/get_voice_budget.dart",
+        "lib/domain/usecases/voice/send_voice_message.dart"
+      ],
+      "injectionModule": "lib/injection/modules/register_voice_module.dart",
+      "tables": [],
+      "notes": "Edge function lives in supabase/functions/voice-chat/; not fingerprinted by v1 of this check. VoiceBloc dispatches tool calls to WorkoutBloc, NutritionLogBloc, and HistoryBloc at runtime.",
+      "fingerprint": "caed4f548295a761"
+    }
+  }
+}
