@@ -115,6 +115,9 @@ final class FakeRepoView implements RepoView {
   Future<String?> readFile(String relPath) async => _files[relPath];
 }
 
+/// Returns `true` if [s] is a valid ISO-8601 date in `YYYY-MM-DD` format.
+bool isIsoDate(String s) => RegExp(r'^\d{4}-\d{2}-\d{2}$').hasMatch(s);
+
 /// Returns `true` if the line at [zeroBasedIndex] or the line immediately
 /// before it contains a valid waiver comment for [ruleId].
 ///
@@ -123,9 +126,7 @@ final class FakeRepoView implements RepoView {
 /// // convention-checker:allow=<rule-id> reason=<at-least-10-char prose>
 /// ```
 bool hasWaiver(List<String> lines, int zeroBasedIndex, String ruleId) {
-  final pattern = RegExp(
-    r'convention-checker:allow=(\S+)\s+reason=(.+)',
-  );
+  final pattern = RegExp(r'convention-checker:allow=(\S+)\s+reason=(.+)');
   for (final idx in [zeroBasedIndex, zeroBasedIndex - 1]) {
     if (idx < 0 || idx >= lines.length) continue;
     final match = pattern.firstMatch(lines[idx]);

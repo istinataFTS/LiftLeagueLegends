@@ -2,6 +2,7 @@ import 'dart:io';
 
 import 'convention_rules/bloc_factory_registration.dart';
 import 'convention_rules/known_issues_schema.dart';
+import 'convention_rules/playbook_canonical_link.dart';
 import 'convention_rules/presentation_layer_imports.dart';
 import 'convention_rules/shared.dart';
 import 'convention_rules/sql_userid_interpolation.dart';
@@ -17,6 +18,7 @@ Future<void> main() async {
     BlocFactoryRegistrationRule(),
     SqlUseridInterpolationRule(),
     KnownIssuesSchemaRule(),
+    PlaybookCanonicalLinkRule(),
   ];
 
   final allViolations = <Violation>[];
@@ -41,9 +43,7 @@ Future<void> main() async {
   }
 
   if (allViolations.isEmpty) {
-    stdout.writeln(
-      'check_conventions: ${rules.length} rules passed.',
-    );
+    stdout.writeln('check_conventions: ${rules.length} rules passed.');
     exit(0);
   }
 
