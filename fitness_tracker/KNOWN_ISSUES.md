@@ -105,7 +105,7 @@ Numbered steps or a short paragraph. State what to do and what *not* to do.
 - **Severity:** High
 - **Status:** Resolved-but-monitor
 - **First observed:** 2026-05-19
-- **Last verified:** 2026-05-20
+- **Last verified:** 2026-05-21
 - **Area:** sync
 
 **Symptom**
@@ -132,7 +132,7 @@ The fix is in place. Do not reintroduce adoption logic on the sign-in path. The 
 - **Severity:** Critical
 - **Status:** Resolved-but-monitor
 - **First observed:** 2026-05-19
-- **Last verified:** 2026-05-20
+- **Last verified:** 2026-05-21
 - **Area:** sync
 
 **Symptom**
@@ -160,7 +160,7 @@ The scoped clear is in place. Any future datasource that participates in sign-ou
 - **Severity:** High
 - **Status:** Resolved-but-monitor
 - **First observed:** 2026-05-19
-- **Last verified:** 2026-05-20
+- **Last verified:** 2026-05-21
 - **Area:** sync
 
 **Symptom**
@@ -187,7 +187,7 @@ The clear is in place. Any sign-out flow must flush the pending-delete queue for
 - **Severity:** Medium
 - **Status:** Resolved-but-monitor
 - **First observed:** 2026-05-17
-- **Last verified:** 2026-05-20
+- **Last verified:** 2026-05-21
 - **Area:** sync
 
 **Symptom**
@@ -213,7 +213,7 @@ Always include the underlying exception's `toString()` in the failure message wh
 - **Severity:** Medium
 - **Status:** Resolved-but-monitor
 - **First observed:** 2026-05-17
-- **Last verified:** 2026-05-20
+- **Last verified:** 2026-05-21
 - **Area:** sync
 
 **Symptom**
@@ -242,7 +242,7 @@ After a background sync completed, the muscle-stimulus map shown in the UI refle
 - **Severity:** Medium
 - **Status:** Active
 - **First observed:** 2026-05-14
-- **Last verified:** 2026-05-20
+- **Last verified:** 2026-05-21
 - **Area:** voice
 
 **Symptom**
@@ -269,7 +269,7 @@ Do not raise `VoiceConstants.sttListenTimeout`. If a future spec revision change
 - **Severity:** High
 - **Status:** Mitigated
 - **First observed:** 2026-05-14
-- **Last verified:** 2026-05-20
+- **Last verified:** 2026-05-21
 - **Area:** voice
 
 **Symptom**
@@ -297,7 +297,7 @@ The Supabase Functions HTTP client does not apply a default timeout. OpenAI call
 - **Severity:** Critical
 - **Status:** Active
 - **First observed:** 2026-05-14
-- **Last verified:** 2026-05-20
+- **Last verified:** 2026-05-21
 - **Area:** voice
 
 **Symptom**
@@ -325,7 +325,7 @@ The cap (`VoiceConstants.dailyBudgetCapUsd` on the Flutter side; `dailyCapUsd` p
 - **Severity:** Low
 - **Status:** Active
 - **First observed:** 2026-05-14
-- **Last verified:** 2026-05-20
+- **Last verified:** 2026-05-21
 - **Area:** voice
 
 **Symptom**
@@ -353,7 +353,7 @@ Leave the FAB visible and disabled for guests. The sign-in CTA is the intended i
 - **Severity:** High
 - **Status:** Active
 - **First observed:** 2026-05-14
-- **Last verified:** 2026-05-20
+- **Last verified:** 2026-05-21
 - **Area:** db
 
 **Symptom**
@@ -381,7 +381,7 @@ All migrations from version 15 onward must be strictly additive (add columns, ad
 - **Severity:** High
 - **Status:** Resolved-but-monitor
 - **First observed:** 2026-05-18
-- **Last verified:** 2026-05-20
+- **Last verified:** 2026-05-21
 - **Area:** db
 
 **Symptom**
@@ -409,7 +409,7 @@ Use `ConflictAlgorithm.replace` (sqflite) when inserting default catalog entries
 - **Severity:** High
 - **Status:** Resolved-but-monitor
 - **First observed:** 2026-05-18
-- **Last verified:** 2026-05-20
+- **Last verified:** 2026-05-21
 - **Area:** db
 
 **Symptom**
@@ -439,7 +439,7 @@ The sign-in sync path now pulls before pushing for any entity that may already e
 - **Severity:** High
 - **Status:** Active
 - **First observed:** 2026-05-14
-- **Last verified:** 2026-05-20
+- **Last verified:** 2026-05-21
 - **Area:** di
 
 **Symptom**
@@ -466,7 +466,7 @@ Register all BLoCs and Cubits with `registerFactory`. Register all repositories,
 - **Severity:** Medium
 - **Status:** Resolved-but-monitor
 - **First observed:** 2026-05-14
-- **Last verified:** 2026-05-20
+- **Last verified:** 2026-05-21
 - **Area:** di
 
 **Symptom**
@@ -493,7 +493,7 @@ Before registering a type that might already be registered (e.g. a shared servic
 - **Severity:** Medium
 - **Status:** Resolved-but-monitor
 - **First observed:** 2026-05-14
-- **Last verified:** 2026-05-20
+- **Last verified:** 2026-05-21
 - **Area:** di
 
 **Symptom**
@@ -522,7 +522,7 @@ All async work performed during DI bootstrap must be awaited before the bootstra
 - **Severity:** Low
 - **Status:** Active
 - **First observed:** 2026-05-20
-- **Last verified:** 2026-05-20
+- **Last verified:** 2026-05-21
 - **Area:** ci
 
 **Symptom**
@@ -549,7 +549,7 @@ To verify real formatting issues, run format only against the diff: `dart format
 - **Severity:** Low
 - **Status:** Active
 - **First observed:** 2026-05-20
-- **Last verified:** 2026-05-20
+- **Last verified:** 2026-05-21
 - **Area:** ci
 
 **Symptom**
@@ -575,7 +575,7 @@ Do not invest time eliminating info-level analyzer notices unless they are promo
 - **Severity:** Low
 - **Status:** Active
 - **First observed:** 2026-05-20
-- **Last verified:** 2026-05-20
+- **Last verified:** 2026-05-21
 - **Area:** ci
 
 **Symptom**
@@ -603,7 +603,7 @@ Always push to a feature or fix branch and open a PR. The branch naming conventi
 - **Severity:** Medium
 - **Status:** Active
 - **First observed:** 2026-05-14
-- **Last verified:** 2026-05-20
+- **Last verified:** 2026-05-21
 - **Area:** platform
 
 **Symptom**
@@ -630,7 +630,7 @@ After changing any `--dart-define` value, run a full `flutter run` (not hot rest
 - **Severity:** Low
 - **Status:** Active
 - **First observed:** 2026-05-14
-- **Last verified:** 2026-05-20
+- **Last verified:** 2026-05-21
 - **Area:** platform
 
 **Symptom**
@@ -659,7 +659,7 @@ To run with a real Supabase backend, pass all three `--dart-define` flags on `fl
 - **Severity:** Low
 - **Status:** Resolved-but-monitor
 - **First observed:** 2026-05-14
-- **Last verified:** 2026-05-20
+- **Last verified:** 2026-05-21
 - **Area:** other
 
 **Symptom**
@@ -686,7 +686,7 @@ Do not add a filter that hides sets with a missing exercise reference. The fallb
 - **Severity:** Low
 - **Status:** Resolved-but-monitor
 - **First observed:** 2026-05-14
-- **Last verified:** 2026-05-20
+- **Last verified:** 2026-05-21
 - **Area:** other
 
 **Symptom**
