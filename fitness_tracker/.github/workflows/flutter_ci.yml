@@ -44,6 +44,9 @@ jobs:
       - name: Analyze project
         run: flutter analyze
 
+      - name: Check conventions
+        run: dart run tool/check_conventions.dart
+
       - name: Run tests
         run: flutter test
 

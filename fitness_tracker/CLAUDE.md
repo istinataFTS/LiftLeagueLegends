@@ -69,7 +69,36 @@ Before writing a new datasource, repository, use case, BLoC, injection module, o
 - [BLoC test](.claude/reference/bloc_test.md) — `bloc_test` + `mocktail`, effect assertion, `setUp`/`tearDown`
 - [Widget test](.claude/reference/widget_test.md) — `buildSubject` helper, `AppShell` wrapper, `pumpAndSettle`
 
-If you change a canonical pattern's shape, update the matching reference file in the same PR. Adoption 04 will add a CI check to enforce this.
+If you change a canonical pattern's shape, update the matching reference file in the same PR.
+
+## Convention checker
+
+`tool/check_conventions.dart` runs as a CI step (between `flutter analyze` and `flutter test`). It enforces five invariants that the Dart analyzer cannot express:
+
+1. **`user-scoped-datasource`** — Every concrete local datasource under `lib/data/datasources/local/` must extend `UserScopedLocalDatasource`, or be on the documented exemption list in `tool/convention_rules/user_scoped_datasource.dart`.
+2. **`presentation-layer-data-import`** — No file under `lib/features/*/presentation/` may import from `lib/data/`. Use domain repository interfaces or use cases instead.
+3. **`bloc-factory-registration`** — BLoCs and Cubits must be `registerFactory`, not `registerLazySingleton`, in `lib/injection/modules/`. (See KNOWN_ISSUES.md `#blocs-must-be-factories-repositories-singletons`.)
+4. **`sql-userid-interpolation`** — SQL queries must not interpolate owner-id variables into the string literal. Use parameterised `whereArgs` or `whereOwned(...)`.
+5. **`known-issues-schema`** — Every entry in `KNOWN_ISSUES.md` must have the nine mandatory fields (Severity, Status, First observed, Last verified, Area, Symptom, Root cause, Workaround / fix, References) with valid controlled-vocabulary values and ISO-8601 dates.
+
+Run locally: `dart run tool/check_conventions.dart` from `fitness_tracker/`.
+
+### Waivers
+
+To exempt a specific line from a rule, add an inline comment on the offending line or the line immediately above it:
+
+```dart
+// convention-checker:allow=<rule-id> reason=<at-least-10-character prose>
+```
+
+The `reason=` clause is mandatory (minimum 10 characters). Waivers are reviewed in PR. See `lib/injection/modules/register_settings_module.dart` for the one documented waiver (`AppSettingsCubit` intentional singleton).
+
+### Adding a new rule
+
+1. Implement `ConventionRule` in `tool/convention_rules/<rule-id>.dart`.
+2. Register it in `tool/check_conventions.dart`.
+3. Add a test file at `test/tool/<rule-id>_test.dart` covering at least one pass case and one fail case.
+4. Document it in this section.
 
 ## Architecture
 
