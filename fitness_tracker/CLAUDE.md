@@ -71,15 +71,27 @@ Before writing a new datasource, repository, use case, BLoC, injection module, o
 
 If you change a canonical pattern's shape, update the matching reference file in the same PR.
 
+## Task playbooks
+
+Before starting any of the recurring tasks below, read the matching playbook in `.claude/skills/`. Each playbook is a step-by-step checklist with explicit file paths, canonical references, and KNOWN_ISSUES pointers. Do not re-derive the steps from scratch.
+
+- [Add a new feature end-to-end](.claude/skills/add-feature.md) — domain entity → datasource → repository → use case → BLoC → DI → tests → page
+- [Add a user-scoped local datasource](.claude/skills/add-datasource.md) — `UserScopedLocalDatasource`, `whereOwned(...)`, auth-only guards, DI wiring, tests
+- [Add a use case to an existing feature](.claude/skills/add-use-case.md) — `Params`, `call()`, repository delegation, DI, BLoC wiring, tests
+- [Add a new event, state, or effect to an existing BLoC](.claude/skills/add-bloc-effect.md) — event/state/effect classes, handler registration, `BlocEffectsMixin`, tests
+- [Add a SQLite schema migration](.claude/skills/add-migration.md) — `databaseVersion` bump, `_onUpgrade` branch, additive-only rules, migration test
+- [Add a Supabase edge function](.claude/skills/add-edge-function.md) — shared budget enforcement, `voice_usage_log`, OpenAI wrapper, Deno tests
+
 ## Convention checker
 
-`tool/check_conventions.dart` runs as a CI step (between `flutter analyze` and `flutter test`). It enforces five invariants that the Dart analyzer cannot express:
+`tool/check_conventions.dart` runs as a CI step (between `flutter analyze` and `flutter test`). It enforces six invariants that the Dart analyzer cannot express:
 
 1. **`user-scoped-datasource`** — Every concrete local datasource under `lib/data/datasources/local/` must extend `UserScopedLocalDatasource`, or be on the documented exemption list in `tool/convention_rules/user_scoped_datasource.dart`.
 2. **`presentation-layer-data-import`** — No file under `lib/features/*/presentation/` may import from `lib/data/`. Use domain repository interfaces or use cases instead.
 3. **`bloc-factory-registration`** — BLoCs and Cubits must be `registerFactory`, not `registerLazySingleton`, in `lib/injection/modules/`. (See KNOWN_ISSUES.md `#blocs-must-be-factories-repositories-singletons`.)
 4. **`sql-userid-interpolation`** — SQL queries must not interpolate owner-id variables into the string literal. Use parameterised `whereArgs` or `whereOwned(...)`.
 5. **`known-issues-schema`** — Every entry in `KNOWN_ISSUES.md` must have the nine mandatory fields (Severity, Status, First observed, Last verified, Area, Symptom, Root cause, Workaround / fix, References) with valid controlled-vocabulary values and ISO-8601 dates.
+6. **`playbook-canonical-link`** — Every file in `.claude/skills/` must declare the locked metadata schema, have `Estimated steps:` match the actual step count, and resolve every `[[canonical]]` reference, KNOWN_ISSUES.md anchor, and backtick-wrapped source-file path it cites.
 
 Run locally: `dart run tool/check_conventions.dart` from `fitness_tracker/`.
 
