@@ -57,6 +57,20 @@ flutter run \
 
 `KNOWN_ISSUES.md` covers recurring traps: SQLite migration quirks, sync-ordering constraints, voice budget enforcement, dart-define behaviour, DI registration rules, and CI tooling gotchas. Consult it at the start of any debugging session — the problem may already be documented.
 
+## Canonical examples
+
+Before writing a new datasource, repository, use case, BLoC, injection module, or test, read the matching canonical example in `.claude/reference/`. Each file points at the live, blessed implementation of one pattern with an annotated walkthrough explaining what makes it canonical and what to watch out for when copying it.
+
+- [Local datasource](.claude/reference/datasource.md) — `UserScopedLocalDatasource`, `whereOwned(...)`, `resolveOwnerId()`, `requireAuthenticatedOwnerId()`
+- [Repository implementation](.claude/reference/repository.md) — `RepositoryGuard.run`, `Either<Failure, T>`, `DataSourcePreference`, offline-resilient remote reads
+- [Use case](.claude/reference/use_case.md) — pure domain, `call()` entry point, session resolution, chained side effects
+- [BLoC](.claude/reference/bloc.md) — `BlocEffectsMixin`, event/state/effect types, load-vs-refresh pattern
+- [Injection module](.claude/reference/injection_module.md) — `registerFactory` for BLoCs, `registerLazySingleton<Interface>` for everything else, env-gate pattern
+- [BLoC test](.claude/reference/bloc_test.md) — `bloc_test` + `mocktail`, effect assertion, `setUp`/`tearDown`
+- [Widget test](.claude/reference/widget_test.md) — `buildSubject` helper, `AppShell` wrapper, `pumpAndSettle`
+
+If you change a canonical pattern's shape, update the matching reference file in the same PR. Adoption 04 will add a CI check to enforce this.
+
 ## Architecture
 
 ### Flutter app — Clean Architecture
