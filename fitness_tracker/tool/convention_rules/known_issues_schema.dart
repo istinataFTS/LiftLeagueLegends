@@ -20,11 +20,7 @@ final class KnownIssuesSchemaRule implements ConventionRule {
   static const _filePath = 'KNOWN_ISSUES.md';
 
   static const _validSeverities = {'Critical', 'High', 'Medium', 'Low'};
-  static const _validStatuses = {
-    'Active',
-    'Mitigated',
-    'Resolved-but-monitor',
-  };
+  static const _validStatuses = {'Active', 'Mitigated', 'Resolved-but-monitor'};
   static const _validAreas = {
     'sync',
     'voice',
@@ -37,18 +33,28 @@ final class KnownIssuesSchemaRule implements ConventionRule {
 
   // Applied to the full entry block (multiLine so ^ matches per line,
   // and \S+ stops at the first whitespace after the value).
-  static final _severityPattern =
-      RegExp(r'^\s*-\s*\*\*Severity:\*\*\s*(\S+)', multiLine: true);
-  static final _statusPattern =
-      RegExp(r'^\s*-\s*\*\*Status:\*\*\s*(\S+)', multiLine: true);
-  static final _firstObservedPattern =
-      RegExp(r'^\s*-\s*\*\*First observed:\*\*\s*(\S+)', multiLine: true);
-  static final _lastVerifiedPattern =
-      RegExp(r'^\s*-\s*\*\*Last verified:\*\*\s*(\S+)', multiLine: true);
-  static final _areaPattern =
-      RegExp(r'^\s*-\s*\*\*Area:\*\*\s*(\S+)', multiLine: true);
+  static final _severityPattern = RegExp(
+    r'^\s*-\s*\*\*Severity:\*\*\s*(\S+)',
+    multiLine: true,
+  );
+  static final _statusPattern = RegExp(
+    r'^\s*-\s*\*\*Status:\*\*\s*(\S+)',
+    multiLine: true,
+  );
+  static final _firstObservedPattern = RegExp(
+    r'^\s*-\s*\*\*First observed:\*\*\s*(\S+)',
+    multiLine: true,
+  );
+  static final _lastVerifiedPattern = RegExp(
+    r'^\s*-\s*\*\*Last verified:\*\*\s*(\S+)',
+    multiLine: true,
+  );
+  static final _areaPattern = RegExp(
+    r'^\s*-\s*\*\*Area:\*\*\s*(\S+)',
+    multiLine: true,
+  );
 
-  static final _isoDatePattern = RegExp(r'^\d{4}-\d{2}-\d{2}$');
+  // isIsoDate is defined in shared.dart.
 
   @override
   Future<List<Violation>> check(RepoView repo) async {
@@ -116,13 +122,16 @@ final class KnownIssuesSchemaRule implements ConventionRule {
 
     // Extract field values using multiLine patterns applied to the full
     // entry block — avoids any CRLF / line-splitting edge cases.
-    final severity =
-        _severityPattern.firstMatch(content)?.group(1)?.trim();
+    final severity = _severityPattern.firstMatch(content)?.group(1)?.trim();
     final status = _statusPattern.firstMatch(content)?.group(1)?.trim();
-    final firstObserved =
-        _firstObservedPattern.firstMatch(content)?.group(1)?.trim();
-    final lastVerified =
-        _lastVerifiedPattern.firstMatch(content)?.group(1)?.trim();
+    final firstObserved = _firstObservedPattern
+        .firstMatch(content)
+        ?.group(1)
+        ?.trim();
+    final lastVerified = _lastVerifiedPattern
+        .firstMatch(content)
+        ?.group(1)
+        ?.trim();
     final area = _areaPattern.firstMatch(content)?.group(1)?.trim();
 
     final hasSymptomHeader = content.contains('**Symptom**');
@@ -131,15 +140,15 @@ final class KnownIssuesSchemaRule implements ConventionRule {
     final hasReferencesHeader = content.contains('**References**');
 
     void report(String msg) => violations.add(
-          Violation(
-            ruleId: id,
-            filePath: _filePath,
-            message: '"${entry.slug}" — $msg',
-            fixHint:
-                'Add or correct the field. See the template at the top of '
-                'KNOWN_ISSUES.md for the required format.',
-          ),
-        );
+      Violation(
+        ruleId: id,
+        filePath: _filePath,
+        message: '"${entry.slug}" — $msg',
+        fixHint:
+            'Add or correct the field. See the template at the top of '
+            'KNOWN_ISSUES.md for the required format.',
+      ),
+    );
 
     if (severity == null) {
       report('missing field "Severity"');
@@ -160,7 +169,7 @@ final class KnownIssuesSchemaRule implements ConventionRule {
 
     if (firstObserved == null) {
       report('missing field "First observed"');
-    } else if (!_isoDatePattern.hasMatch(firstObserved)) {
+    } else if (!isIsoDate(firstObserved)) {
       report(
         'invalid "First observed" date "$firstObserved" — must be YYYY-MM-DD',
       );
@@ -168,7 +177,7 @@ final class KnownIssuesSchemaRule implements ConventionRule {
 
     if (lastVerified == null) {
       report('missing field "Last verified"');
-    } else if (!_isoDatePattern.hasMatch(lastVerified)) {
+    } else if (!isIsoDate(lastVerified)) {
       report(
         'invalid "Last verified" date "$lastVerified" — must be YYYY-MM-DD',
       );
