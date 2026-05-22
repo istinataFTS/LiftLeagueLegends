@@ -19,8 +19,6 @@ import '../../domain/usecases/voice/get_voice_budget.dart';
 import '../../domain/usecases/voice/send_voice_message.dart';
 import '../../domain/usecases/workout_sets/get_sets_by_date_range.dart';
 import '../../domain/usecases/workout_sets/get_weekly_sets.dart';
-import '../../features/history/history.dart';
-import '../../features/log/log.dart';
 import '../../features/settings/application/app_settings_cubit.dart';
 import '../../features/voice/application/voice_bloc.dart';
 import '../../features/voice/application/voice_settings_cubit.dart';
@@ -36,10 +34,10 @@ import '../../features/voice/data/services/flutter_tts_voice_tts_service.dart';
 import '../../features/voice/data/services/porcupine_voice_wake_word_service.dart';
 import '../../features/voice/data/services/secure_storage_voice_credential_service.dart';
 import '../../features/voice/data/services/speech_to_text_voice_stt_service.dart';
-import '../../features/voice/data/services/voice_credential_service.dart';
-import '../../features/voice/data/services/voice_stt_service.dart';
-import '../../features/voice/data/services/voice_tts_service.dart';
-import '../../features/voice/data/services/voice_wake_word_service.dart';
+import '../../domain/services/voice_credential_service.dart';
+import '../../domain/services/voice_stt_service.dart';
+import '../../domain/services/voice_tts_service.dart';
+import '../../domain/services/voice_wake_word_service.dart';
 
 /// Wires up the voice feature.
 ///
@@ -143,9 +141,8 @@ void registerVoiceModule(GetIt sl) {
   // VoiceBloc: factory — per voice overlay instance.
   // `currentVoiceSettings` is a callback so the bloc reads the latest values
   // from the singleton AppSettingsCubit at every chat turn (no stale snapshot).
-  // C-5 mutation targets (WorkoutBloc, NutritionLogBloc, HistoryBloc) are
-  // singletons — accessed via sl<> so the factory closes over the singleton
-  // references at construction time without triggering re-creation.
+  // Mutation dispatch is handled by VoiceCommandRouter in the widget tree —
+  // VoiceBloc holds no BLoC references.
   sl.registerFactory(
     () => VoiceBloc(
       sendVoiceMessage: sl(),
@@ -159,9 +156,6 @@ void registerVoiceModule(GetIt sl) {
       networkStatusService: sl<NetworkStatusService>(),
       wakeWordService: sl<VoiceWakeWordService>(),
       wakelockService: sl<WakelockService>(),
-      workoutBloc: sl<WorkoutBloc>(),
-      nutritionLogBloc: sl<NutritionLogBloc>(),
-      historyBloc: sl<HistoryBloc>(),
       getSetsByDateRange: sl<GetSetsByDateRange>(),
       getDailyMacros: sl<GetDailyMacros>(),
       getWeeklySets: sl<GetWeeklySets>(),

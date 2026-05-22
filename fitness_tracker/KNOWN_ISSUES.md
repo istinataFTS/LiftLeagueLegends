@@ -87,14 +87,15 @@ Numbered steps or a short paragraph. State what to do and what *not* to do.
 16. [crlf-line-endings-cause-false-positive-dart-format-locally](#crlf-line-endings-cause-false-positive-dart-format-locally)
 17. [flutter-analyze-info-issues-do-not-fail-ci](#flutter-analyze-info-issues-do-not-fail-ci)
 18. [main-branch-is-pr-only-direct-push-blocked](#main-branch-is-pr-only-direct-push-blocked)
+19. [convention-checker-regexes-must-have-multiline-test-fixtures](#convention-checker-regexes-must-have-multiline-test-fixtures)
 
 ### Platform
-19. [dart-define-is-build-time-not-runtime](#dart-define-is-build-time-not-runtime)
-20. [supabase-disabled-by-default](#supabase-disabled-by-default)
+20. [dart-define-is-build-time-not-runtime](#dart-define-is-build-time-not-runtime)
+21. [supabase-disabled-by-default](#supabase-disabled-by-default)
 
 ### Other
-21. [history-renders-orphaned-sets-not-hides-them](#history-renders-orphaned-sets-not-hides-them)
-22. [voice-slider-persists-on-every-drag-tick](#voice-slider-persists-on-every-drag-tick)
+22. [history-renders-orphaned-sets-not-hides-them](#history-renders-orphaned-sets-not-hides-them)
+23. [voice-slider-persists-on-every-drag-tick](#voice-slider-persists-on-every-drag-tick)
 
 ---
 
@@ -105,7 +106,7 @@ Numbered steps or a short paragraph. State what to do and what *not* to do.
 - **Severity:** High
 - **Status:** Resolved-but-monitor
 - **First observed:** 2026-05-19
-- **Last verified:** 2026-05-21
+- **Last verified:** 2026-05-22
 - **Area:** sync
 
 **Symptom**
@@ -132,7 +133,7 @@ The fix is in place. Do not reintroduce adoption logic on the sign-in path. The 
 - **Severity:** Critical
 - **Status:** Resolved-but-monitor
 - **First observed:** 2026-05-19
-- **Last verified:** 2026-05-21
+- **Last verified:** 2026-05-22
 - **Area:** sync
 
 **Symptom**
@@ -160,7 +161,7 @@ The scoped clear is in place. Any future datasource that participates in sign-ou
 - **Severity:** High
 - **Status:** Resolved-but-monitor
 - **First observed:** 2026-05-19
-- **Last verified:** 2026-05-21
+- **Last verified:** 2026-05-22
 - **Area:** sync
 
 **Symptom**
@@ -187,7 +188,7 @@ The clear is in place. Any sign-out flow must flush the pending-delete queue for
 - **Severity:** Medium
 - **Status:** Resolved-but-monitor
 - **First observed:** 2026-05-17
-- **Last verified:** 2026-05-21
+- **Last verified:** 2026-05-22
 - **Area:** sync
 
 **Symptom**
@@ -213,7 +214,7 @@ Always include the underlying exception's `toString()` in the failure message wh
 - **Severity:** Medium
 - **Status:** Resolved-but-monitor
 - **First observed:** 2026-05-17
-- **Last verified:** 2026-05-21
+- **Last verified:** 2026-05-22
 - **Area:** sync
 
 **Symptom**
@@ -242,7 +243,7 @@ After a background sync completed, the muscle-stimulus map shown in the UI refle
 - **Severity:** Medium
 - **Status:** Active
 - **First observed:** 2026-05-14
-- **Last verified:** 2026-05-21
+- **Last verified:** 2026-05-22
 - **Area:** voice
 
 **Symptom**
@@ -269,7 +270,7 @@ Do not raise `VoiceConstants.sttListenTimeout`. If a future spec revision change
 - **Severity:** High
 - **Status:** Mitigated
 - **First observed:** 2026-05-14
-- **Last verified:** 2026-05-21
+- **Last verified:** 2026-05-22
 - **Area:** voice
 
 **Symptom**
@@ -297,7 +298,7 @@ The Supabase Functions HTTP client does not apply a default timeout. OpenAI call
 - **Severity:** Critical
 - **Status:** Active
 - **First observed:** 2026-05-14
-- **Last verified:** 2026-05-21
+- **Last verified:** 2026-05-22
 - **Area:** voice
 
 **Symptom**
@@ -325,7 +326,7 @@ The cap (`VoiceConstants.dailyBudgetCapUsd` on the Flutter side; `dailyCapUsd` p
 - **Severity:** Low
 - **Status:** Active
 - **First observed:** 2026-05-14
-- **Last verified:** 2026-05-21
+- **Last verified:** 2026-05-22
 - **Area:** voice
 
 **Symptom**
@@ -353,7 +354,7 @@ Leave the FAB visible and disabled for guests. The sign-in CTA is the intended i
 - **Severity:** High
 - **Status:** Active
 - **First observed:** 2026-05-14
-- **Last verified:** 2026-05-21
+- **Last verified:** 2026-05-22
 - **Area:** db
 
 **Symptom**
@@ -381,7 +382,7 @@ All migrations from version 15 onward must be strictly additive (add columns, ad
 - **Severity:** High
 - **Status:** Resolved-but-monitor
 - **First observed:** 2026-05-18
-- **Last verified:** 2026-05-21
+- **Last verified:** 2026-05-22
 - **Area:** db
 
 **Symptom**
@@ -409,7 +410,7 @@ Use `ConflictAlgorithm.replace` (sqflite) when inserting default catalog entries
 - **Severity:** High
 - **Status:** Resolved-but-monitor
 - **First observed:** 2026-05-18
-- **Last verified:** 2026-05-21
+- **Last verified:** 2026-05-22
 - **Area:** db
 
 **Symptom**
@@ -439,7 +440,7 @@ The sign-in sync path now pulls before pushing for any entity that may already e
 - **Severity:** High
 - **Status:** Active
 - **First observed:** 2026-05-14
-- **Last verified:** 2026-05-21
+- **Last verified:** 2026-05-22
 - **Area:** di
 
 **Symptom**
@@ -466,7 +467,7 @@ Register all BLoCs and Cubits with `registerFactory`. Register all repositories,
 - **Severity:** Medium
 - **Status:** Resolved-but-monitor
 - **First observed:** 2026-05-14
-- **Last verified:** 2026-05-21
+- **Last verified:** 2026-05-22
 - **Area:** di
 
 **Symptom**
@@ -493,7 +494,7 @@ Before registering a type that might already be registered (e.g. a shared servic
 - **Severity:** Medium
 - **Status:** Resolved-but-monitor
 - **First observed:** 2026-05-14
-- **Last verified:** 2026-05-21
+- **Last verified:** 2026-05-22
 - **Area:** di
 
 **Symptom**
@@ -522,7 +523,7 @@ All async work performed during DI bootstrap must be awaited before the bootstra
 - **Severity:** Low
 - **Status:** Active
 - **First observed:** 2026-05-20
-- **Last verified:** 2026-05-21
+- **Last verified:** 2026-05-22
 - **Area:** ci
 
 **Symptom**
@@ -549,7 +550,7 @@ To verify real formatting issues, run format only against the diff: `dart format
 - **Severity:** Low
 - **Status:** Active
 - **First observed:** 2026-05-20
-- **Last verified:** 2026-05-21
+- **Last verified:** 2026-05-22
 - **Area:** ci
 
 **Symptom**
@@ -575,7 +576,7 @@ Do not invest time eliminating info-level analyzer notices unless they are promo
 - **Severity:** Low
 - **Status:** Active
 - **First observed:** 2026-05-20
-- **Last verified:** 2026-05-21
+- **Last verified:** 2026-05-22
 - **Area:** ci
 
 **Symptom**
@@ -596,6 +597,33 @@ Always push to a feature or fix branch and open a PR. The branch naming conventi
 
 ---
 
+### convention-checker-regexes-must-have-multiline-test-fixtures
+
+- **Severity:** Medium
+- **Status:** Resolved-but-monitor
+- **First observed:** 2026-05-21
+- **Last verified:** 2026-05-22
+- **Area:** ci
+
+**Symptom**
+
+A convention-checker rule passes its unit tests but silently fails to detect a real violation in the live codebase. The developer is unaware the rule is broken because green tests imply green enforcement.
+
+**Root cause**
+
+The rule's regex was tested only against single-line fixtures. The dart-formatter routinely wraps long lines, and patterns like `registerLazySingleton(\n  () => XxxBloc(` span two lines. A per-line regex iteration cannot match across the line break.
+
+**Workaround / fix**
+
+Every convention rule's regex must be tested against at least one multi-line fixture in `test/tool/<rule-id>_test.dart`. Whenever possible, scan whole-file content rather than per-line iteration, and recover the 1-based line number from each match's byte offset via `'\n'.allMatches(content.substring(0, match.start)).length + 1`. Reference implementations: `KnownIssuesSchemaRule`, `StateFreshnessChecker._classDeclarationRegex`.
+
+**References**
+
+- `tool/convention_rules/bloc_factory_registration.dart` — the rule that was fixed
+- Commit `ab2c46e` — fix(ci): convention-checker detects multi-line BLoC singletons
+
+---
+
 ## Platform
 
 ### dart-define-is-build-time-not-runtime
@@ -603,7 +631,7 @@ Always push to a feature or fix branch and open a PR. The branch naming conventi
 - **Severity:** Medium
 - **Status:** Active
 - **First observed:** 2026-05-14
-- **Last verified:** 2026-05-21
+- **Last verified:** 2026-05-22
 - **Area:** platform
 
 **Symptom**
@@ -630,7 +658,7 @@ After changing any `--dart-define` value, run a full `flutter run` (not hot rest
 - **Severity:** Low
 - **Status:** Active
 - **First observed:** 2026-05-14
-- **Last verified:** 2026-05-21
+- **Last verified:** 2026-05-22
 - **Area:** platform
 
 **Symptom**
@@ -659,7 +687,7 @@ To run with a real Supabase backend, pass all three `--dart-define` flags on `fl
 - **Severity:** Low
 - **Status:** Resolved-but-monitor
 - **First observed:** 2026-05-14
-- **Last verified:** 2026-05-21
+- **Last verified:** 2026-05-22
 - **Area:** other
 
 **Symptom**
@@ -686,7 +714,7 @@ Do not add a filter that hides sets with a missing exercise reference. The fallb
 - **Severity:** Low
 - **Status:** Resolved-but-monitor
 - **First observed:** 2026-05-14
-- **Last verified:** 2026-05-21
+- **Last verified:** 2026-05-22
 - **Area:** other
 
 **Symptom**

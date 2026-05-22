@@ -1,6 +1,6 @@
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 
-import 'voice_credential_service.dart';
+import '../../../../domain/services/voice_credential_service.dart';
 
 class SecureStorageVoiceCredentialService implements VoiceCredentialService {
   const SecureStorageVoiceCredentialService(this._storage);
@@ -11,8 +11,7 @@ class SecureStorageVoiceCredentialService implements VoiceCredentialService {
   static const _kPicovoiceKey = 'voice.picovoice_access_key';
 
   @override
-  Future<String?> getPicovoiceAccessKey() =>
-      _storage.read(key: _kPicovoiceKey);
+  Future<String?> getPicovoiceAccessKey() => _storage.read(key: _kPicovoiceKey);
 
   @override
   Future<void> setPicovoiceAccessKey(String key) {

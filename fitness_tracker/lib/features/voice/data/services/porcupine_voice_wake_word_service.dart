@@ -8,8 +8,8 @@ import 'package:porcupine_flutter/porcupine_manager.dart';
 
 import '../../../../core/logging/app_logger.dart';
 import '../../../../domain/entities/voice_settings.dart' show WakeWordPreset;
-import 'voice_credential_service.dart';
-import 'voice_wake_word_service.dart';
+import '../../../../domain/services/voice_credential_service.dart';
+import '../../../../domain/services/voice_wake_word_service.dart';
 
 /// Picovoice Porcupine implementation of [VoiceWakeWordService].
 ///
@@ -82,7 +82,10 @@ class PorcupineVoiceWakeWordService implements VoiceWakeWordService {
         stackTrace: st,
         category: 'voice',
       );
-      throw VoiceWakeWordException(VoiceWakeWordErrorKind.engineError, e.message);
+      throw VoiceWakeWordException(
+        VoiceWakeWordErrorKind.engineError,
+        e.message,
+      );
     }
   }
 

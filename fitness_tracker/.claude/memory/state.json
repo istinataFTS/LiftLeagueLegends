@@ -1,7 +1,7 @@
 {
   "schemaVersion": 1,
   "generatedAt": "2026-05-21",
-  "fingerprint": "e5667da208136e63",
+  "fingerprint": "433edc0c0c0f201d",
   "features": {
     "auth": {
       "summary": "Authentication cubits for sign-in, sign-up, and OTP verification.",
@@ -48,7 +48,7 @@
         "nutrition_logs",
         "workout_sets"
       ],
-      "notes": "Read-only consumer of log's data; shares repository singletons. HistoryBloc is registered as lazySingleton — the convention-checker misses this because the factory lambda wraps to a new line (tracked as a separate fix).",
+      "notes": "Read-only consumer of log's data; shares repository singletons.",
       "fingerprint": "3c660e1cdff5ab29"
     },
     "home": {
@@ -215,8 +215,8 @@
       ],
       "injectionModule": "lib/injection/modules/register_voice_module.dart",
       "tables": [],
-      "notes": "Edge function lives in supabase/functions/voice-chat/; not fingerprinted by v1 of this check. VoiceBloc dispatches tool calls to WorkoutBloc, NutritionLogBloc, and HistoryBloc at runtime.",
-      "fingerprint": "caed4f548295a761"
+      "notes": "Edge function lives in supabase/functions/voice-chat/; not fingerprinted by v1 of this check. VoiceBloc emits VoiceMutationCommand effects; VoiceCommandRouter in the widget tree dispatches to WorkoutBloc, NutritionLogBloc, and HistoryBloc via context.read.",
+      "fingerprint": "4f3343fdb0e1e008"
     }
   }
 }

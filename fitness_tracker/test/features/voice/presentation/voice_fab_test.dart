@@ -6,7 +6,7 @@ import 'package:fitness_tracker/core/enums/auth_mode.dart';
 import 'package:fitness_tracker/domain/entities/app_session.dart';
 import 'package:fitness_tracker/domain/entities/voice_settings.dart';
 import 'package:fitness_tracker/features/voice/application/voice_settings_cubit.dart';
-import 'package:fitness_tracker/features/voice/data/services/voice_wake_word_service.dart';
+import 'package:fitness_tracker/domain/services/voice_wake_word_service.dart';
 import 'package:fitness_tracker/features/voice/presentation/widgets/voice_fab.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
@@ -22,10 +22,8 @@ class MockVoiceSettingsCubit extends MockCubit<VoiceSettings>
 
 class FakeVoiceWakeWordService implements VoiceWakeWordService {
   bool _running = false;
-  final _detectedController =
-      StreamController<WakeWordPreset>.broadcast();
-  final _errorController =
-      StreamController<VoiceWakeWordException>.broadcast();
+  final _detectedController = StreamController<WakeWordPreset>.broadcast();
+  final _errorController = StreamController<VoiceWakeWordException>.broadcast();
 
   @override
   Stream<WakeWordPreset> get onWakeWordDetected => _detectedController.stream;
@@ -53,10 +51,7 @@ class FakeVoiceWakeWordService implements VoiceWakeWordService {
 // Helpers
 // ---------------------------------------------------------------------------
 
-const _authSession = AppSession(
-  user: null,
-  authMode: AuthMode.authenticated,
-);
+const _authSession = AppSession(user: null, authMode: AuthMode.authenticated);
 
 const _guestSession = AppSession.guest();
 
@@ -152,7 +147,9 @@ void main() {
       expect(find.byType(VoiceFab), findsOneWidget);
     });
 
-    testWidgets('FAB is disabled for guests (onPressed is null)', (tester) async {
+    testWidgets('FAB is disabled for guests (onPressed is null)', (
+      tester,
+    ) async {
       await tester.pumpWidget(
         _wrap(
           session: _guestSession,

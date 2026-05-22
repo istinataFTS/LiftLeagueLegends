@@ -4,6 +4,7 @@ import 'package:equatable/equatable.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:uuid/uuid.dart';
 
+import '../../../core/bloc/bloc_effects_mixin.dart';
 import '../../../core/constants/app_strings.dart';
 import '../../../core/constants/muscle_stimulus_constants.dart';
 import '../../../core/constants/voice_constants.dart';
@@ -22,6 +23,9 @@ import '../../../domain/entities/voice_settings.dart';
 import '../../../domain/entities/voice_tool_call.dart';
 import '../../../domain/entities/workout_set.dart';
 import '../../../domain/repositories/app_settings_repository.dart';
+import '../../../domain/services/voice_stt_service.dart';
+import '../../../domain/services/voice_tts_service.dart';
+import '../../../domain/services/voice_wake_word_service.dart';
 import '../../../domain/usecases/nutrition_logs/get_daily_macros.dart';
 import '../../../domain/usecases/nutrition_logs/get_logs_for_date.dart';
 import '../../../domain/usecases/voice/delete_voice_history.dart';
@@ -29,14 +33,8 @@ import '../../../domain/usecases/voice/get_voice_budget.dart';
 import '../../../domain/usecases/voice/send_voice_message.dart';
 import '../../../domain/usecases/workout_sets/get_sets_by_date_range.dart';
 import '../../../domain/usecases/workout_sets/get_weekly_sets.dart';
-import '../../../features/history/history.dart';
-import '../../../features/log/application/nutrition_log_bloc.dart';
-import '../../../features/log/application/workout_bloc.dart';
 import '../data/coordinator/offline_voice_coordinator.dart';
 import '../data/lookup/exercise_lookup.dart';
-import '../data/services/voice_stt_service.dart';
-import '../data/services/voice_tts_service.dart';
-import '../data/services/voice_wake_word_service.dart';
 
 // ---------------------------------------------------------------------------
 // Events
@@ -294,6 +292,59 @@ class VoiceState extends Equatable {
 }
 
 // ---------------------------------------------------------------------------
+// Effects
+// ---------------------------------------------------------------------------
+
+/// Base type for all one-shot signals emitted by [VoiceBloc].
+///
+/// Voice never holds direct references to target BLoCs. Instead it emits
+/// effects; [VoiceCommandRouter] (a widget child of the auth-session shell)
+/// listens to [VoiceBloc.effects] and dispatches each command via
+/// `context.read<X>().add(...)`. The widget tree mediates so all target
+/// BLoCs can remain `registerFactory` per convention.
+sealed class VoiceEffect {
+  const VoiceEffect();
+}
+
+/// Family of mutation commands voice issues after a confirmed tool call.
+/// Each subclass carries only domain entities or scalar identifiers —
+/// never target-feature event objects. This keeps cross-feature imports
+/// out of [VoiceBloc] entirely.
+sealed class VoiceMutationCommand extends VoiceEffect {
+  const VoiceMutationCommand();
+}
+
+class VoiceAddWorkoutSetCommand extends VoiceMutationCommand {
+  const VoiceAddWorkoutSetCommand(this.set);
+  final WorkoutSet set;
+}
+
+class VoiceUpdateWorkoutSetCommand extends VoiceMutationCommand {
+  const VoiceUpdateWorkoutSetCommand(this.set);
+  final WorkoutSet set;
+}
+
+class VoiceDeleteWorkoutSetCommand extends VoiceMutationCommand {
+  const VoiceDeleteWorkoutSetCommand(this.setId);
+  final String setId;
+}
+
+class VoiceAddNutritionLogCommand extends VoiceMutationCommand {
+  const VoiceAddNutritionLogCommand(this.log);
+  final NutritionLog log;
+}
+
+class VoiceUpdateNutritionLogCommand extends VoiceMutationCommand {
+  const VoiceUpdateNutritionLogCommand(this.log);
+  final NutritionLog log;
+}
+
+class VoiceDeleteNutritionLogCommand extends VoiceMutationCommand {
+  const VoiceDeleteNutritionLogCommand(this.logId);
+  final String logId;
+}
+
+// ---------------------------------------------------------------------------
 // Bloc
 // ---------------------------------------------------------------------------
 
@@ -307,11 +358,12 @@ class VoiceState extends Equatable {
 /// `wakelock_plus`) are never imported here — they live only in their
 /// respective service implementations.
 ///
-/// **Mutation dispatch rule (C-5):** tool confirmation dispatches events to
-/// [WorkoutBloc], [NutritionLogBloc], or [HistoryBloc]. Never to a repository
-/// or use case directly — bypassing the bloc layer would skip refresh side
-/// effects and sync-coordinator triggers.
-class VoiceBloc extends Bloc<VoiceEvent, VoiceState> {
+/// **Mutation dispatch rule (C-5):** tool confirmation emits a
+/// [VoiceMutationCommand] effect. [VoiceCommandRouter] (a widget child of
+/// the auth-session shell) listens to [effects] and dispatches each command
+/// via `context.read<X>().add(...)`. Voice never holds BLoC references.
+class VoiceBloc extends Bloc<VoiceEvent, VoiceState>
+    with BlocEffectsMixin<VoiceState, VoiceEffect> {
   VoiceBloc({
     required SendVoiceMessage sendVoiceMessage,
     required GetVoiceBudget getVoiceBudget,
@@ -323,10 +375,6 @@ class VoiceBloc extends Bloc<VoiceEvent, VoiceState> {
     required NetworkStatusService networkStatusService,
     required VoiceWakeWordService wakeWordService,
     required WakelockService wakelockService,
-    // C-5: mutation dispatch targets
-    required WorkoutBloc workoutBloc,
-    required NutritionLogBloc nutritionLogBloc,
-    required HistoryBloc historyBloc,
     // C-5: query execution use cases
     required GetSetsByDateRange getSetsByDateRange,
     required GetDailyMacros getDailyMacros,
@@ -346,9 +394,6 @@ class VoiceBloc extends Bloc<VoiceEvent, VoiceState> {
        _networkStatusService = networkStatusService,
        _wakeWordService = wakeWordService,
        _wakelock = wakelockService,
-       _workoutBloc = workoutBloc,
-       _nutritionLogBloc = nutritionLogBloc,
-       _historyBloc = historyBloc,
        _getSetsByDateRange = getSetsByDateRange,
        _getDailyMacros = getDailyMacros,
        // ignore: unused_field
@@ -400,11 +445,6 @@ class VoiceBloc extends Bloc<VoiceEvent, VoiceState> {
   final VoiceWakeWordService _wakeWordService;
 
   final WakelockService _wakelock;
-
-  // C-5: mutation dispatch targets (singleton blocs shared with the app shell)
-  final WorkoutBloc _workoutBloc;
-  final NutritionLogBloc _nutritionLogBloc;
-  final HistoryBloc _historyBloc;
 
   // C-5: query execution use cases
   final GetSetsByDateRange _getSetsByDateRange;
@@ -617,8 +657,12 @@ class VoiceBloc extends Bloc<VoiceEvent, VoiceState> {
         event.text,
         weightUnit: weightUnit,
       );
-      await _dispatchVoiceResult(offlineResult, updatedMessages, emit,
-          refreshBudget: false);
+      await _dispatchVoiceResult(
+        offlineResult,
+        updatedMessages,
+        emit,
+        refreshBudget: false,
+      );
       return;
     }
 
@@ -636,22 +680,18 @@ class VoiceBloc extends Bloc<VoiceEvent, VoiceState> {
       recentNutritionLogs: recentLogs,
     );
 
-    await chatResult.fold(
-      (failure) async {
-        final spokenMessage = _spokenMessageFor(failure);
-        emit(
-          state.copyWith(
-            status: VoiceStatus.error,
-            errorMessage: _messageFor(failure),
-          ),
-        );
-        if (spokenMessage != null) {
-          unawaited(_speak(spokenMessage));
-        }
-      },
-      (result) async =>
-          _dispatchVoiceResult(result, updatedMessages, emit),
-    );
+    await chatResult.fold((failure) async {
+      final spokenMessage = _spokenMessageFor(failure);
+      emit(
+        state.copyWith(
+          status: VoiceStatus.error,
+          errorMessage: _messageFor(failure),
+        ),
+      );
+      if (spokenMessage != null) {
+        unawaited(_speak(spokenMessage));
+      }
+    }, (result) async => _dispatchVoiceResult(result, updatedMessages, emit));
   }
 
   Future<void> _dispatchVoiceResult(
@@ -663,9 +703,7 @@ class VoiceBloc extends Bloc<VoiceEvent, VoiceState> {
     switch (result) {
       case VoiceChatTextResponse(:final message):
         final withReply = <VoiceMessage>[...updatedMessages, message];
-        emit(
-          state.copyWith(status: VoiceStatus.speaking, messages: withReply),
-        );
+        emit(state.copyWith(status: VoiceStatus.speaking, messages: withReply));
         await _speak(message.content);
         emit(state.copyWith(status: VoiceStatus.idle));
         if (refreshBudget) _refreshBudget();
@@ -673,10 +711,7 @@ class VoiceBloc extends Bloc<VoiceEvent, VoiceState> {
       case VoiceChatMutationCall(:final toolCall):
         // Don't add to messages yet; the confirmation card drives the next step.
         emit(
-          state.copyWith(
-            status: VoiceStatus.idle,
-            messages: updatedMessages,
-          ),
+          state.copyWith(status: VoiceStatus.idle, messages: updatedMessages),
         );
         add(VoicePendingConfirmationSet(toolCall));
 
@@ -688,9 +723,7 @@ class VoiceBloc extends Bloc<VoiceEvent, VoiceState> {
           createdAt: DateTime.now(),
         );
         final withReply = <VoiceMessage>[...updatedMessages, assistantMsg];
-        emit(
-          state.copyWith(status: VoiceStatus.speaking, messages: withReply),
-        );
+        emit(state.copyWith(status: VoiceStatus.speaking, messages: withReply));
         await _speak(spoken);
         emit(state.copyWith(status: VoiceStatus.idle));
         if (refreshBudget) _refreshBudget();
@@ -841,7 +874,9 @@ class VoiceBloc extends Bloc<VoiceEvent, VoiceState> {
   // C-5: Mutation tool dispatcher
   // ---------------------------------------------------------------------------
 
-  /// Dispatches the confirmed tool call to the appropriate target bloc.
+  /// Dispatches the confirmed tool call as a [VoiceMutationCommand] effect.
+  /// [VoiceCommandRouter] in the widget tree converts each effect into a
+  /// target-BLoC event via `context.read<X>().add(...)`.
   /// Returns the spoken success string, or null if dispatch failed.
   Future<String?> _dispatchMutationTool(VoiceToolCall tc, DateTime now) async {
     try {
@@ -849,7 +884,7 @@ class VoiceBloc extends Bloc<VoiceEvent, VoiceState> {
         case 'logWorkoutSet':
           final set = _buildWorkoutSet(tc.args, now);
           if (set == null) return AppStrings.voiceSpokenExerciseNotFound;
-          _workoutBloc.add(AddWorkoutSetEvent(set));
+          emitEffect(VoiceAddWorkoutSetCommand(set));
           return AppStrings.voiceSpokenSetLogged;
 
         case 'editWorkoutSet':
@@ -857,19 +892,19 @@ class VoiceBloc extends Bloc<VoiceEvent, VoiceState> {
           final existing = _fetchSetById(setId);
           if (existing == null) return AppStrings.voiceSpokenToolFailed;
           final updated = _applyWorkoutSetEdits(existing, tc.args);
-          _historyBloc.add(UpdateSetEvent(updated));
+          emitEffect(VoiceUpdateWorkoutSetCommand(updated));
           return AppStrings.voiceSpokenSetUpdated;
 
         case 'deleteWorkoutSet':
           final setId = tc.args['setId'] as String? ?? '';
           if (setId.isEmpty) return AppStrings.voiceSpokenToolFailed;
-          _historyBloc.add(DeleteSetEvent(setId));
+          emitEffect(VoiceDeleteWorkoutSetCommand(setId));
           return AppStrings.voiceSpokenSetDeleted;
 
         case 'logNutrition':
           final log = _buildNutritionLog(tc.args, now);
           if (log == null) return AppStrings.voiceSpokenToolFailed;
-          _nutritionLogBloc.add(AddNutritionLogEvent(log));
+          emitEffect(VoiceAddNutritionLogCommand(log));
           return AppStrings.voiceSpokenNutritionLogged;
 
         case 'editNutritionLog':
@@ -877,13 +912,13 @@ class VoiceBloc extends Bloc<VoiceEvent, VoiceState> {
           final existing = _fetchNutritionLogById(logId);
           if (existing == null) return AppStrings.voiceSpokenToolFailed;
           final updated = _applyNutritionLogEdits(existing, tc.args);
-          _historyBloc.add(UpdateNutritionHistoryLogEvent(updated));
+          emitEffect(VoiceUpdateNutritionLogCommand(updated));
           return AppStrings.voiceSpokenNutritionUpdated;
 
         case 'deleteNutritionLog':
           final logId = tc.args['logId'] as String? ?? '';
           if (logId.isEmpty) return AppStrings.voiceSpokenToolFailed;
-          _historyBloc.add(DeleteNutritionHistoryLogEvent(logId));
+          emitEffect(VoiceDeleteNutritionLogCommand(logId));
           return AppStrings.voiceSpokenNutritionDeleted;
 
         default:

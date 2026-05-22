@@ -49,7 +49,7 @@ void registerMealsNutritionModule(GetIt sl) {
     ),
   );
 
-  sl.registerLazySingleton(
+  sl.registerFactory(
     () => NutritionLogBloc(
       getLogsForDate: sl(),
       addNutritionLog: sl(),

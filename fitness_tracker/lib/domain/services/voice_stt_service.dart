@@ -10,10 +10,7 @@ enum VoiceSttErrorKind {
 
 /// A single STT result emitted on the [VoiceSttService.listen] stream.
 class VoiceSttResult {
-  const VoiceSttResult({
-    required this.transcript,
-    required this.isFinal,
-  });
+  const VoiceSttResult({required this.transcript, required this.isFinal});
 
   /// The recognised text so far.
   final String transcript;

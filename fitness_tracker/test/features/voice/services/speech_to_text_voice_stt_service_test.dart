@@ -1,5 +1,5 @@
 import 'package:fitness_tracker/features/voice/data/services/speech_to_text_voice_stt_service.dart';
-import 'package:fitness_tracker/features/voice/data/services/voice_stt_service.dart';
+import 'package:fitness_tracker/domain/services/voice_stt_service.dart';
 import 'package:flutter_test/flutter_test.dart';
 
 // ---------------------------------------------------------------------------
@@ -37,14 +37,17 @@ void main() {
 
   group('VoiceSttErrorKind', () {
     test('enum has all expected values', () {
-      expect(VoiceSttErrorKind.values, containsAll(<VoiceSttErrorKind>[
-        VoiceSttErrorKind.permissionDenied,
-        VoiceSttErrorKind.permissionPermanentlyDenied,
-        VoiceSttErrorKind.unavailable,
-        VoiceSttErrorKind.noSpeech,
-        VoiceSttErrorKind.network,
-        VoiceSttErrorKind.unknown,
-      ]));
+      expect(
+        VoiceSttErrorKind.values,
+        containsAll(<VoiceSttErrorKind>[
+          VoiceSttErrorKind.permissionDenied,
+          VoiceSttErrorKind.permissionPermanentlyDenied,
+          VoiceSttErrorKind.unavailable,
+          VoiceSttErrorKind.noSpeech,
+          VoiceSttErrorKind.network,
+          VoiceSttErrorKind.unknown,
+        ]),
+      );
     });
   });
 
@@ -122,20 +125,25 @@ void main() {
     });
 
     test(
-        'unknown Android error codes should map to VoiceSttErrorKind.unknown',
-        () {
-      // This is a design contract — any unrecognised error code from Android
-      // must fall through to 'unknown' rather than crashing.
-      const unknownCodes = <String>[
-        'error_something_new',
-        '',
-        'totally_unexpected',
-      ];
-      // The mapping doesn't contain unknownCodes; verify they are absent.
-      for (final code in unknownCodes) {
-        expect(errorMapping.containsKey(code), isFalse,
-            reason: '$code should NOT be in the mapping table (falls to default)');
-      }
-    });
+      'unknown Android error codes should map to VoiceSttErrorKind.unknown',
+      () {
+        // This is a design contract — any unrecognised error code from Android
+        // must fall through to 'unknown' rather than crashing.
+        const unknownCodes = <String>[
+          'error_something_new',
+          '',
+          'totally_unexpected',
+        ];
+        // The mapping doesn't contain unknownCodes; verify they are absent.
+        for (final code in unknownCodes) {
+          expect(
+            errorMapping.containsKey(code),
+            isFalse,
+            reason:
+                '$code should NOT be in the mapping table (falls to default)',
+          );
+        }
+      },
+    );
   });
 }

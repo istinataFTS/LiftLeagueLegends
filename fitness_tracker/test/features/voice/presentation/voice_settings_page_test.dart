@@ -2,7 +2,7 @@ import 'package:bloc_test/bloc_test.dart';
 import 'package:fitness_tracker/core/constants/app_strings.dart';
 import 'package:fitness_tracker/domain/entities/voice_settings.dart';
 import 'package:fitness_tracker/features/voice/application/voice_settings_cubit.dart';
-import 'package:fitness_tracker/features/voice/data/services/voice_tts_service.dart';
+import 'package:fitness_tracker/domain/services/voice_tts_service.dart';
 import 'package:fitness_tracker/features/voice/presentation/voice_settings_page.dart';
 import 'package:fitness_tracker/features/voice/presentation/voice_settings_page_keys.dart';
 import 'package:fitness_tracker/injection/injection_container.dart';
@@ -20,7 +20,10 @@ class MockVoiceSettingsCubit extends MockCubit<VoiceSettings>
 
 class FakeVoiceTtsService implements VoiceTtsService {
   @override
-  Future<void> initialize({double volume = 1.0, double speechRate = 1.0}) async {}
+  Future<void> initialize({
+    double volume = 1.0,
+    double speechRate = 1.0,
+  }) async {}
 
   @override
   Future<void> speak(String text) async {}
@@ -184,8 +187,9 @@ void main() {
         whenListen(
           cubit,
           Stream<VoiceSettings>.empty(),
-          initialState: const VoiceSettings.defaults()
-              .copyWith(sessionLoggingEnabled: true),
+          initialState: const VoiceSettings.defaults().copyWith(
+            sessionLoggingEnabled: true,
+          ),
         );
 
         await tester.pumpWidget(_wrap(cubit));
@@ -197,8 +201,9 @@ void main() {
       });
 
       testWidgets('calls setSessionLoggingEnabled on tap', (tester) async {
-        when(() => cubit.setSessionLoggingEnabled(any()))
-            .thenAnswer((_) async => true);
+        when(
+          () => cubit.setSessionLoggingEnabled(any()),
+        ).thenAnswer((_) async => true);
 
         await tester.pumpWidget(_wrap(cubit));
         await tester.tap(
@@ -221,8 +226,9 @@ void main() {
       });
 
       testWidgets('calls setWakeWordArmedInForeground on tap', (tester) async {
-        when(() => cubit.setWakeWordArmedInForeground(any()))
-            .thenAnswer((_) async => true);
+        when(
+          () => cubit.setWakeWordArmedInForeground(any()),
+        ).thenAnswer((_) async => true);
 
         await tester.pumpWidget(_wrap(cubit));
         await tester.tap(
@@ -266,10 +272,7 @@ void main() {
         await tester.tap(find.text(AppStrings.voiceDeleteHistoryConfirmButton));
         await tester.pumpAndSettle();
 
-        expect(
-          find.text(AppStrings.voiceDeleteHistorySuccess),
-          findsOneWidget,
-        );
+        expect(find.text(AppStrings.voiceDeleteHistorySuccess), findsOneWidget);
       });
     });
   });
