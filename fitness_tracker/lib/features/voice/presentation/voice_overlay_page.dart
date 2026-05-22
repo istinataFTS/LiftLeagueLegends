@@ -3,17 +3,16 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 
+import '../../../app/routes/app_routes.dart';
 import '../../../core/constants/app_strings.dart';
 import '../../../core/network/network_status_service.dart';
 import '../../../core/themes/app_theme.dart';
 import '../../../domain/entities/app_session.dart';
 import '../../../domain/entities/voice_settings.dart' show WakeWordPreset;
+import '../../../domain/services/voice_wake_word_service.dart';
 import '../../../injection/injection_container.dart';
 import '../application/voice_bloc.dart';
-import '../application/voice_settings_cubit.dart';
-import '../../../domain/services/voice_wake_word_service.dart';
 import 'voice_overlay_keys.dart';
-import 'voice_settings_page.dart';
 import 'widgets/voice_budget_indicator.dart';
 import 'widgets/voice_confirmation_card.dart';
 import 'widgets/voice_overlay_status_view.dart';
@@ -218,14 +217,10 @@ class _VoiceOverlayViewState extends State<_VoiceOverlayView> {
   }
 
   void _openSettings(BuildContext context) {
-    Navigator.of(context).push(
-      MaterialPageRoute<void>(
-        builder: (_) => BlocProvider<VoiceSettingsCubit>(
-          create: (_) => sl<VoiceSettingsCubit>(),
-          child: const VoiceSettingsPage(),
-        ),
-      ),
-    );
+    // VoiceSettingsCubit is provided at the auth-session shell level —
+    // pushed routes resolve it via `context.read` without a nested
+    // BlocProvider.
+    Navigator.of(context).pushNamed(AppRoutes.voiceSettings);
   }
 }
 

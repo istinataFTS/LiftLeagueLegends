@@ -5,6 +5,7 @@ import '../../../core/constants/app_strings.dart';
 import '../../../core/session/session_display_name.dart';
 import '../../../core/themes/app_theme.dart';
 import '../../../domain/entities/app_settings.dart';
+// convention-checker:allow=cross-feature-presentation-import reason=home observes ProfileCubit (app-level singleton) for username display; data-observation pattern, not navigation
 import '../../../features/profile/application/profile_cubit.dart';
 import '../application/home_bloc.dart';
 import '../application/muscle_visual_bloc.dart';

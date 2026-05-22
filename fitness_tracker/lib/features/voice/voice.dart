@@ -7,7 +7,9 @@ export 'application/voice_bloc.dart';
 export 'application/voice_settings_cubit.dart';
 
 // Presentation — all exports sorted alphabetically within this section.
-export 'presentation/voice_command_router.dart';
+// Note: VoiceCommandRouter lives at lib/app/voice/voice_command_router.dart
+// because it is a cross-feature composition widget; it is intentionally
+// not part of this barrel.
 export 'presentation/voice_overlay_keys.dart';
 export 'presentation/voice_overlay_page.dart';
 export 'presentation/voice_settings_page.dart';

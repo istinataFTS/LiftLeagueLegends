@@ -2,10 +2,10 @@ import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:intl/intl.dart';
 
-import '../../../../core/themes/app_theme.dart';
-import '../../../../features/log/log.dart';
-import '../bloc/history_bloc.dart';
-import '../bloc/history_event.dart';
+import '../../core/themes/app_theme.dart';
+import '../../features/history/presentation/bloc/history_bloc.dart';
+import '../../features/history/presentation/bloc/history_event.dart';
+import '../../features/log/log.dart';
 
 Future<void> showHistoryWorkoutLogBottomSheet(
   BuildContext context, {

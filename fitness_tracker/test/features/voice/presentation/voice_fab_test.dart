@@ -5,9 +5,10 @@ import 'package:fitness_tracker/core/constants/app_strings.dart';
 import 'package:fitness_tracker/core/enums/auth_mode.dart';
 import 'package:fitness_tracker/domain/entities/app_session.dart';
 import 'package:fitness_tracker/domain/entities/voice_settings.dart';
-import 'package:fitness_tracker/features/voice/application/voice_settings_cubit.dart';
 import 'package:fitness_tracker/domain/services/voice_wake_word_service.dart';
+import 'package:fitness_tracker/features/voice/application/voice_settings_cubit.dart';
 import 'package:fitness_tracker/features/voice/presentation/widgets/voice_fab.dart';
+import 'package:fitness_tracker/injection/injection_container.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -58,17 +59,15 @@ const _guestSession = AppSession.guest();
 Widget _wrap({
   required AppSession session,
   required VoiceSettingsCubit settingsCubit,
-  required VoiceWakeWordService wakeWordService,
 }) {
+  // [VoiceFab] reads [VoiceWakeWordService] from the GetIt container in
+  // initState; tests register their fake before pumping. The cubit is
+  // resolved via [BlocProvider.value] inherited from the widget tree.
   return MaterialApp(
     home: Scaffold(
       floatingActionButton: BlocProvider<VoiceSettingsCubit>.value(
         value: settingsCubit,
-        child: VoiceFab(
-          session: session,
-          wakeWordService: wakeWordService,
-          settingsCubit: settingsCubit,
-        ),
+        child: VoiceFab(session: session),
       ),
     ),
   );
@@ -88,6 +87,13 @@ void main() {
     settingsCubit = MockVoiceSettingsCubit();
     wakeWordService = FakeVoiceWakeWordService();
 
+    // VoiceFab reads VoiceWakeWordService from GetIt in initState; reset
+    // the container and register the fake so the widget sees it.
+    if (sl.isRegistered<VoiceWakeWordService>()) {
+      sl.unregister<VoiceWakeWordService>();
+    }
+    sl.registerSingleton<VoiceWakeWordService>(wakeWordService);
+
     when(() => settingsCubit.state).thenReturn(defaultSettings);
     whenListen(
       settingsCubit,
@@ -96,25 +102,23 @@ void main() {
     );
   });
 
+  tearDown(() async {
+    if (sl.isRegistered<VoiceWakeWordService>()) {
+      sl.unregister<VoiceWakeWordService>();
+    }
+  });
+
   group('VoiceFab — authenticated user', () {
     testWidgets('renders FAB widget', (tester) async {
       await tester.pumpWidget(
-        _wrap(
-          session: _authSession,
-          settingsCubit: settingsCubit,
-          wakeWordService: wakeWordService,
-        ),
+        _wrap(session: _authSession, settingsCubit: settingsCubit),
       );
       expect(find.byType(VoiceFab), findsOneWidget);
     });
 
     testWidgets('FAB is enabled (has onPressed)', (tester) async {
       await tester.pumpWidget(
-        _wrap(
-          session: _authSession,
-          settingsCubit: settingsCubit,
-          wakeWordService: wakeWordService,
-        ),
+        _wrap(session: _authSession, settingsCubit: settingsCubit),
       );
 
       final fab = tester.widget<FloatingActionButton>(
@@ -125,11 +129,7 @@ void main() {
 
     testWidgets('does not show guest tooltip text', (tester) async {
       await tester.pumpWidget(
-        _wrap(
-          session: _authSession,
-          settingsCubit: settingsCubit,
-          wakeWordService: wakeWordService,
-        ),
+        _wrap(session: _authSession, settingsCubit: settingsCubit),
       );
       expect(find.text(AppStrings.voiceFabTooltipGuest), findsNothing);
     });
@@ -138,11 +138,7 @@ void main() {
   group('VoiceFab — guest user', () {
     testWidgets('renders FAB widget', (tester) async {
       await tester.pumpWidget(
-        _wrap(
-          session: _guestSession,
-          settingsCubit: settingsCubit,
-          wakeWordService: wakeWordService,
-        ),
+        _wrap(session: _guestSession, settingsCubit: settingsCubit),
       );
       expect(find.byType(VoiceFab), findsOneWidget);
     });
@@ -151,11 +147,7 @@ void main() {
       tester,
     ) async {
       await tester.pumpWidget(
-        _wrap(
-          session: _guestSession,
-          settingsCubit: settingsCubit,
-          wakeWordService: wakeWordService,
-        ),
+        _wrap(session: _guestSession, settingsCubit: settingsCubit),
       );
 
       final fab = tester.widget<FloatingActionButton>(
@@ -166,11 +158,7 @@ void main() {
 
     testWidgets('guest tooltip text is present in widget tree', (tester) async {
       await tester.pumpWidget(
-        _wrap(
-          session: _guestSession,
-          settingsCubit: settingsCubit,
-          wakeWordService: wakeWordService,
-        ),
+        _wrap(session: _guestSession, settingsCubit: settingsCubit),
       );
 
       // Long-press to reveal tooltip.
@@ -184,11 +172,7 @@ void main() {
 
     testWidgets('wake-word service is NOT started for guests', (tester) async {
       await tester.pumpWidget(
-        _wrap(
-          session: _guestSession,
-          settingsCubit: settingsCubit,
-          wakeWordService: wakeWordService,
-        ),
+        _wrap(session: _guestSession, settingsCubit: settingsCubit),
       );
       await tester.pump();
       expect(wakeWordService.isRunning, isFalse);

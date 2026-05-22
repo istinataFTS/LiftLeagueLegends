@@ -10,8 +10,8 @@ import '../features/log/log.dart';
 import '../features/profile/application/profile_cubit.dart';
 import '../features/voice/application/voice_bloc.dart';
 import '../features/voice/application/voice_settings_cubit.dart';
-import '../features/voice/presentation/voice_command_router.dart';
 import '../injection/injection_container.dart' as di;
+import 'voice/voice_command_router.dart';
 
 /// Establishes the authentication boundary in the widget tree.
 ///

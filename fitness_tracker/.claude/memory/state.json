@@ -1,7 +1,7 @@
 {
   "schemaVersion": 1,
   "generatedAt": "2026-05-21",
-  "fingerprint": "433edc0c0c0f201d",
+  "fingerprint": "72e0d22673abdc4a",
   "features": {
     "auth": {
       "summary": "Authentication cubits for sign-in, sign-up, and OTP verification.",
@@ -49,7 +49,7 @@
         "workout_sets"
       ],
       "notes": "Read-only consumer of log's data; shares repository singletons.",
-      "fingerprint": "3c660e1cdff5ab29"
+      "fingerprint": "94cc7e6df9a30136"
     },
     "home": {
       "summary": "Dashboard surface aggregating muscle visual state and nutrition summary.",
@@ -158,7 +158,7 @@
         "workout_sets"
       ],
       "notes": "WorkoutBloc also consumes calculate_muscle_stimulus (from the muscle_stimulus domain layer) to compute stimulation scores on each rep-set log.",
-      "fingerprint": "bd7ce935b8a1bcdb"
+      "fingerprint": "94b772d6e19ef9c5"
     },
     "profile": {
       "summary": "User profile view and sign-out; manages authenticated-user metadata.",
@@ -216,7 +216,7 @@
       "injectionModule": "lib/injection/modules/register_voice_module.dart",
       "tables": [],
       "notes": "Edge function lives in supabase/functions/voice-chat/; not fingerprinted by v1 of this check. VoiceBloc emits VoiceMutationCommand effects; VoiceCommandRouter in the widget tree dispatches to WorkoutBloc, NutritionLogBloc, and HistoryBloc via context.read.",
-      "fingerprint": "4f3343fdb0e1e008"
+      "fingerprint": "af6000b4e2c5e1a7"
     }
   }
 }

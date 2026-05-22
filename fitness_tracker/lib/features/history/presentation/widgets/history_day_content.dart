@@ -17,9 +17,9 @@ import '../bloc/history_bloc.dart';
 import '../bloc/history_event.dart';
 import '../helpers/history_nutrition_summary_builder.dart';
 import '../helpers/history_workout_summary_builder.dart';
+import '../../../../presentation/widgets/history_log_bottom_sheets.dart';
 import 'edit_nutrition_log_dialog.dart';
 import 'edit_set_dialog.dart';
-import 'history_log_bottom_sheets.dart';
 
 // Stable IDs used for persisting collapsed/expanded state in AppSettings.
 const String _kWorkoutSectionId = 'history.workout';

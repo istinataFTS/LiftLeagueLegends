@@ -13,8 +13,8 @@ import '../../../library/application/exercise_bloc.dart';
 import '../../../settings/presentation/settings_scope.dart';
 import '../bloc/history_bloc.dart';
 import '../bloc/history_event.dart';
+import '../../../../presentation/widgets/history_log_bottom_sheets.dart';
 import 'edit_set_dialog.dart';
-import 'history_log_bottom_sheets.dart';
 
 class DayDetailsBottomSheet extends StatelessWidget {
   const DayDetailsBottomSheet({
