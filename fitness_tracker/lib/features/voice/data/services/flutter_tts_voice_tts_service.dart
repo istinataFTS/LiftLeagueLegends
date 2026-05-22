@@ -73,7 +73,10 @@ class FlutterTtsVoiceTtsService implements VoiceTtsService {
   Future<void> setSpeechRate(double rate) async {
     await _ensureInitialized();
     await _tts.setSpeechRate(
-      rate.clamp(VoiceConstants.minTtsSpeechRate, VoiceConstants.maxTtsSpeechRate),
+      rate.clamp(
+        VoiceConstants.minTtsSpeechRate,
+        VoiceConstants.maxTtsSpeechRate,
+      ),
     );
   }
 

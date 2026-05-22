@@ -22,10 +22,8 @@ class MockVoiceSettingsCubit extends MockCubit<VoiceSettings>
 
 class FakeVoiceWakeWordService implements VoiceWakeWordService {
   bool _running = false;
-  final _detectedController =
-      StreamController<WakeWordPreset>.broadcast();
-  final _errorController =
-      StreamController<VoiceWakeWordException>.broadcast();
+  final _detectedController = StreamController<WakeWordPreset>.broadcast();
+  final _errorController = StreamController<VoiceWakeWordException>.broadcast();
 
   @override
   Stream<WakeWordPreset> get onWakeWordDetected => _detectedController.stream;
@@ -53,10 +51,7 @@ class FakeVoiceWakeWordService implements VoiceWakeWordService {
 // Helpers
 // ---------------------------------------------------------------------------
 
-const _authSession = AppSession(
-  user: null,
-  authMode: AuthMode.authenticated,
-);
+const _authSession = AppSession(user: null, authMode: AuthMode.authenticated);
 
 const _guestSession = AppSession.guest();
 
@@ -152,7 +147,9 @@ void main() {
       expect(find.byType(VoiceFab), findsOneWidget);
     });
 
-    testWidgets('FAB is disabled for guests (onPressed is null)', (tester) async {
+    testWidgets('FAB is disabled for guests (onPressed is null)', (
+      tester,
+    ) async {
       await tester.pumpWidget(
         _wrap(
           session: _guestSession,

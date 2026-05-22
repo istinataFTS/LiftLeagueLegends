@@ -31,8 +31,7 @@ class VoiceSettingsPage extends StatelessWidget {
       ),
       body: BlocBuilder<VoiceSettingsCubit, VoiceSettings>(
         builder: (context, settings) {
-          final VoiceSettingsCubit cubit =
-              context.read<VoiceSettingsCubit>();
+          final VoiceSettingsCubit cubit = context.read<VoiceSettingsCubit>();
           return ListView(
             padding: const EdgeInsets.only(bottom: 32),
             children: <Widget>[
@@ -125,10 +124,7 @@ class VoiceSettingsPage extends StatelessWidget {
                   children: <Widget>[
                     Text(
                       AppStrings.voiceBudgetResetNote,
-                      style: TextStyle(
-                        color: AppTheme.textDim,
-                        fontSize: 13,
-                      ),
+                      style: TextStyle(color: AppTheme.textDim, fontSize: 13),
                     ),
                   ],
                 ),
@@ -183,8 +179,9 @@ class VoiceSettingsPage extends StatelessWidget {
           TextButton(
             onPressed: () async {
               Navigator.of(dialogContext).pop();
-              final success =
-                  await context.read<VoiceSettingsCubit>().clearHistory();
+              final success = await context
+                  .read<VoiceSettingsCubit>()
+                  .clearHistory();
               if (context.mounted) {
                 ScaffoldMessenger.of(context).showSnackBar(
                   SnackBar(
@@ -239,10 +236,7 @@ class _SectionHeader extends StatelessWidget {
 // ---------------------------------------------------------------------------
 
 class _WakeWordPicker extends StatelessWidget {
-  const _WakeWordPicker({
-    required this.selected,
-    required this.onSelect,
-  });
+  const _WakeWordPicker({required this.selected, required this.onSelect});
 
   final WakeWordPreset selected;
   final ValueChanged<WakeWordPreset> onSelect;
@@ -289,16 +283,12 @@ class _WakeWordPicker extends StatelessWidget {
               preset.displayName,
               style: TextStyle(
                 color: isSelected ? AppTheme.textLight : AppTheme.textMedium,
-                fontWeight:
-                    isSelected ? FontWeight.w600 : FontWeight.normal,
+                fontWeight: isSelected ? FontWeight.w600 : FontWeight.normal,
               ),
             ),
             subtitle: Text(
               _pronunciation(preset),
-              style: const TextStyle(
-                color: AppTheme.textDim,
-                fontSize: 12,
-              ),
+              style: const TextStyle(color: AppTheme.textDim, fontSize: 12),
             ),
             trailing: IconButton(
               tooltip: AppStrings.voiceWakeWordPreviewTooltip,
@@ -361,10 +351,7 @@ class _SliderTile extends StatelessWidget {
             children: <Widget>[
               Text(
                 title,
-                style: const TextStyle(
-                  color: AppTheme.textLight,
-                  fontSize: 15,
-                ),
+                style: const TextStyle(color: AppTheme.textLight, fontSize: 15),
               ),
               Text(
                 label,
@@ -378,10 +365,7 @@ class _SliderTile extends StatelessWidget {
           ),
           Text(
             subtitle,
-            style: const TextStyle(
-              color: AppTheme.textDim,
-              fontSize: 12,
-            ),
+            style: const TextStyle(color: AppTheme.textDim, fontSize: 12),
           ),
           Slider(
             value: value,

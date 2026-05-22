@@ -82,7 +82,10 @@ class PorcupineVoiceWakeWordService implements VoiceWakeWordService {
         stackTrace: st,
         category: 'voice',
       );
-      throw VoiceWakeWordException(VoiceWakeWordErrorKind.engineError, e.message);
+      throw VoiceWakeWordException(
+        VoiceWakeWordErrorKind.engineError,
+        e.message,
+      );
     }
   }
 

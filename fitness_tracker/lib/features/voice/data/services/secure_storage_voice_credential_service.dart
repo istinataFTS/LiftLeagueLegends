@@ -11,8 +11,7 @@ class SecureStorageVoiceCredentialService implements VoiceCredentialService {
   static const _kPicovoiceKey = 'voice.picovoice_access_key';
 
   @override
-  Future<String?> getPicovoiceAccessKey() =>
-      _storage.read(key: _kPicovoiceKey);
+  Future<String?> getPicovoiceAccessKey() => _storage.read(key: _kPicovoiceKey);
 
   @override
   Future<void> setPicovoiceAccessKey(String key) {

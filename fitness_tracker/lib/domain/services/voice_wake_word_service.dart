@@ -5,10 +5,10 @@ import '../../../../domain/entities/voice_settings.dart' show WakeWordPreset;
 // ---------------------------------------------------------------------------
 
 enum VoiceWakeWordErrorKind {
-  noAccessKey,   // Picovoice key absent from secure storage
+  noAccessKey, // Picovoice key absent from secure storage
   modelNotFound, // .ppn or .pv asset file missing or zero-bytes
-  engineError,   // Porcupine runtime error
-  audioError,    // Microphone access failure
+  engineError, // Porcupine runtime error
+  audioError, // Microphone access failure
 }
 
 class VoiceWakeWordException implements Exception {

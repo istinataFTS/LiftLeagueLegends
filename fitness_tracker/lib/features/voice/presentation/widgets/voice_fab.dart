@@ -57,12 +57,14 @@ class _VoiceFabState extends State<VoiceFab>
       vsync: this,
       duration: const Duration(milliseconds: 1200),
     );
-    _scaleAnimation = Tween<double>(begin: 1.0, end: 1.5).animate(
-      CurvedAnimation(parent: _pulseController, curve: Curves.easeOut),
-    );
-    _opacityAnimation = Tween<double>(begin: 0.6, end: 0.0).animate(
-      CurvedAnimation(parent: _pulseController, curve: Curves.easeOut),
-    );
+    _scaleAnimation = Tween<double>(
+      begin: 1.0,
+      end: 1.5,
+    ).animate(CurvedAnimation(parent: _pulseController, curve: Curves.easeOut));
+    _opacityAnimation = Tween<double>(
+      begin: 0.6,
+      end: 0.0,
+    ).animate(CurvedAnimation(parent: _pulseController, curve: Curves.easeOut));
 
     _listenToWakeWordStream();
     _listenToWakeWordErrors();
@@ -100,15 +102,18 @@ class _VoiceFabState extends State<VoiceFab>
   void _startWakeWordIfArmed() {
     final settings = widget.settingsCubit.state;
     if (!settings.wakeWordArmedInForeground || widget.session.isGuest) return;
-    widget.wakeWordService.start(settings.wakeWordPreset).then((_) {
-      if (mounted) _startPulse();
-    }).catchError((Object e) {
-      AppLogger.warning(
-        'VoiceFab: failed to start wake word',
-        error: e,
-        category: 'voice',
-      );
-    });
+    widget.wakeWordService
+        .start(settings.wakeWordPreset)
+        .then((_) {
+          if (mounted) _startPulse();
+        })
+        .catchError((Object e) {
+          AppLogger.warning(
+            'VoiceFab: failed to start wake word',
+            error: e,
+            category: 'voice',
+          );
+        });
   }
 
   void _listenToWakeWordStream() {
@@ -157,12 +162,16 @@ class _VoiceFabState extends State<VoiceFab>
           return FadeTransition(
             opacity: animation,
             child: SlideTransition(
-              position: Tween<Offset>(
-                begin: const Offset(0.0, 0.1),
-                end: Offset.zero,
-              ).animate(
-                CurvedAnimation(parent: animation, curve: Curves.easeOutCubic),
-              ),
+              position:
+                  Tween<Offset>(
+                    begin: const Offset(0.0, 0.1),
+                    end: Offset.zero,
+                  ).animate(
+                    CurvedAnimation(
+                      parent: animation,
+                      curve: Curves.easeOutCubic,
+                    ),
+                  ),
               child: child,
             ),
           );
@@ -227,10 +236,12 @@ class _VoiceFabState extends State<VoiceFab>
             key: VoiceOverlayKeys.fabKey,
             onPressed: isGuest ? null : _openOverlay,
             tooltip: tooltip,
-            backgroundColor:
-                isGuest ? AppTheme.surfaceMedium : AppTheme.primaryOrange,
-            foregroundColor:
-                isGuest ? AppTheme.textDisabled : AppTheme.textLight,
+            backgroundColor: isGuest
+                ? AppTheme.surfaceMedium
+                : AppTheme.primaryOrange,
+            foregroundColor: isGuest
+                ? AppTheme.textDisabled
+                : AppTheme.textLight,
             elevation: 4,
             child: AnimatedSwitcher(
               duration: const Duration(milliseconds: 200),

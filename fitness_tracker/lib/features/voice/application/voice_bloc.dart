@@ -657,8 +657,12 @@ class VoiceBloc extends Bloc<VoiceEvent, VoiceState>
         event.text,
         weightUnit: weightUnit,
       );
-      await _dispatchVoiceResult(offlineResult, updatedMessages, emit,
-          refreshBudget: false);
+      await _dispatchVoiceResult(
+        offlineResult,
+        updatedMessages,
+        emit,
+        refreshBudget: false,
+      );
       return;
     }
 
@@ -676,22 +680,18 @@ class VoiceBloc extends Bloc<VoiceEvent, VoiceState>
       recentNutritionLogs: recentLogs,
     );
 
-    await chatResult.fold(
-      (failure) async {
-        final spokenMessage = _spokenMessageFor(failure);
-        emit(
-          state.copyWith(
-            status: VoiceStatus.error,
-            errorMessage: _messageFor(failure),
-          ),
-        );
-        if (spokenMessage != null) {
-          unawaited(_speak(spokenMessage));
-        }
-      },
-      (result) async =>
-          _dispatchVoiceResult(result, updatedMessages, emit),
-    );
+    await chatResult.fold((failure) async {
+      final spokenMessage = _spokenMessageFor(failure);
+      emit(
+        state.copyWith(
+          status: VoiceStatus.error,
+          errorMessage: _messageFor(failure),
+        ),
+      );
+      if (spokenMessage != null) {
+        unawaited(_speak(spokenMessage));
+      }
+    }, (result) async => _dispatchVoiceResult(result, updatedMessages, emit));
   }
 
   Future<void> _dispatchVoiceResult(
@@ -703,9 +703,7 @@ class VoiceBloc extends Bloc<VoiceEvent, VoiceState>
     switch (result) {
       case VoiceChatTextResponse(:final message):
         final withReply = <VoiceMessage>[...updatedMessages, message];
-        emit(
-          state.copyWith(status: VoiceStatus.speaking, messages: withReply),
-        );
+        emit(state.copyWith(status: VoiceStatus.speaking, messages: withReply));
         await _speak(message.content);
         emit(state.copyWith(status: VoiceStatus.idle));
         if (refreshBudget) _refreshBudget();
@@ -713,10 +711,7 @@ class VoiceBloc extends Bloc<VoiceEvent, VoiceState>
       case VoiceChatMutationCall(:final toolCall):
         // Don't add to messages yet; the confirmation card drives the next step.
         emit(
-          state.copyWith(
-            status: VoiceStatus.idle,
-            messages: updatedMessages,
-          ),
+          state.copyWith(status: VoiceStatus.idle, messages: updatedMessages),
         );
         add(VoicePendingConfirmationSet(toolCall));
 
@@ -728,9 +723,7 @@ class VoiceBloc extends Bloc<VoiceEvent, VoiceState>
           createdAt: DateTime.now(),
         );
         final withReply = <VoiceMessage>[...updatedMessages, assistantMsg];
-        emit(
-          state.copyWith(status: VoiceStatus.speaking, messages: withReply),
-        );
+        emit(state.copyWith(status: VoiceStatus.speaking, messages: withReply));
         await _speak(spoken);
         emit(state.copyWith(status: VoiceStatus.idle));
         if (refreshBudget) _refreshBudget();

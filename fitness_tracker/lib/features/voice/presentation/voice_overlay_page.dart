@@ -78,22 +78,22 @@ class _VoiceOverlayViewState extends State<_VoiceOverlayView> {
   // ── Connectivity ────────────────────────────────────────────────────────────
 
   Future<void> _checkInitialConnectivity() async {
-    final isOnline =
-        await sl<NetworkStatusService>().isNetworkAvailable();
+    final isOnline = await sl<NetworkStatusService>().isNetworkAvailable();
     if (mounted) {
-      context
-          .read<VoiceBloc>()
-          .add(VoiceConnectivityChanged(isOnline: isOnline));
+      context.read<VoiceBloc>().add(
+        VoiceConnectivityChanged(isOnline: isOnline),
+      );
     }
   }
 
   void _subscribeToConnectivity() {
-    _connectivitySub =
-        sl<NetworkStatusService>().onConnectivityChanged.listen((isOnline) {
+    _connectivitySub = sl<NetworkStatusService>().onConnectivityChanged.listen((
+      isOnline,
+    ) {
       if (mounted) {
-        context
-            .read<VoiceBloc>()
-            .add(VoiceConnectivityChanged(isOnline: isOnline));
+        context.read<VoiceBloc>().add(
+          VoiceConnectivityChanged(isOnline: isOnline),
+        );
       }
     });
   }
@@ -101,8 +101,7 @@ class _VoiceOverlayViewState extends State<_VoiceOverlayView> {
   // ── Wake-word re-trigger while overlay is open ──────────────────────────────
 
   void _subscribeToWakeWord() {
-    _wakeWordSub =
-        sl<VoiceWakeWordService>().onWakeWordDetected.listen((_) {
+    _wakeWordSub = sl<VoiceWakeWordService>().onWakeWordDetected.listen((_) {
       if (!mounted) return;
       final bloc = context.read<VoiceBloc>();
       if (bloc.state.status == VoiceStatus.idle) {
@@ -128,9 +127,8 @@ class _VoiceOverlayViewState extends State<_VoiceOverlayView> {
                 // ── Workout Mode banner (top, only when active) ──────────
                 if (state.isWorkoutModeActive)
                   VoiceWorkoutModeBanner(
-                    onToggle: () => bloc.add(
-                      const VoiceWorkoutModeToggled(active: false),
-                    ),
+                    onToggle: () =>
+                        bloc.add(const VoiceWorkoutModeToggled(active: false)),
                   ),
 
                 // ── Header ───────────────────────────────────────────────
@@ -205,13 +203,10 @@ class _VoiceOverlayViewState extends State<_VoiceOverlayView> {
                       : null,
                   onStopListening: () =>
                       bloc.add(const VoiceListenStopRequested()),
-                  onInterrupt: () =>
-                      bloc.add(const VoiceListenStopRequested()),
+                  onInterrupt: () => bloc.add(const VoiceListenStopRequested()),
                   onRetry: () => bloc.add(const VoiceListenRequested()),
                   onWorkoutModeToggle: () => bloc.add(
-                    VoiceWorkoutModeToggled(
-                      active: !state.isWorkoutModeActive,
-                    ),
+                    VoiceWorkoutModeToggled(active: !state.isWorkoutModeActive),
                   ),
                 ),
               ],
@@ -272,10 +267,7 @@ class _VoiceEditBar extends StatelessWidget {
               key: VoiceOverlayKeys.editBarFieldKey,
               controller: controller,
               autofocus: true,
-              style: const TextStyle(
-                color: AppTheme.textLight,
-                fontSize: 15,
-              ),
+              style: const TextStyle(color: AppTheme.textLight, fontSize: 15),
               decoration: const InputDecoration(
                 hintText: AppStrings.voiceEditBarHint,
                 hintStyle: TextStyle(color: AppTheme.textDim),
@@ -313,10 +305,7 @@ class _VoiceEditBar extends StatelessWidget {
 // ---------------------------------------------------------------------------
 
 class _OverlayHeader extends StatelessWidget {
-  const _OverlayHeader({
-    required this.onClose,
-    required this.onSettings,
-  });
+  const _OverlayHeader({required this.onClose, required this.onSettings});
 
   final VoidCallback onClose;
   final VoidCallback onSettings;

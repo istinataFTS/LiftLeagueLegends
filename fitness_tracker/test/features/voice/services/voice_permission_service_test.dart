@@ -35,40 +35,45 @@ void main() {
     });
 
     test('checkMicrophonePermission returns granted', () async {
-      when(() => service.checkMicrophonePermission())
-          .thenAnswer((_) async => VoicePermissionStatus.granted);
+      when(
+        () => service.checkMicrophonePermission(),
+      ).thenAnswer((_) async => VoicePermissionStatus.granted);
 
       final result = await service.checkMicrophonePermission();
       expect(result, VoicePermissionStatus.granted);
     });
 
     test('checkMicrophonePermission returns denied', () async {
-      when(() => service.checkMicrophonePermission())
-          .thenAnswer((_) async => VoicePermissionStatus.denied);
+      when(
+        () => service.checkMicrophonePermission(),
+      ).thenAnswer((_) async => VoicePermissionStatus.denied);
 
       final result = await service.checkMicrophonePermission();
       expect(result, VoicePermissionStatus.denied);
     });
 
     test('checkMicrophonePermission returns deniedPermanently', () async {
-      when(() => service.checkMicrophonePermission())
-          .thenAnswer((_) async => VoicePermissionStatus.deniedPermanently);
+      when(
+        () => service.checkMicrophonePermission(),
+      ).thenAnswer((_) async => VoicePermissionStatus.deniedPermanently);
 
       final result = await service.checkMicrophonePermission();
       expect(result, VoicePermissionStatus.deniedPermanently);
     });
 
     test('requestMicrophonePermission returns granted', () async {
-      when(() => service.requestMicrophonePermission())
-          .thenAnswer((_) async => VoicePermissionStatus.granted);
+      when(
+        () => service.requestMicrophonePermission(),
+      ).thenAnswer((_) async => VoicePermissionStatus.granted);
 
       final result = await service.requestMicrophonePermission();
       expect(result, VoicePermissionStatus.granted);
     });
 
     test('requestMicrophonePermission returns deniedPermanently', () async {
-      when(() => service.requestMicrophonePermission())
-          .thenAnswer((_) async => VoicePermissionStatus.deniedPermanently);
+      when(
+        () => service.requestMicrophonePermission(),
+      ).thenAnswer((_) async => VoicePermissionStatus.deniedPermanently);
 
       final result = await service.requestMicrophonePermission();
       expect(result, VoicePermissionStatus.deniedPermanently);

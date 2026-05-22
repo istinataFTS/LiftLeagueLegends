@@ -25,11 +25,9 @@ class PermissionHandlerVoicePermissionService
     return switch (status) {
       // iOS "limited" mic permission is sufficient — map to granted.
       ph.PermissionStatus.granted ||
-      ph.PermissionStatus.limited =>
-        VoicePermissionStatus.granted,
+      ph.PermissionStatus.limited => VoicePermissionStatus.granted,
       ph.PermissionStatus.permanentlyDenied ||
-      ph.PermissionStatus.restricted =>
-        VoicePermissionStatus.deniedPermanently,
+      ph.PermissionStatus.restricted => VoicePermissionStatus.deniedPermanently,
       _ => VoicePermissionStatus.denied,
     };
   }

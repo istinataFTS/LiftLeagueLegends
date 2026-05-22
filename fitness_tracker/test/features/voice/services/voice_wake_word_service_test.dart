@@ -66,12 +66,15 @@ void main() {
 
   group('VoiceWakeWordErrorKind', () {
     test('enum has all expected values', () {
-      expect(VoiceWakeWordErrorKind.values, containsAll(<VoiceWakeWordErrorKind>[
-        VoiceWakeWordErrorKind.noAccessKey,
-        VoiceWakeWordErrorKind.modelNotFound,
-        VoiceWakeWordErrorKind.engineError,
-        VoiceWakeWordErrorKind.audioError,
-      ]));
+      expect(
+        VoiceWakeWordErrorKind.values,
+        containsAll(<VoiceWakeWordErrorKind>[
+          VoiceWakeWordErrorKind.noAccessKey,
+          VoiceWakeWordErrorKind.modelNotFound,
+          VoiceWakeWordErrorKind.engineError,
+          VoiceWakeWordErrorKind.audioError,
+        ]),
+      );
     });
   });
 
@@ -97,13 +100,21 @@ void main() {
       expect(ex.message, isNull);
     });
 
-    test('non-const instances are distinct objects (each throw is a new event)',
-        () {
-      // Without 'const', Dart allocates a new instance on every call.
-      final a = VoiceWakeWordException(VoiceWakeWordErrorKind.audioError, 'a');
-      final b = VoiceWakeWordException(VoiceWakeWordErrorKind.audioError, 'a');
-      expect(a, isNot(same(b)));
-    });
+    test(
+      'non-const instances are distinct objects (each throw is a new event)',
+      () {
+        // Without 'const', Dart allocates a new instance on every call.
+        final a = VoiceWakeWordException(
+          VoiceWakeWordErrorKind.audioError,
+          'a',
+        );
+        final b = VoiceWakeWordException(
+          VoiceWakeWordErrorKind.audioError,
+          'a',
+        );
+        expect(a, isNot(same(b)));
+      },
+    );
   });
 
   // ── _FakeWakeWordService (stream contract) ─────────────────────────────
@@ -163,23 +174,25 @@ void main() {
       await sub.cancel();
     });
 
-    test('onWakeWordDetected is a broadcast stream — multiple listeners OK',
-        () async {
-      final first = <WakeWordPreset>[];
-      final second = <WakeWordPreset>[];
+    test(
+      'onWakeWordDetected is a broadcast stream — multiple listeners OK',
+      () async {
+        final first = <WakeWordPreset>[];
+        final second = <WakeWordPreset>[];
 
-      final s1 = service.onWakeWordDetected.listen(first.add);
-      final s2 = service.onWakeWordDetected.listen(second.add);
+        final s1 = service.onWakeWordDetected.listen(first.add);
+        final s2 = service.onWakeWordDetected.listen(second.add);
 
-      service.triggerDetection(WakeWordPreset.thomas);
+        service.triggerDetection(WakeWordPreset.thomas);
 
-      await Future<void>.delayed(const Duration(milliseconds: 10));
-      expect(first, <WakeWordPreset>[WakeWordPreset.thomas]);
-      expect(second, <WakeWordPreset>[WakeWordPreset.thomas]);
+        await Future<void>.delayed(const Duration(milliseconds: 10));
+        expect(first, <WakeWordPreset>[WakeWordPreset.thomas]);
+        expect(second, <WakeWordPreset>[WakeWordPreset.thomas]);
 
-      await s1.cancel();
-      await s2.cancel();
-    });
+        await s1.cancel();
+        await s2.cancel();
+      },
+    );
 
     test('start() is idempotent for same preset', () async {
       await service.start(WakeWordPreset.samoLevski);
@@ -197,11 +210,14 @@ void main() {
   group('WakeWordPreset', () {
     test('has expected preset values', () {
       expect(WakeWordPreset.values, hasLength(3));
-      expect(WakeWordPreset.values, containsAll(<WakeWordPreset>[
-        WakeWordPreset.samoLevski,
-        WakeWordPreset.trainer,
-        WakeWordPreset.thomas,
-      ]));
+      expect(
+        WakeWordPreset.values,
+        containsAll(<WakeWordPreset>[
+          WakeWordPreset.samoLevski,
+          WakeWordPreset.trainer,
+          WakeWordPreset.thomas,
+        ]),
+      );
     });
 
     test('each preset has a non-empty displayName', () {

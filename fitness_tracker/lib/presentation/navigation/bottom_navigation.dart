@@ -63,8 +63,7 @@ class _BottomNavigationState extends State<BottomNavigation> {
   @override
   void initState() {
     super.initState();
-    _voiceSettingsCubit =
-        widget.voiceSettingsCubit ?? sl<VoiceSettingsCubit>();
+    _voiceSettingsCubit = widget.voiceSettingsCubit ?? sl<VoiceSettingsCubit>();
     _voiceWakeWordService =
         widget.voiceWakeWordService ?? sl<VoiceWakeWordService>();
   }

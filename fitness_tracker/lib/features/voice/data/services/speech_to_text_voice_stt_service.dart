@@ -18,7 +18,7 @@ import '../../../../domain/services/voice_stt_service.dart';
 class SpeechToTextVoiceSttService implements VoiceSttService {
   /// [speech] can be injected in tests; omit in production to use the real engine.
   SpeechToTextVoiceSttService([stt.SpeechToText? speech])
-      : _speech = speech ?? stt.SpeechToText();
+    : _speech = speech ?? stt.SpeechToText();
 
   final stt.SpeechToText _speech;
   StreamController<VoiceSttResult>? _controller;
@@ -84,10 +84,12 @@ class SpeechToTextVoiceSttService implements VoiceSttService {
 
   void _onResult(SpeechRecognitionResult result) {
     if (_controller == null || _controller!.isClosed) return;
-    _controller!.add(VoiceSttResult(
-      transcript: result.recognizedWords,
-      isFinal: result.finalResult,
-    ));
+    _controller!.add(
+      VoiceSttResult(
+        transcript: result.recognizedWords,
+        isFinal: result.finalResult,
+      ),
+    );
     if (result.finalResult) {
       _closeController();
     }

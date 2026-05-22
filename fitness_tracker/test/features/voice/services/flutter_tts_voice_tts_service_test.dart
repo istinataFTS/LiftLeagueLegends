@@ -87,22 +87,24 @@ void main() {
 
     // ── speak / Completer lifecycle ─────────────────────────────────────────
 
-    test('speak() completes when TTS engine fires completion handler',
-        () async {
-      final h = _TtsHarness();
-      await h.service.initialize();
+    test(
+      'speak() completes when TTS engine fires completion handler',
+      () async {
+        final h = _TtsHarness();
+        await h.service.initialize();
 
-      final speakFuture = h.service.speak('Hello trainer');
+        final speakFuture = h.service.speak('Hello trainer');
 
-      // Let the speak() call begin.
-      await Future<void>.delayed(const Duration(milliseconds: 5));
+        // Let the speak() call begin.
+        await Future<void>.delayed(const Duration(milliseconds: 5));
 
-      // Simulate TTS engine signalling it has finished.
-      h.fireCompletion();
+        // Simulate TTS engine signalling it has finished.
+        h.fireCompletion();
 
-      await expectLater(speakFuture, completes);
-      verify(() => h.tts.speak('Hello trainer')).called(1);
-    });
+        await expectLater(speakFuture, completes);
+        verify(() => h.tts.speak('Hello trainer')).called(1);
+      },
+    );
 
     test('speak() completes when TTS engine fires error handler', () async {
       final h = _TtsHarness();
@@ -118,15 +120,17 @@ void main() {
       await expectLater(speakFuture, completes);
     });
 
-    test('speak() on empty string returns immediately without calling plugin',
-        () async {
-      final h = _TtsHarness();
-      await h.service.initialize();
+    test(
+      'speak() on empty string returns immediately without calling plugin',
+      () async {
+        final h = _TtsHarness();
+        await h.service.initialize();
 
-      await h.service.speak('');
+        await h.service.speak('');
 
-      verifyNever(() => h.tts.speak(any()));
-    });
+        verifyNever(() => h.tts.speak(any()));
+      },
+    );
 
     // ── stop ───────────────────────────────────────────────────────────────
 
@@ -161,11 +165,15 @@ void main() {
       await h.service.setVolume(1.5); // too high
       await h.service.setVolume(-0.5); // too low
 
-      final captured =
-          verify(() => h.tts.setVolume(captureAny())).captured.cast<double>();
+      final captured = verify(
+        () => h.tts.setVolume(captureAny()),
+      ).captured.cast<double>();
       for (final v in captured) {
-        expect(v, inInclusiveRange(0.0, 1.0),
-            reason: 'volume must be clamped to [0, 1], got $v');
+        expect(
+          v,
+          inInclusiveRange(0.0, 1.0),
+          reason: 'volume must be clamped to [0, 1], got $v',
+        );
       }
     });
 
@@ -176,26 +184,32 @@ void main() {
       await h.service.setSpeechRate(999.0); // above max
       await h.service.setSpeechRate(-1.0); // below min
 
-      final captured = verify(() => h.tts.setSpeechRate(captureAny()))
-          .captured
-          .cast<double>();
+      final captured = verify(
+        () => h.tts.setSpeechRate(captureAny()),
+      ).captured.cast<double>();
       for (final v in captured) {
-        expect(v, greaterThanOrEqualTo(0.0),
-            reason: 'rate must be >= 0, got $v');
+        expect(
+          v,
+          greaterThanOrEqualTo(0.0),
+          reason: 'rate must be >= 0, got $v',
+        );
       }
     });
 
     // ── dispose ────────────────────────────────────────────────────────────
 
-    test('dispose() stops any in-flight speech and calls plugin stop', () async {
-      final h = _TtsHarness();
-      await h.service.initialize();
-      unawaited(h.service.speak('something'));
-      await Future<void>.delayed(const Duration(milliseconds: 5));
+    test(
+      'dispose() stops any in-flight speech and calls plugin stop',
+      () async {
+        final h = _TtsHarness();
+        await h.service.initialize();
+        unawaited(h.service.speak('something'));
+        await Future<void>.delayed(const Duration(milliseconds: 5));
 
-      await h.service.dispose();
+        await h.service.dispose();
 
-      verify(() => h.tts.stop()).called(greaterThanOrEqualTo(1));
-    });
+        verify(() => h.tts.stop()).called(greaterThanOrEqualTo(1));
+      },
+    );
   });
 }
