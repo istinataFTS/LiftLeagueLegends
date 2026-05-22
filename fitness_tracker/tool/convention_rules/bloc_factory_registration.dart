@@ -34,32 +34,36 @@ final class BlocFactoryRegistrationRule implements ConventionRule {
     final violations = <Violation>[];
 
     for (final path in files) {
-      final content = await repo.readFile(path);
-      if (content == null) continue;
+      final raw = await repo.readFile(path);
+      if (raw == null) continue;
+      final content = raw.replaceAll('\r\n', '\n');
 
       final lines = content.split('\n');
-      for (var i = 0; i < lines.length; i++) {
-        final line = lines[i];
-        if (!_explicitGenericPattern.hasMatch(line) &&
-            !_inferredGenericPattern.hasMatch(line)) {
-          continue;
+
+      void checkPattern(RegExp pattern) {
+        for (final match in pattern.allMatches(content)) {
+          final lineNum =
+              '\n'.allMatches(content.substring(0, match.start)).length + 1;
+          if (hasWaiver(lines, lineNum - 1, id)) continue;
+          violations.add(
+            Violation(
+              ruleId: id,
+              filePath: path,
+              line: lineNum,
+              message:
+                  'A Bloc or Cubit is registered as registerLazySingleton. '
+                  'BLoCs/Cubits must be registerFactory.',
+              fixHint:
+                  'Change to registerFactory, or add a waiver comment with a '
+                  'reason if this is an intentional singleton (see KNOWN_ISSUES.md '
+                  '#blocs-must-be-factories-repositories-singletons).',
+            ),
+          );
         }
-        if (hasWaiver(lines, i, id)) continue;
-        violations.add(
-          Violation(
-            ruleId: id,
-            filePath: path,
-            line: i + 1,
-            message:
-                'A Bloc or Cubit is registered as registerLazySingleton. '
-                'BLoCs/Cubits must be registerFactory.',
-            fixHint:
-                'Change to registerFactory, or add a waiver comment with a '
-                'reason if this is an intentional singleton (see KNOWN_ISSUES.md '
-                '#blocs-must-be-factories-repositories-singletons).',
-          ),
-        );
       }
+
+      checkPattern(_explicitGenericPattern);
+      checkPattern(_inferredGenericPattern);
     }
 
     return violations;
