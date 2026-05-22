@@ -3,7 +3,7 @@
 - **Pattern:** BLoC (Business Logic Component)
 - **Canonical file:** `lib/features/log/application/workout_bloc.dart`
 - **Locked by:** commit `5042902` — last substantial shape change; `BlocEffectsMixin` wiring and the `_loadWeeklySetsData` helper were both in place at this commit
-- **Last verified:** 2026-05-21
+- **Last verified:** 2026-05-23
 - **Related references:** [[use_case]], [[bloc_test]], [[injection_module]]
 - **Companion playbook:** _(to be added by Adoption 05: `.claude/skills/add-bloc-effect.md`)_
 - **Embodied conventions:**
@@ -80,3 +80,19 @@ The effect is emitted **after** the state update (line 143 before 145), so the w
 ## If you change the pattern
 
 If the effects contract changes — for example, `BlocEffectsMixin` is replaced, the Equatable requirement is dropped, or the load/refresh split moves to a different mechanism — update this file in the same PR and update the companion playbook in `.claude/skills/add-bloc-effect.md`.
+
+---
+
+## Voice-specific: clarify-loop for multi-field edits
+
+`VoiceBloc` is *not* the canonical BLoC, but it adds two voice-specific contracts that any future tool-call BLoC must respect:
+
+1. **Spoken readback before confirmation.** When the LLM proposes a mutation tool call, `VoiceBloc` first speaks a deterministic readback (`"I heard: log Bench Press, 80 kilograms, 8 reps. Confirm or cancel."`) built **locally** from the parsed `VoiceToolCall.args` and the user's `WeightUnit`. The LLM never supplies the readback string — this closes the class of attack where the assistant's natural-language message says one thing and the `tool_call` args say another. After the readback finishes, the bloc transitions to `VoiceStatus.awaitingConfirmation` and sets `pendingConfirmation`. The visual `VoiceConfirmationCard` is keyed by `pendingConfirmation`; the status enum exists for test assertions and future UI hooks.
+
+2. **Clarify-per-field for multi-field edits.** When the LLM is ambiguous on multiple fields of an edit (e.g. "change my breakfast macros"), it should issue **one `clarify` per ambiguous field** rather than asking the user to dictate every field at once. The 15-second `VoiceConstants.sttListenTimeout` accepts short multi-field utterances, but the round-trip-per-field loop is more reliable than a single multi-field utterance against on-device STT. The bullet is enforced in the `voice-chat` Edge Function's `SYSTEM_PROMPT_TEMPLATE`, not in Dart — there is no client-side tool yet that *requires* the clarify loop, but library-edit tools added in the next plan should be designed around it.
+
+Both contracts live in `voice_bloc.dart` (`_buildReadback`, `_onPendingConfirmationSet`) and the `voice-chat` system prompt. If you add a new voice mutation tool, you must:
+
+- Add an arm to `_buildReadback` so the user hears the parsed values before the card appears.
+- Confirm the system prompt's clarify-loop bullet still makes sense for your tool's argument shape.
+- Add a test that asserts the readback fires *before* `pendingConfirmation` is set (use `FakeVoiceTtsService.spokenHistory` to check ordering).

@@ -68,7 +68,7 @@ Numbered steps or a short paragraph. State what to do and what *not* to do.
 5. [muscle-map-needs-rebuild-after-background-sync](#muscle-map-needs-rebuild-after-background-sync)
 
 ### Voice
-6. [voice-stt-hard-cap-is-10-seconds](#voice-stt-hard-cap-is-10-seconds)
+6. [voice-stt-hard-cap-bounds-per-utterance-cost](#voice-stt-hard-cap-bounds-per-utterance-cost)
 7. [voice-edge-function-must-have-30s-http-timeout](#voice-edge-function-must-have-30s-http-timeout)
 8. [voice-daily-cost-cap-is-server-side-only](#voice-daily-cost-cap-is-server-side-only)
 9. [voice-fab-is-disabled-not-hidden-for-guests](#voice-fab-is-disabled-not-hidden-for-guests)
@@ -82,20 +82,22 @@ Numbered steps or a short paragraph. State what to do and what *not* to do.
 13. [blocs-must-be-factories-repositories-singletons](#blocs-must-be-factories-repositories-singletons)
 14. [duplicate-di-registration-causes-silent-bugs](#duplicate-di-registration-causes-silent-bugs)
 15. [fire-and-forget-futures-in-startup-cause-race-conditions](#fire-and-forget-futures-in-startup-cause-race-conditions)
+16. [widget-state-must-not-field-capture-factory-blocs-or-cubits](#widget-state-must-not-field-capture-factory-blocs-or-cubits)
 
 ### CI & Local Tooling
-16. [crlf-line-endings-cause-false-positive-dart-format-locally](#crlf-line-endings-cause-false-positive-dart-format-locally)
-17. [flutter-analyze-info-issues-do-not-fail-ci](#flutter-analyze-info-issues-do-not-fail-ci)
-18. [main-branch-is-pr-only-direct-push-blocked](#main-branch-is-pr-only-direct-push-blocked)
-19. [convention-checker-regexes-must-have-multiline-test-fixtures](#convention-checker-regexes-must-have-multiline-test-fixtures)
+17. [crlf-line-endings-cause-false-positive-dart-format-locally](#crlf-line-endings-cause-false-positive-dart-format-locally)
+18. [flutter-analyze-info-issues-do-not-fail-ci](#flutter-analyze-info-issues-do-not-fail-ci)
+19. [main-branch-is-pr-only-direct-push-blocked](#main-branch-is-pr-only-direct-push-blocked)
+20. [convention-checker-regexes-must-have-multiline-test-fixtures](#convention-checker-regexes-must-have-multiline-test-fixtures)
 
 ### Platform
-20. [dart-define-is-build-time-not-runtime](#dart-define-is-build-time-not-runtime)
-21. [supabase-disabled-by-default](#supabase-disabled-by-default)
+21. [dart-define-is-build-time-not-runtime](#dart-define-is-build-time-not-runtime)
+22. [supabase-disabled-by-default](#supabase-disabled-by-default)
 
 ### Other
-22. [history-renders-orphaned-sets-not-hides-them](#history-renders-orphaned-sets-not-hides-them)
-23. [voice-slider-persists-on-every-drag-tick](#voice-slider-persists-on-every-drag-tick)
+23. [history-renders-orphaned-sets-not-hides-them](#history-renders-orphaned-sets-not-hides-them)
+24. [voice-slider-persists-on-every-drag-tick](#voice-slider-persists-on-every-drag-tick)
+25. [cross-feature-presentation-imports-are-architectural-cycles](#cross-feature-presentation-imports-are-architectural-cycles)
 
 ---
 
@@ -106,7 +108,7 @@ Numbered steps or a short paragraph. State what to do and what *not* to do.
 - **Severity:** High
 - **Status:** Resolved-but-monitor
 - **First observed:** 2026-05-19
-- **Last verified:** 2026-05-22
+- **Last verified:** 2026-05-23
 - **Area:** sync
 
 **Symptom**
@@ -133,7 +135,7 @@ The fix is in place. Do not reintroduce adoption logic on the sign-in path. The 
 - **Severity:** Critical
 - **Status:** Resolved-but-monitor
 - **First observed:** 2026-05-19
-- **Last verified:** 2026-05-22
+- **Last verified:** 2026-05-23
 - **Area:** sync
 
 **Symptom**
@@ -161,7 +163,7 @@ The scoped clear is in place. Any future datasource that participates in sign-ou
 - **Severity:** High
 - **Status:** Resolved-but-monitor
 - **First observed:** 2026-05-19
-- **Last verified:** 2026-05-22
+- **Last verified:** 2026-05-23
 - **Area:** sync
 
 **Symptom**
@@ -188,7 +190,7 @@ The clear is in place. Any sign-out flow must flush the pending-delete queue for
 - **Severity:** Medium
 - **Status:** Resolved-but-monitor
 - **First observed:** 2026-05-17
-- **Last verified:** 2026-05-22
+- **Last verified:** 2026-05-23
 - **Area:** sync
 
 **Symptom**
@@ -214,7 +216,7 @@ Always include the underlying exception's `toString()` in the failure message wh
 - **Severity:** Medium
 - **Status:** Resolved-but-monitor
 - **First observed:** 2026-05-17
-- **Last verified:** 2026-05-22
+- **Last verified:** 2026-05-23
 - **Area:** sync
 
 **Symptom**
@@ -238,30 +240,31 @@ After a background sync completed, the muscle-stimulus map shown in the UI refle
 
 ## Voice
 
-### voice-stt-hard-cap-is-10-seconds
+### voice-stt-hard-cap-bounds-per-utterance-cost
 
 - **Severity:** Medium
 - **Status:** Active
 - **First observed:** 2026-05-14
-- **Last verified:** 2026-05-22
+- **Last verified:** 2026-05-23
 - **Area:** voice
 
 **Symptom**
 
-If `VoiceConstants.sttListenTimeout` is raised above 10 seconds, per-utterance cost assumptions break and the voice budget may be exceeded sooner than modelled.
+If `VoiceConstants.sttListenTimeout` is raised without revalidating the budget model, per-utterance audio assumptions break and the daily voice budget may be exceeded sooner than modelled.
 
 **Root cause**
 
-The STT listen cap is a spec-mandated constraint, not an arbitrary default. The budget model assumes utterances are bounded at 10 seconds. Raising the cap does not change what OpenAI charges for audio that runs longer.
+The STT listen cap is a hard upper bound on per-utterance audio duration. The daily-budget model assumes utterances are bounded at this constant. Raising the cap does not change what the LLM is charged for the resulting transcript length, but it does widen the worst-case audio window. The constant was 10 s originally; in the voice-foundation PR it was raised to 15 s to accommodate multi-field edit utterances (e.g. "change carbs to 60, fat to 15"), with the budget model re-checked at the new bound.
 
 **Workaround / fix**
 
-Do not raise `VoiceConstants.sttListenTimeout`. If a future spec revision changes the cap, update the constant and re-validate the budget model before deploying.
+Do not raise `VoiceConstants.sttListenTimeout` without re-validating the daily budget model against the new bound. The current value is 15 s; if a future spec revision changes the cap again, update the constant, the doc comment in `voice_constants.dart`, the budget model, and the `CLAUDE.md` voice-bot section in the same PR.
 
 **References**
 
 - `lib/core/constants/voice_constants.dart` — `VoiceConstants.sttListenTimeout`
-- Commit `cb8cb29` — fix(voice): align STT listen timeout to spec-mandated 10 seconds
+- Commit `cb8cb29` — fix(voice): align STT listen timeout to spec-mandated 10 seconds (superseded by the foundation PR)
+- Voice-foundation PR — raised the cap to 15 s and updated this entry
 
 ---
 
@@ -270,7 +273,7 @@ Do not raise `VoiceConstants.sttListenTimeout`. If a future spec revision change
 - **Severity:** High
 - **Status:** Mitigated
 - **First observed:** 2026-05-14
-- **Last verified:** 2026-05-22
+- **Last verified:** 2026-05-23
 - **Area:** voice
 
 **Symptom**
@@ -298,7 +301,7 @@ The Supabase Functions HTTP client does not apply a default timeout. OpenAI call
 - **Severity:** Critical
 - **Status:** Active
 - **First observed:** 2026-05-14
-- **Last verified:** 2026-05-22
+- **Last verified:** 2026-05-23
 - **Area:** voice
 
 **Symptom**
@@ -326,7 +329,7 @@ The cap (`VoiceConstants.dailyBudgetCapUsd` on the Flutter side; `dailyCapUsd` p
 - **Severity:** Low
 - **Status:** Active
 - **First observed:** 2026-05-14
-- **Last verified:** 2026-05-22
+- **Last verified:** 2026-05-23
 - **Area:** voice
 
 **Symptom**
@@ -354,7 +357,7 @@ Leave the FAB visible and disabled for guests. The sign-in CTA is the intended i
 - **Severity:** High
 - **Status:** Active
 - **First observed:** 2026-05-14
-- **Last verified:** 2026-05-22
+- **Last verified:** 2026-05-23
 - **Area:** db
 
 **Symptom**
@@ -382,7 +385,7 @@ All migrations from version 15 onward must be strictly additive (add columns, ad
 - **Severity:** High
 - **Status:** Resolved-but-monitor
 - **First observed:** 2026-05-18
-- **Last verified:** 2026-05-22
+- **Last verified:** 2026-05-23
 - **Area:** db
 
 **Symptom**
@@ -410,7 +413,7 @@ Use `ConflictAlgorithm.replace` (sqflite) when inserting default catalog entries
 - **Severity:** High
 - **Status:** Resolved-but-monitor
 - **First observed:** 2026-05-18
-- **Last verified:** 2026-05-22
+- **Last verified:** 2026-05-23
 - **Area:** db
 
 **Symptom**
@@ -440,7 +443,7 @@ The sign-in sync path now pulls before pushing for any entity that may already e
 - **Severity:** High
 - **Status:** Active
 - **First observed:** 2026-05-14
-- **Last verified:** 2026-05-22
+- **Last verified:** 2026-05-23
 - **Area:** di
 
 **Symptom**
@@ -467,7 +470,7 @@ Register all BLoCs and Cubits with `registerFactory`. Register all repositories,
 - **Severity:** Medium
 - **Status:** Resolved-but-monitor
 - **First observed:** 2026-05-14
-- **Last verified:** 2026-05-22
+- **Last verified:** 2026-05-23
 - **Area:** di
 
 **Symptom**
@@ -494,7 +497,7 @@ Before registering a type that might already be registered (e.g. a shared servic
 - **Severity:** Medium
 - **Status:** Resolved-but-monitor
 - **First observed:** 2026-05-14
-- **Last verified:** 2026-05-22
+- **Last verified:** 2026-05-23
 - **Area:** di
 
 **Symptom**
@@ -516,6 +519,35 @@ All async work performed during DI bootstrap must be awaited before the bootstra
 
 ---
 
+### widget-state-must-not-field-capture-factory-blocs-or-cubits
+
+- **Severity:** Medium
+- **Status:** Resolved-but-monitor
+- **First observed:** 2026-05-21
+- **Last verified:** 2026-05-23
+- **Area:** di
+
+**Symptom**
+
+A widget appears to update settings or dispatch events through a Cubit/BLoC, yet other parts of the app holding the "same" Cubit/BLoC do not react. State seems coherent in isolated tests but silently desyncs in the running app, or two confirmation cards/snackbars appear after one tap.
+
+**Root cause**
+
+A `State<…>` subclass field-captures a factory-registered BLoC or Cubit from `sl<>()` (typically in `initState` or as a `late final` field). `get_it.registerFactory` returns a **new instance** on every call, so the field-captured instance is different from whatever `BlocProvider` higher in the widget tree provides. Any state the field instance emits is invisible to consumers reading via `context.read`/`context.watch`. This was the root cause of the original silent-dispatch bug fixed in PR `#58` (`VoiceBloc` field-captured target BLoCs) and of the `BottomNavigation` instance multiplication fixed in the voice-foundation PR (`VoiceSettingsCubit` field-captured from `sl<>()` alongside three other concurrent `BlocProvider` sites).
+
+**Workaround / fix**
+
+Never declare a BLoC or Cubit as a widget-state field (`final XxxBloc _x;`, `late final XxxCubit _x;`). Read it lazily inside `build`/`didChangeDependencies` via `context.read<XxxBloc>()` or `context.watch<XxxCubit>()`. If the widget genuinely needs a constructor-injected BLoC (e.g. for test injection), declare the parameter on the `StatefulWidget` itself, not on the `State<…>` subclass. The `widget-state-bloc-field` convention rule enforces this default-deny; legitimate exceptions waive with `// convention-checker:allow=widget-state-bloc-field reason=<at-least-10-character-prose>`.
+
+**References**
+
+- `tool/convention_rules/widget_state_bloc_field.dart` — the rule
+- `test/tool/widget_state_bloc_field_test.dart` — multi-line test fixtures
+- `lib/injection/modules/register_voice_module.dart` — `VoiceSettingsCubit` factory registration
+- Voice-foundation PR — added the rule; removed the `BottomNavigation` field capture
+
+---
+
 ## CI & Local Tooling
 
 ### crlf-line-endings-cause-false-positive-dart-format-locally
@@ -523,7 +555,7 @@ All async work performed during DI bootstrap must be awaited before the bootstra
 - **Severity:** Low
 - **Status:** Active
 - **First observed:** 2026-05-20
-- **Last verified:** 2026-05-22
+- **Last verified:** 2026-05-23
 - **Area:** ci
 
 **Symptom**
@@ -550,7 +582,7 @@ To verify real formatting issues, run format only against the diff: `dart format
 - **Severity:** Low
 - **Status:** Active
 - **First observed:** 2026-05-20
-- **Last verified:** 2026-05-22
+- **Last verified:** 2026-05-23
 - **Area:** ci
 
 **Symptom**
@@ -576,7 +608,7 @@ Do not invest time eliminating info-level analyzer notices unless they are promo
 - **Severity:** Low
 - **Status:** Active
 - **First observed:** 2026-05-20
-- **Last verified:** 2026-05-22
+- **Last verified:** 2026-05-23
 - **Area:** ci
 
 **Symptom**
@@ -602,7 +634,7 @@ Always push to a feature or fix branch and open a PR. The branch naming conventi
 - **Severity:** Medium
 - **Status:** Resolved-but-monitor
 - **First observed:** 2026-05-21
-- **Last verified:** 2026-05-22
+- **Last verified:** 2026-05-23
 - **Area:** ci
 
 **Symptom**
@@ -631,7 +663,7 @@ Every convention rule's regex must be tested against at least one multi-line fix
 - **Severity:** Medium
 - **Status:** Active
 - **First observed:** 2026-05-14
-- **Last verified:** 2026-05-22
+- **Last verified:** 2026-05-23
 - **Area:** platform
 
 **Symptom**
@@ -658,7 +690,7 @@ After changing any `--dart-define` value, run a full `flutter run` (not hot rest
 - **Severity:** Low
 - **Status:** Active
 - **First observed:** 2026-05-14
-- **Last verified:** 2026-05-22
+- **Last verified:** 2026-05-23
 - **Area:** platform
 
 **Symptom**
@@ -687,7 +719,7 @@ To run with a real Supabase backend, pass all three `--dart-define` flags on `fl
 - **Severity:** Low
 - **Status:** Resolved-but-monitor
 - **First observed:** 2026-05-14
-- **Last verified:** 2026-05-22
+- **Last verified:** 2026-05-23
 - **Area:** other
 
 **Symptom**
@@ -714,7 +746,7 @@ Do not add a filter that hides sets with a missing exercise reference. The fallb
 - **Severity:** Low
 - **Status:** Resolved-but-monitor
 - **First observed:** 2026-05-14
-- **Last verified:** 2026-05-22
+- **Last verified:** 2026-05-23
 - **Area:** other
 
 **Symptom**
@@ -734,3 +766,33 @@ Leave the `onChanged` handler writing to persistent storage on every tick. The p
 - `lib/features/voice/presentation/voice_settings_page.dart` — slider `onChanged` handler
 - `lib/features/voice/application/voice_settings_cubit.dart` — persistence logic
 - Commit `9f8edcf` — feat: wire Delete History button and fix slider persistence on every drag tick
+
+---
+
+### cross-feature-presentation-imports-are-architectural-cycles
+
+- **Severity:** Medium
+- **Status:** Resolved-but-monitor
+- **First observed:** 2026-05-21
+- **Last verified:** 2026-05-23
+- **Area:** other
+
+**Symptom**
+
+A presentation file under `lib/features/<F1>/presentation/` imports a page or widget from `lib/features/<F2>/presentation/` (or worse, from `lib/features/<F2>/application/` or `data/`). The build compiles; tests pass; but the feature dependency graph silently grows cycles. Removing or renaming any one feature breaks an unrelated feature in a non-local way. Pre-foundation-PR, three offenders existed: `settings_page.dart` → profile/voice, `profile_page.dart` → auth/settings/voice, `home_page.dart` → profile.
+
+**Root cause**
+
+Flutter's default navigation pattern — `Navigator.push(context, MaterialPageRoute(builder: (_) => SomePage()))` — requires the caller to import the destination page class directly. Done from inside another feature, that import couples the two features at compile time and creates a cycle the moment the destination ever needs anything from the source. The `presentation-layer-data-import` convention rule blocks `presentation → data`, but until the foundation PR there was no rule blocking `presentation → presentation` across feature boundaries.
+
+**Workaround / fix**
+
+Use a named-route registry. All page classes are imported once in `lib/app/routes/app_router.dart` (the only file granted an exception to the rule); every other navigation site uses `Navigator.pushNamed(context, AppRoutes.foo)` with a route constant from `lib/app/routes/app_routes.dart`. The `cross-feature-presentation-import` convention rule enforces the default-deny. Legitimate exceptions waive with `// convention-checker:allow=cross-feature-presentation-import reason=<at-least-10-character-prose>`.
+
+**References**
+
+- `tool/convention_rules/cross_feature_presentation_import.dart` — the rule
+- `test/tool/cross_feature_presentation_import_test.dart` — multi-line test fixtures
+- `lib/app/routes/app_routes.dart` — route constants
+- `lib/app/routes/app_router.dart` — `onGenerateRoute` registry
+- Voice-foundation PR — added the rule, the registry, and migrated the three offenders

@@ -2,8 +2,8 @@
 
 - **Task:** Add a brand-new feature with domain entity, datasource, repository, use case, BLoC, DI module, and tests
 - **When to use:** When a genuinely new capability needs its own screen, its own local storage, and its own state management — not an extension of an existing feature
-- **Estimated steps:** 12
-- **Last verified:** 2026-05-21
+- **Estimated steps:** 13
+- **Last verified:** 2026-05-23
 - **Canonical references:** [[datasource]], [[repository]], [[use_case]], [[bloc]], [[injection_module]], [[bloc_test]], [[widget_test]]
 - **Touches:** domain, data, application, presentation, di, test
 - **Related playbooks:** [add-datasource](add-datasource.md), [add-use-case](add-use-case.md), [add-bloc-effect](add-bloc-effect.md), [add-migration](add-migration.md)
@@ -84,8 +84,15 @@
 ### 12. Connect the presentation layer
 
 - [ ] Create the page widget(s) in `lib/features/<name>/presentation/`. The page provides the BLoC via `BlocProvider(create: (_) => sl()<NameBloc>(), ...)`.
-- [ ] Wire navigation: add the route to the app's router configuration. The presentation layer must not import from `lib/data/` — only from the BLoC and domain entities.
+- [ ] The presentation layer must not import from `lib/data/` — only from the BLoC and domain entities.
 - [ ] Confirm the `presentation-layer-data-import` convention rule passes: `dart run tool/check_conventions.dart`.
+
+### 13. Register the page's named route
+
+- [ ] Add a string constant to `lib/app/routes/app_routes.dart` (e.g. `static const String <name> = '/<name>';`).
+- [ ] Add a matching `case AppRoutes.<name>:` arm to `AppRouter.onGenerateRoute` in `lib/app/routes/app_router.dart`. The route builder constructs the page from this file; **this is the only file in the codebase allowed to import page classes from multiple features' `presentation/` directories** — the `cross-feature-presentation-import` convention rule grants `lib/app/` an exception by construction.
+- [ ] Reach the page via `Navigator.pushNamed(context, AppRoutes.<name>)` (or `Navigator.pushNamed<ReturnType>(...)` if the route returns a value). Never call `Navigator.push(context, MaterialPageRoute(builder: (_) => SomePage()))` from inside `lib/features/<otherFeature>/presentation/` — that triggers the `cross-feature-presentation-import` rule.
+- [ ] Confirm both rules pass: `dart run tool/check_conventions.dart`.
 
 ---
 
