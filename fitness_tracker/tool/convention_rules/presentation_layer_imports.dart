@@ -1,25 +1,26 @@
 import 'shared.dart';
 
 /// No file under `lib/features/<x>/presentation/` may import from the shared
-/// `lib/data/` layer. Presentation code must only depend on domain interfaces
-/// and use cases.
-///
-/// Feature-local `data/` folders (e.g. `lib/features/voice/data/services/`)
-/// are intentionally excluded — a relative `../data/services/...` from within
-/// the same feature does NOT reach `lib/data/`.
+/// `lib/data/` layer or from any feature's own `data/` layer. Presentation
+/// code must only depend on domain interfaces and use cases.
 final class PresentationLayerImportsRule implements ConventionRule {
   @override
   String get id => 'presentation-layer-data-import';
 
   @override
   String get description =>
-      'Presentation files must not import from lib/data/.';
+      'Presentation files must not import from lib/data/ or lib/features/*/data/.';
 
-  /// Matches imports that resolve to the shared `lib/data/` layer:
-  ///   - package:fitness_tracker/data/...
-  ///   - Relative paths with 3+ ../ escaping the feature root into lib/
+  /// Matches imports that resolve to any data layer:
+  ///   - package:fitness_tracker/data/...  (shared data layer)
+  ///   - package:fitness_tracker/features/<x>/data/...  (feature data layer)
+  ///   - Relative paths with 1+ ../ followed by data/  (both shared and
+  ///     feature-local data layers reachable from any presentation/ depth)
   static final _crossLayerImportPattern = RegExp(
-    r'''import\s+['"](package:fitness_tracker/data/|(?:\.\.\/){3,}data/)''',
+    r'''import\s+['"]'''
+    r'''(package:fitness_tracker/data/'''
+    r'''|package:fitness_tracker/features/[^/]+/data/'''
+    r'''|(?:\.\.\/)+data/)''',
   );
 
   @override

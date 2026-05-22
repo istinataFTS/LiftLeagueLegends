@@ -1,7 +1,7 @@
 import 'dart:async';
 
 import 'package:fitness_tracker/features/voice/data/services/flutter_tts_voice_tts_service.dart';
-import 'package:fitness_tracker/features/voice/data/services/voice_tts_service.dart';
+import 'package:fitness_tracker/domain/services/voice_tts_service.dart';
 import 'package:flutter/foundation.dart' show VoidCallback;
 import 'package:flutter_test/flutter_test.dart';
 import 'package:flutter_tts/flutter_tts.dart';

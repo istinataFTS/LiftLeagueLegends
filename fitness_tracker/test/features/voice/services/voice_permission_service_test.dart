@@ -1,4 +1,4 @@
-import 'package:fitness_tracker/features/voice/data/services/voice_permission_service.dart';
+import 'package:fitness_tracker/domain/services/voice_permission_service.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:mocktail/mocktail.dart';
 

@@ -1,6 +1,6 @@
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 
-import 'voice_credential_service.dart';
+import '../../../../domain/services/voice_credential_service.dart';
 
 class SecureStorageVoiceCredentialService implements VoiceCredentialService {
   const SecureStorageVoiceCredentialService(this._storage);

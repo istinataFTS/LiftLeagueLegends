@@ -11,7 +11,7 @@ import '../../../domain/entities/voice_settings.dart' show WakeWordPreset;
 import '../../../injection/injection_container.dart';
 import '../application/voice_bloc.dart';
 import '../application/voice_settings_cubit.dart';
-import '../data/services/voice_wake_word_service.dart';
+import '../../../domain/services/voice_wake_word_service.dart';
 import 'voice_overlay_keys.dart';
 import 'voice_settings_page.dart';
 import 'widgets/voice_budget_indicator.dart';

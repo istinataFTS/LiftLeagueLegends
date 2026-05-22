@@ -7,7 +7,7 @@ import 'package:speech_to_text/speech_to_text.dart' show SpeechListenOptions;
 
 import '../../../../core/constants/voice_constants.dart';
 import '../../../../core/logging/app_logger.dart';
-import 'voice_stt_service.dart';
+import '../../../../domain/services/voice_stt_service.dart';
 
 /// Device-native STT via the `speech_to_text` plugin.
 ///

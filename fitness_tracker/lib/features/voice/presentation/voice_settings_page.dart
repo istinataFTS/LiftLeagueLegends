@@ -7,7 +7,7 @@ import '../../../core/themes/app_theme.dart';
 import '../../../domain/entities/voice_settings.dart';
 import '../../../injection/injection_container.dart';
 import '../application/voice_settings_cubit.dart';
-import '../data/services/voice_tts_service.dart';
+import '../../../domain/services/voice_tts_service.dart';
 import 'voice_settings_page_keys.dart';
 
 /// Dedicated Voice Assistant settings page.

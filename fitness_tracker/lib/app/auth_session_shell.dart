@@ -10,6 +10,7 @@ import '../features/log/log.dart';
 import '../features/profile/application/profile_cubit.dart';
 import '../features/voice/application/voice_bloc.dart';
 import '../features/voice/application/voice_settings_cubit.dart';
+import '../features/voice/presentation/voice_command_router.dart';
 import '../injection/injection_container.dart' as di;
 
 /// Establishes the authentication boundary in the widget tree.
@@ -58,23 +59,23 @@ class AuthSessionShell extends StatelessWidget {
           key: ValueKey<String>(sessionKey),
           child: MultiBlocProvider(
             providers: <BlocProvider<dynamic>>[
-              BlocProvider<WorkoutBloc>.value(value: di.sl<WorkoutBloc>()),
+              BlocProvider<WorkoutBloc>(create: (_) => di.sl<WorkoutBloc>()),
               BlocProvider<HomeBloc>(create: (_) => di.sl<HomeBloc>()),
               BlocProvider<MuscleVisualBloc>(
                 create: (_) => di.sl<MuscleVisualBloc>(),
               ),
               BlocProvider<ExerciseBloc>(create: (_) => di.sl<ExerciseBloc>()),
-              BlocProvider<HistoryBloc>.value(value: di.sl<HistoryBloc>()),
+              BlocProvider<HistoryBloc>(create: (_) => di.sl<HistoryBloc>()),
               BlocProvider<MealBloc>(create: (_) => di.sl<MealBloc>()),
-              BlocProvider<NutritionLogBloc>.value(
-                value: di.sl<NutritionLogBloc>(),
+              BlocProvider<NutritionLogBloc>(
+                create: (_) => di.sl<NutritionLogBloc>(),
               ),
               BlocProvider<VoiceBloc>(create: (_) => di.sl<VoiceBloc>()),
               BlocProvider<VoiceSettingsCubit>(
                 create: (_) => di.sl<VoiceSettingsCubit>(),
               ),
             ],
-            child: child,
+            child: VoiceCommandRouter(child: child),
           ),
         );
       },

@@ -6,13 +6,8 @@
 export 'application/voice_bloc.dart';
 export 'application/voice_settings_cubit.dart';
 
-// Data-side ports (abstract interfaces only — implementations stay
-// hidden and are wired by the DI module).
-export 'data/services/voice_stt_service.dart';
-export 'data/services/voice_tts_service.dart';
-export 'data/services/voice_wake_word_service.dart';
-
 // Presentation — all exports sorted alphabetically within this section.
+export 'presentation/voice_command_router.dart';
 export 'presentation/voice_overlay_keys.dart';
 export 'presentation/voice_overlay_page.dart';
 export 'presentation/voice_settings_page.dart';

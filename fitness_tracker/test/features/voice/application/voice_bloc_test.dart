@@ -30,9 +30,9 @@ import 'package:fitness_tracker/domain/usecases/workout_sets/get_weekly_sets.dar
 import 'package:fitness_tracker/features/history/history.dart';
 import 'package:fitness_tracker/features/log/log.dart';
 import 'package:fitness_tracker/features/voice/application/voice_bloc.dart';
-import 'package:fitness_tracker/features/voice/data/services/voice_stt_service.dart';
-import 'package:fitness_tracker/features/voice/data/services/voice_tts_service.dart';
-import 'package:fitness_tracker/features/voice/data/services/voice_wake_word_service.dart';
+import 'package:fitness_tracker/domain/services/voice_stt_service.dart';
+import 'package:fitness_tracker/domain/services/voice_tts_service.dart';
+import 'package:fitness_tracker/domain/services/voice_wake_word_service.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:mocktail/mocktail.dart';
 
@@ -303,9 +303,6 @@ VoiceBloc _makeBloc({
   WakelockService? wakelock,
   VoiceSettings settings = const VoiceSettings.defaults(),
   // C-5 params â€” optional so existing tests remain unchanged
-  WorkoutBloc? workoutBloc,
-  NutritionLogBloc? nutritionLogBloc,
-  HistoryBloc? historyBloc,
   GetSetsByDateRange? getSetsByDateRange,
   GetDailyMacros? getDailyMacros,
   GetWeeklySets? getWeeklySets,
@@ -325,9 +322,6 @@ VoiceBloc _makeBloc({
     networkStatusService: networkStatus ?? FakeNetworkStatusService(),
     wakeWordService: wakeWord ?? FakeVoiceWakeWordService(),
     wakelockService: wakelock ?? FakeWakelockService(),
-    workoutBloc: workoutBloc ?? MockWorkoutBloc(),
-    nutritionLogBloc: nutritionLogBloc ?? MockNutritionLogBloc(),
-    historyBloc: historyBloc ?? MockHistoryBloc(),
     getSetsByDateRange: getSetsByDateRange ?? _defaultGetSetsByDateRange(),
     getDailyMacros: getDailyMacros ?? _defaultGetDailyMacros(),
     getWeeklySets: getWeeklySets ?? _defaultGetWeeklySets(),
@@ -1076,7 +1070,6 @@ void main() {
         getSetsByDateRange: getSetsByDateRange,
         getLogsForDate: getLogsForDate,
         getDailyMacros: getDailyMacros,
-        workoutBloc: workoutBloc,
         tts: tts,
       );
 
@@ -1113,7 +1106,6 @@ void main() {
         getSetsByDateRange: getSetsByDateRange,
         getLogsForDate: getLogsForDate,
         getDailyMacros: getDailyMacros,
-        workoutBloc: workoutBloc,
         tts: tts,
       );
 
@@ -1170,7 +1162,6 @@ void main() {
         getSetsByDateRange: getSetsByDateRange,
         getLogsForDate: getLogsForDate,
         getDailyMacros: getDailyMacros,
-        historyBloc: historyBloc,
         tts: tts,
       );
 
@@ -1205,7 +1196,6 @@ void main() {
         getSetsByDateRange: getSetsByDateRange,
         getLogsForDate: getLogsForDate,
         getDailyMacros: getDailyMacros,
-        historyBloc: historyBloc,
         tts: tts,
       );
 
@@ -1243,7 +1233,6 @@ void main() {
         getSetsByDateRange: getSetsByDateRange,
         getLogsForDate: getLogsForDate,
         getDailyMacros: getDailyMacros,
-        historyBloc: historyBloc,
         tts: tts,
       );
 
@@ -1278,7 +1267,6 @@ void main() {
         getSetsByDateRange: getSetsByDateRange,
         getLogsForDate: getLogsForDate,
         getDailyMacros: getDailyMacros,
-        nutritionLogBloc: nutritionLogBloc,
         tts: tts,
       );
 
@@ -1336,7 +1324,6 @@ void main() {
         getSetsByDateRange: getSetsByDateRange,
         getLogsForDate: getLogsForDate,
         getDailyMacros: getDailyMacros,
-        historyBloc: historyBloc,
         tts: tts,
       );
 
@@ -1377,7 +1364,6 @@ void main() {
         getSetsByDateRange: getSetsByDateRange,
         getLogsForDate: getLogsForDate,
         getDailyMacros: getDailyMacros,
-        historyBloc: historyBloc,
         tts: tts,
       );
 
@@ -1814,7 +1800,6 @@ void main() {
         appSettingsRepository: settingsRepo,
         offlineCoordinator: offlineCoordinator,
         getSetsByDateRange: getSetsByDateRange,
-        historyBloc: historyBloc,
         tts: tts,
       );
 

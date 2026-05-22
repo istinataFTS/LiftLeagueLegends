@@ -2,7 +2,7 @@ import 'dart:async';
 
 import 'package:fitness_tracker/domain/entities/voice_settings.dart'
     show WakeWordPreset, WakeWordPresetLabel;
-import 'package:fitness_tracker/features/voice/data/services/voice_wake_word_service.dart';
+import 'package:fitness_tracker/domain/services/voice_wake_word_service.dart';
 import 'package:flutter_test/flutter_test.dart';
 
 // ---------------------------------------------------------------------------

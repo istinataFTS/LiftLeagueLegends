@@ -4,7 +4,7 @@ import 'package:flutter_tts/flutter_tts.dart';
 
 import '../../../../core/constants/voice_constants.dart';
 import '../../../../core/logging/app_logger.dart';
-import 'voice_tts_service.dart';
+import '../../../../domain/services/voice_tts_service.dart';
 
 /// Device-native TTS via the `flutter_tts` plugin.
 ///

@@ -1,6 +1,6 @@
 import 'package:permission_handler/permission_handler.dart' as ph;
 
-import 'voice_permission_service.dart';
+import '../../../../domain/services/voice_permission_service.dart';
 
 class PermissionHandlerVoicePermissionService
     implements VoicePermissionService {

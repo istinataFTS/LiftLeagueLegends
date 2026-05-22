@@ -2,7 +2,7 @@ import 'package:bloc_test/bloc_test.dart';
 import 'package:fitness_tracker/core/constants/app_strings.dart';
 import 'package:fitness_tracker/domain/entities/voice_settings.dart';
 import 'package:fitness_tracker/features/voice/application/voice_settings_cubit.dart';
-import 'package:fitness_tracker/features/voice/data/services/voice_tts_service.dart';
+import 'package:fitness_tracker/domain/services/voice_tts_service.dart';
 import 'package:fitness_tracker/features/voice/presentation/voice_settings_page.dart';
 import 'package:fitness_tracker/features/voice/presentation/voice_settings_page_keys.dart';
 import 'package:fitness_tracker/injection/injection_container.dart';

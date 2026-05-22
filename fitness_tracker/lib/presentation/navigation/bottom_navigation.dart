@@ -14,7 +14,7 @@ import '../../features/log/presentation/pages/log_page.dart';
 import '../../features/profile/profile.dart';
 import '../../features/settings/presentation/settings_scope.dart';
 import '../../features/voice/application/voice_settings_cubit.dart';
-import '../../features/voice/data/services/voice_wake_word_service.dart';
+import '../../domain/services/voice_wake_word_service.dart';
 import '../../features/voice/presentation/widgets/voice_fab.dart';
 import '../../injection/injection_container.dart';
 

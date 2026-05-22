@@ -9,7 +9,7 @@ import '../../../../core/themes/app_theme.dart';
 import '../../../../domain/entities/app_session.dart';
 import '../../../../domain/entities/voice_settings.dart';
 import '../../application/voice_settings_cubit.dart';
-import '../../data/services/voice_wake_word_service.dart';
+import '../../../../domain/services/voice_wake_word_service.dart';
 import '../voice_overlay_keys.dart';
 import '../voice_overlay_page.dart';
 
