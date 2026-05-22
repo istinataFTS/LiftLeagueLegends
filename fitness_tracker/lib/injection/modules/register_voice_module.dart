@@ -9,6 +9,7 @@ import '../../data/datasources/remote/noop_voice_remote_datasource.dart';
 import '../../data/datasources/remote/supabase_voice_remote_datasource.dart';
 import '../../data/datasources/remote/voice_remote_datasource.dart';
 import '../../data/repositories/voice_repository_impl.dart';
+import '../../domain/repositories/app_settings_repository.dart';
 import '../../domain/repositories/meal_repository.dart';
 import '../../domain/repositories/voice_repository.dart';
 import '../../domain/usecases/exercises/get_all_exercises.dart';
@@ -128,12 +129,14 @@ void registerVoiceModule(GetIt sl) {
   );
 
   // ── Cubits / blocs ─────────────────────────────────────────────────────
-  // VoiceSettingsCubit: factory — each page gets its own subscription to
-  // AppSettingsCubit's stream, but the *state* it mirrors comes from the
-  // shared singleton, so all instances see the same values.
+  // VoiceSettingsCubit: factory — subscribes to
+  // AppSettingsRepository.watchSettings() so writes from anywhere (the
+  // main settings page, the voice settings page) propagate through the
+  // single repository-level broadcast channel. No cross-feature
+  // application-layer import on AppSettingsCubit.
   sl.registerFactory(
     () => VoiceSettingsCubit(
-      appSettingsCubit: sl<AppSettingsCubit>(),
+      repository: sl<AppSettingsRepository>(),
       deleteVoiceHistory: sl<DeleteVoiceHistory>(),
     ),
   );

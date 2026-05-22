@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:equatable/equatable.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 
@@ -44,28 +46,47 @@ class AppSettingsState extends Equatable {
       isLoading: isLoading ?? this.isLoading,
       isSaving: isSaving ?? this.isSaving,
       hasLoaded: hasLoaded ?? this.hasLoaded,
-      errorMessage:
-          clearErrorMessage ? null : (errorMessage ?? this.errorMessage),
+      errorMessage: clearErrorMessage
+          ? null
+          : (errorMessage ?? this.errorMessage),
     );
   }
 
   @override
   List<Object?> get props => <Object?>[
-        settings,
-        isLoading,
-        isSaving,
-        hasLoaded,
-        errorMessage,
-      ];
+    settings,
+    isLoading,
+    isSaving,
+    hasLoaded,
+    errorMessage,
+  ];
 }
 
 class AppSettingsCubit extends Cubit<AppSettingsState> {
-  AppSettingsCubit({
-    required AppSettingsRepository repository,
-  })  : _repository = repository,
-        super(AppSettingsState.initial());
+  AppSettingsCubit({required AppSettingsRepository repository})
+    : _repository = repository,
+      super(AppSettingsState.initial()) {
+    // Subscribe to repository-driven changes so writes from anywhere
+    // (e.g. VoiceSettingsCubit) propagate into this cubit's state.
+    // The `if (settings == state.settings)` guard inside the handler
+    // suppresses the redundant emit when the write originated here.
+    _subscription = _repository.watchSettings().listen(_onSettingsChanged);
+  }
 
   final AppSettingsRepository _repository;
+  late final StreamSubscription<AppSettings> _subscription;
+
+  void _onSettingsChanged(AppSettings settings) {
+    if (isClosed) return;
+    if (settings == state.settings) return;
+    emit(state.copyWith(settings: settings, hasLoaded: true));
+  }
+
+  @override
+  Future<void> close() async {
+    await _subscription.cancel();
+    await super.close();
+  }
 
   Future<void> ensureLoaded() async {
     if (state.hasLoaded || state.isLoading || state.isSaving) {
@@ -92,12 +113,7 @@ class AppSettingsCubit extends Cubit<AppSettingsState> {
   }
 
   Future<void> _loadSettings() async {
-    emit(
-      state.copyWith(
-        isLoading: true,
-        clearErrorMessage: true,
-      ),
-    );
+    emit(state.copyWith(isLoading: true, clearErrorMessage: true));
 
     final result = await _repository.getSettings();
 
@@ -126,23 +142,13 @@ class AppSettingsCubit extends Cubit<AppSettingsState> {
   }
 
   Future<bool> saveSettings(AppSettings nextSettings) async {
-    emit(
-      state.copyWith(
-        isSaving: true,
-        clearErrorMessage: true,
-      ),
-    );
+    emit(state.copyWith(isSaving: true, clearErrorMessage: true));
 
     final result = await _repository.saveSettings(nextSettings);
 
     return result.fold(
       (failure) {
-        emit(
-          state.copyWith(
-            isSaving: false,
-            errorMessage: failure.message,
-          ),
-        );
+        emit(state.copyWith(isSaving: false, errorMessage: failure.message));
         return false;
       },
       (_) {
@@ -160,36 +166,22 @@ class AppSettingsCubit extends Cubit<AppSettingsState> {
   }
 
   Future<bool> setNotificationsEnabled(bool value) {
-    return saveSettings(
-      state.settings.copyWith(
-        notificationsEnabled: value,
-      ),
-    );
+    return saveSettings(state.settings.copyWith(notificationsEnabled: value));
   }
 
   Future<bool> setWeekStartDay(WeekStartDay value) {
-    return saveSettings(
-      state.settings.copyWith(
-        weekStartDay: value,
-      ),
-    );
+    return saveSettings(state.settings.copyWith(weekStartDay: value));
   }
 
   Future<bool> setWeightUnit(WeightUnit value) {
-    return saveSettings(
-      state.settings.copyWith(
-        weightUnit: value,
-      ),
-    );
+    return saveSettings(state.settings.copyWith(weightUnit: value));
   }
 
   Future<bool> setSectionExpanded(String sectionId, {required bool expanded}) {
-    final Map<String, bool> updated =
-        Map<String, bool>.from(state.settings.uiExpansionState)
-          ..[sectionId] = expanded;
-    return saveSettings(
-      state.settings.copyWith(uiExpansionState: updated),
-    );
+    final Map<String, bool> updated = Map<String, bool>.from(
+      state.settings.uiExpansionState,
+    )..[sectionId] = expanded;
+    return saveSettings(state.settings.copyWith(uiExpansionState: updated));
   }
 
   // ---------------------------------------------------------------------------
@@ -255,10 +247,6 @@ class AppSettingsCubit extends Cubit<AppSettingsState> {
       return;
     }
 
-    emit(
-      state.copyWith(
-        clearErrorMessage: true,
-      ),
-    );
+    emit(state.copyWith(clearErrorMessage: true));
   }
 }

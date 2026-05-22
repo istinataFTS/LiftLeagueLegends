@@ -521,6 +521,8 @@ class WebDemoAppSettingsRepository implements AppSettingsRepository {
   WebDemoAppSettingsRepository(this._store);
 
   final WebDemoStore _store;
+  final StreamController<AppSettings> _settingsController =
+      StreamController<AppSettings>.broadcast();
 
   @override
   Future<Either<Failure, AppSettings>> getSettings() async {
@@ -530,7 +532,22 @@ class WebDemoAppSettingsRepository implements AppSettingsRepository {
   @override
   Future<Either<Failure, void>> saveSettings(AppSettings settings) async {
     _store.settings = settings;
+    _settingsController.add(settings);
     return const Right(null);
+  }
+
+  @override
+  Stream<AppSettings> watchSettings() {
+    return Stream<AppSettings>.multi((listener) {
+      listener.add(_store.settings);
+      final sub = _settingsController.stream.listen(
+        listener.add,
+        onError: listener.addError,
+      );
+      listener.onCancel = () async {
+        await sub.cancel();
+      };
+    });
   }
 }
 

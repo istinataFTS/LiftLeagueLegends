@@ -116,10 +116,17 @@ void main() {
 
     setUp(() {
       repo = MockAppSettingsRepository();
-      when(() => repo.getSettings())
-          .thenAnswer((_) async => const Right(AppSettings.defaults()));
-      when(() => repo.saveSettings(any()))
-          .thenAnswer((_) async => const Right(null));
+      when(
+        () => repo.getSettings(),
+      ).thenAnswer((_) async => const Right(AppSettings.defaults()));
+      when(
+        () => repo.saveSettings(any()),
+      ).thenAnswer((_) async => const Right(null));
+      // The cubit's constructor subscribes to watchSettings(). Without
+      // this stub, the constructor throws and `cubit` stays uninitialised.
+      when(
+        () => repo.watchSettings(),
+      ).thenAnswer((_) => const Stream<AppSettings>.empty());
       cubit = _makeCubit(repo);
     });
 
@@ -170,15 +177,17 @@ void main() {
       expect(saved.voiceSettings.workoutModeAutoEnable, isTrue);
     });
 
-    test('setVoiceWakeWordArmedInForeground saves updated voiceSettings',
-        () async {
-      await cubit.ensureLoaded();
-      await cubit.setVoiceWakeWordArmedInForeground(false);
+    test(
+      'setVoiceWakeWordArmedInForeground saves updated voiceSettings',
+      () async {
+        await cubit.ensureLoaded();
+        await cubit.setVoiceWakeWordArmedInForeground(false);
 
-      final captured = verify(() => repo.saveSettings(captureAny())).captured;
-      final saved = captured.last as AppSettings;
-      expect(saved.voiceSettings.wakeWordArmedInForeground, isFalse);
-    });
+        final captured = verify(() => repo.saveSettings(captureAny())).captured;
+        final saved = captured.last as AppSettings;
+        expect(saved.voiceSettings.wakeWordArmedInForeground, isFalse);
+      },
+    );
   });
 
   // -------------------------------------------------------------------------

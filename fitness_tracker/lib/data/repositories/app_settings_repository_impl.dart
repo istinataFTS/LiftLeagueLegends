@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:dartz/dartz.dart';
 
 import '../../core/constants/voice_constants.dart';
@@ -25,36 +27,51 @@ class AppSettingsRepositoryImpl implements AppSettingsRepository {
       'settings.voice.workout_mode_auto';
   static const String _voiceTtsVolumeKey = 'settings.voice.tts_volume';
   static const String _voiceTtsSpeechRateKey = 'settings.voice.tts_speech_rate';
-  static const String _voiceWakeWordArmedKey =
-      'settings.voice.wake_word_armed';
+  static const String _voiceWakeWordArmedKey = 'settings.voice.wake_word_armed';
 
   final AppMetadataLocalDataSource localDataSource;
 
-  const AppSettingsRepositoryImpl({
-    required this.localDataSource,
-  });
+  AppSettingsRepositoryImpl({required this.localDataSource});
+
+  /// Most recently observed [AppSettings]. Populated on successful
+  /// [getSettings] reads and successful [saveSettings] writes. Replayed
+  /// to each new [watchSettings] subscriber.
+  AppSettings? _lastCached;
+
+  /// Broadcasts post-save updates to all [watchSettings] listeners.
+  /// Created lazily so callers that never subscribe pay nothing.
+  StreamController<AppSettings>? _controller;
+
+  StreamController<AppSettings> _ensureController() {
+    return _controller ??= StreamController<AppSettings>.broadcast();
+  }
 
   @override
   Future<Either<Failure, AppSettings>> getSettings() {
     return RepositoryGuard.run(() async {
-      final notificationsEnabled =
-          await localDataSource.readBool(_notificationsEnabledKey);
-      final weekStartDayRaw =
-          await localDataSource.readString(_weekStartDayKey);
-      final weightUnitRaw =
-          await localDataSource.readString(_weightUnitKey);
-      final uiExpansionRaw =
-          await localDataSource.readJsonObject(_uiExpansionStateKey);
+      final notificationsEnabled = await localDataSource.readBool(
+        _notificationsEnabledKey,
+      );
+      final weekStartDayRaw = await localDataSource.readString(
+        _weekStartDayKey,
+      );
+      final weightUnitRaw = await localDataSource.readString(_weightUnitKey);
+      final uiExpansionRaw = await localDataSource.readJsonObject(
+        _uiExpansionStateKey,
+      );
 
       final voiceSettings = await _readVoiceSettings();
 
-      return AppSettings(
+      final settings = AppSettings(
         notificationsEnabled: notificationsEnabled ?? true,
         weekStartDay: _parseWeekStartDay(weekStartDayRaw),
         weightUnit: _parseWeightUnit(weightUnitRaw),
         uiExpansionState: _parseUiExpansionState(uiExpansionRaw),
         voiceSettings: voiceSettings,
       );
+
+      _lastCached = settings;
+      return settings;
     });
   }
 
@@ -78,6 +95,31 @@ class AppSettingsRepositoryImpl implements AppSettingsRepository {
         settings.uiExpansionState.cast<String, dynamic>(),
       );
       await _writeVoiceSettings(settings.voiceSettings);
+
+      // Only emit AFTER every write succeeds. RepositoryGuard.run catches
+      // a throw above and short-circuits this line, so failures never
+      // propagate to listeners.
+      _lastCached = settings;
+      _controller?.add(settings);
+    });
+  }
+
+  @override
+  Stream<AppSettings> watchSettings() {
+    // `Stream.multi` creates a per-subscriber controller, which lets us
+    // replay [_lastCached] only to the subscriber that just connected
+    // (not to existing listeners again). The merged inner subscription
+    // forwards all subsequent broadcast events.
+    return Stream<AppSettings>.multi((listener) {
+      final cached = _lastCached;
+      if (cached != null) listener.add(cached);
+      final sub = _ensureController().stream.listen(
+        listener.add,
+        onError: listener.addError,
+      );
+      listener.onCancel = () async {
+        await sub.cancel();
+      };
     });
   }
 
@@ -88,18 +130,20 @@ class AppSettingsRepositoryImpl implements AppSettingsRepository {
   Future<VoiceSettings> _readVoiceSettings() async {
     const defaults = VoiceSettings.defaults();
 
-    final wakePresetRaw =
-        await localDataSource.readString(_voiceWakeWordPresetKey);
-    final sessionLogging =
-        await localDataSource.readBool(_voiceSessionLoggingKey);
-    final workoutAuto =
-        await localDataSource.readBool(_voiceWorkoutModeAutoKey);
-    final ttsVolumeRaw =
-        await localDataSource.readString(_voiceTtsVolumeKey);
-    final ttsSpeechRateRaw =
-        await localDataSource.readString(_voiceTtsSpeechRateKey);
-    final wakeArmed =
-        await localDataSource.readBool(_voiceWakeWordArmedKey);
+    final wakePresetRaw = await localDataSource.readString(
+      _voiceWakeWordPresetKey,
+    );
+    final sessionLogging = await localDataSource.readBool(
+      _voiceSessionLoggingKey,
+    );
+    final workoutAuto = await localDataSource.readBool(
+      _voiceWorkoutModeAutoKey,
+    );
+    final ttsVolumeRaw = await localDataSource.readString(_voiceTtsVolumeKey);
+    final ttsSpeechRateRaw = await localDataSource.readString(
+      _voiceTtsSpeechRateKey,
+    );
+    final wakeArmed = await localDataSource.readBool(_voiceWakeWordArmedKey);
 
     return VoiceSettings(
       wakeWordPreset: _parseEnum(
@@ -190,9 +234,7 @@ class AppSettingsRepositoryImpl implements AppSettingsRepository {
   Map<String, bool> _parseUiExpansionState(Map<String, dynamic>? raw) {
     if (raw == null) return const <String, bool>{};
     try {
-      return raw.map(
-        (String k, dynamic v) => MapEntry(k, v == true),
-      );
+      return raw.map((String k, dynamic v) => MapEntry(k, v == true));
     } catch (_) {
       return const <String, bool>{};
     }
