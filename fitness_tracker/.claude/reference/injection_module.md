@@ -3,7 +3,7 @@
 - **Pattern:** Feature DI module (`register_*_module.dart`)
 - **Canonical file:** `lib/injection/modules/register_workout_module.dart`
 - **Locked by:** commit `c0a2c7f`, PR `#58` — fixed `WorkoutBloc` from `registerLazySingleton` to `registerFactory`, putting the module in the correct canonical shape
-- **Last verified:** 2026-05-21
+- **Last verified:** 2026-05-22
 - **Related references:** [[datasource]], [[repository]], [[use_case]], [[bloc]]
 - **Companion playbook:** _(to be added by Adoption 05: `.claude/skills/add-feature.md`)_
 - **Embodied conventions:**
