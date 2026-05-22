@@ -175,7 +175,15 @@ class VoiceConnectivityChanged extends VoiceEvent {
 // State
 // ---------------------------------------------------------------------------
 
-enum VoiceStatus { idle, listening, transcribing, thinking, speaking, error }
+enum VoiceStatus {
+  idle,
+  listening,
+  transcribing,
+  thinking,
+  speaking,
+  awaitingConfirmation,
+  error,
+}
 
 class VoiceState extends Equatable {
   const VoiceState({
@@ -586,11 +594,31 @@ class VoiceBloc extends Bloc<VoiceEvent, VoiceState>
       return;
     }
 
+    // Verbal-cancel: if a confirmation is pending AND the user said only a
+    // cancel word (anchored ^…$ — does not match "cancel my membership"),
+    // dismiss the confirmation locally without round-tripping to the LLM.
+    // Verbal-confirm is intentionally out of scope; the visual Accept button
+    // handles confirm.
+    if (state.pendingConfirmation != null &&
+        _verbalCancelPattern.hasMatch(text)) {
+      emit(state.copyWith(clearTranscript: true));
+      add(const VoiceConfirmationCancelled());
+      return;
+    }
+
     emit(
       state.copyWith(status: VoiceStatus.transcribing, liveTranscript: text),
     );
     add(VoiceSendMessage(text));
   }
+
+  /// Matches a transcript that is *only* a cancel word (case-insensitive,
+  /// trimmed). Anchored ^…$ so "cancel my membership" or "no thanks, I want X"
+  /// do NOT cancel a pending confirmation.
+  static final RegExp _verbalCancelPattern = RegExp(
+    r'^(cancel|nevermind|never mind|no|stop)$',
+    caseSensitive: false,
+  );
 
   void _onTranscriptFailed(
     VoiceTranscriptFailed event,
@@ -710,9 +738,21 @@ class VoiceBloc extends Bloc<VoiceEvent, VoiceState>
 
       case VoiceChatMutationCall(:final toolCall):
         // Don't add to messages yet; the confirmation card drives the next step.
+        // Speak a deterministic readback FIRST so the user can verify
+        // STT-parsed values by ear before the confirmation card appears.
+        // The readback string is built locally from toolCall.args — the LLM
+        // cannot influence its contents, eliminating the class of attack
+        // where the assistant message says one thing and the tool_call args
+        // say another.
+        final weightUnit = await _readWeightUnit();
+        final readback = _buildReadback(toolCall, weightUnit);
         emit(
-          state.copyWith(status: VoiceStatus.idle, messages: updatedMessages),
+          state.copyWith(
+            status: VoiceStatus.speaking,
+            messages: updatedMessages,
+          ),
         );
+        await _speak(readback);
         add(VoicePendingConfirmationSet(toolCall));
 
       case VoiceChatQueryCall(:final toolName, :final args):
@@ -878,6 +918,12 @@ class VoiceBloc extends Bloc<VoiceEvent, VoiceState>
   /// [VoiceCommandRouter] in the widget tree converts each effect into a
   /// target-BLoC event via `context.read<X>().add(...)`.
   /// Returns the spoken success string, or null if dispatch failed.
+  ///
+  /// On successful dispatch, refreshes [_cachedWorkoutSets] /
+  /// [_cachedNutritionLogs] synchronously so the LLM's next outgoing context
+  /// payload includes the just-mutated row (D1 — fixes the stale-cache bug
+  /// where the second voice-logged set in a session was invisible to the bot).
+  /// Cache is NOT mutated on failure paths since no effect was emitted.
   Future<String?> _dispatchMutationTool(VoiceToolCall tc, DateTime now) async {
     try {
       switch (tc.toolName) {
@@ -885,6 +931,10 @@ class VoiceBloc extends Bloc<VoiceEvent, VoiceState>
           final set = _buildWorkoutSet(tc.args, now);
           if (set == null) return AppStrings.voiceSpokenExerciseNotFound;
           emitEffect(VoiceAddWorkoutSetCommand(set));
+          _cachedWorkoutSets = <WorkoutSet>[
+            set,
+            ..._cachedWorkoutSets,
+          ].take(_recentCacheWindowSize).toList();
           return AppStrings.voiceSpokenSetLogged;
 
         case 'editWorkoutSet':
@@ -893,18 +943,28 @@ class VoiceBloc extends Bloc<VoiceEvent, VoiceState>
           if (existing == null) return AppStrings.voiceSpokenToolFailed;
           final updated = _applyWorkoutSetEdits(existing, tc.args);
           emitEffect(VoiceUpdateWorkoutSetCommand(updated));
+          _cachedWorkoutSets = _cachedWorkoutSets
+              .map((s) => s.id == updated.id ? updated : s)
+              .toList();
           return AppStrings.voiceSpokenSetUpdated;
 
         case 'deleteWorkoutSet':
           final setId = tc.args['setId'] as String? ?? '';
           if (setId.isEmpty) return AppStrings.voiceSpokenToolFailed;
           emitEffect(VoiceDeleteWorkoutSetCommand(setId));
+          _cachedWorkoutSets = _cachedWorkoutSets
+              .where((s) => s.id != setId)
+              .toList();
           return AppStrings.voiceSpokenSetDeleted;
 
         case 'logNutrition':
           final log = _buildNutritionLog(tc.args, now);
           if (log == null) return AppStrings.voiceSpokenToolFailed;
           emitEffect(VoiceAddNutritionLogCommand(log));
+          _cachedNutritionLogs = <NutritionLog>[
+            log,
+            ..._cachedNutritionLogs,
+          ].take(_recentCacheWindowSize).toList();
           return AppStrings.voiceSpokenNutritionLogged;
 
         case 'editNutritionLog':
@@ -913,12 +973,18 @@ class VoiceBloc extends Bloc<VoiceEvent, VoiceState>
           if (existing == null) return AppStrings.voiceSpokenToolFailed;
           final updated = _applyNutritionLogEdits(existing, tc.args);
           emitEffect(VoiceUpdateNutritionLogCommand(updated));
+          _cachedNutritionLogs = _cachedNutritionLogs
+              .map((l) => l.id == updated.id ? updated : l)
+              .toList();
           return AppStrings.voiceSpokenNutritionUpdated;
 
         case 'deleteNutritionLog':
           final logId = tc.args['logId'] as String? ?? '';
           if (logId.isEmpty) return AppStrings.voiceSpokenToolFailed;
           emitEffect(VoiceDeleteNutritionLogCommand(logId));
+          _cachedNutritionLogs = _cachedNutritionLogs
+              .where((l) => l.id != logId)
+              .toList();
           return AppStrings.voiceSpokenNutritionDeleted;
 
         default:
@@ -933,6 +999,146 @@ class VoiceBloc extends Bloc<VoiceEvent, VoiceState>
       );
       return AppStrings.voiceSpokenToolFailed;
     }
+  }
+
+  /// Window size for [_cachedWorkoutSets] / [_cachedNutritionLogs]. Matches
+  /// the take(5) used by [_warmRecentCaches] — keep in sync.
+  static const int _recentCacheWindowSize = 5;
+
+  // ---------------------------------------------------------------------------
+  // Spoken-readback (pre-confirmation)
+  // ---------------------------------------------------------------------------
+
+  /// Builds a deterministic, user-friendly readback of a parsed [VoiceToolCall].
+  ///
+  /// Pure function — relies only on the parsed args and the weight unit from
+  /// settings. The LLM cannot influence this string; it is rebuilt locally
+  /// from the tool args every time, eliminating the class of attack where a
+  /// malicious LLM response says one thing in the assistant message and
+  /// another in the tool_call args.
+  String _buildReadback(VoiceToolCall tc, WeightUnit weightUnit) {
+    final unitWord = weightUnit == WeightUnit.kilograms
+        ? AppStrings.voiceReadbackUnitKilograms
+        : AppStrings.voiceReadbackUnitPounds;
+    final args = tc.args;
+    switch (tc.toolName) {
+      case 'logWorkoutSet':
+        final exerciseName =
+            (args['exerciseName'] as String?) ?? AppStrings.exercise;
+        final weight = (args['weight'] as num?) ?? 0;
+        final reps = (args['reps'] as num?)?.toInt() ?? 0;
+        return AppStrings.voiceReadbackLogWorkoutSet(
+          exerciseName: exerciseName,
+          weight: weight,
+          unit: unitWord,
+          reps: reps,
+        );
+
+      case 'editWorkoutSet':
+        final setId = (args['setId'] as String?) ?? '';
+        final existing = _fetchSetById(setId);
+        final exerciseName = existing != null
+            ? _exerciseNameForId(existing.exerciseId)
+            : AppStrings.exercise;
+        return AppStrings.voiceReadbackEditWorkoutSet(
+          exerciseName: exerciseName,
+          fieldsList: _formatWorkoutEditFields(args, unitWord),
+        );
+
+      case 'deleteWorkoutSet':
+        final setId = (args['setId'] as String?) ?? '';
+        final existing = _fetchSetById(setId);
+        final exerciseName = existing != null
+            ? _exerciseNameForId(existing.exerciseId)
+            : AppStrings.exercise;
+        final datePhrase = existing != null
+            ? _formatDatePhrase(existing.date)
+            : _formatDatePhrase(DateTime.now());
+        return AppStrings.voiceReadbackDeleteWorkoutSet(
+          exerciseName: exerciseName,
+          datePhrase: datePhrase,
+        );
+
+      case 'logNutrition':
+        final mealName = (args['mealName'] as String?) ?? AppStrings.meal;
+        return AppStrings.voiceReadbackLogNutrition(
+          mealName: mealName,
+          grams: args['gramsConsumed'] as num?,
+          calories: (args['calories'] as num?) ?? 0,
+          protein: (args['proteinGrams'] as num?) ?? 0,
+          carbs: (args['carbsGrams'] as num?) ?? 0,
+          fat: (args['fatGrams'] as num?) ?? 0,
+        );
+
+      case 'editNutritionLog':
+        final logId = (args['logId'] as String?) ?? '';
+        final existing = _fetchNutritionLogById(logId);
+        final mealName = existing?.mealName ?? AppStrings.meal;
+        return AppStrings.voiceReadbackEditNutritionLog(
+          mealName: mealName,
+          fieldsList: _formatNutritionEditFields(args),
+        );
+
+      case 'deleteNutritionLog':
+        final logId = (args['logId'] as String?) ?? '';
+        final existing = _fetchNutritionLogById(logId);
+        final mealName = existing?.mealName ?? AppStrings.meal;
+        final datePhrase = existing != null
+            ? _formatDatePhrase(existing.loggedAt)
+            : _formatDatePhrase(DateTime.now());
+        return AppStrings.voiceReadbackDeleteNutritionLog(
+          mealName: mealName,
+          datePhrase: datePhrase,
+        );
+
+      default:
+        // Unknown tool — fall back to the displaySummary so the user still
+        // hears *something* before the card appears.
+        return 'I heard: ${tc.displaySummary}. Confirm or cancel.';
+    }
+  }
+
+  String _formatWorkoutEditFields(Map<String, dynamic> args, String unitWord) {
+    final parts = <String>[];
+    final weight = args['weight'] as num?;
+    final reps = (args['reps'] as num?)?.toInt();
+    final intensity = (args['intensity'] as num?)?.toInt();
+    if (weight != null) parts.add('weight $weight $unitWord');
+    if (reps != null) parts.add('$reps reps');
+    if (intensity != null) parts.add('intensity $intensity');
+    return parts.isEmpty ? 'no changes' : parts.join(', ');
+  }
+
+  String _formatNutritionEditFields(Map<String, dynamic> args) {
+    final parts = <String>[];
+    final grams = args['gramsConsumed'] as num?;
+    final calories = (args['calories'] as num?)?.round();
+    final protein = (args['proteinGrams'] as num?)?.round();
+    final carbs = (args['carbsGrams'] as num?)?.round();
+    final fat = (args['fatGrams'] as num?)?.round();
+    if (grams != null) parts.add('$grams grams');
+    if (calories != null) parts.add('$calories calories');
+    if (protein != null) parts.add('$protein grams protein');
+    if (carbs != null) parts.add('$carbs grams carbs');
+    if (fat != null) parts.add('$fat grams fat');
+    return parts.isEmpty ? 'no changes' : parts.join(', ');
+  }
+
+  String _formatDatePhrase(DateTime date) {
+    final today = DateTime.now();
+    final isToday =
+        date.year == today.year &&
+        date.month == today.month &&
+        date.day == today.day;
+    if (isToday) return 'today';
+    final yesterday = today.subtract(const Duration(days: 1));
+    final isYesterday =
+        date.year == yesterday.year &&
+        date.month == yesterday.month &&
+        date.day == yesterday.day;
+    if (isYesterday) return 'yesterday';
+    return 'on ${date.year}-${date.month.toString().padLeft(2, '0')}-'
+        '${date.day.toString().padLeft(2, '0')}';
   }
 
   // ---------------------------------------------------------------------------
@@ -1269,6 +1475,9 @@ class VoiceBloc extends Bloc<VoiceEvent, VoiceState>
       state.copyWith(
         pendingConfirmation: event.toolCall,
         clearPendingConfirmation: event.toolCall == null,
+        status: event.toolCall != null
+            ? VoiceStatus.awaitingConfirmation
+            : VoiceStatus.idle,
       ),
     );
   }

@@ -72,6 +72,10 @@ class _HintText extends StatelessWidget {
   String get _hint {
     switch (status) {
       case VoiceStatus.idle:
+      case VoiceStatus.awaitingConfirmation:
+        // While a confirmation card is showing, the card itself prompts the
+        // user; the hint stays on the neutral idle copy so we don't shout
+        // "confirm or cancel" twice.
         return AppStrings.voiceOverlayHintIdle;
       case VoiceStatus.listening:
         return AppStrings.voiceOverlayHintListening;
@@ -132,6 +136,10 @@ class _ActionRow extends StatelessWidget {
   Widget _buildForStatus() {
     switch (status) {
       case VoiceStatus.idle:
+      case VoiceStatus.awaitingConfirmation:
+        // Confirmation card is visible above the status view; keep an
+        // inactive mic button available so a verbal "cancel" still has
+        // the engine warmed and the visual remains coherent.
         return _MicButton(
           key: VoiceOverlayKeys.micButtonKey,
           onTap: onMicTap,
