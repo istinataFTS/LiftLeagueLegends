@@ -15,4 +15,15 @@ abstract final class VoiceSettingsPageKeys {
   static const Key ttsSpeechRateSliderKey = ValueKey<String>('voice_settings_tts_speech_rate_slider');
   static const Key budgetMeterKey = ValueKey<String>('voice_settings_budget_meter');
   static const Key deleteHistoryButtonKey = ValueKey<String>('voice_settings_delete_history_button');
+
+  // ── Picovoice access key section ────────────────────────────────────────────
+  static const Key picovoiceKeySectionKey = ValueKey<String>('voice_settings_picovoice_section');
+  static const Key picovoiceKeyTileKey = ValueKey<String>('voice_settings_picovoice_tile');
+  static const Key picovoiceKeySetUpButtonKey = ValueKey<String>('voice_settings_picovoice_setup_button');
+  static const Key picovoiceKeyReplaceButtonKey = ValueKey<String>('voice_settings_picovoice_replace_button');
+  static const Key picovoiceKeyClearButtonKey = ValueKey<String>('voice_settings_picovoice_clear_button');
+  static const Key picovoiceKeyDialogKey = ValueKey<String>('voice_settings_picovoice_dialog');
+  static const Key picovoiceKeyTextFieldKey = ValueKey<String>('voice_settings_picovoice_text_field');
+  static const Key picovoiceKeyDialogSaveKey = ValueKey<String>('voice_settings_picovoice_dialog_save');
+  static const Key picovoiceKeyDialogCancelKey = ValueKey<String>('voice_settings_picovoice_dialog_cancel');
 }

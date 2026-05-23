@@ -1,5 +1,5 @@
-import 'package:fitness_tracker/features/voice/data/services/speech_to_text_voice_stt_service.dart';
 import 'package:fitness_tracker/domain/services/voice_stt_service.dart';
+import 'package:fitness_tracker/features/voice/data/services/speech_to_text_voice_stt_service.dart';
 import 'package:flutter_test/flutter_test.dart';
 
 // ---------------------------------------------------------------------------
@@ -95,16 +95,10 @@ void main() {
       await expectLater(service.dispose(), completes);
     });
 
-    // ── Error mapping (tested via FakeVoiceSttService contract) ────────────
+    // ── Error classification (pure, exercised via the public seams) ───────
 
-    // The actual error mapping (Android error strings → VoiceSttErrorKind)
-    // is exercised end-to-end in voice_bloc_test.dart via FakeVoiceSttService
-    // which fires VoiceSttException(kind) events and verifies the bloc handles
-    // them correctly. Integration tests covering the real speech_to_text
-    // platform channel require a physical device or emulator and live in the
-    // integration_test/ directory.
-    //
-    // The mapping table itself is stable contract:
+    // The full code → kind mapping. Driven through the production helper so
+    // there is exactly one source of truth — change the service, change here.
     final errorMapping = <String, VoiceSttErrorKind>{
       'error_permission': VoiceSttErrorKind.permissionDenied,
       'error_audio': VoiceSttErrorKind.permissionDenied,
@@ -116,34 +110,95 @@ void main() {
       'error_client': VoiceSttErrorKind.unavailable,
     };
 
-    test('error mapping table is complete and non-empty', () {
-      expect(errorMapping, isNotEmpty);
-      // Every mapped kind is a valid VoiceSttErrorKind.
-      for (final kind in errorMapping.values) {
-        expect(VoiceSttErrorKind.values, contains(kind));
+    test('classifyErrorCode matches the documented mapping table', () {
+      for (final entry in errorMapping.entries) {
+        expect(
+          SpeechToTextVoiceSttService.classifyErrorCode(entry.key),
+          entry.value,
+          reason: '${entry.key} should map to ${entry.value}',
+        );
       }
     });
 
     test(
-      'unknown Android error codes should map to VoiceSttErrorKind.unknown',
+      'classifyErrorCode falls through to unknown for unrecognised codes',
       () {
-        // This is a design contract — any unrecognised error code from Android
-        // must fall through to 'unknown' rather than crashing.
+        // Contract: any unrecognised error code from the platform must fall
+        // through to `unknown` rather than throwing — the Android side has
+        // historically added new error strings without notice.
         const unknownCodes = <String>[
           'error_something_new',
           '',
           'totally_unexpected',
         ];
-        // The mapping doesn't contain unknownCodes; verify they are absent.
         for (final code in unknownCodes) {
           expect(
-            errorMapping.containsKey(code),
-            isFalse,
-            reason:
-                '$code should NOT be in the mapping table (falls to default)',
+            SpeechToTextVoiceSttService.classifyErrorCode(code),
+            VoiceSttErrorKind.unknown,
+            reason: '$code should classify as unknown',
           );
         }
       },
     );
+
+    // ── Graceful-silence contract ─────────────────────────────────────────
+    //
+    // The VoiceSttService.listen() doc states that `noSpeech` outcomes must
+    // close the stream via onDone, never via onError. These tests pin the
+    // classification so a future refactor that "treats no_match as a real
+    // error again" fails CI immediately.
+
+    test('noSpeech is the only kind classified as graceful silence', () {
+      for (final kind in VoiceSttErrorKind.values) {
+        final graceful = SpeechToTextVoiceSttService.isGracefulSilence(kind);
+        if (kind == VoiceSttErrorKind.noSpeech) {
+          expect(graceful, isTrue, reason: '$kind must be graceful silence');
+        } else {
+          expect(graceful, isFalse, reason: '$kind must NOT be graceful');
+        }
+      }
+    });
+
+    test(
+      'Android no-speech codes round-trip into graceful-silence classification',
+      () {
+        // Regression guard for the original bug: `error_no_match` arriving
+        // 2-3 s into a session would tear the stream down as a fatal error,
+        // killing the mic before the user could even speak. The fix is that
+        // every code that maps to `noSpeech` must also be classified as
+        // graceful silence.
+        const noSpeechCodes = <String>[
+          'error_no_match',
+          'error_speech_timeout',
+        ];
+        for (final code in noSpeechCodes) {
+          final kind = SpeechToTextVoiceSttService.classifyErrorCode(code);
+          expect(
+            SpeechToTextVoiceSttService.isGracefulSilence(kind),
+            isTrue,
+            reason: '$code must round-trip into graceful silence',
+          );
+        }
+      },
+    );
+
+    test('genuinely fatal codes do NOT classify as graceful silence', () {
+      const fatalCodes = <String>[
+        'error_permission',
+        'error_audio',
+        'error_network',
+        'error_network_timeout',
+        'error_recognizer_busy',
+        'error_client',
+      ];
+      for (final code in fatalCodes) {
+        final kind = SpeechToTextVoiceSttService.classifyErrorCode(code);
+        expect(
+          SpeechToTextVoiceSttService.isGracefulSilence(kind),
+          isFalse,
+          reason: '$code must remain a real error, not graceful silence',
+        );
+      }
+    });
   });
 }

@@ -1,5 +1,6 @@
 import 'dart:async';
 
+import 'package:flutter/foundation.dart';
 import 'package:speech_to_text/speech_recognition_error.dart';
 import 'package:speech_to_text/speech_recognition_result.dart';
 import 'package:speech_to_text/speech_to_text.dart' as stt;
@@ -52,12 +53,19 @@ class SpeechToTextVoiceSttService implements VoiceSttService {
     _closeController();
     _controller = StreamController<VoiceSttResult>.broadcast();
 
+    // `cancelOnError` is intentionally false: Android's SpeechRecognizer fires
+    // `error_no_match` and `error_speech_timeout` as normal "didn't hear any
+    // speech" signals during recogniser warm-up (especially on Samsung). Those
+    // are reclassified in [_onError] as a graceful end-of-stream, not an error,
+    // so the plugin-level cancel-on-error would terminate the session before
+    // the user has even started speaking. See KNOWN_ISSUES.md
+    // #voice-stt-no-match-is-not-an-error.
     _speech.listen(
       onResult: _onResult,
       listenFor: VoiceConstants.sttListenTimeout,
       pauseFor: VoiceConstants.sttSilenceTimeout,
       localeId: localeId ?? 'en-US',
-      listenOptions: SpeechListenOptions(cancelOnError: true),
+      listenOptions: SpeechListenOptions(),
     );
 
     return _controller!.stream;
@@ -105,11 +113,27 @@ class SpeechToTextVoiceSttService implements VoiceSttService {
   }
 
   void _onError(SpeechRecognitionError error) {
+    final kind = classifyErrorCode(error.errorMsg);
+
+    // `noSpeech` (Android `error_no_match` / `error_speech_timeout`) is not a
+    // failure — it is the recogniser saying "I heard nothing recognisable".
+    // Close the result stream gracefully via `onDone` so the bloc reverts to
+    // idle the same way it would after a natural pause. See KNOWN_ISSUES.md
+    // #voice-stt-no-match-is-not-an-error.
+    if (isGracefulSilence(kind)) {
+      AppLogger.info(
+        'SpeechToTextVoiceSttService: no speech detected '
+        '(${error.errorMsg}); closing stream gracefully.',
+      );
+      _closeController();
+      return;
+    }
+
     AppLogger.warning(
       'SpeechToTextVoiceSttService error: ${error.errorMsg} '
       '(permanent: ${error.permanent})',
     );
-    _controller?.addError(VoiceSttException(_mapError(error), error.errorMsg));
+    _controller?.addError(VoiceSttException(kind, error.errorMsg));
     _closeController();
   }
 
@@ -120,8 +144,18 @@ class SpeechToTextVoiceSttService implements VoiceSttService {
     _controller = null;
   }
 
-  VoiceSttErrorKind _mapError(SpeechRecognitionError error) {
-    switch (error.errorMsg) {
+  // ── Pure classification helpers (testable without the plugin) ───────────────
+
+  /// Maps a raw `speech_to_text` error code to the public [VoiceSttErrorKind]
+  /// taxonomy. Unrecognised codes fall through to [VoiceSttErrorKind.unknown]
+  /// rather than throwing — the Android side has historically added new error
+  /// strings without notice.
+  ///
+  /// Exposed for tests so the mapping table is verified in one place instead
+  /// of being mirrored across the test file.
+  @visibleForTesting
+  static VoiceSttErrorKind classifyErrorCode(String errorCode) {
+    switch (errorCode) {
       case 'error_permission':
       case 'error_audio':
         return VoiceSttErrorKind.permissionDenied;
@@ -138,4 +172,13 @@ class SpeechToTextVoiceSttService implements VoiceSttService {
         return VoiceSttErrorKind.unknown;
     }
   }
+
+  /// Whether a given [VoiceSttErrorKind] is the recogniser's normal "I heard
+  /// nothing" signal (graceful end-of-stream) rather than a real error.
+  ///
+  /// This is the single source of truth for the
+  /// [VoiceSttService.listen] error-vs-end-of-speech contract.
+  @visibleForTesting
+  static bool isGracefulSilence(VoiceSttErrorKind kind) =>
+      kind == VoiceSttErrorKind.noSpeech;
 }

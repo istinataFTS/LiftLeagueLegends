@@ -1,7 +1,7 @@
 {
   "schemaVersion": 1,
   "generatedAt": "2026-05-23",
-  "fingerprint": "72e0d22673abdc4a",
+  "fingerprint": "98303762c800a4ba",
   "features": {
     "auth": {
       "summary": "Authentication cubits for sign-in, sign-up, and OTP verification.",
@@ -202,6 +202,7 @@
         "lib/features/voice/"
       ],
       "blocs": [
+        "PicovoiceKeyCubit",
         "VoiceBloc",
         "VoiceSettingsCubit"
       ],
@@ -215,8 +216,8 @@
       ],
       "injectionModule": "lib/injection/modules/register_voice_module.dart",
       "tables": [],
-      "notes": "Edge function lives in supabase/functions/voice-chat/; not fingerprinted by v1 of this check. VoiceBloc emits VoiceMutationCommand effects; VoiceCommandRouter in the widget tree dispatches to WorkoutBloc, NutritionLogBloc, and HistoryBloc via context.read. Mutation tool calls trigger a deterministic spoken readback (built locally from VoiceToolCall.args + WeightUnit) before transitioning to VoiceStatus.awaitingConfirmation and setting pendingConfirmation. Verbal 'cancel'/'nevermind'/'no'/'stop' during a pending confirmation short-circuits without round-tripping to the LLM. _dispatchMutationTool synchronously refreshes _cachedWorkoutSets/_cachedNutritionLogs after each effect emission (D1 fix). STT cap raised from 10 s to 15 s. VoiceSettingsCubit depends on AppSettingsRepository.watchSettings() (no AppSettingsCubit cross-import); provided once via BlocProvider in auth_session_shell.dart. All navigation goes through lib/app/routes/ (named-route registry).",
-      "fingerprint": "af6000b4e2c5e1a7"
+      "notes": "Edge function lives in supabase/functions/voice-chat/; not fingerprinted by v1 of this check. VoiceBloc emits VoiceMutationCommand effects; VoiceCommandRouter in the widget tree dispatches to WorkoutBloc, NutritionLogBloc, and HistoryBloc via context.read. Mutation tool calls trigger a deterministic spoken readback (built locally from VoiceToolCall.args + WeightUnit) before transitioning to VoiceStatus.awaitingConfirmation and setting pendingConfirmation. Verbal 'cancel'/'nevermind'/'no'/'stop' during a pending confirmation short-circuits without round-tripping to the LLM. _dispatchMutationTool synchronously refreshes _cachedWorkoutSets/_cachedNutritionLogs after each effect emission (D1 fix). STT cap raised from 10 s to 15 s. STT noSpeech outcomes (Android error_no_match / error_speech_timeout) are reclassified as graceful end-of-stream, not errors — see KNOWN_ISSUES.md #voice-stt-no-match-is-not-an-error. PicovoiceKeyCubit (factory) provides setup surface for the Picovoice access key; reads/writes via VoiceCredentialService (flutter_secure_storage). EnvConfig.picovoiceAccessKey is a dev-only --dart-define fallback seeded into secure storage by AppBootstrapper on first launch only when no key is present. VoiceFab surfaces a one-shot snackbar when wake-word start fails with VoiceWakeWordErrorKind.noAccessKey, with an action that pushes AppRoutes.voiceSettings. VoiceSettingsCubit depends on AppSettingsRepository.watchSettings() (no AppSettingsCubit cross-import); provided once via BlocProvider in auth_session_shell.dart. All navigation goes through lib/app/routes/ (named-route registry).",
+      "fingerprint": "aa9375534e4414b4"
     }
   }
 }

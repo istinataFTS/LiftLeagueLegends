@@ -14,6 +14,7 @@ import '../../core/sync/sync_orchestrator.dart';
 import '../../core/utils/app_lifecycle_manager.dart';
 import '../../core/utils/performance_monitor.dart';
 import '../../demo/web_demo_runtime.dart';
+import '../../domain/services/voice_credential_service.dart';
 import '../../injection/injection_container.dart' as di;
 import 'app_data_seeder.dart';
 import 'app_debug_diagnostics_runner.dart';
@@ -179,7 +180,46 @@ class AppBootstrapper {
     WidgetsBinding.instance.addPostFrameCallback((_) {
       unawaited(_seedDefaultDataIfNeeded());
       unawaited(_runDiagnosticsIfNeeded());
+      unawaited(_seedPicovoiceKeyFromEnvIfNeeded());
     });
+  }
+
+  /// Developer convenience: if `--dart-define=PICOVOICE_ACCESS_KEY=...` was
+  /// supplied at build time AND no key is currently in secure storage, seed
+  /// the storage with the build-time value. Never overwrites a user-entered
+  /// key. Safe on every platform (the credential service is registered
+  /// unconditionally in `register_voice_module.dart`); silently no-ops on
+  /// web where secure storage is a `localStorage` shim.
+  Future<void> _seedPicovoiceKeyFromEnvIfNeeded() async {
+    final fallback = EnvConfig.picovoiceAccessKey.trim();
+    if (fallback.isEmpty) return;
+
+    try {
+      final credentials = di.sl<VoiceCredentialService>();
+      if (await credentials.hasPicovoiceAccessKey()) {
+        AppLogger.debug(
+          'Picovoice key already present in secure storage; '
+          'ignoring PICOVOICE_ACCESS_KEY dart-define.',
+          category: 'bootstrap',
+        );
+        return;
+      }
+      await credentials.setPicovoiceAccessKey(fallback);
+      AppLogger.info(
+        'Seeded Picovoice access key from PICOVOICE_ACCESS_KEY dart-define '
+        'into secure storage (first-launch fallback).',
+        category: 'bootstrap',
+      );
+    } catch (error, stackTrace) {
+      // Non-fatal: voice will surface "key not configured" through the
+      // FAB / settings UI, so the user can still recover.
+      AppLogger.warning(
+        'Failed to seed Picovoice access key from dart-define fallback',
+        category: 'bootstrap',
+        error: error,
+        stackTrace: stackTrace,
+      );
+    }
   }
 
   Future<void> _seedDefaultDataIfNeeded() async {

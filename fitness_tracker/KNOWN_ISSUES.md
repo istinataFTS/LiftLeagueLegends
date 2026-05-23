@@ -73,6 +73,8 @@ Numbered steps or a short paragraph. State what to do and what *not* to do.
 8. [voice-edge-function-must-have-30s-http-timeout](#voice-edge-function-must-have-30s-http-timeout)
 9. [voice-daily-cost-cap-is-server-side-only](#voice-daily-cost-cap-is-server-side-only)
 10. [voice-fab-is-disabled-not-hidden-for-guests](#voice-fab-is-disabled-not-hidden-for-guests)
+11. [voice-stt-no-match-is-not-an-error](#voice-stt-no-match-is-not-an-error)
+12. [voice-wake-word-requires-picovoice-key-in-secure-storage](#voice-wake-word-requires-picovoice-key-in-secure-storage)
 
 ### Database
 11. [sqflite-version-15-rejects-incompatible-legacy-databases](#sqflite-version-15-rejects-incompatible-legacy-databases)
@@ -377,6 +379,67 @@ Leave the FAB visible and disabled for guests. The sign-in CTA is the intended i
 **References**
 
 - `CLAUDE.md` — "Guest users cannot use voice (FAB is visible-but-disabled with a sign-in CTA)"
+
+---
+
+### voice-stt-no-match-is-not-an-error
+
+- **Severity:** High
+- **Status:** Resolved-but-monitor
+- **First observed:** 2026-05-23
+- **Last verified:** 2026-05-23
+- **Area:** voice
+
+**Symptom**
+
+User taps the voice FAB or fires the wake word; the overlay shows "Listening…" for 2-3 seconds, then silently reverts to idle without ever displaying a partial transcript. No error surface appears. Logs show `SpeechToTextVoiceSttService error: error_no_match (permanent: true)` repeated once per attempt.
+
+**Root cause**
+
+Android `SpeechRecognizer` (and the Samsung variant especially) emits `ERROR_NO_MATCH` and `ERROR_SPEECH_TIMEOUT` as normal "I heard nothing recognisable" signals — frequently during recogniser warm-up, before the user has finished speaking. The previous implementation in `SpeechToTextVoiceSttService._onError` treated *every* plugin error as fatal: it added a `VoiceSttException` to the controller and closed it. Combined with `SpeechListenOptions(cancelOnError: true)` on the plugin and `cancelOnError: true` on the bloc's stream subscription, the first transient `error_no_match` tore the session down before any partial result could appear.
+
+**Workaround / fix**
+
+The `noSpeech` kind is now classified as a graceful end-of-stream, not an error. `SpeechToTextVoiceSttService._onError` checks `isGracefulSilence(kind)` and closes the controller via `_closeController()` — no error event is added. The bloc's existing `onDone → VoiceListenEnded` path then reverts the UI to idle the same way a natural pause does. `cancelOnError` on the plugin listen is also removed so the only shutdown path is the explicit `_closeController()` in `_onError`. The classifier (`classifyErrorCode` / `isGracefulSilence`) is a pure static helper marked `@visibleForTesting` so the contract has unit-test coverage in `speech_to_text_voice_stt_service_test.dart`. Do **not** re-promote `noSpeech` back into an `onError` event — the rule is encoded in the `VoiceSttService.listen` doc comment in the domain layer.
+
+**References**
+
+- `lib/features/voice/data/services/speech_to_text_voice_stt_service.dart` — `_onError`, `classifyErrorCode`, `isGracefulSilence`
+- `lib/domain/services/voice_stt_service.dart` — `listen` error-vs-end-of-speech contract
+- `test/features/voice/services/speech_to_text_voice_stt_service_test.dart` — graceful-silence regression tests
+
+---
+
+### voice-wake-word-requires-picovoice-key-in-secure-storage
+
+- **Severity:** Medium
+- **Status:** Resolved-but-monitor
+- **First observed:** 2026-05-23
+- **Last verified:** 2026-05-23
+- **Area:** voice
+
+**Symptom**
+
+Wake-word detection never activates on a fresh install. The VoiceFab logs `VoiceWakeWordException(VoiceWakeWordErrorKind.noAccessKey, Picovoice access key not configured.)` on every app launch and resume, and the user has no visible cue that they need to act.
+
+**Root cause**
+
+The Picovoice Porcupine access key is a per-device secret that lives exclusively in `flutter_secure_storage` (key `voice.picovoice_access_key`). `PorcupineVoiceWakeWordService.start()` throws `VoiceWakeWordErrorKind.noAccessKey` when no value is present. The key is **not** read from `EnvConfig` at runtime, **not** built into the binary, and **not** stored in the committed `dart_defines.json` (which is checked into the repo and would leak the secret). A freshly-installed app therefore has no key and no way for the user to discover this.
+
+**Workaround / fix**
+
+The Voice settings page now renders a Picovoice key section (above the wake-word picker) backed by `PicovoiceKeyCubit` — see the canonical bloc reference. The cubit delegates to `VoiceCredentialService`; the secret never leaves secure storage and never lands in the cubit's state (only a `hasKey` boolean is observable). The VoiceFab also surfaces a one-shot snackbar with a "Set up" action when wake-word start fails with `noAccessKey`, so users hit the recovery path immediately. For local dev convenience, a `PICOVOICE_ACCESS_KEY` dart-define is supported as a one-time first-launch seed (see `EnvConfig.picovoiceAccessKey` and `AppBootstrapper._seedPicovoiceKeyFromEnvIfNeeded`); never put the value in the committed `dart_defines.json` — pass it on the CLI or via an untracked `dart_defines.local.json`.
+
+**References**
+
+- `lib/features/voice/application/picovoice_key_cubit.dart` — load/save/clear surface
+- `lib/features/voice/presentation/voice_settings_page.dart` — `_PicovoiceKeySection`
+- `lib/features/voice/presentation/widgets/voice_fab.dart` — `_showWakeWordNeedsSetupSnackbar`
+- `lib/config/env_config.dart` — `EnvConfig.picovoiceAccessKey`
+- `lib/app/bootstrap/app_bootstrapper.dart` — `_seedPicovoiceKeyFromEnvIfNeeded`
+- `lib/features/voice/data/services/secure_storage_voice_credential_service.dart` — storage key constant
+- `test/features/voice/application/picovoice_key_cubit_test.dart` — cubit contract tests
+- `test/features/voice/presentation/voice_settings_page_test.dart` — "Picovoice key section" widget tests
 
 ---
 

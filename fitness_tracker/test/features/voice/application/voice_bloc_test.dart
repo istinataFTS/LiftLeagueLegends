@@ -118,6 +118,16 @@ class FakeVoiceSttService implements VoiceSttService {
     _listening = false;
   }
 
+  /// Simulates the engine ending listening on its own without ever
+  /// producing a final result — e.g. the user fell silent past the
+  /// platform's pause threshold, or the hard listen-for timeout fired.
+  /// The stream completes (`onDone` fires) but no `VoiceSttResult` is
+  /// emitted.
+  void completeWithoutResult() {
+    _controller?.close();
+    _listening = false;
+  }
+
   @override
   Future<void> initialize() async {}
 
@@ -684,6 +694,60 @@ void main() {
       verify: (bloc) {
         expect(bloc.state.status, VoiceStatus.error);
         expect(bloc.state.errorMessage, contains('permanently denied'));
+      },
+    );
+
+    // Regression: VoiceListenStopRequested must revert state. Before this
+    // fix the handler only called _stt.stop() without cancelling the
+    // subscription or emitting state, so the overlay stayed on
+    // "Listening…" forever and wake-word re-trigger (gated on idle)
+    // never fired again.
+    blocTest<VoiceBloc, VoiceState>(
+      'VoiceListenStopRequested reverts listening -> idle',
+      build: () => _makeBloc(
+        sendVoiceMessage: sendVoiceMessage,
+        getVoiceBudget: getBudget,
+        deleteVoiceHistory: deleteHistory,
+        appSettingsRepository: settingsRepo,
+        stt: sharedStt,
+      ),
+      seed: () => const VoiceState(isGuest: false, sessionId: 'sid'),
+      act: (bloc) async {
+        bloc.add(const VoiceListenRequested());
+        await Future<void>.delayed(const Duration(milliseconds: 10));
+        sharedStt.emitPartial('bench');
+        await Future<void>.delayed(const Duration(milliseconds: 10));
+        bloc.add(const VoiceListenStopRequested());
+        await Future<void>.delayed(const Duration(milliseconds: 20));
+      },
+      verify: (bloc) {
+        expect(bloc.state.status, VoiceStatus.idle);
+        expect(bloc.state.liveTranscript, isEmpty);
+      },
+    );
+
+    // Regression: when the STT engine ends listening on its own without
+    // producing a final transcript (silence past pauseFor, hard listenFor
+    // cap), the bloc must revert to idle via the onDone hook.
+    blocTest<VoiceBloc, VoiceState>(
+      'STT stream completing without a final result reverts to idle',
+      build: () => _makeBloc(
+        sendVoiceMessage: sendVoiceMessage,
+        getVoiceBudget: getBudget,
+        deleteVoiceHistory: deleteHistory,
+        appSettingsRepository: settingsRepo,
+        stt: sharedStt,
+      ),
+      seed: () => const VoiceState(isGuest: false, sessionId: 'sid'),
+      act: (bloc) async {
+        bloc.add(const VoiceListenRequested());
+        await Future<void>.delayed(const Duration(milliseconds: 10));
+        sharedStt.completeWithoutResult();
+        await Future<void>.delayed(const Duration(milliseconds: 20));
+      },
+      verify: (bloc) {
+        expect(bloc.state.status, VoiceStatus.idle);
+        expect(bloc.state.liveTranscript, isEmpty);
       },
     );
   });
