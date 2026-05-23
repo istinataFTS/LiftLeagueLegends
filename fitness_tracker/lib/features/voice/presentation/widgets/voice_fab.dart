@@ -3,6 +3,7 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 
+import '../../../../app/routes/app_routes.dart';
 import '../../../../core/constants/app_strings.dart';
 import '../../../../core/logging/app_logger.dart';
 import '../../../../core/themes/app_theme.dart';
@@ -47,6 +48,13 @@ class _VoiceFabState extends State<VoiceFab>
   StreamSubscription<WakeWordPreset>? _wakeWordSub;
   StreamSubscription<VoiceWakeWordException>? _wakeWordErrorSub;
   bool _overlayOpen = false;
+
+  /// One-shot guard: the "wake word needs setup" snackbar is shown at most
+  /// once per app session. Without this, every `_startWakeWordIfArmed()`
+  /// call (initial mount + every resume + every armed-toggle flip) would
+  /// trigger a fresh snackbar in users who simply have not configured the
+  /// Picovoice key yet.
+  bool _noAccessKeyPromptShown = false;
 
   @override
   void initState() {
@@ -115,7 +123,34 @@ class _VoiceFabState extends State<VoiceFab>
             error: e,
             category: 'voice',
           );
+          // Surface the most common, recoverable cause to the user. Other
+          // errors (engine init failures, missing model assets) are logged
+          // only — they indicate misconfiguration the user cannot fix from
+          // a snackbar.
+          if (e is VoiceWakeWordException &&
+              e.kind == VoiceWakeWordErrorKind.noAccessKey) {
+            _showWakeWordNeedsSetupSnackbar();
+          }
         });
+  }
+
+  void _showWakeWordNeedsSetupSnackbar() {
+    if (!mounted || _noAccessKeyPromptShown) return;
+    _noAccessKeyPromptShown = true;
+    final messenger = ScaffoldMessenger.maybeOf(context);
+    if (messenger == null) return;
+    messenger.showSnackBar(
+      SnackBar(
+        content: const Text(AppStrings.voiceFabWakeWordNeedsSetup),
+        action: SnackBarAction(
+          label: AppStrings.voiceFabWakeWordNeedsSetupAction,
+          onPressed: () {
+            if (!mounted) return;
+            Navigator.of(context).pushNamed(AppRoutes.voiceSettings);
+          },
+        ),
+      ),
+    );
   }
 
   void _listenToWakeWordStream() {

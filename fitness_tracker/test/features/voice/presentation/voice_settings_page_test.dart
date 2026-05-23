@@ -1,8 +1,10 @@
 import 'package:bloc_test/bloc_test.dart';
 import 'package:fitness_tracker/core/constants/app_strings.dart';
 import 'package:fitness_tracker/domain/entities/voice_settings.dart';
-import 'package:fitness_tracker/features/voice/application/voice_settings_cubit.dart';
+import 'package:fitness_tracker/domain/services/voice_credential_service.dart';
 import 'package:fitness_tracker/domain/services/voice_tts_service.dart';
+import 'package:fitness_tracker/features/voice/application/picovoice_key_cubit.dart';
+import 'package:fitness_tracker/features/voice/application/voice_settings_cubit.dart';
 import 'package:fitness_tracker/features/voice/presentation/voice_settings_page.dart';
 import 'package:fitness_tracker/features/voice/presentation/voice_settings_page_keys.dart';
 import 'package:fitness_tracker/injection/injection_container.dart';
@@ -17,6 +19,33 @@ import 'package:mocktail/mocktail.dart';
 
 class MockVoiceSettingsCubit extends MockCubit<VoiceSettings>
     implements VoiceSettingsCubit {}
+
+/// Minimal in-memory [VoiceCredentialService] for tests that need to render
+/// the Picovoice key section but do not care about secure-storage behavior.
+/// Reports "no key configured" by default; tests that want the configured
+/// state can pass `hasKey: true`.
+class FakeVoiceCredentialService implements VoiceCredentialService {
+  FakeVoiceCredentialService({String? initialKey}) : _key = initialKey;
+
+  String? _key;
+
+  @override
+  Future<String?> getPicovoiceAccessKey() async => _key;
+
+  @override
+  Future<void> setPicovoiceAccessKey(String key) async {
+    _key = key.trim();
+  }
+
+  @override
+  Future<void> clearPicovoiceAccessKey() async {
+    _key = null;
+  }
+
+  @override
+  Future<bool> hasPicovoiceAccessKey() async =>
+      _key != null && _key!.isNotEmpty;
+}
 
 class FakeVoiceTtsService implements VoiceTtsService {
   @override
@@ -68,11 +97,32 @@ void main() {
     if (!sl.isRegistered<VoiceTtsService>()) {
       sl.registerSingleton<VoiceTtsService>(FakeVoiceTtsService());
     }
+    // Register a fake credential service + the real PicovoiceKeyCubit
+    // factory so the page's `BlocProvider<PicovoiceKeyCubit>` can resolve
+    // a cubit via `sl<PicovoiceKeyCubit>()`. The fake reports "no key" by
+    // default — the section renders the "needs setup" tile, which these
+    // tests do not assert on but must not crash either.
+    if (!sl.isRegistered<VoiceCredentialService>()) {
+      sl.registerSingleton<VoiceCredentialService>(
+        FakeVoiceCredentialService(),
+      );
+    }
+    if (!sl.isRegistered<PicovoiceKeyCubit>()) {
+      sl.registerFactory<PicovoiceKeyCubit>(
+        () => PicovoiceKeyCubit(credentials: sl<VoiceCredentialService>()),
+      );
+    }
   });
 
   tearDownAll(() async {
     if (sl.isRegistered<VoiceTtsService>()) {
       await sl.unregister<VoiceTtsService>();
+    }
+    if (sl.isRegistered<PicovoiceKeyCubit>()) {
+      await sl.unregister<PicovoiceKeyCubit>();
+    }
+    if (sl.isRegistered<VoiceCredentialService>()) {
+      await sl.unregister<VoiceCredentialService>();
     }
   });
 
@@ -274,6 +324,143 @@ void main() {
 
         expect(find.text(AppStrings.voiceDeleteHistorySuccess), findsOneWidget);
       });
+    });
+
+    // -----------------------------------------------------------------------
+    // Picovoice access key section
+    //
+    // These tests scope the credential service per-test so each can choose
+    // whether to start with a key configured. The base setUpAll registers a
+    // default fake; here we unregister/replace it before the test runs.
+    // -----------------------------------------------------------------------
+
+    group('Picovoice key section', () {
+      Future<void> useCredentialService(
+        FakeVoiceCredentialService service,
+      ) async {
+        if (sl.isRegistered<VoiceCredentialService>()) {
+          await sl.unregister<VoiceCredentialService>();
+        }
+        sl.registerSingleton<VoiceCredentialService>(service);
+      }
+
+      tearDown(() async {
+        // Restore the default empty fake so the next test starts clean.
+        if (sl.isRegistered<VoiceCredentialService>()) {
+          await sl.unregister<VoiceCredentialService>();
+        }
+        sl.registerSingleton<VoiceCredentialService>(
+          FakeVoiceCredentialService(),
+        );
+      });
+
+      testWidgets(
+        'renders the missing-key tile when no key is configured',
+        (tester) async {
+          await useCredentialService(FakeVoiceCredentialService());
+          await tester.pumpWidget(_wrap(cubit));
+          await tester.pumpAndSettle();
+
+          expect(
+            find.byKey(VoiceSettingsPageKeys.picovoiceKeyTileKey),
+            findsOneWidget,
+          );
+          expect(
+            find.byKey(VoiceSettingsPageKeys.picovoiceKeySetUpButtonKey),
+            findsOneWidget,
+          );
+          expect(
+            find.text(AppStrings.voicePicovoiceKeyMissingTitle),
+            findsOneWidget,
+          );
+        },
+      );
+
+      testWidgets(
+        'renders the configured tile when a key is present',
+        (tester) async {
+          await useCredentialService(
+            FakeVoiceCredentialService(initialKey: 'existing-key'),
+          );
+          await tester.pumpWidget(_wrap(cubit));
+          await tester.pumpAndSettle();
+
+          expect(
+            find.byKey(VoiceSettingsPageKeys.picovoiceKeyTileKey),
+            findsOneWidget,
+          );
+          expect(
+            find.text(AppStrings.voicePicovoiceKeyPresentTitle),
+            findsOneWidget,
+          );
+          // The "Set up key" CTA only appears in the missing state.
+          expect(
+            find.byKey(VoiceSettingsPageKeys.picovoiceKeySetUpButtonKey),
+            findsNothing,
+          );
+        },
+      );
+
+      testWidgets(
+        'tapping "Set up key" opens the entry dialog with a hidden field',
+        (tester) async {
+          await useCredentialService(FakeVoiceCredentialService());
+          await tester.pumpWidget(_wrap(cubit));
+          await tester.pumpAndSettle();
+
+          await tester.tap(
+            find.byKey(VoiceSettingsPageKeys.picovoiceKeySetUpButtonKey),
+          );
+          await tester.pumpAndSettle();
+
+          expect(
+            find.byKey(VoiceSettingsPageKeys.picovoiceKeyDialogKey),
+            findsOneWidget,
+          );
+          expect(
+            find.byKey(VoiceSettingsPageKeys.picovoiceKeyTextFieldKey),
+            findsOneWidget,
+          );
+
+          // The TextField is obscured to keep the secret out of shoulder
+          // surfers' line of sight — verify the obscureText property.
+          final TextField field = tester.widget(
+            find.byKey(VoiceSettingsPageKeys.picovoiceKeyTextFieldKey),
+          );
+          expect(field.obscureText, isTrue);
+        },
+      );
+
+      testWidgets(
+        'entering a key and tapping Save persists it through the service',
+        (tester) async {
+          final service = FakeVoiceCredentialService();
+          await useCredentialService(service);
+          await tester.pumpWidget(_wrap(cubit));
+          await tester.pumpAndSettle();
+
+          await tester.tap(
+            find.byKey(VoiceSettingsPageKeys.picovoiceKeySetUpButtonKey),
+          );
+          await tester.pumpAndSettle();
+
+          await tester.enterText(
+            find.byKey(VoiceSettingsPageKeys.picovoiceKeyTextFieldKey),
+            '  fresh-key  ',
+          );
+          await tester.tap(
+            find.byKey(VoiceSettingsPageKeys.picovoiceKeyDialogSaveKey),
+          );
+          await tester.pumpAndSettle();
+
+          expect(await service.hasPicovoiceAccessKey(), isTrue);
+          expect(await service.getPicovoiceAccessKey(), 'fresh-key');
+          expect(
+            find.text(AppStrings.voicePicovoiceKeySaveSuccess),
+            findsOneWidget,
+          );
+        },
+      );
     });
   });
 }

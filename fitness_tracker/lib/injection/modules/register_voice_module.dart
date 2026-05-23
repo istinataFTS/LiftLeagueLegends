@@ -12,6 +12,10 @@ import '../../data/repositories/voice_repository_impl.dart';
 import '../../domain/repositories/app_settings_repository.dart';
 import '../../domain/repositories/meal_repository.dart';
 import '../../domain/repositories/voice_repository.dart';
+import '../../domain/services/voice_credential_service.dart';
+import '../../domain/services/voice_stt_service.dart';
+import '../../domain/services/voice_tts_service.dart';
+import '../../domain/services/voice_wake_word_service.dart';
 import '../../domain/usecases/exercises/get_all_exercises.dart';
 import '../../domain/usecases/nutrition_logs/get_daily_macros.dart';
 import '../../domain/usecases/nutrition_logs/get_logs_for_date.dart';
@@ -21,6 +25,7 @@ import '../../domain/usecases/voice/send_voice_message.dart';
 import '../../domain/usecases/workout_sets/get_sets_by_date_range.dart';
 import '../../domain/usecases/workout_sets/get_weekly_sets.dart';
 import '../../features/settings/application/app_settings_cubit.dart';
+import '../../features/voice/application/picovoice_key_cubit.dart';
 import '../../features/voice/application/voice_bloc.dart';
 import '../../features/voice/application/voice_settings_cubit.dart';
 import '../../features/voice/data/coordinator/offline_voice_coordinator.dart';
@@ -35,10 +40,6 @@ import '../../features/voice/data/services/flutter_tts_voice_tts_service.dart';
 import '../../features/voice/data/services/porcupine_voice_wake_word_service.dart';
 import '../../features/voice/data/services/secure_storage_voice_credential_service.dart';
 import '../../features/voice/data/services/speech_to_text_voice_stt_service.dart';
-import '../../domain/services/voice_credential_service.dart';
-import '../../domain/services/voice_stt_service.dart';
-import '../../domain/services/voice_tts_service.dart';
-import '../../domain/services/voice_wake_word_service.dart';
 
 /// Wires up the voice feature.
 ///
@@ -139,6 +140,13 @@ void registerVoiceModule(GetIt sl) {
       repository: sl<AppSettingsRepository>(),
       deleteVoiceHistory: sl<DeleteVoiceHistory>(),
     ),
+  );
+
+  // PicovoiceKeyCubit: factory — one per voice settings page instance.
+  // Owns no native resources; reads / writes the Picovoice access key
+  // through VoiceCredentialService (secure storage).
+  sl.registerFactory(
+    () => PicovoiceKeyCubit(credentials: sl<VoiceCredentialService>()),
   );
 
   // VoiceBloc: factory — per voice overlay instance.

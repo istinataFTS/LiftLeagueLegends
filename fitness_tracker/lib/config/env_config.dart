@@ -140,6 +140,31 @@ class EnvConfig {
       supabaseUrl.trim().isNotEmpty &&
       supabaseAnonKey.trim().isNotEmpty;
 
+  /// Optional developer convenience: a Picovoice Porcupine access key
+  /// supplied via `--dart-define=PICOVOICE_ACCESS_KEY=...` at build time.
+  /// When set, the bootstrap seeds it into secure storage on first launch
+  /// *only if* no key is already present — it never overwrites a key the
+  /// user has entered through the Voice settings page.
+  ///
+  /// The canonical place for this key is secure storage (entered through
+  /// the Voice settings page); the dart-define is purely a fallback so a
+  /// freshly-wiped dev emulator does not require manual key entry.
+  /// Production builds leave it empty.
+  ///
+  /// **Do NOT put this value in the committed `dart_defines.json`** — that
+  /// file is checked into the repo. For local dev convenience, pass it on
+  /// the CLI:
+  ///
+  ///     flutter run --dart-define-from-file=dart_defines.json \
+  ///                 --dart-define=PICOVOICE_ACCESS_KEY=<your-key>
+  ///
+  /// or keep an untracked `dart_defines.local.json` and forward it from
+  /// `scripts/run.ps1`.
+  static const String picovoiceAccessKey = String.fromEnvironment(
+    'PICOVOICE_ACCESS_KEY',
+    defaultValue: '',
+  );
+
   static bool get enableDebugLogs => isDevelopment || kDebugMode;
 
   static const String logLevel = String.fromEnvironment(
