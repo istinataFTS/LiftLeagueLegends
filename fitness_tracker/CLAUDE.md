@@ -42,14 +42,17 @@ Supabase deploy is manual — trigger the `Supabase Deploy` GitHub Action (`work
 
 ### Flutter compile-time config (`--dart-define`)
 
-All config is injected at build time via `--dart-define`. `EnvConfig` (`lib/config/env_config.dart`) is the single source of truth. Supabase is **off by default** (`ENABLE_SUPABASE=false`). To run with a real backend:
+All config is injected at build time via `--dart-define`. `EnvConfig` (`lib/config/env_config.dart`) is the single source of truth. Supabase is **off by default** (`ENABLE_SUPABASE=false`) — a bare `flutter run` produces a local-only build whose sign-in surface fails with "Remote auth is not configured".
 
-```sh
-flutter run \
-  --dart-define=ENABLE_SUPABASE=true \
-  --dart-define=SUPABASE_URL=https://xxx.supabase.co \
-  --dart-define=SUPABASE_ANON_KEY=eyJ...
+The committed `dart_defines.json` holds the project's `--dart-define` values (Supabase URL, anon key, env). Use the wrapper script so a single command does the right thing on every machine:
+
+```powershell
+./scripts/run.ps1                    # debug, default device, Supabase enabled
+./scripts/run.ps1 --release          # forwards extra flags to `flutter run`
+./scripts/run.ps1 -d chrome          # pick a device
 ```
+
+Equivalent raw command: `flutter run --dart-define-from-file=dart_defines.json`. VS Code launch configs in `.vscode/launch.json` mirror the same values for IDE-driven runs.
 
 ## Known issues and the 15-minute rule
 
