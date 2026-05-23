@@ -52,6 +52,16 @@ abstract class VoiceSttService {
   /// [isFinal] == true. On error the stream adds a [VoiceSttException]
   /// via `onError`.
   ///
+  /// ### Error vs end-of-speech
+  ///
+  /// [VoiceSttErrorKind.noSpeech] outcomes (e.g. Android `error_no_match` /
+  /// `error_speech_timeout`) are **not** errors and MUST NOT be added via
+  /// `onError`. They are a normal "the recogniser heard nothing
+  /// recognisable" signal and must terminate the stream via `onDone` so
+  /// callers revert UI state the same way they would after a natural pause.
+  /// Only [permissionDenied], [permissionPermanentlyDenied], [unavailable],
+  /// [network], and [unknown] kinds are propagated as errors.
+  ///
   /// ### Stream-completion contract
   ///
   /// The returned stream **must** complete (fire `onDone`) in every
