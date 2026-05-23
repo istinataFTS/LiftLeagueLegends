@@ -1,7 +1,7 @@
 {
   "schemaVersion": 1,
   "generatedAt": "2026-05-23",
-  "fingerprint": "72e0d22673abdc4a",
+  "fingerprint": "fdbccb91e5de3a72",
   "features": {
     "auth": {
       "summary": "Authentication cubits for sign-in, sign-up, and OTP verification.",
@@ -216,7 +216,7 @@
       "injectionModule": "lib/injection/modules/register_voice_module.dart",
       "tables": [],
       "notes": "Edge function lives in supabase/functions/voice-chat/; not fingerprinted by v1 of this check. VoiceBloc emits VoiceMutationCommand effects; VoiceCommandRouter in the widget tree dispatches to WorkoutBloc, NutritionLogBloc, and HistoryBloc via context.read. Mutation tool calls trigger a deterministic spoken readback (built locally from VoiceToolCall.args + WeightUnit) before transitioning to VoiceStatus.awaitingConfirmation and setting pendingConfirmation. Verbal 'cancel'/'nevermind'/'no'/'stop' during a pending confirmation short-circuits without round-tripping to the LLM. _dispatchMutationTool synchronously refreshes _cachedWorkoutSets/_cachedNutritionLogs after each effect emission (D1 fix). STT cap raised from 10 s to 15 s. VoiceSettingsCubit depends on AppSettingsRepository.watchSettings() (no AppSettingsCubit cross-import); provided once via BlocProvider in auth_session_shell.dart. All navigation goes through lib/app/routes/ (named-route registry).",
-      "fingerprint": "af6000b4e2c5e1a7"
+      "fingerprint": "9eb6444f308b73d8"
     }
   }
 }

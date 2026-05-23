@@ -72,6 +72,18 @@ class VoiceListenStopRequested extends VoiceEvent {
   const VoiceListenStopRequested();
 }
 
+/// Internal: dispatched by the bloc when the STT stream completes without
+/// having emitted a final transcript — e.g. the user fell silent past
+/// `pauseFor`, the engine's hard `listenFor` cap fired, or `stop()` was
+/// called natively. Reverts the bloc to [VoiceStatus.idle] so the UI no
+/// longer shows "Listening…" and so wake-word re-trigger can fire again.
+///
+/// Public for the same reason as [VoiceTranscriptReceived]: widget tests
+/// can drive the bloc directly without plumbing a real STT engine.
+class VoiceListenEnded extends VoiceEvent {
+  const VoiceListenEnded();
+}
+
 /// Internal: emitted by the bloc itself when STT yields a result.
 /// Public so widget tests can drive the bloc directly without
 /// plumbing a real STT engine.
@@ -413,6 +425,7 @@ class VoiceBloc extends Bloc<VoiceEvent, VoiceState>
     on<VoiceSessionStarted>(_onSessionStarted);
     on<VoiceListenRequested>(_onListenRequested);
     on<VoiceListenStopRequested>(_onListenStopRequested);
+    on<VoiceListenEnded>(_onListenEnded);
     on<VoiceTranscriptReceived>(_onTranscriptReceived);
     on<VoiceTranscriptFailed>(_onTranscriptFailed);
     on<VoiceSendMessage>(_onSendMessage);
@@ -562,6 +575,11 @@ class VoiceBloc extends Bloc<VoiceEvent, VoiceState>
               );
             }
           },
+          // Engine ended without producing a final transcript (silence past
+          // pauseFor, hard listenFor cap, or native stop()). Without this
+          // hook the bloc would stay stuck at VoiceStatus.listening forever
+          // and the UI would show "Listening…" indefinitely.
+          onDone: () => add(const VoiceListenEnded()),
           cancelOnError: true,
         );
   }
@@ -570,7 +588,29 @@ class VoiceBloc extends Bloc<VoiceEvent, VoiceState>
     VoiceListenStopRequested event,
     Emitter<VoiceState> emit,
   ) async {
+    // Stop the engine first. The STT service is contracted to complete the
+    // listen stream in response, which will dispatch [VoiceListenEnded] via
+    // the onDone hook — but we also cancel the subscription and revert state
+    // synchronously here, in case the underlying plugin does not honour the
+    // contract on every platform.
     await _stt.stop();
+    await _sttSubscription?.cancel();
+    _sttSubscription = null;
+    if (state.status == VoiceStatus.listening) {
+      emit(state.copyWith(status: VoiceStatus.idle, clearTranscript: true));
+    }
+  }
+
+  void _onListenEnded(VoiceListenEnded event, Emitter<VoiceState> emit) {
+    _sttSubscription?.cancel();
+    _sttSubscription = null;
+    // Only revert if we are still in the listening phase. If a final
+    // transcript already moved us to [VoiceStatus.transcribing] (or
+    // beyond), the natural stream completion that follows must NOT yank
+    // the state machine back to idle.
+    if (state.status == VoiceStatus.listening) {
+      emit(state.copyWith(status: VoiceStatus.idle, clearTranscript: true));
+    }
   }
 
   void _onTranscriptReceived(
