@@ -66,38 +66,41 @@ Numbered steps or a short paragraph. State what to do and what *not* to do.
 3. [pending-delete-queue-must-clear-on-sign-out](#pending-delete-queue-must-clear-on-sign-out)
 4. [per-entity-sync-failures-need-underlying-cause-logged](#per-entity-sync-failures-need-underlying-cause-logged)
 5. [muscle-map-needs-rebuild-after-background-sync](#muscle-map-needs-rebuild-after-background-sync)
+6. [pre-auth-write-through-must-skip-remote-push](#pre-auth-write-through-must-skip-remote-push)
 
 ### Voice
-6. [voice-stt-hard-cap-bounds-per-utterance-cost](#voice-stt-hard-cap-bounds-per-utterance-cost)
-7. [voice-edge-function-must-have-30s-http-timeout](#voice-edge-function-must-have-30s-http-timeout)
-8. [voice-daily-cost-cap-is-server-side-only](#voice-daily-cost-cap-is-server-side-only)
-9. [voice-fab-is-disabled-not-hidden-for-guests](#voice-fab-is-disabled-not-hidden-for-guests)
+7. [voice-stt-hard-cap-bounds-per-utterance-cost](#voice-stt-hard-cap-bounds-per-utterance-cost)
+8. [voice-edge-function-must-have-30s-http-timeout](#voice-edge-function-must-have-30s-http-timeout)
+9. [voice-daily-cost-cap-is-server-side-only](#voice-daily-cost-cap-is-server-side-only)
+10. [voice-fab-is-disabled-not-hidden-for-guests](#voice-fab-is-disabled-not-hidden-for-guests)
 
 ### Database
-10. [sqflite-version-15-rejects-incompatible-legacy-databases](#sqflite-version-15-rejects-incompatible-legacy-databases)
-11. [conflict-algorithm-replace-needed-for-deterministic-default-ids](#conflict-algorithm-replace-needed-for-deterministic-default-ids)
-12. [pull-before-push-for-sign-in-sync](#pull-before-push-for-sign-in-sync)
+11. [sqflite-version-15-rejects-incompatible-legacy-databases](#sqflite-version-15-rejects-incompatible-legacy-databases)
+12. [conflict-algorithm-replace-needed-for-deterministic-default-ids](#conflict-algorithm-replace-needed-for-deterministic-default-ids)
+13. [pull-before-push-for-sign-in-sync](#pull-before-push-for-sign-in-sync)
+14. [default-catalog-ids-must-be-owner-scoped](#default-catalog-ids-must-be-owner-scoped)
 
 ### Dependency Injection
-13. [blocs-must-be-factories-repositories-singletons](#blocs-must-be-factories-repositories-singletons)
-14. [duplicate-di-registration-causes-silent-bugs](#duplicate-di-registration-causes-silent-bugs)
-15. [fire-and-forget-futures-in-startup-cause-race-conditions](#fire-and-forget-futures-in-startup-cause-race-conditions)
-16. [widget-state-must-not-field-capture-factory-blocs-or-cubits](#widget-state-must-not-field-capture-factory-blocs-or-cubits)
+15. [blocs-must-be-factories-repositories-singletons](#blocs-must-be-factories-repositories-singletons)
+16. [duplicate-di-registration-causes-silent-bugs](#duplicate-di-registration-causes-silent-bugs)
+17. [fire-and-forget-futures-in-startup-cause-race-conditions](#fire-and-forget-futures-in-startup-cause-race-conditions)
+18. [widget-state-must-not-field-capture-factory-blocs-or-cubits](#widget-state-must-not-field-capture-factory-blocs-or-cubits)
 
 ### CI & Local Tooling
-17. [crlf-line-endings-cause-false-positive-dart-format-locally](#crlf-line-endings-cause-false-positive-dart-format-locally)
-18. [flutter-analyze-info-issues-do-not-fail-ci](#flutter-analyze-info-issues-do-not-fail-ci)
-19. [main-branch-is-pr-only-direct-push-blocked](#main-branch-is-pr-only-direct-push-blocked)
-20. [convention-checker-regexes-must-have-multiline-test-fixtures](#convention-checker-regexes-must-have-multiline-test-fixtures)
+19. [crlf-line-endings-cause-false-positive-dart-format-locally](#crlf-line-endings-cause-false-positive-dart-format-locally)
+20. [flutter-analyze-info-issues-do-not-fail-ci](#flutter-analyze-info-issues-do-not-fail-ci)
+21. [main-branch-is-pr-only-direct-push-blocked](#main-branch-is-pr-only-direct-push-blocked)
+22. [convention-checker-regexes-must-have-multiline-test-fixtures](#convention-checker-regexes-must-have-multiline-test-fixtures)
 
 ### Platform
-21. [dart-define-is-build-time-not-runtime](#dart-define-is-build-time-not-runtime)
-22. [supabase-disabled-by-default](#supabase-disabled-by-default)
+23. [dart-define-is-build-time-not-runtime](#dart-define-is-build-time-not-runtime)
+24. [supabase-disabled-by-default](#supabase-disabled-by-default)
 
 ### Other
-23. [history-renders-orphaned-sets-not-hides-them](#history-renders-orphaned-sets-not-hides-them)
-24. [voice-slider-persists-on-every-drag-tick](#voice-slider-persists-on-every-drag-tick)
-25. [cross-feature-presentation-imports-are-architectural-cycles](#cross-feature-presentation-imports-are-architectural-cycles)
+25. [history-renders-orphaned-sets-not-hides-them](#history-renders-orphaned-sets-not-hides-them)
+26. [voice-slider-persists-on-every-drag-tick](#voice-slider-persists-on-every-drag-tick)
+27. [cross-feature-presentation-imports-are-architectural-cycles](#cross-feature-presentation-imports-are-architectural-cycles)
+28. [empty-state-columns-need-scrollable-centering](#empty-state-columns-need-scrollable-centering)
 
 ---
 
@@ -235,6 +238,33 @@ After a background sync completed, the muscle-stimulus map shown in the UI refle
 
 - `lib/core/sync/` — post-sync hook registration
 - Commit `3d68873` — fix(sync): instant muscle-map updates after background sync
+
+---
+
+### pre-auth-write-through-must-skip-remote-push
+
+- **Severity:** Medium
+- **Status:** Resolved-but-monitor
+- **First observed:** 2026-05-23
+- **Last verified:** 2026-05-23
+- **Area:** sync
+
+**Symptom**
+
+Boot-time default-catalog seeding (`AppDataSeeder.seedIfEnabled` → `SeedMeals` / `SeedExercises` → `RepositoryImpl.addX`) emitted one `AuthSyncException: unauthenticated: <entity> remote access requires an authenticated user` warning *with full stack trace* per default row — ~100 lines of red on every cold start, drowning out genuinely actionable sync failures.
+
+**Root cause**
+
+Guest-owned writes already land in the local store with `SyncStatus.localOnly` via `guestAwareAddedSyncMetadata` / `guestAwareUpdatedSyncMetadata`. But `BaseEntitySyncCoordinator.persistAdded` / `persistUpdated` only gated the remote push on `isRemoteSyncEnabled` — they ignored the metadata. So every seeded guest row was pushed to Supabase anyway, the remote DTO's `user_id` check rejected it, and the exception was logged as a normal sync failure even though it is by design.
+
+**Workaround / fix**
+
+`persistAdded` / `persistUpdated` now consult `_shouldAttemptRemotePush(localEntity)`, which returns `false` when the just-built local metadata is `SyncStatus.localOnly`. Any new sync coordinator subclass automatically inherits this — there's nothing to remember as long as guest-owned writes go through `guestAwareAddedSyncMetadata`. Do **not** push `localOnly` rows out of band; the post-sign-in `InitialCloudMigrationCoordinator` drains anything that legitimately needs an upload.
+
+**References**
+
+- `lib/data/sync/base_entity_sync_coordinator.dart:108` — `_shouldAttemptRemotePush`
+- `test/data/sync/base_entity_sync_coordinator_test.dart` — `localOnly write-through guard` group
 
 ---
 
@@ -433,6 +463,35 @@ The sign-in sync path now pulls before pushing for any entity that may already e
 - `lib/core/session/session_sync_service_impl.dart` — sign-in sync ordering
 - Commit `4de6f8d` — fix(sync): idempotent upsert, pull-before-push, non-fatal sign-in
 - PR `#49` — Fix/stable exercise meal identity
+
+---
+
+### default-catalog-ids-must-be-owner-scoped
+
+- **Severity:** Critical
+- **Status:** Resolved-but-monitor
+- **First observed:** 2026-05-23
+- **Last verified:** 2026-05-23
+- **Area:** db
+
+**Symptom**
+
+Newly signed-in users opened the app to a completely empty Library (Exercises and Meals tabs both showed "No exercises yet" / "No meals yet"), even though the boot-time seeder logged a successful seed and `AccountCatalogProvisionHook` claimed to provision the new account's catalog. The Log → Exercise tab consequently showed "No exercises available — Go to Library to create exercises first".
+
+**Root cause**
+
+Default catalog rows used a name-only deterministic id: `DeterministicCatalogId.fromName('Bench Press')` produced the same UUIDv5 regardless of owner. The boot-time seed runs while the app is still in guest mode and writes 53 rows owned by `''` at those deterministic ids. When the user later signs in, the post-sync `AccountCatalogProvisionHook` calls `SeedMeals(ownerUserId: <new-user>)` which tries to insert rows at the *same* ids with the new owner — and `meal_local_datasource_impl.insertMeal` (correctly) uses `ConflictAlgorithm.abort` to avoid cascade-deleting linked `nutrition_logs`. Every insert aborted. `SeedMeals` swallowed each per-row failure and the hook logged a single innocuous "Failed to seed any meals", leaving the new user with no catalog.
+
+**Workaround / fix**
+
+`DeterministicCatalogId.forOwner(name:, ownerUserId:)` scopes the id by `'$owner|$canonicalName'`. Guest (`''` or `null`) collapses to the legacy name-only formula so existing on-disk guest rows remain addressable. Both `SeedMeals` and `SeedExercises` now use `forOwner` with the resolved owner. Any future default-catalog seeder MUST do the same — call `DeterministicCatalogId.forOwner`, never `.fromName` directly, when an owner is known. Tests under `test/domain/usecases/{exercises,meals}/` include a regression covering the guest-seeded-then-user-signs-in coexistence path.
+
+**References**
+
+- `lib/core/utils/deterministic_catalog_id.dart:59` — `forOwner` derivation
+- `lib/domain/usecases/exercises/seed_exercises.dart`, `lib/domain/usecases/meals/seed_meals.dart` — call sites
+- `lib/core/sync/hooks/account_catalog_provision_hook.dart` — post-sign-in provisioning that this unblocks
+- `test/core/utils/deterministic_catalog_id_test.dart` — coexistence guarantees pinned
 
 ---
 
@@ -796,3 +855,30 @@ Use a named-route registry. All page classes are imported once in `lib/app/route
 - `lib/app/routes/app_routes.dart` — route constants
 - `lib/app/routes/app_router.dart` — `onGenerateRoute` registry
 - Voice-foundation PR — added the rule, the registry, and migrated the three offenders
+
+---
+
+### empty-state-columns-need-scrollable-centering
+
+- **Severity:** Low
+- **Status:** Resolved-but-monitor
+- **First observed:** 2026-05-23
+- **Last verified:** 2026-05-23
+- **Area:** other
+
+**Symptom**
+
+`BOTTOM OVERFLOWED BY <N> PIXELS` debug stripe on the Library Exercises (and Meals) tab whenever the catalog is empty, on phones with a tight viewport — the empty-state column plus the sticky "Add Exercise" CTA plus the bottom nav inset exceed available height.
+
+**Root cause**
+
+The empty-state pattern was `Center > Padding(40) > Column(MainAxisAlignment.center, children: [icon, headline, description, CTA])`. `Center` provides no scrolling fallback. When the surrounding `Column`'s `Expanded` shrinks below the empty state's intrinsic height (sticky bottom CTA, smaller screens, in-call status bar), the column overflows and Flutter renders the yellow/black stripe. The same shape repeats across `library/presentation/widgets/{exercises_tab,meals_tab}.dart` and `log/presentation/widgets/log_exercise_tab.dart`.
+
+**Workaround / fix**
+
+Replace the `Center > Padding > Column` shape with `LayoutBuilder > SingleChildScrollView > ConstrainedBox(minHeight: constraints.maxHeight - 80) > IntrinsicHeight > Column(MainAxisAlignment.center)`. This centers when the empty state fits and degrades to scrolling when it does not. Applied to both Library tabs; apply the same pattern to any new empty-state widget that lives above a sticky CTA.
+
+**References**
+
+- `lib/features/library/presentation/widgets/exercises_tab.dart` — `_buildEmptyState`
+- `lib/features/library/presentation/widgets/meals_tab.dart` — `_buildEmptyState`

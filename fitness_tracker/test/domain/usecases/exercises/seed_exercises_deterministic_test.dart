@@ -28,16 +28,21 @@ class _InMemoryInitFlags implements CatalogInitFlagRepository {
   }
 }
 
-/// In-memory repository keyed by exercise id, mimicking the upsert-by-id
-/// semantics of the real local datasource — enough to assert that a reseed
-/// is idempotent because ids are deterministic.
+/// Owner-scoped in-memory repository that mirrors production semantics:
+/// real [ExerciseRepositoryImpl] resolves the current session's owner and
+/// [getAllExercises] returns only rows owned by that owner. Tests set
+/// [currentOwner] before each SeedExercises call to simulate the session.
 class _InMemoryExerciseRepository implements ExerciseRepository {
   final Map<String, Exercise> store = <String, Exercise>{};
+
+  String currentOwner = '';
 
   @override
   Future<Either<Failure, List<Exercise>>> getAllExercises({
     DataSourcePreference sourcePreference = DataSourcePreference.localOnly,
-  }) async => Right(store.values.toList());
+  }) async => Right(
+    store.values.where((e) => (e.ownerUserId ?? '') == currentOwner).toList(),
+  );
 
   @override
   Future<Either<Failure, void>> addExercise(Exercise exercise) async {
@@ -47,7 +52,7 @@ class _InMemoryExerciseRepository implements ExerciseRepository {
 
   @override
   Future<Either<Failure, void>> clearAllExercises() async {
-    store.clear();
+    store.removeWhere((_, e) => (e.ownerUserId ?? '') == currentOwner);
     return const Right(null);
   }
 
@@ -57,8 +62,8 @@ class _InMemoryExerciseRepository implements ExerciseRepository {
 }
 
 void main() {
-  test('seeds default exercises with deterministic name-derived ids', () async {
-    final repo = _InMemoryExerciseRepository();
+  test('seeds default exercises with owner-scoped deterministic ids', () async {
+    final repo = _InMemoryExerciseRepository()..currentOwner = 'user-1';
     final seed = SeedExercises(repo);
 
     final result = await seed(ownerUserId: 'user-1');
@@ -68,15 +73,53 @@ void main() {
     expect(repo.store.length, defaults.length);
 
     for (final d in defaults) {
-      final expectedId = DeterministicCatalogId.fromName(d.name);
+      final expectedId = DeterministicCatalogId.forOwner(
+        ownerUserId: 'user-1',
+        name: d.name,
+      );
       expect(
         repo.store.containsKey(expectedId),
         isTrue,
-        reason: '"${d.name}" should be stored under its deterministic id',
+        reason: '"${d.name}" should be stored under its owner-scoped id',
       );
       expect(repo.store[expectedId]!.ownerUserId, 'user-1');
     }
   });
+
+  test(
+    'guest-seeded catalog coexists with a post-sign-in user catalog '
+    '(no primary-key collision on adoption)',
+    () async {
+      // Regression for empty-Library-after-sign-in: with a name-only id
+      // the guest seed at boot reserved every id and the post-sign-in
+      // provision step aborted, leaving the new user with no exercises.
+      final repo = _InMemoryExerciseRepository();
+
+      repo.currentOwner = '';
+      final guestResult = await SeedExercises(repo)(ownerUserId: '');
+      expect(guestResult.isRight(), isTrue);
+      final guestCount = repo.store.length;
+
+      repo.currentOwner = 'user-1';
+      final userResult = await SeedExercises(repo)(ownerUserId: 'user-1');
+      expect(userResult.isRight(), isTrue);
+
+      final defaults = DefaultExercisesData.getDefaultExercises();
+      expect(repo.store.length, guestCount + defaults.length);
+      for (final d in defaults) {
+        final guestId = DeterministicCatalogId.forOwner(
+          ownerUserId: '',
+          name: d.name,
+        );
+        final userId = DeterministicCatalogId.forOwner(
+          ownerUserId: 'user-1',
+          name: d.name,
+        );
+        expect(repo.store[guestId]?.ownerUserId, '');
+        expect(repo.store[userId]?.ownerUserId, 'user-1');
+      }
+    },
+  );
 
   // ---------------------------------------------------------------------------
   // Delete-stickiness invariant (catalog-init flag)
@@ -84,7 +127,7 @@ void main() {
 
   group('delete-stickiness (catalog-init flag)', () {
     test('sets the init flag after the first successful seed', () async {
-      final repo = _InMemoryExerciseRepository();
+      final repo = _InMemoryExerciseRepository()..currentOwner = 'user-1';
       final flags = _InMemoryInitFlags();
       final seed = SeedExercises(repo, catalogInitFlags: flags);
 
@@ -102,7 +145,7 @@ void main() {
     test(
       'skips seeding when flag is already set, even if catalog is empty',
       () async {
-        final repo = _InMemoryExerciseRepository();
+        final repo = _InMemoryExerciseRepository()..currentOwner = 'user-1';
         final flags = _InMemoryInitFlags();
         await flags.markInitialized('user-1', 'exercises');
 
@@ -121,7 +164,7 @@ void main() {
     );
 
     test('does not set the flag for a different owner', () async {
-      final repo = _InMemoryExerciseRepository();
+      final repo = _InMemoryExerciseRepository()..currentOwner = 'user-1';
       final flags = _InMemoryInitFlags();
       final seed = SeedExercises(repo, catalogInitFlags: flags);
 
@@ -148,19 +191,22 @@ void main() {
   });
 
   test('reseeding is idempotent — ids are stable, no duplicates', () async {
-    final repo = _InMemoryExerciseRepository();
+    final repo = _InMemoryExerciseRepository()..currentOwner = 'user-1';
     final seed = SeedExercises(repo);
 
     await seed(ownerUserId: 'user-1');
     final idsAfterFirst = repo.store.keys.toSet();
 
-    // Force a second seed pass over the already-populated store by clearing
-    // only the "already seeded" guard: re-run against the same store with a
-    // fresh use case. Deterministic ids mean re-adding overwrites in place.
+    // Force a second seed pass over the already-populated store: re-add the
+    // same defaults with the owner-scoped deterministic id. Stable ids mean
+    // re-adding overwrites in place — the key set is unchanged.
     for (final d in DefaultExercisesData.getDefaultExercises()) {
       await repo.addExercise(
         d.toEntity(
-          DeterministicCatalogId.fromName(d.name),
+          DeterministicCatalogId.forOwner(
+            ownerUserId: 'user-1',
+            name: d.name,
+          ),
           DateTime.now(),
           ownerUserId: 'user-1',
         ),

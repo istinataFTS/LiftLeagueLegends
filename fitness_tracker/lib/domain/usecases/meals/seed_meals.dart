@@ -88,8 +88,15 @@ class SeedMeals {
 
     for (final mealData in defaultMeals) {
       try {
+        // Owner-scoped deterministic id — see [SeedExercises] for the full
+        // rationale. Without owner scoping the post-sign-in provisioning
+        // step would collide on the primary key against the guest catalog
+        // seeded at boot and the new user would be left with no meals.
         final meal = mealData.toEntity(
-          DeterministicCatalogId.fromName(mealData.name),
+          DeterministicCatalogId.forOwner(
+            ownerUserId: ownerUserId,
+            name: mealData.name,
+          ),
           now,
           ownerUserId: ownerUserId,
         );

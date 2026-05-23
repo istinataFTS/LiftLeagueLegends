@@ -420,4 +420,118 @@ void main() {
     expect(pendingDeleteDataSource.attemptedIds, <String>['delete-1']);
     expect(coordinator.localStore.containsKey('entity-3'), isTrue);
   });
+
+  group('localOnly write-through guard', () {
+    // Regression for the boot-time AuthSyncException log spam: rows whose
+    // metadata is intentionally `localOnly` (e.g. guest-owned writes via
+    // the guest-aware metadata builders) must NOT trigger an upsertRemote
+    // call. Pushing them anyway just floods the logs with
+    // "unauthenticated" failures that the user cannot act on.
+    test('persistAdded skips remote push when metadata is localOnly', () async {
+      final localOnlyCoordinator = _LocalOnlyAddedCoordinator(
+        pendingSyncDeleteLocalDataSource: pendingDeleteDataSource,
+      );
+
+      await localOnlyCoordinator.persistAdded(
+        const TestSyncEntity(
+          id: 'guest-entity',
+          syncMetadata: EntitySyncMetadata(status: SyncStatus.localOnly),
+        ),
+      );
+
+      expect(
+        localOnlyCoordinator.remoteUpsertCalls,
+        isEmpty,
+        reason:
+            'localOnly rows are in their terminal state — pushing them just '
+            'spams the log with intentional failures',
+      );
+      expect(localOnlyCoordinator.syncedIds, isEmpty);
+      expect(localOnlyCoordinator.pendingUploadIds, isEmpty);
+      expect(
+        localOnlyCoordinator.localStore['guest-entity']!.syncMetadata.status,
+        SyncStatus.localOnly,
+      );
+    });
+
+    test('persistAdded still pushes when metadata is pendingUpload', () async {
+      // Sanity check that the guard only fires on localOnly — normal
+      // write-through must keep its existing push behaviour.
+      await coordinator.persistAdded(
+        const TestSyncEntity(
+          id: 'normal-entity',
+          syncMetadata: EntitySyncMetadata(status: SyncStatus.localOnly),
+        ),
+      );
+
+      // Base TestCoordinator's buildAddedLocalEntity rewrites status to
+      // pendingUpload, so the push should run.
+      expect(coordinator.remoteUpsertCalls, <String>['normal-entity']);
+      expect(coordinator.syncedIds, <String>['normal-entity']);
+    });
+
+    test('persistUpdated skips remote push when metadata is localOnly', () async {
+      final localOnlyCoordinator = _LocalOnlyUpdatedCoordinator(
+        pendingSyncDeleteLocalDataSource: pendingDeleteDataSource,
+      );
+
+      localOnlyCoordinator.localStore['guest-entity'] = const TestSyncEntity(
+        id: 'guest-entity',
+        syncMetadata: EntitySyncMetadata(status: SyncStatus.localOnly),
+      );
+
+      await localOnlyCoordinator.persistUpdated(
+        const TestSyncEntity(
+          id: 'guest-entity',
+          syncMetadata: EntitySyncMetadata(status: SyncStatus.localOnly),
+        ),
+      );
+
+      expect(localOnlyCoordinator.remoteUpsertCalls, isEmpty);
+      expect(localOnlyCoordinator.pendingUpdateIds, isEmpty);
+      expect(localOnlyCoordinator.pendingUploadIds, isEmpty);
+    });
+  });
+}
+
+/// TestCoordinator variant whose `buildAddedLocalEntity` preserves a
+/// `localOnly` status (mirroring `guestAwareAddedSyncMetadata` for a
+/// guest-owned write). Used to exercise the localOnly skip branch
+/// without coupling the test to a specific entity type's helpers.
+class _LocalOnlyAddedCoordinator extends TestEntitySyncCoordinator {
+  _LocalOnlyAddedCoordinator({
+    required super.pendingSyncDeleteLocalDataSource,
+  });
+
+  @override
+  TestSyncEntity buildAddedLocalEntity(TestSyncEntity entity, DateTime now) {
+    return entity.copyWith(
+      syncMetadata: entity.syncMetadata.copyWith(
+        status: SyncStatus.localOnly,
+        clearLastSyncError: true,
+      ),
+    );
+  }
+}
+
+/// TestCoordinator variant whose `buildUpdatedLocalEntity` preserves a
+/// `localOnly` status (mirroring `guestAwareUpdatedSyncMetadata`).
+class _LocalOnlyUpdatedCoordinator extends TestEntitySyncCoordinator {
+  _LocalOnlyUpdatedCoordinator({
+    required super.pendingSyncDeleteLocalDataSource,
+  });
+
+  @override
+  TestSyncEntity buildUpdatedLocalEntity({
+    required TestSyncEntity entity,
+    required TestSyncEntity? existingLocal,
+    required DateTime now,
+  }) {
+    return entity.copyWith(
+      syncMetadata: entity.syncMetadata.copyWith(
+        status: SyncStatus.localOnly,
+        clearLastSyncError: true,
+      ),
+    );
+  }
 }

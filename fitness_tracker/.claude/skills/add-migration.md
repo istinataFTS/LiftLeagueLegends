@@ -3,7 +3,7 @@
 - **Task:** Add a new SQLite schema migration (new table, new column, or schema change)
 - **When to use:** When a feature needs a new table or column in the local SQLite database
 - **Estimated steps:** 6
-- **Last verified:** 2026-05-21
+- **Last verified:** 2026-05-23
 - **Canonical references:**
 - **Touches:** data
 - **Related playbooks:** [add-datasource](add-datasource.md), [add-feature](add-feature.md)
@@ -24,6 +24,7 @@
 
 - [ ] Read [#sqflite-version-15-rejects-incompatible-legacy-databases](../../KNOWN_ISSUES.md#sqflite-version-15-rejects-incompatible-legacy-databases). Understand the additive-only constraint and the version-15+ reject behaviour.
 - [ ] Read [#conflict-algorithm-replace-needed-for-deterministic-default-ids](../../KNOWN_ISSUES.md#conflict-algorithm-replace-needed-for-deterministic-default-ids). If your new table has a deterministic default-id pattern, you need `ConflictAlgorithm.replace` on insert.
+- [ ] Read [#default-catalog-ids-must-be-owner-scoped](../../KNOWN_ISSUES.md#default-catalog-ids-must-be-owner-scoped). If your new table has an `owner_user_id` column AND deterministic default IDs, derive the id via `DeterministicCatalogId.forOwner(name:, ownerUserId:)`, not `.fromName(...)`, or post-sign-in seeding will collide with the guest catalog.
 
 ### 2. Bump `EnvConfig.databaseVersion`
 

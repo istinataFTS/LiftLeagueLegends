@@ -24,13 +24,25 @@ class _InMemoryInitFlags implements CatalogInitFlagRepository {
       _flags[_key(ownerUserId, catalogType)] = true;
 }
 
+/// Owner-scoped in-memory repo that mirrors production semantics: the real
+/// [MealRepositoryImpl] resolves the current session's owner and
+/// [getAllMeals] returns only rows owned by that owner. Without this scoping
+/// the "guest catalog already exists" short-circuit in [SeedMeals] would
+/// short-circuit user-1's seed, hiding the regression the coexistence test
+/// is meant to catch.
 class _InMemoryMealRepository implements MealRepository {
   final Map<String, Meal> store = <String, Meal>{};
+
+  /// Owner the next [getAllMeals] is scoped to. Tests set this before each
+  /// SeedMeals call to simulate the active session.
+  String currentOwner = '';
 
   @override
   Future<Either<Failure, List<Meal>>> getAllMeals({
     DataSourcePreference sourcePreference = DataSourcePreference.localOnly,
-  }) async => Right(store.values.toList());
+  }) async => Right(
+    store.values.where((m) => (m.ownerUserId ?? '') == currentOwner).toList(),
+  );
 
   @override
   Future<Either<Failure, void>> addMeal(Meal meal) async {
@@ -40,7 +52,7 @@ class _InMemoryMealRepository implements MealRepository {
 
   @override
   Future<Either<Failure, void>> clearAllMeals() async {
-    store.clear();
+    store.removeWhere((_, m) => (m.ownerUserId ?? '') == currentOwner);
     return const Right(null);
   }
 
@@ -78,21 +90,60 @@ void main() {
   });
 
   group('SeedMeals', () {
-    test('seeds defaults with deterministic ids, owner-stamped', () async {
-      final repo = _InMemoryMealRepository();
+    test('seeds defaults with owner-scoped deterministic ids', () async {
+      final repo = _InMemoryMealRepository()..currentOwner = 'user-1';
       final result = await SeedMeals(repo)(ownerUserId: 'user-1');
 
       expect(result.isRight(), isTrue);
       final defaults = DefaultMealsData.getDefaultMeals();
       expect(repo.store.length, defaults.length);
       for (final d in defaults) {
-        final id = DeterministicCatalogId.fromName(d.name);
+        final id = DeterministicCatalogId.forOwner(
+          ownerUserId: 'user-1',
+          name: d.name,
+        );
         expect(repo.store[id]?.ownerUserId, 'user-1');
       }
     });
 
+    test(
+      'guest-seeded catalog coexists with a post-sign-in user catalog '
+      '(no primary-key collision on adoption)',
+      () async {
+        // Regression for the empty-Library-after-sign-in bug: with a
+        // name-only id, the guest seed at boot reserved ids that an
+        // authenticated user could never insert again, leaving them with
+        // an empty catalog. With owner-scoped ids both catalogs coexist.
+        final repo = _InMemoryMealRepository();
+
+        repo.currentOwner = '';
+        final guestResult = await SeedMeals(repo)(ownerUserId: '');
+        expect(guestResult.isRight(), isTrue);
+        final guestCount = repo.store.length;
+
+        repo.currentOwner = 'user-1';
+        final userResult = await SeedMeals(repo)(ownerUserId: 'user-1');
+        expect(userResult.isRight(), isTrue);
+
+        final defaults = DefaultMealsData.getDefaultMeals();
+        expect(repo.store.length, guestCount + defaults.length);
+        for (final d in defaults) {
+          final guestId = DeterministicCatalogId.forOwner(
+            ownerUserId: '',
+            name: d.name,
+          );
+          final userId = DeterministicCatalogId.forOwner(
+            ownerUserId: 'user-1',
+            name: d.name,
+          );
+          expect(repo.store[guestId]?.ownerUserId, '');
+          expect(repo.store[userId]?.ownerUserId, 'user-1');
+        }
+      },
+    );
+
     test('is a no-op when the account already has meals', () async {
-      final repo = _InMemoryMealRepository();
+      final repo = _InMemoryMealRepository()..currentOwner = 'user-1';
       await repo.addMeal(
         Meal(
           id: 'x',
@@ -103,6 +154,7 @@ void main() {
           fatPer100g: 1,
           caloriesPer100g: 17,
           createdAt: DateTime(2026),
+          ownerUserId: 'user-1',
         ),
       );
 
@@ -117,7 +169,7 @@ void main() {
     // -------------------------------------------------------------------------
 
     test('sets the init flag after the first successful seed', () async {
-      final repo = _InMemoryMealRepository();
+      final repo = _InMemoryMealRepository()..currentOwner = 'user-1';
       final flags = _InMemoryInitFlags();
 
       await SeedMeals(repo, catalogInitFlags: flags)(ownerUserId: 'user-1');
@@ -134,7 +186,7 @@ void main() {
     test(
       'skips seeding when flag is already set, even if catalog is empty',
       () async {
-        final repo = _InMemoryMealRepository();
+        final repo = _InMemoryMealRepository()..currentOwner = 'user-1';
         final flags = _InMemoryInitFlags();
         await flags.markInitialized('user-1', 'meals');
 
@@ -156,7 +208,7 @@ void main() {
     test(
       'flag is per-owner — seeding user-1 does not set flag for user-2',
       () async {
-        final repo = _InMemoryMealRepository();
+        final repo = _InMemoryMealRepository()..currentOwner = 'user-1';
         final flags = _InMemoryInitFlags();
 
         await SeedMeals(repo, catalogInitFlags: flags)(ownerUserId: 'user-1');

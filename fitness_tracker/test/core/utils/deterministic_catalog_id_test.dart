@@ -61,4 +61,80 @@ void main() {
       );
     });
   });
+
+  group('DeterministicCatalogId.forOwner', () {
+    test('same (owner, name) yields the same id', () {
+      expect(
+        DeterministicCatalogId.forOwner(
+          ownerUserId: 'user-1',
+          name: 'Bench Press',
+        ),
+        DeterministicCatalogId.forOwner(
+          ownerUserId: 'user-1',
+          name: 'Bench Press',
+        ),
+      );
+    });
+
+    test('different owners with the same name yield different ids', () {
+      // The property that lets per-account catalogs co-exist without
+      // primary-key collisions: guest's "Bench Press" and an authenticated
+      // user's "Bench Press" are distinct rows with distinct ids.
+      final guestId = DeterministicCatalogId.forOwner(
+        ownerUserId: '',
+        name: 'Bench Press',
+      );
+      final userId = DeterministicCatalogId.forOwner(
+        ownerUserId: 'user-1',
+        name: 'Bench Press',
+      );
+      expect(guestId, isNot(userId));
+    });
+
+    test('different owners always disagree on at least one default', () {
+      // Stronger guard: scoping must actually shift every id, not just one.
+      final guest = DeterministicCatalogId.forOwner(
+        ownerUserId: '',
+        name: 'Squat',
+      );
+      final userA = DeterministicCatalogId.forOwner(
+        ownerUserId: 'user-A',
+        name: 'Squat',
+      );
+      final userB = DeterministicCatalogId.forOwner(
+        ownerUserId: 'user-B',
+        name: 'Squat',
+      );
+      expect({guest, userA, userB}.length, 3);
+    });
+
+    test('guest owner collapses to the legacy name-only formula', () {
+      // Back-compat invariant: rows seeded under earlier app versions had
+      // ids equal to fromName(name); a guest reseed under the new scheme
+      // must produce the same id so existing data stays addressable.
+      for (final name in ['Bench Press', 'Squat', 'Deadlift']) {
+        expect(
+          DeterministicCatalogId.forOwner(ownerUserId: '', name: name),
+          DeterministicCatalogId.fromName(name),
+        );
+        expect(
+          DeterministicCatalogId.forOwner(ownerUserId: null, name: name),
+          DeterministicCatalogId.fromName(name),
+        );
+      }
+    });
+
+    test('owner is whitespace-normalised before scoping', () {
+      // Cosmetic owner differences (leading/trailing whitespace, an
+      // all-whitespace owner) must not produce divergent ids — that would
+      // re-introduce collisions for guest-equivalent inputs.
+      expect(
+        DeterministicCatalogId.forOwner(
+          ownerUserId: '   ',
+          name: 'Bench Press',
+        ),
+        DeterministicCatalogId.fromName('Bench Press'),
+      );
+    });
+  });
 }
