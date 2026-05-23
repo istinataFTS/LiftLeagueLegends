@@ -3,7 +3,7 @@
 - **Pattern:** Feature DI module (`register_*_module.dart`)
 - **Canonical file:** `lib/injection/modules/register_workout_module.dart`
 - **Locked by:** commit `c0a2c7f`, PR `#58` — fixed `WorkoutBloc` from `registerLazySingleton` to `registerFactory`, putting the module in the correct canonical shape
-- **Last verified:** 2026-05-22
+- **Last verified:** 2026-05-23
 - **Related references:** [[datasource]], [[repository]], [[use_case]], [[bloc]]
 - **Companion playbook:** _(to be added by Adoption 05: `.claude/skills/add-feature.md`)_
 - **Embodied conventions:**
@@ -21,6 +21,14 @@
 `register_workout_module.dart` is the canonical module because it wires up the fullest stack in the codebase: local datasource, remote datasource (with env-gate), sync coordinator, repository, six use cases, and the BLoC. Every registration pattern used anywhere in the app appears at least once in this file. After PR `#58` it also correctly demonstrates `registerFactory` for the BLoC, closing the last convention gap.
 
 **One important exception to be aware of:** `AppSettingsCubit` in `register_settings_module.dart` is intentionally registered as `registerLazySingleton` because its state must be shared across the Settings page and `VoiceSettingsCubit`. This is the only BLoC/Cubit in the codebase exempt from the factory rule. Every other BLoC and Cubit must use `registerFactory`.
+
+### Cubits that mirror persistent settings subscribe to a repository stream, never to another cubit
+
+When two cubits hold overlapping slices of the same persisted state — e.g. `AppSettingsCubit` owns the full `AppSettings` and `VoiceSettingsCubit` mirrors the `voiceSettings` slice — the dependent cubit must subscribe to the **owning repository's** `Stream<T>`, not to the other cubit's state stream. The canonical example is `VoiceSettingsCubit`: it depends on `AppSettingsRepository.watchSettings()` and emits when the broadcast stream replays a fresh value. It does **not** import `AppSettingsCubit`.
+
+Why: a cross-cubit subscription creates a cross-feature application-layer import and forces both cubits into the same lifecycle assumptions (or, worse, requires a singleton to keep them coherent). A repository-stream subscription keeps the dependency arrow pointing into the domain layer, lets either cubit be a `registerFactory`, and removes the need for one cubit to know the other exists. If you see a cubit constructor that takes another cubit, refactor it to take the repository (and have the repository expose a `Stream<T>` with behaviour-subject semantics — replay the last cached value on subscribe, then emit again after each successful write).
+
+The convention rule `cross-feature-presentation-import` does not catch application-layer cross-cubit imports today. Treat this rule as informal until/unless it gets enforced; for now, it is a review-time check.
 
 ---
 

@@ -177,7 +177,7 @@ SQLite via `sqflite`. Current schema version: **19**. Migration history is docum
 
 The voice feature is split across Flutter (on-device I/O) and a single Supabase Edge Function (LLM):
 
-- **STT** — on-device via `speech_to_text` (`SpeechToTextVoiceSttService`). No server call, no cost. Hard-capped at 10 s per utterance (`VoiceConstants.sttListenTimeout`).
+- **STT** — on-device via `speech_to_text` (`SpeechToTextVoiceSttService`). No server call, no cost. Hard-capped at 15 s per utterance (`VoiceConstants.sttListenTimeout`); raised from 10 s in the voice-foundation PR to accommodate multi-field edit utterances.
 - **LLM** — one Deno Edge Function (`supabase/functions/voice-chat/`) backed by GPT-4o-mini. Receives the transcript + up to 3 turns of history, returns plain text or a structured tool call. Daily cap: $0.50/UTC-day enforced server-side.
 - **TTS** — on-device via `flutter_tts` (`FlutterTtsVoiceTtsService`). No server call, no cost.
 - **Wake word** — on-device Picovoice Porcupine (`PorcupineVoiceWakeWordService`), 3 presets: samoLevski, trainer, thomas.

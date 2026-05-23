@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:dartz/dartz.dart';
 import 'package:fitness_tracker/core/errors/failures.dart';
 import 'package:fitness_tracker/domain/entities/app_settings.dart';
@@ -24,6 +26,13 @@ void main() {
 
   setUp(() {
     repository = MockAppSettingsRepository();
+    // The cubit subscribes to `watchSettings()` in its constructor.
+    // Tests that don't care about the stream get a never-emitting one
+    // by default; tests that exercise stream-driven behaviour override
+    // this stub before constructing the cubit.
+    when(
+      () => repository.watchSettings(),
+    ).thenAnswer((_) => const Stream<AppSettings>.empty());
     cubit = AppSettingsCubit(repository: repository);
   });
 
@@ -40,9 +49,9 @@ void main() {
   });
 
   test('ensureLoaded triggers first load when not loaded yet', () async {
-    when(() => repository.getSettings()).thenAnswer(
-      (_) async => const Right(loadedSettings),
-    );
+    when(
+      () => repository.getSettings(),
+    ).thenAnswer((_) async => const Right(loadedSettings));
 
     await cubit.ensureLoaded();
 
@@ -53,9 +62,9 @@ void main() {
   });
 
   test('ensureLoaded does not load twice after successful load', () async {
-    when(() => repository.getSettings()).thenAnswer(
-      (_) async => const Right(loadedSettings),
-    );
+    when(
+      () => repository.getSettings(),
+    ).thenAnswer((_) async => const Right(loadedSettings));
 
     await cubit.ensureLoaded();
     await cubit.ensureLoaded();
@@ -67,9 +76,9 @@ void main() {
   });
 
   test('loadSettings stores failure and marks state as loaded', () async {
-    when(() => repository.getSettings()).thenAnswer(
-      (_) async => const Left(CacheFailure('settings unavailable')),
-    );
+    when(
+      () => repository.getSettings(),
+    ).thenAnswer((_) async => const Left(CacheFailure('settings unavailable')));
 
     await cubit.loadSettings();
 
@@ -80,9 +89,9 @@ void main() {
   });
 
   test('refreshSettings reloads current settings from repository', () async {
-    when(() => repository.getSettings()).thenAnswer(
-      (_) async => const Right(loadedSettings),
-    );
+    when(
+      () => repository.getSettings(),
+    ).thenAnswer((_) async => const Right(loadedSettings));
 
     await cubit.refreshSettings();
 
@@ -93,12 +102,13 @@ void main() {
   });
 
   test('refreshSettings does nothing while saving is in progress', () async {
-    when(() => repository.saveSettings(any())).thenAnswer(
-      (_) async => const Right(null),
-    );
+    when(
+      () => repository.saveSettings(any()),
+    ).thenAnswer((_) async => const Right(null));
 
-    final Future<bool> saveFuture =
-        cubit.saveSettings(const AppSettings.defaults());
+    final Future<bool> saveFuture = cubit.saveSettings(
+      const AppSettings.defaults(),
+    );
 
     await cubit.refreshSettings();
 
@@ -109,9 +119,9 @@ void main() {
   });
 
   test('saveSettings updates current state on success', () async {
-    when(() => repository.saveSettings(any())).thenAnswer(
-      (_) async => const Right(null),
-    );
+    when(
+      () => repository.saveSettings(any()),
+    ).thenAnswer((_) async => const Right(null));
 
     final bool success = await cubit.setWeekStartDay(WeekStartDay.sunday);
 
@@ -122,9 +132,9 @@ void main() {
   });
 
   test('setNotificationsEnabled updates only notifications field', () async {
-    when(() => repository.saveSettings(any())).thenAnswer(
-      (_) async => const Right(null),
-    );
+    when(
+      () => repository.saveSettings(any()),
+    ).thenAnswer((_) async => const Right(null));
 
     await cubit.saveSettings(
       const AppSettings(
@@ -148,9 +158,9 @@ void main() {
   });
 
   test('setWeightUnit updates only weight unit field', () async {
-    when(() => repository.saveSettings(any())).thenAnswer(
-      (_) async => const Right(null),
-    );
+    when(
+      () => repository.saveSettings(any()),
+    ).thenAnswer((_) async => const Right(null));
 
     await cubit.saveSettings(
       const AppSettings(
@@ -174,9 +184,9 @@ void main() {
   });
 
   test('saveSettings stores error and returns false on failure', () async {
-    when(() => repository.saveSettings(any())).thenAnswer(
-      (_) async => const Left(CacheFailure('save failed')),
-    );
+    when(
+      () => repository.saveSettings(any()),
+    ).thenAnswer((_) async => const Left(CacheFailure('save failed')));
 
     final bool success = await cubit.setWeightUnit(WeightUnit.pounds);
 
@@ -186,16 +196,16 @@ void main() {
   });
 
   test('successful load clears previous error message', () async {
-    when(() => repository.getSettings()).thenAnswer(
-      (_) async => const Left(CacheFailure('settings unavailable')),
-    );
+    when(
+      () => repository.getSettings(),
+    ).thenAnswer((_) async => const Left(CacheFailure('settings unavailable')));
 
     await cubit.loadSettings();
     expect(cubit.state.errorMessage, 'settings unavailable');
 
-    when(() => repository.getSettings()).thenAnswer(
-      (_) async => const Right(loadedSettings),
-    );
+    when(
+      () => repository.getSettings(),
+    ).thenAnswer((_) async => const Right(loadedSettings));
 
     await cubit.loadSettings();
 
@@ -204,9 +214,9 @@ void main() {
   });
 
   test('clearError removes an existing error message', () async {
-    when(() => repository.getSettings()).thenAnswer(
-      (_) async => const Left(CacheFailure('settings unavailable')),
-    );
+    when(
+      () => repository.getSettings(),
+    ).thenAnswer((_) async => const Left(CacheFailure('settings unavailable')));
 
     await cubit.loadSettings();
     expect(cubit.state.errorMessage, 'settings unavailable');
@@ -221,5 +231,55 @@ void main() {
 
     expect(cubit.state.errorMessage, isNull);
     expect(cubit.state, AppSettingsState.initial());
+  });
+
+  group('watchSettings stream subscription', () {
+    test(
+      'emits new state when watchSettings publishes settings different from current',
+      () async {
+        // Dispose the cubit created in setUp (subscribed to the empty
+        // stream) so we can wire a controllable one.
+        await cubit.close();
+
+        final controller = StreamController<AppSettings>.broadcast();
+        when(
+          () => repository.watchSettings(),
+        ).thenAnswer((_) => controller.stream);
+        cubit = AppSettingsCubit(repository: repository);
+
+        controller.add(loadedSettings);
+        await Future<void>.delayed(Duration.zero);
+
+        expect(cubit.state.settings, loadedSettings);
+        expect(cubit.state.hasLoaded, isTrue);
+
+        await controller.close();
+      },
+    );
+
+    test(
+      'does NOT emit when watchSettings publishes settings equal to current',
+      () async {
+        await cubit.close();
+
+        final controller = StreamController<AppSettings>.broadcast();
+        when(
+          () => repository.watchSettings(),
+        ).thenAnswer((_) => controller.stream);
+        cubit = AppSettingsCubit(repository: repository);
+
+        final emitted = <AppSettingsState>[];
+        final sub = cubit.stream.listen(emitted.add);
+
+        // Incoming == current (both are defaults), distinct guard skips emit.
+        controller.add(const AppSettings.defaults());
+        await Future<void>.delayed(Duration.zero);
+
+        expect(emitted, isEmpty);
+
+        await sub.cancel();
+        await controller.close();
+      },
+    );
   });
 }

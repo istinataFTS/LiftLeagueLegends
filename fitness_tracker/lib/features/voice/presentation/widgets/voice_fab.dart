@@ -8,8 +8,9 @@ import '../../../../core/logging/app_logger.dart';
 import '../../../../core/themes/app_theme.dart';
 import '../../../../domain/entities/app_session.dart';
 import '../../../../domain/entities/voice_settings.dart';
-import '../../application/voice_settings_cubit.dart';
 import '../../../../domain/services/voice_wake_word_service.dart';
+import '../../../../injection/injection_container.dart';
+import '../../application/voice_settings_cubit.dart';
 import '../voice_overlay_keys.dart';
 import '../voice_overlay_page.dart';
 
@@ -23,16 +24,9 @@ import '../voice_overlay_page.dart';
 /// Guest users see the button disabled with a tooltip. Authenticated users
 /// tap to open [VoiceOverlayPage].
 class VoiceFab extends StatefulWidget {
-  const VoiceFab({
-    required this.session,
-    required this.wakeWordService,
-    required this.settingsCubit,
-    super.key,
-  });
+  const VoiceFab({required this.session, super.key});
 
   final AppSession session;
-  final VoiceWakeWordService wakeWordService;
-  final VoiceSettingsCubit settingsCubit;
 
   @override
   State<VoiceFab> createState() => _VoiceFabState();
@@ -44,6 +38,12 @@ class _VoiceFabState extends State<VoiceFab>
   late final Animation<double> _scaleAnimation;
   late final Animation<double> _opacityAnimation;
 
+  /// Wake-word service is a DI singleton (no `BlocProvider` for it).
+  /// Captured once in [initState] so every method can reach it without
+  /// repeated `sl<>` lookups. Allowed by the `widget-state-bloc-field`
+  /// rule because the type does not end in `Bloc`/`Cubit`.
+  late final VoiceWakeWordService _wakeWordService;
+
   StreamSubscription<WakeWordPreset>? _wakeWordSub;
   StreamSubscription<VoiceWakeWordException>? _wakeWordErrorSub;
   bool _overlayOpen = false;
@@ -52,6 +52,7 @@ class _VoiceFabState extends State<VoiceFab>
   void initState() {
     super.initState();
     WidgetsBinding.instance.addObserver(this);
+    _wakeWordService = sl<VoiceWakeWordService>();
 
     _pulseController = AnimationController(
       vsync: this,
@@ -76,7 +77,7 @@ class _VoiceFabState extends State<VoiceFab>
     WidgetsBinding.instance.removeObserver(this);
     _wakeWordSub?.cancel();
     _wakeWordErrorSub?.cancel();
-    unawaited(widget.wakeWordService.stop());
+    unawaited(_wakeWordService.stop());
     _pulseController.dispose();
     super.dispose();
   }
@@ -92,7 +93,7 @@ class _VoiceFabState extends State<VoiceFab>
       case AppLifecycleState.paused:
       case AppLifecycleState.detached:
       case AppLifecycleState.hidden:
-        unawaited(widget.wakeWordService.stop());
+        unawaited(_wakeWordService.stop());
         _stopPulse();
     }
   }
@@ -100,9 +101,10 @@ class _VoiceFabState extends State<VoiceFab>
   // ── Wake-word management ────────────────────────────────────────────────────
 
   void _startWakeWordIfArmed() {
-    final settings = widget.settingsCubit.state;
+    if (!mounted) return;
+    final settings = context.read<VoiceSettingsCubit>().state;
     if (!settings.wakeWordArmedInForeground || widget.session.isGuest) return;
-    widget.wakeWordService
+    _wakeWordService
         .start(settings.wakeWordPreset)
         .then((_) {
           if (mounted) _startPulse();
@@ -117,13 +119,13 @@ class _VoiceFabState extends State<VoiceFab>
   }
 
   void _listenToWakeWordStream() {
-    _wakeWordSub = widget.wakeWordService.onWakeWordDetected.listen((_) {
+    _wakeWordSub = _wakeWordService.onWakeWordDetected.listen((_) {
       _onWakeWordFired();
     });
   }
 
   void _listenToWakeWordErrors() {
-    _wakeWordErrorSub = widget.wakeWordService.onError.listen((e) {
+    _wakeWordErrorSub = _wakeWordService.onError.listen((e) {
       AppLogger.warning(
         'VoiceFab: wake word error: ${e.kind}',
         error: e,
@@ -185,11 +187,13 @@ class _VoiceFabState extends State<VoiceFab>
 
   @override
   Widget build(BuildContext context) {
+    // No explicit `bloc:` — the listener reads [VoiceSettingsCubit] from
+    // the auth-session-shell `BlocProvider` above this widget. This
+    // resolves to the same instance every page in the tree observes.
     return BlocListener<VoiceSettingsCubit, VoiceSettings>(
-      bloc: widget.settingsCubit,
       listener: (context, settings) {
         if (!settings.wakeWordArmedInForeground) {
-          widget.wakeWordService.stop();
+          _wakeWordService.stop();
           _stopPulse();
         } else {
           _startWakeWordIfArmed();
@@ -201,7 +205,7 @@ class _VoiceFabState extends State<VoiceFab>
 
   Widget _buildFab() {
     final bool isGuest = widget.session.isGuest;
-    final bool isArmed = widget.wakeWordService.isRunning;
+    final bool isArmed = _wakeWordService.isRunning;
     final String tooltip = isGuest
         ? AppStrings.voiceFabTooltipGuest
         : AppStrings.voiceFabTooltipOpen;

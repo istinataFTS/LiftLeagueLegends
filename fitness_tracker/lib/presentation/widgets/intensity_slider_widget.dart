@@ -1,7 +1,8 @@
 import 'package:flutter/material.dart';
-import '../../../../core/constants/app_strings.dart';
-import '../../../../core/themes/app_theme.dart';
-import '../../../../core/constants/muscle_stimulus_constants.dart';
+
+import '../../core/constants/app_strings.dart';
+import '../../core/constants/muscle_stimulus_constants.dart';
+import '../../core/themes/app_theme.dart';
 
 /// Intensity slider widget for workout set logging
 class IntensitySliderWidget extends StatelessWidget {

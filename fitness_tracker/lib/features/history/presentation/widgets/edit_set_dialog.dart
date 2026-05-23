@@ -7,7 +7,7 @@ import '../../../../core/utils/weight_unit_utils.dart';
 import '../../../../domain/entities/app_settings.dart';
 import '../../../../domain/entities/exercise.dart';
 import '../../../../domain/entities/workout_set.dart';
-import '../../../../features/log/presentation/widgets/intensity_slider_widget.dart';
+import '../../../../presentation/widgets/intensity_slider_widget.dart';
 import '../bloc/history_bloc.dart';
 import '../bloc/history_event.dart';
 
@@ -60,9 +60,7 @@ class _EditSetDialogState extends State<EditSetDialog> {
 
     return Dialog(
       backgroundColor: AppTheme.surfaceDark,
-      shape: RoundedRectangleBorder(
-        borderRadius: BorderRadius.circular(20),
-      ),
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
       child: ConstrainedBox(
         constraints: const BoxConstraints(maxHeight: 680),
         child: Padding(
@@ -77,15 +75,15 @@ class _EditSetDialogState extends State<EditSetDialog> {
                   Text(
                     'Edit Set',
                     style: Theme.of(context).textTheme.titleLarge?.copyWith(
-                          fontWeight: FontWeight.w600,
-                        ),
+                      fontWeight: FontWeight.w600,
+                    ),
                   ),
                   const SizedBox(height: 8),
                   Text(
                     widget.exercise.name,
                     style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                          color: AppTheme.textMedium,
-                        ),
+                      color: AppTheme.textMedium,
+                    ),
                   ),
                   const SizedBox(height: 24),
                   TextFormField(
@@ -102,17 +100,14 @@ class _EditSetDialogState extends State<EditSetDialog> {
                   TextFormField(
                     controller: _weightController,
                     decoration: InputDecoration(
-                      labelText: WeightUnitUtils.inputLabel(
-                        widget.weightUnit,
-                      ),
-                      hintText: WeightUnitUtils.inputHint(
-                        widget.weightUnit,
-                      ),
+                      labelText: WeightUnitUtils.inputLabel(widget.weightUnit),
+                      hintText: WeightUnitUtils.inputHint(widget.weightUnit),
                       helperText:
                           'Saved internally in kg for future cloud sync',
                     ),
-                    keyboardType:
-                        const TextInputType.numberWithOptions(decimal: true),
+                    keyboardType: const TextInputType.numberWithOptions(
+                      decimal: true,
+                    ),
                     validator: InputValidators.validateWeight,
                   ),
                   const SizedBox(height: 20),
@@ -134,9 +129,7 @@ class _EditSetDialogState extends State<EditSetDialog> {
                       ),
                       const SizedBox(width: 8),
                       ElevatedButton(
-                        onPressed: () => _handleUpdate(
-                          widget.weightUnit,
-                        ),
+                        onPressed: () => _handleUpdate(widget.weightUnit),
                         child: const Text('Update'),
                       ),
                     ],
@@ -155,10 +148,11 @@ class _EditSetDialogState extends State<EditSetDialog> {
       return;
     }
 
-    _weightController.text = WeightUnitUtils.formatInputValueFromStoredKilograms(
-      widget.workoutSet.weight,
-      weightUnit,
-    );
+    _weightController.text =
+        WeightUnitUtils.formatInputValueFromStoredKilograms(
+          widget.workoutSet.weight,
+          weightUnit,
+        );
     _seededUnit = weightUnit;
   }
 
@@ -171,10 +165,7 @@ class _EditSetDialogState extends State<EditSetDialog> {
 
     final WorkoutSet updatedSet = widget.workoutSet.copyWith(
       reps: int.parse(_repsController.text.trim()),
-      weight: WeightUnitUtils.toStoredKilograms(
-        enteredWeight,
-        weightUnit,
-      ),
+      weight: WeightUnitUtils.toStoredKilograms(enteredWeight, weightUnit),
       intensity: _selectedIntensity,
     );
 

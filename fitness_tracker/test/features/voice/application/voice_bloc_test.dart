@@ -62,6 +62,7 @@ class MockOfflineVoiceCoordinator extends Mock
 class FakeVoiceTtsService implements VoiceTtsService {
   int speakCount = 0;
   String? lastSpoken;
+  final List<String> spokenHistory = <String>[];
   double lastVolume = 1.0;
   double lastSpeechRate = 1.0;
 
@@ -75,6 +76,7 @@ class FakeVoiceTtsService implements VoiceTtsService {
   Future<void> speak(String text) async {
     speakCount++;
     lastSpoken = text;
+    spokenHistory.add(text);
   }
 
   @override
@@ -1939,6 +1941,570 @@ void main() {
         ),
       );
 
+      await bloc.close();
+    });
+  });
+
+  // =========================================================================
+  // Commit 4 — spoken readback, verbal cancel, awaitingConfirmation, D1 cache
+  // =========================================================================
+
+  group('spoken readback (pre-confirmation)', () {
+    test('logWorkoutSet: readback spoken BEFORE pendingConfirmation is set; '
+        'status transitions to awaitingConfirmation', () async {
+      _setupBenchLookup(exerciseLookup);
+      final tts = FakeVoiceTtsService();
+
+      when(
+        () => sendVoiceMessage(
+          userMessage: any(named: 'userMessage'),
+          sessionId: any(named: 'sessionId'),
+          history: any(named: 'history'),
+          settings: any(named: 'settings'),
+          weightUnit: any(named: 'weightUnit'),
+          recentSets: any(named: 'recentSets'),
+          recentNutritionLogs: any(named: 'recentNutritionLogs'),
+        ),
+      ).thenAnswer(
+        (_) async => Right(
+          VoiceChatMutationCall(
+            toolCall: _mutationToolCall('logWorkoutSet', {
+              'exerciseName': 'Bench Press',
+              'exerciseId': 'ex-bench',
+              'reps': 8,
+              'weight': 80.0,
+            }),
+          ),
+        ),
+      );
+
+      final bloc = _makeBloc(
+        sendVoiceMessage: sendVoiceMessage,
+        getVoiceBudget: getBudget,
+        deleteVoiceHistory: deleteHistory,
+        appSettingsRepository: settingsRepo,
+        exerciseLookup: exerciseLookup,
+        getSetsByDateRange: getSetsByDateRange,
+        getLogsForDate: getLogsForDate,
+        getDailyMacros: getDailyMacros,
+        tts: tts,
+      );
+
+      bloc.add(VoiceSessionStarted(authSession()));
+      await Future<void>.delayed(const Duration(milliseconds: 50));
+      bloc.add(const VoiceSendMessage('log bench 80 by 8'));
+      await Future<void>.delayed(const Duration(milliseconds: 250));
+
+      // Readback was spoken at least once.
+      expect(tts.spokenHistory, isNotEmpty);
+      final readback = tts.spokenHistory.first;
+      expect(readback, contains('Bench Press'));
+      expect(readback, contains('80'));
+      expect(readback, contains('8 reps'));
+      expect(readback, contains('kilograms'));
+      expect(readback, contains('Confirm or cancel'));
+
+      // Pending confirmation now set; status awaitingConfirmation.
+      expect(bloc.state.pendingConfirmation, isNotNull);
+      expect(bloc.state.status, VoiceStatus.awaitingConfirmation);
+
+      await bloc.close();
+    });
+
+    test('readback uses pounds when WeightUnit.pounds is configured', () async {
+      _setupBenchLookup(exerciseLookup);
+      when(() => settingsRepo.getSettings()).thenAnswer(
+        (_) async => const Right(
+          AppSettings(
+            notificationsEnabled: true,
+            weekStartDay: WeekStartDay.monday,
+            weightUnit: WeightUnit.pounds,
+          ),
+        ),
+      );
+
+      when(
+        () => sendVoiceMessage(
+          userMessage: any(named: 'userMessage'),
+          sessionId: any(named: 'sessionId'),
+          history: any(named: 'history'),
+          settings: any(named: 'settings'),
+          weightUnit: any(named: 'weightUnit'),
+          recentSets: any(named: 'recentSets'),
+          recentNutritionLogs: any(named: 'recentNutritionLogs'),
+        ),
+      ).thenAnswer(
+        (_) async => Right(
+          VoiceChatMutationCall(
+            toolCall: _mutationToolCall('logWorkoutSet', {
+              'exerciseName': 'Bench Press',
+              'exerciseId': 'ex-bench',
+              'reps': 5,
+              'weight': 185.0,
+            }),
+          ),
+        ),
+      );
+
+      final tts = FakeVoiceTtsService();
+      final bloc = _makeBloc(
+        sendVoiceMessage: sendVoiceMessage,
+        getVoiceBudget: getBudget,
+        deleteVoiceHistory: deleteHistory,
+        appSettingsRepository: settingsRepo,
+        exerciseLookup: exerciseLookup,
+        getSetsByDateRange: getSetsByDateRange,
+        getLogsForDate: getLogsForDate,
+        getDailyMacros: getDailyMacros,
+        tts: tts,
+      );
+
+      bloc.add(VoiceSessionStarted(authSession()));
+      await Future<void>.delayed(const Duration(milliseconds: 50));
+      bloc.add(const VoiceSendMessage('log bench 185 by 5'));
+      await Future<void>.delayed(const Duration(milliseconds: 250));
+
+      expect(tts.spokenHistory.first, contains('pounds'));
+      expect(tts.spokenHistory.first, isNot(contains('kilograms')));
+
+      await bloc.close();
+    });
+
+    test('query tool calls do NOT trigger readback', () async {
+      when(() => getDailyMacros(any())).thenAnswer(
+        (_) async => const Right({
+          'protein': 100.0,
+          'carbs': 200.0,
+          'fats': 50.0,
+          'calories': 1500.0,
+        }),
+      );
+
+      when(
+        () => sendVoiceMessage(
+          userMessage: any(named: 'userMessage'),
+          sessionId: any(named: 'sessionId'),
+          history: any(named: 'history'),
+          settings: any(named: 'settings'),
+          weightUnit: any(named: 'weightUnit'),
+          recentSets: any(named: 'recentSets'),
+          recentNutritionLogs: any(named: 'recentNutritionLogs'),
+        ),
+      ).thenAnswer(
+        (_) async => const Right(
+          VoiceChatQueryCall(
+            toolCallId: 'q1',
+            toolName: 'getDailyMacros',
+            args: {'date': '2026-05-13'},
+          ),
+        ),
+      );
+
+      final tts = FakeVoiceTtsService();
+      final bloc = _makeBloc(
+        sendVoiceMessage: sendVoiceMessage,
+        getVoiceBudget: getBudget,
+        deleteVoiceHistory: deleteHistory,
+        appSettingsRepository: settingsRepo,
+        exerciseLookup: exerciseLookup,
+        getSetsByDateRange: getSetsByDateRange,
+        getLogsForDate: getLogsForDate,
+        getDailyMacros: getDailyMacros,
+        tts: tts,
+      );
+
+      bloc.add(VoiceSessionStarted(authSession()));
+      await Future<void>.delayed(const Duration(milliseconds: 50));
+      bloc.add(const VoiceSendMessage('how many calories today'));
+      await Future<void>.delayed(const Duration(milliseconds: 250));
+
+      // The single spoken value is the query response — no "I heard:" prefix.
+      expect(tts.spokenHistory.any((s) => s.startsWith('I heard:')), isFalse);
+      expect(bloc.state.pendingConfirmation, isNull);
+
+      await bloc.close();
+    });
+  });
+
+  group('verbal cancel', () {
+    blocTest<VoiceBloc, VoiceState>(
+      'transcript "cancel" while confirmation pending cancels without LLM',
+      build: () => _makeBloc(
+        sendVoiceMessage: sendVoiceMessage,
+        getVoiceBudget: getBudget,
+        deleteVoiceHistory: deleteHistory,
+        appSettingsRepository: settingsRepo,
+      ),
+      seed: () => const VoiceState(
+        isGuest: false,
+        sessionId: 'sid',
+        status: VoiceStatus.awaitingConfirmation,
+        pendingConfirmation: VoiceToolCall(
+          id: 'call-1',
+          toolName: 'logWorkoutSet',
+          displaySummary: 'Log Bench Press',
+          args: {},
+        ),
+      ),
+      act: (bloc) => bloc.add(
+        const VoiceTranscriptReceived(transcript: 'cancel', isFinal: true),
+      ),
+      verify: (bloc) {
+        expect(bloc.state.pendingConfirmation, isNull);
+        verifyNever(
+          () => sendVoiceMessage(
+            userMessage: any(named: 'userMessage'),
+            sessionId: any(named: 'sessionId'),
+            history: any(named: 'history'),
+            settings: any(named: 'settings'),
+            weightUnit: any(named: 'weightUnit'),
+            recentSets: any(named: 'recentSets'),
+            recentNutritionLogs: any(named: 'recentNutritionLogs'),
+          ),
+        );
+      },
+    );
+
+    blocTest<VoiceBloc, VoiceState>(
+      'transcript "nevermind" while confirmation pending cancels',
+      build: () => _makeBloc(
+        sendVoiceMessage: sendVoiceMessage,
+        getVoiceBudget: getBudget,
+        deleteVoiceHistory: deleteHistory,
+        appSettingsRepository: settingsRepo,
+      ),
+      seed: () => const VoiceState(
+        isGuest: false,
+        sessionId: 'sid',
+        status: VoiceStatus.awaitingConfirmation,
+        pendingConfirmation: VoiceToolCall(
+          id: 'call-2',
+          toolName: 'logWorkoutSet',
+          displaySummary: 'Log Bench Press',
+          args: {},
+        ),
+      ),
+      act: (bloc) => bloc.add(
+        const VoiceTranscriptReceived(transcript: 'Nevermind', isFinal: true),
+      ),
+      verify: (bloc) => expect(bloc.state.pendingConfirmation, isNull),
+    );
+
+    test('mid-utterance "cancel my membership" does NOT cancel pending '
+        'confirmation (full-string anchor)', () async {
+      when(
+        () => sendVoiceMessage(
+          userMessage: any(named: 'userMessage'),
+          sessionId: any(named: 'sessionId'),
+          history: any(named: 'history'),
+          settings: any(named: 'settings'),
+          weightUnit: any(named: 'weightUnit'),
+          recentSets: any(named: 'recentSets'),
+          recentNutritionLogs: any(named: 'recentNutritionLogs'),
+        ),
+      ).thenAnswer((_) async => Right(_assistantResult('ok')));
+
+      final bloc = _makeBloc(
+        sendVoiceMessage: sendVoiceMessage,
+        getVoiceBudget: getBudget,
+        deleteVoiceHistory: deleteHistory,
+        appSettingsRepository: settingsRepo,
+      );
+      bloc.emit(
+        const VoiceState(
+          isGuest: false,
+          sessionId: 'sid',
+          status: VoiceStatus.awaitingConfirmation,
+          pendingConfirmation: VoiceToolCall(
+            id: 'call-3',
+            toolName: 'logWorkoutSet',
+            displaySummary: 'Log Bench Press',
+            args: {},
+          ),
+        ),
+      );
+
+      bloc.add(
+        const VoiceTranscriptReceived(
+          transcript: 'cancel my membership',
+          isFinal: true,
+        ),
+      );
+      await Future<void>.delayed(const Duration(milliseconds: 100));
+
+      // Was forwarded to the LLM (no early cancel).
+      expect(bloc.state.pendingConfirmation, isNotNull);
+      verify(
+        () => sendVoiceMessage(
+          userMessage: 'cancel my membership',
+          sessionId: any(named: 'sessionId'),
+          history: any(named: 'history'),
+          settings: any(named: 'settings'),
+          weightUnit: any(named: 'weightUnit'),
+          recentSets: any(named: 'recentSets'),
+          recentNutritionLogs: any(named: 'recentNutritionLogs'),
+        ),
+      ).called(1);
+      await bloc.close();
+    });
+
+    blocTest<VoiceBloc, VoiceState>(
+      'cancel word with NO pending confirmation is treated as a normal '
+      'message (does NOT short-circuit)',
+      build: () {
+        when(
+          () => sendVoiceMessage(
+            userMessage: any(named: 'userMessage'),
+            sessionId: any(named: 'sessionId'),
+            history: any(named: 'history'),
+            settings: any(named: 'settings'),
+            weightUnit: any(named: 'weightUnit'),
+            recentSets: any(named: 'recentSets'),
+            recentNutritionLogs: any(named: 'recentNutritionLogs'),
+          ),
+        ).thenAnswer((_) async => Right(_assistantResult('ok')));
+        return _makeBloc(
+          sendVoiceMessage: sendVoiceMessage,
+          getVoiceBudget: getBudget,
+          deleteVoiceHistory: deleteHistory,
+          appSettingsRepository: settingsRepo,
+        );
+      },
+      seed: () => const VoiceState(isGuest: false, sessionId: 'sid'),
+      act: (bloc) => bloc.add(
+        const VoiceTranscriptReceived(transcript: 'cancel', isFinal: true),
+      ),
+      verify: (_) => verify(
+        () => sendVoiceMessage(
+          userMessage: 'cancel',
+          sessionId: any(named: 'sessionId'),
+          history: any(named: 'history'),
+          settings: any(named: 'settings'),
+          weightUnit: any(named: 'weightUnit'),
+          recentSets: any(named: 'recentSets'),
+          recentNutritionLogs: any(named: 'recentNutritionLogs'),
+        ),
+      ).called(1),
+    );
+  });
+
+  group('D1 — recent-context cache freshness after mutation', () {
+    test(
+      'logWorkoutSet then editWorkoutSet referencing the cached id resolves '
+      'via the post-mutation cache, even when the persisted store has not '
+      'yet flushed (D1 — synchronous cache update inside _dispatchMutationTool)',
+      () async {
+        _setupBenchLookup(exerciseLookup);
+
+        // Persisted store is initially empty; after the first voice
+        // mutation lands, simulate the router's write-through by toggling
+        // the stub to include the just-logged set on subsequent reads.
+        // This mirrors the production rationale documented in the plan:
+        // "coherence with the target BLoC's persisted store is the
+        //  router's job, not the cache's." The in-memory cache update
+        // inside _dispatchMutationTool guarantees coherence in the
+        // current turn; persisted-store reflection lands by the next.
+        var persistedSets = <WorkoutSet>[];
+        when(
+          () => getSetsByDateRange(
+            startDate: any(named: 'startDate'),
+            endDate: any(named: 'endDate'),
+            muscleGroup: any(named: 'muscleGroup'),
+          ),
+        ).thenAnswer((_) async => Right(persistedSets));
+
+        // First call: log a set; we'll discover its auto-generated id from
+        // the emitted effect, then send an edit referencing that id.
+        var callCount = 0;
+        String? loggedSetId;
+        when(
+          () => sendVoiceMessage(
+            userMessage: any(named: 'userMessage'),
+            sessionId: any(named: 'sessionId'),
+            history: any(named: 'history'),
+            settings: any(named: 'settings'),
+            weightUnit: any(named: 'weightUnit'),
+            recentSets: any(named: 'recentSets'),
+            recentNutritionLogs: any(named: 'recentNutritionLogs'),
+          ),
+        ).thenAnswer((_) async {
+          callCount++;
+          if (callCount == 1) {
+            return Right(
+              VoiceChatMutationCall(
+                toolCall: _mutationToolCall('logWorkoutSet', {
+                  'exerciseName': 'Bench Press',
+                  'exerciseId': 'ex-bench',
+                  'reps': 8,
+                  'weight': 80.0,
+                }),
+              ),
+            );
+          }
+          // Second turn: edit the just-logged set.
+          return Right(
+            VoiceChatMutationCall(
+              toolCall: _mutationToolCall('editWorkoutSet', {
+                'setId': loggedSetId,
+                'weight': 90.0,
+              }),
+            ),
+          );
+        });
+
+        final tts = FakeVoiceTtsService();
+        final bloc = _makeBloc(
+          sendVoiceMessage: sendVoiceMessage,
+          getVoiceBudget: getBudget,
+          deleteVoiceHistory: deleteHistory,
+          appSettingsRepository: settingsRepo,
+          exerciseLookup: exerciseLookup,
+          getSetsByDateRange: getSetsByDateRange,
+          getLogsForDate: getLogsForDate,
+          getDailyMacros: getDailyMacros,
+          tts: tts,
+        );
+
+        final emittedEffects = <VoiceEffect>[];
+        final sub = bloc.effects.listen(emittedEffects.add);
+
+        // First mutation: log.
+        bloc.add(VoiceSessionStarted(authSession()));
+        await Future<void>.delayed(const Duration(milliseconds: 50));
+        bloc.add(const VoiceSendMessage('log bench 80 by 8'));
+        await Future<void>.delayed(const Duration(milliseconds: 250));
+        bloc.add(const VoiceConfirmationAccepted());
+        await Future<void>.delayed(const Duration(milliseconds: 200));
+
+        expect(emittedEffects, isNotEmpty);
+        final loggedSet =
+            (emittedEffects.first as VoiceAddWorkoutSetCommand).set;
+        loggedSetId = loggedSet.id;
+        // Simulate the router's write-through: persisted store now reflects
+        // the voice-logged set on subsequent reads.
+        persistedSets = <WorkoutSet>[loggedSet];
+
+        // Second mutation: edit referencing the just-logged id. The
+        // synchronous post-mutation cache update from the first turn AND
+        // the now-flushed persisted store both resolve to the same set.
+        bloc.add(const VoiceSendMessage('change weight to 90'));
+        await Future<void>.delayed(const Duration(milliseconds: 250));
+        bloc.add(const VoiceConfirmationAccepted());
+        await Future<void>.delayed(const Duration(milliseconds: 200));
+
+        final updateEffect = emittedEffects
+            .whereType<VoiceUpdateWorkoutSetCommand>();
+        expect(
+          updateEffect,
+          isNotEmpty,
+          reason:
+              'editWorkoutSet must resolve via the post-mutation cache '
+              '(D1 fix); without it the persisted-store re-warm would lose '
+              'the set and emit voiceSpokenToolFailed instead.',
+        );
+        expect(updateEffect.first.set.weight, 90.0);
+        expect(updateEffect.first.set.id, loggedSetId);
+
+        await sub.cancel();
+        await bloc.close();
+      },
+    );
+
+    test('deleteWorkoutSet removes the set from the cache so subsequent edits '
+        'cannot resolve it', () async {
+      _setupBenchLookup(exerciseLookup);
+      final initialSet = WorkoutSet(
+        id: 'set-del-1',
+        exerciseId: 'ex-bench',
+        reps: 8,
+        weight: 80.0,
+        intensity: 3,
+        date: _now,
+        createdAt: _now,
+      );
+      when(
+        () => getSetsByDateRange(
+          startDate: any(named: 'startDate'),
+          endDate: any(named: 'endDate'),
+          muscleGroup: any(named: 'muscleGroup'),
+        ),
+      ).thenAnswer((_) async => Right([initialSet]));
+
+      var callCount = 0;
+      when(
+        () => sendVoiceMessage(
+          userMessage: any(named: 'userMessage'),
+          sessionId: any(named: 'sessionId'),
+          history: any(named: 'history'),
+          settings: any(named: 'settings'),
+          weightUnit: any(named: 'weightUnit'),
+          recentSets: any(named: 'recentSets'),
+          recentNutritionLogs: any(named: 'recentNutritionLogs'),
+        ),
+      ).thenAnswer((_) async {
+        callCount++;
+        if (callCount == 1) {
+          return Right(
+            VoiceChatMutationCall(
+              toolCall: _mutationToolCall('deleteWorkoutSet', {
+                'setId': 'set-del-1',
+              }),
+            ),
+          );
+        }
+        return Right(
+          VoiceChatMutationCall(
+            toolCall: _mutationToolCall('editWorkoutSet', {
+              'setId': 'set-del-1',
+              'weight': 90.0,
+            }),
+          ),
+        );
+      });
+
+      // After deletion, the persisted store still reports the set on
+      // subsequent reads (write-through has not flushed) — but the
+      // in-memory cache must drop it.
+      final tts = FakeVoiceTtsService();
+      final bloc = _makeBloc(
+        sendVoiceMessage: sendVoiceMessage,
+        getVoiceBudget: getBudget,
+        deleteVoiceHistory: deleteHistory,
+        appSettingsRepository: settingsRepo,
+        exerciseLookup: exerciseLookup,
+        getSetsByDateRange: getSetsByDateRange,
+        getLogsForDate: getLogsForDate,
+        getDailyMacros: getDailyMacros,
+        tts: tts,
+      );
+
+      bloc.add(VoiceSessionStarted(authSession()));
+      await Future<void>.delayed(const Duration(milliseconds: 50));
+
+      // Delete the set.
+      bloc.add(const VoiceSendMessage('delete that last set'));
+      await Future<void>.delayed(const Duration(milliseconds: 250));
+      bloc.add(const VoiceConfirmationAccepted());
+      await Future<void>.delayed(const Duration(milliseconds: 200));
+
+      // Now stub the persisted store empty so _warmRecentCaches cannot
+      // re-populate set-del-1 — only the in-memory cache state proves D1.
+      when(
+        () => getSetsByDateRange(
+          startDate: any(named: 'startDate'),
+          endDate: any(named: 'endDate'),
+          muscleGroup: any(named: 'muscleGroup'),
+        ),
+      ).thenAnswer((_) async => const Right(<WorkoutSet>[]));
+
+      // Edit attempt referencing the deleted setId should fail (cache
+      // drop), surfacing voiceSpokenToolFailed.
+      bloc.add(const VoiceSendMessage('change the weight to 90'));
+      await Future<void>.delayed(const Duration(milliseconds: 250));
+      bloc.add(const VoiceConfirmationAccepted());
+      await Future<void>.delayed(const Duration(milliseconds: 200));
+
+      expect(tts.lastSpoken, AppStrings.voiceSpokenToolFailed);
       await bloc.close();
     });
   });

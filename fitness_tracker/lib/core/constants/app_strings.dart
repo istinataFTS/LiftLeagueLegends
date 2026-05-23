@@ -410,13 +410,14 @@ class AppStrings {
       'Daily voice budget reached. Resets at midnight UTC.';
   static const String voiceErrorUnavailable =
       'Voice service is temporarily unavailable. Please try again.';
-  static const String voiceErrorTimeout = 'Request timed out. Please try again.';
-  static const String voiceErrorGeneric = 'Something went wrong. Please try again.';
+  static const String voiceErrorTimeout =
+      'Request timed out. Please try again.';
+  static const String voiceErrorGeneric =
+      'Something went wrong. Please try again.';
 
   // ── Voice overlay ──────────────────────────────────────────────────────────
   static const String voiceOverlayTitle = 'Julio Velazquez';
-  static const String voiceOverlayHintIdle =
-      'Tap the mic or say the wake word';
+  static const String voiceOverlayHintIdle = 'Tap the mic or say the wake word';
   static const String voiceOverlayHintListening = 'Listening…';
   static const String voiceOverlayHintTranscribing = 'Processing…';
   static const String voiceOverlayHintThinking = 'Thinking…';
@@ -440,8 +441,7 @@ class AppStrings {
   static const String voiceEditBarDiscard = 'Discard';
 
   // ── Voice workout-mode banner ──────────────────────────────────────────────
-  static const String voiceWorkoutModeBanner =
-      'Workout Mode — screen stays on';
+  static const String voiceWorkoutModeBanner = 'Workout Mode — screen stays on';
 
   // ── Voice Settings page ────────────────────────────────────────────────────
   static const String voiceSettingsPageTitle = 'Voice Assistant';
@@ -473,13 +473,62 @@ class AppStrings {
 
   // ── Voice FAB ──────────────────────────────────────────────────────────────
   static const String voiceFabTooltipOpen = 'Open Voice Assistant';
-  static const String voiceFabTooltipGuest =
-      'Sign in to use Voice Assistant';
+  static const String voiceFabTooltipGuest = 'Sign in to use Voice Assistant';
 
   // ── Profile tile ───────────────────────────────────────────────────────────
   static const String voiceProfileTileTitle = 'Voice Assistant';
   static const String voiceProfileTileSubtitle =
       'Settings, wake word & daily budget';
+
+  // ── Voice spoken (TTS) readback strings (pre-confirmation) ────────────────
+  // Spoken aloud BEFORE the confirmation card appears so the user can verify
+  // STT-parsed values by ear (catches "80" vs "8" mishearings). Composed
+  // locally from VoiceToolCall.args and the current WeightUnit; the LLM
+  // never supplies these strings.
+  static const String voiceReadbackUnitKilograms = 'kilograms';
+  static const String voiceReadbackUnitPounds = 'pounds';
+
+  static String voiceReadbackLogWorkoutSet({
+    required String exerciseName,
+    required num weight,
+    required String unit,
+    required int reps,
+  }) =>
+      'I heard: log $exerciseName, $weight $unit, $reps reps. Confirm or cancel.';
+
+  static String voiceReadbackEditWorkoutSet({
+    required String exerciseName,
+    required String fieldsList,
+  }) => 'I heard: edit $exerciseName — $fieldsList. Confirm or cancel.';
+
+  static String voiceReadbackDeleteWorkoutSet({
+    required String exerciseName,
+    required String datePhrase,
+  }) => 'I heard: delete $exerciseName, logged $datePhrase. Confirm or cancel.';
+
+  static String voiceReadbackLogNutrition({
+    required String mealName,
+    required num? grams,
+    required num calories,
+    required num protein,
+    required num carbs,
+    required num fat,
+  }) {
+    final gramsPart = grams != null ? '$grams grams, ' : '';
+    return 'I heard: log $mealName — $gramsPart${calories.round()} calories, '
+        '${protein.round()}/${carbs.round()}/${fat.round()} grams P/C/F. '
+        'Confirm or cancel.';
+  }
+
+  static String voiceReadbackEditNutritionLog({
+    required String mealName,
+    required String fieldsList,
+  }) => 'I heard: edit $mealName — $fieldsList. Confirm or cancel.';
+
+  static String voiceReadbackDeleteNutritionLog({
+    required String mealName,
+    required String datePhrase,
+  }) => 'I heard: delete $mealName, logged $datePhrase. Confirm or cancel.';
 
   // ── Voice spoken (TTS) mutation success / error strings ───────────────────
   // Read aloud by device TTS after a confirmed tool action.
@@ -541,10 +590,16 @@ class AppStrings {
   static String voiceQueryNoSetsInPeriod(String period) =>
       'No $period logged in that period.';
   static String voiceQueryVolumeResult(
-          int total, String groupLabel, String breakdown) =>
-      'You logged $total $groupLabel: $breakdown.';
+    int total,
+    String groupLabel,
+    String breakdown,
+  ) => 'You logged $total $groupLabel: $breakdown.';
   static String voiceQueryMacroResult(
-          int calories, int protein, int carbs, int fats) =>
+    int calories,
+    int protein,
+    int carbs,
+    int fats,
+  ) =>
       'For that day: $calories calories, ${protein}g protein, '
       '${carbs}g carbs, ${fats}g fat.';
   static String voiceQueryNoRecentSetsFor(String exerciseName) =>

@@ -66,36 +66,41 @@ Numbered steps or a short paragraph. State what to do and what *not* to do.
 3. [pending-delete-queue-must-clear-on-sign-out](#pending-delete-queue-must-clear-on-sign-out)
 4. [per-entity-sync-failures-need-underlying-cause-logged](#per-entity-sync-failures-need-underlying-cause-logged)
 5. [muscle-map-needs-rebuild-after-background-sync](#muscle-map-needs-rebuild-after-background-sync)
+6. [pre-auth-write-through-must-skip-remote-push](#pre-auth-write-through-must-skip-remote-push)
 
 ### Voice
-6. [voice-stt-hard-cap-is-10-seconds](#voice-stt-hard-cap-is-10-seconds)
-7. [voice-edge-function-must-have-30s-http-timeout](#voice-edge-function-must-have-30s-http-timeout)
-8. [voice-daily-cost-cap-is-server-side-only](#voice-daily-cost-cap-is-server-side-only)
-9. [voice-fab-is-disabled-not-hidden-for-guests](#voice-fab-is-disabled-not-hidden-for-guests)
+7. [voice-stt-hard-cap-bounds-per-utterance-cost](#voice-stt-hard-cap-bounds-per-utterance-cost)
+8. [voice-edge-function-must-have-30s-http-timeout](#voice-edge-function-must-have-30s-http-timeout)
+9. [voice-daily-cost-cap-is-server-side-only](#voice-daily-cost-cap-is-server-side-only)
+10. [voice-fab-is-disabled-not-hidden-for-guests](#voice-fab-is-disabled-not-hidden-for-guests)
 
 ### Database
-10. [sqflite-version-15-rejects-incompatible-legacy-databases](#sqflite-version-15-rejects-incompatible-legacy-databases)
-11. [conflict-algorithm-replace-needed-for-deterministic-default-ids](#conflict-algorithm-replace-needed-for-deterministic-default-ids)
-12. [pull-before-push-for-sign-in-sync](#pull-before-push-for-sign-in-sync)
+11. [sqflite-version-15-rejects-incompatible-legacy-databases](#sqflite-version-15-rejects-incompatible-legacy-databases)
+12. [conflict-algorithm-replace-needed-for-deterministic-default-ids](#conflict-algorithm-replace-needed-for-deterministic-default-ids)
+13. [pull-before-push-for-sign-in-sync](#pull-before-push-for-sign-in-sync)
+14. [default-catalog-ids-must-be-owner-scoped](#default-catalog-ids-must-be-owner-scoped)
 
 ### Dependency Injection
-13. [blocs-must-be-factories-repositories-singletons](#blocs-must-be-factories-repositories-singletons)
-14. [duplicate-di-registration-causes-silent-bugs](#duplicate-di-registration-causes-silent-bugs)
-15. [fire-and-forget-futures-in-startup-cause-race-conditions](#fire-and-forget-futures-in-startup-cause-race-conditions)
+15. [blocs-must-be-factories-repositories-singletons](#blocs-must-be-factories-repositories-singletons)
+16. [duplicate-di-registration-causes-silent-bugs](#duplicate-di-registration-causes-silent-bugs)
+17. [fire-and-forget-futures-in-startup-cause-race-conditions](#fire-and-forget-futures-in-startup-cause-race-conditions)
+18. [widget-state-must-not-field-capture-factory-blocs-or-cubits](#widget-state-must-not-field-capture-factory-blocs-or-cubits)
 
 ### CI & Local Tooling
-16. [crlf-line-endings-cause-false-positive-dart-format-locally](#crlf-line-endings-cause-false-positive-dart-format-locally)
-17. [flutter-analyze-info-issues-do-not-fail-ci](#flutter-analyze-info-issues-do-not-fail-ci)
-18. [main-branch-is-pr-only-direct-push-blocked](#main-branch-is-pr-only-direct-push-blocked)
-19. [convention-checker-regexes-must-have-multiline-test-fixtures](#convention-checker-regexes-must-have-multiline-test-fixtures)
+19. [crlf-line-endings-cause-false-positive-dart-format-locally](#crlf-line-endings-cause-false-positive-dart-format-locally)
+20. [flutter-analyze-info-issues-do-not-fail-ci](#flutter-analyze-info-issues-do-not-fail-ci)
+21. [main-branch-is-pr-only-direct-push-blocked](#main-branch-is-pr-only-direct-push-blocked)
+22. [convention-checker-regexes-must-have-multiline-test-fixtures](#convention-checker-regexes-must-have-multiline-test-fixtures)
 
 ### Platform
-20. [dart-define-is-build-time-not-runtime](#dart-define-is-build-time-not-runtime)
-21. [supabase-disabled-by-default](#supabase-disabled-by-default)
+23. [dart-define-is-build-time-not-runtime](#dart-define-is-build-time-not-runtime)
+24. [supabase-disabled-by-default](#supabase-disabled-by-default)
 
 ### Other
-22. [history-renders-orphaned-sets-not-hides-them](#history-renders-orphaned-sets-not-hides-them)
-23. [voice-slider-persists-on-every-drag-tick](#voice-slider-persists-on-every-drag-tick)
+25. [history-renders-orphaned-sets-not-hides-them](#history-renders-orphaned-sets-not-hides-them)
+26. [voice-slider-persists-on-every-drag-tick](#voice-slider-persists-on-every-drag-tick)
+27. [cross-feature-presentation-imports-are-architectural-cycles](#cross-feature-presentation-imports-are-architectural-cycles)
+28. [empty-state-columns-need-scrollable-centering](#empty-state-columns-need-scrollable-centering)
 
 ---
 
@@ -106,7 +111,7 @@ Numbered steps or a short paragraph. State what to do and what *not* to do.
 - **Severity:** High
 - **Status:** Resolved-but-monitor
 - **First observed:** 2026-05-19
-- **Last verified:** 2026-05-22
+- **Last verified:** 2026-05-23
 - **Area:** sync
 
 **Symptom**
@@ -133,7 +138,7 @@ The fix is in place. Do not reintroduce adoption logic on the sign-in path. The 
 - **Severity:** Critical
 - **Status:** Resolved-but-monitor
 - **First observed:** 2026-05-19
-- **Last verified:** 2026-05-22
+- **Last verified:** 2026-05-23
 - **Area:** sync
 
 **Symptom**
@@ -161,7 +166,7 @@ The scoped clear is in place. Any future datasource that participates in sign-ou
 - **Severity:** High
 - **Status:** Resolved-but-monitor
 - **First observed:** 2026-05-19
-- **Last verified:** 2026-05-22
+- **Last verified:** 2026-05-23
 - **Area:** sync
 
 **Symptom**
@@ -188,7 +193,7 @@ The clear is in place. Any sign-out flow must flush the pending-delete queue for
 - **Severity:** Medium
 - **Status:** Resolved-but-monitor
 - **First observed:** 2026-05-17
-- **Last verified:** 2026-05-22
+- **Last verified:** 2026-05-23
 - **Area:** sync
 
 **Symptom**
@@ -214,7 +219,7 @@ Always include the underlying exception's `toString()` in the failure message wh
 - **Severity:** Medium
 - **Status:** Resolved-but-monitor
 - **First observed:** 2026-05-17
-- **Last verified:** 2026-05-22
+- **Last verified:** 2026-05-23
 - **Area:** sync
 
 **Symptom**
@@ -236,32 +241,60 @@ After a background sync completed, the muscle-stimulus map shown in the UI refle
 
 ---
 
+### pre-auth-write-through-must-skip-remote-push
+
+- **Severity:** Medium
+- **Status:** Resolved-but-monitor
+- **First observed:** 2026-05-23
+- **Last verified:** 2026-05-23
+- **Area:** sync
+
+**Symptom**
+
+Boot-time default-catalog seeding (`AppDataSeeder.seedIfEnabled` → `SeedMeals` / `SeedExercises` → `RepositoryImpl.addX`) emitted one `AuthSyncException: unauthenticated: <entity> remote access requires an authenticated user` warning *with full stack trace* per default row — ~100 lines of red on every cold start, drowning out genuinely actionable sync failures.
+
+**Root cause**
+
+Guest-owned writes already land in the local store with `SyncStatus.localOnly` via `guestAwareAddedSyncMetadata` / `guestAwareUpdatedSyncMetadata`. But `BaseEntitySyncCoordinator.persistAdded` / `persistUpdated` only gated the remote push on `isRemoteSyncEnabled` — they ignored the metadata. So every seeded guest row was pushed to Supabase anyway, the remote DTO's `user_id` check rejected it, and the exception was logged as a normal sync failure even though it is by design.
+
+**Workaround / fix**
+
+`persistAdded` / `persistUpdated` now consult `_shouldAttemptRemotePush(localEntity)`, which returns `false` when the just-built local metadata is `SyncStatus.localOnly`. Any new sync coordinator subclass automatically inherits this — there's nothing to remember as long as guest-owned writes go through `guestAwareAddedSyncMetadata`. Do **not** push `localOnly` rows out of band; the post-sign-in `InitialCloudMigrationCoordinator` drains anything that legitimately needs an upload.
+
+**References**
+
+- `lib/data/sync/base_entity_sync_coordinator.dart:108` — `_shouldAttemptRemotePush`
+- `test/data/sync/base_entity_sync_coordinator_test.dart` — `localOnly write-through guard` group
+
+---
+
 ## Voice
 
-### voice-stt-hard-cap-is-10-seconds
+### voice-stt-hard-cap-bounds-per-utterance-cost
 
 - **Severity:** Medium
 - **Status:** Active
 - **First observed:** 2026-05-14
-- **Last verified:** 2026-05-22
+- **Last verified:** 2026-05-23
 - **Area:** voice
 
 **Symptom**
 
-If `VoiceConstants.sttListenTimeout` is raised above 10 seconds, per-utterance cost assumptions break and the voice budget may be exceeded sooner than modelled.
+If `VoiceConstants.sttListenTimeout` is raised without revalidating the budget model, per-utterance audio assumptions break and the daily voice budget may be exceeded sooner than modelled.
 
 **Root cause**
 
-The STT listen cap is a spec-mandated constraint, not an arbitrary default. The budget model assumes utterances are bounded at 10 seconds. Raising the cap does not change what OpenAI charges for audio that runs longer.
+The STT listen cap is a hard upper bound on per-utterance audio duration. The daily-budget model assumes utterances are bounded at this constant. Raising the cap does not change what the LLM is charged for the resulting transcript length, but it does widen the worst-case audio window. The constant was 10 s originally; in the voice-foundation PR it was raised to 15 s to accommodate multi-field edit utterances (e.g. "change carbs to 60, fat to 15"), with the budget model re-checked at the new bound.
 
 **Workaround / fix**
 
-Do not raise `VoiceConstants.sttListenTimeout`. If a future spec revision changes the cap, update the constant and re-validate the budget model before deploying.
+Do not raise `VoiceConstants.sttListenTimeout` without re-validating the daily budget model against the new bound. The current value is 15 s; if a future spec revision changes the cap again, update the constant, the doc comment in `voice_constants.dart`, the budget model, and the `CLAUDE.md` voice-bot section in the same PR.
 
 **References**
 
 - `lib/core/constants/voice_constants.dart` — `VoiceConstants.sttListenTimeout`
-- Commit `cb8cb29` — fix(voice): align STT listen timeout to spec-mandated 10 seconds
+- Commit `cb8cb29` — fix(voice): align STT listen timeout to spec-mandated 10 seconds (superseded by the foundation PR)
+- Voice-foundation PR — raised the cap to 15 s and updated this entry
 
 ---
 
@@ -270,7 +303,7 @@ Do not raise `VoiceConstants.sttListenTimeout`. If a future spec revision change
 - **Severity:** High
 - **Status:** Mitigated
 - **First observed:** 2026-05-14
-- **Last verified:** 2026-05-22
+- **Last verified:** 2026-05-23
 - **Area:** voice
 
 **Symptom**
@@ -298,7 +331,7 @@ The Supabase Functions HTTP client does not apply a default timeout. OpenAI call
 - **Severity:** Critical
 - **Status:** Active
 - **First observed:** 2026-05-14
-- **Last verified:** 2026-05-22
+- **Last verified:** 2026-05-23
 - **Area:** voice
 
 **Symptom**
@@ -326,7 +359,7 @@ The cap (`VoiceConstants.dailyBudgetCapUsd` on the Flutter side; `dailyCapUsd` p
 - **Severity:** Low
 - **Status:** Active
 - **First observed:** 2026-05-14
-- **Last verified:** 2026-05-22
+- **Last verified:** 2026-05-23
 - **Area:** voice
 
 **Symptom**
@@ -354,7 +387,7 @@ Leave the FAB visible and disabled for guests. The sign-in CTA is the intended i
 - **Severity:** High
 - **Status:** Active
 - **First observed:** 2026-05-14
-- **Last verified:** 2026-05-22
+- **Last verified:** 2026-05-23
 - **Area:** db
 
 **Symptom**
@@ -382,7 +415,7 @@ All migrations from version 15 onward must be strictly additive (add columns, ad
 - **Severity:** High
 - **Status:** Resolved-but-monitor
 - **First observed:** 2026-05-18
-- **Last verified:** 2026-05-22
+- **Last verified:** 2026-05-23
 - **Area:** db
 
 **Symptom**
@@ -410,7 +443,7 @@ Use `ConflictAlgorithm.replace` (sqflite) when inserting default catalog entries
 - **Severity:** High
 - **Status:** Resolved-but-monitor
 - **First observed:** 2026-05-18
-- **Last verified:** 2026-05-22
+- **Last verified:** 2026-05-23
 - **Area:** db
 
 **Symptom**
@@ -433,6 +466,35 @@ The sign-in sync path now pulls before pushing for any entity that may already e
 
 ---
 
+### default-catalog-ids-must-be-owner-scoped
+
+- **Severity:** Critical
+- **Status:** Resolved-but-monitor
+- **First observed:** 2026-05-23
+- **Last verified:** 2026-05-23
+- **Area:** db
+
+**Symptom**
+
+Newly signed-in users opened the app to a completely empty Library (Exercises and Meals tabs both showed "No exercises yet" / "No meals yet"), even though the boot-time seeder logged a successful seed and `AccountCatalogProvisionHook` claimed to provision the new account's catalog. The Log → Exercise tab consequently showed "No exercises available — Go to Library to create exercises first".
+
+**Root cause**
+
+Default catalog rows used a name-only deterministic id: `DeterministicCatalogId.fromName('Bench Press')` produced the same UUIDv5 regardless of owner. The boot-time seed runs while the app is still in guest mode and writes 53 rows owned by `''` at those deterministic ids. When the user later signs in, the post-sync `AccountCatalogProvisionHook` calls `SeedMeals(ownerUserId: <new-user>)` which tries to insert rows at the *same* ids with the new owner — and `meal_local_datasource_impl.insertMeal` (correctly) uses `ConflictAlgorithm.abort` to avoid cascade-deleting linked `nutrition_logs`. Every insert aborted. `SeedMeals` swallowed each per-row failure and the hook logged a single innocuous "Failed to seed any meals", leaving the new user with no catalog.
+
+**Workaround / fix**
+
+`DeterministicCatalogId.forOwner(name:, ownerUserId:)` scopes the id by `'$owner|$canonicalName'`. Guest (`''` or `null`) collapses to the legacy name-only formula so existing on-disk guest rows remain addressable. Both `SeedMeals` and `SeedExercises` now use `forOwner` with the resolved owner. Any future default-catalog seeder MUST do the same — call `DeterministicCatalogId.forOwner`, never `.fromName` directly, when an owner is known. Tests under `test/domain/usecases/{exercises,meals}/` include a regression covering the guest-seeded-then-user-signs-in coexistence path.
+
+**References**
+
+- `lib/core/utils/deterministic_catalog_id.dart:59` — `forOwner` derivation
+- `lib/domain/usecases/exercises/seed_exercises.dart`, `lib/domain/usecases/meals/seed_meals.dart` — call sites
+- `lib/core/sync/hooks/account_catalog_provision_hook.dart` — post-sign-in provisioning that this unblocks
+- `test/core/utils/deterministic_catalog_id_test.dart` — coexistence guarantees pinned
+
+---
+
 ## Dependency Injection
 
 ### blocs-must-be-factories-repositories-singletons
@@ -440,7 +502,7 @@ The sign-in sync path now pulls before pushing for any entity that may already e
 - **Severity:** High
 - **Status:** Active
 - **First observed:** 2026-05-14
-- **Last verified:** 2026-05-22
+- **Last verified:** 2026-05-23
 - **Area:** di
 
 **Symptom**
@@ -467,7 +529,7 @@ Register all BLoCs and Cubits with `registerFactory`. Register all repositories,
 - **Severity:** Medium
 - **Status:** Resolved-but-monitor
 - **First observed:** 2026-05-14
-- **Last verified:** 2026-05-22
+- **Last verified:** 2026-05-23
 - **Area:** di
 
 **Symptom**
@@ -494,7 +556,7 @@ Before registering a type that might already be registered (e.g. a shared servic
 - **Severity:** Medium
 - **Status:** Resolved-but-monitor
 - **First observed:** 2026-05-14
-- **Last verified:** 2026-05-22
+- **Last verified:** 2026-05-23
 - **Area:** di
 
 **Symptom**
@@ -516,6 +578,35 @@ All async work performed during DI bootstrap must be awaited before the bootstra
 
 ---
 
+### widget-state-must-not-field-capture-factory-blocs-or-cubits
+
+- **Severity:** Medium
+- **Status:** Resolved-but-monitor
+- **First observed:** 2026-05-21
+- **Last verified:** 2026-05-23
+- **Area:** di
+
+**Symptom**
+
+A widget appears to update settings or dispatch events through a Cubit/BLoC, yet other parts of the app holding the "same" Cubit/BLoC do not react. State seems coherent in isolated tests but silently desyncs in the running app, or two confirmation cards/snackbars appear after one tap.
+
+**Root cause**
+
+A `State<…>` subclass field-captures a factory-registered BLoC or Cubit from `sl<>()` (typically in `initState` or as a `late final` field). `get_it.registerFactory` returns a **new instance** on every call, so the field-captured instance is different from whatever `BlocProvider` higher in the widget tree provides. Any state the field instance emits is invisible to consumers reading via `context.read`/`context.watch`. This was the root cause of the original silent-dispatch bug fixed in PR `#58` (`VoiceBloc` field-captured target BLoCs) and of the `BottomNavigation` instance multiplication fixed in the voice-foundation PR (`VoiceSettingsCubit` field-captured from `sl<>()` alongside three other concurrent `BlocProvider` sites).
+
+**Workaround / fix**
+
+Never declare a BLoC or Cubit as a widget-state field (`final XxxBloc _x;`, `late final XxxCubit _x;`). Read it lazily inside `build`/`didChangeDependencies` via `context.read<XxxBloc>()` or `context.watch<XxxCubit>()`. If the widget genuinely needs a constructor-injected BLoC (e.g. for test injection), declare the parameter on the `StatefulWidget` itself, not on the `State<…>` subclass. The `widget-state-bloc-field` convention rule enforces this default-deny; legitimate exceptions waive with `// convention-checker:allow=widget-state-bloc-field reason=<at-least-10-character-prose>`.
+
+**References**
+
+- `tool/convention_rules/widget_state_bloc_field.dart` — the rule
+- `test/tool/widget_state_bloc_field_test.dart` — multi-line test fixtures
+- `lib/injection/modules/register_voice_module.dart` — `VoiceSettingsCubit` factory registration
+- Voice-foundation PR — added the rule; removed the `BottomNavigation` field capture
+
+---
+
 ## CI & Local Tooling
 
 ### crlf-line-endings-cause-false-positive-dart-format-locally
@@ -523,7 +614,7 @@ All async work performed during DI bootstrap must be awaited before the bootstra
 - **Severity:** Low
 - **Status:** Active
 - **First observed:** 2026-05-20
-- **Last verified:** 2026-05-22
+- **Last verified:** 2026-05-23
 - **Area:** ci
 
 **Symptom**
@@ -550,7 +641,7 @@ To verify real formatting issues, run format only against the diff: `dart format
 - **Severity:** Low
 - **Status:** Active
 - **First observed:** 2026-05-20
-- **Last verified:** 2026-05-22
+- **Last verified:** 2026-05-23
 - **Area:** ci
 
 **Symptom**
@@ -576,7 +667,7 @@ Do not invest time eliminating info-level analyzer notices unless they are promo
 - **Severity:** Low
 - **Status:** Active
 - **First observed:** 2026-05-20
-- **Last verified:** 2026-05-22
+- **Last verified:** 2026-05-23
 - **Area:** ci
 
 **Symptom**
@@ -602,7 +693,7 @@ Always push to a feature or fix branch and open a PR. The branch naming conventi
 - **Severity:** Medium
 - **Status:** Resolved-but-monitor
 - **First observed:** 2026-05-21
-- **Last verified:** 2026-05-22
+- **Last verified:** 2026-05-23
 - **Area:** ci
 
 **Symptom**
@@ -631,7 +722,7 @@ Every convention rule's regex must be tested against at least one multi-line fix
 - **Severity:** Medium
 - **Status:** Active
 - **First observed:** 2026-05-14
-- **Last verified:** 2026-05-22
+- **Last verified:** 2026-05-23
 - **Area:** platform
 
 **Symptom**
@@ -658,7 +749,7 @@ After changing any `--dart-define` value, run a full `flutter run` (not hot rest
 - **Severity:** Low
 - **Status:** Active
 - **First observed:** 2026-05-14
-- **Last verified:** 2026-05-22
+- **Last verified:** 2026-05-23
 - **Area:** platform
 
 **Symptom**
@@ -687,7 +778,7 @@ To run with a real Supabase backend, pass all three `--dart-define` flags on `fl
 - **Severity:** Low
 - **Status:** Resolved-but-monitor
 - **First observed:** 2026-05-14
-- **Last verified:** 2026-05-22
+- **Last verified:** 2026-05-23
 - **Area:** other
 
 **Symptom**
@@ -714,7 +805,7 @@ Do not add a filter that hides sets with a missing exercise reference. The fallb
 - **Severity:** Low
 - **Status:** Resolved-but-monitor
 - **First observed:** 2026-05-14
-- **Last verified:** 2026-05-22
+- **Last verified:** 2026-05-23
 - **Area:** other
 
 **Symptom**
@@ -734,3 +825,60 @@ Leave the `onChanged` handler writing to persistent storage on every tick. The p
 - `lib/features/voice/presentation/voice_settings_page.dart` — slider `onChanged` handler
 - `lib/features/voice/application/voice_settings_cubit.dart` — persistence logic
 - Commit `9f8edcf` — feat: wire Delete History button and fix slider persistence on every drag tick
+
+---
+
+### cross-feature-presentation-imports-are-architectural-cycles
+
+- **Severity:** Medium
+- **Status:** Resolved-but-monitor
+- **First observed:** 2026-05-21
+- **Last verified:** 2026-05-23
+- **Area:** other
+
+**Symptom**
+
+A presentation file under `lib/features/<F1>/presentation/` imports a page or widget from `lib/features/<F2>/presentation/` (or worse, from `lib/features/<F2>/application/` or `data/`). The build compiles; tests pass; but the feature dependency graph silently grows cycles. Removing or renaming any one feature breaks an unrelated feature in a non-local way. Pre-foundation-PR, three offenders existed: `settings_page.dart` → profile/voice, `profile_page.dart` → auth/settings/voice, `home_page.dart` → profile.
+
+**Root cause**
+
+Flutter's default navigation pattern — `Navigator.push(context, MaterialPageRoute(builder: (_) => SomePage()))` — requires the caller to import the destination page class directly. Done from inside another feature, that import couples the two features at compile time and creates a cycle the moment the destination ever needs anything from the source. The `presentation-layer-data-import` convention rule blocks `presentation → data`, but until the foundation PR there was no rule blocking `presentation → presentation` across feature boundaries.
+
+**Workaround / fix**
+
+Use a named-route registry. All page classes are imported once in `lib/app/routes/app_router.dart` (the only file granted an exception to the rule); every other navigation site uses `Navigator.pushNamed(context, AppRoutes.foo)` with a route constant from `lib/app/routes/app_routes.dart`. The `cross-feature-presentation-import` convention rule enforces the default-deny. Legitimate exceptions waive with `// convention-checker:allow=cross-feature-presentation-import reason=<at-least-10-character-prose>`.
+
+**References**
+
+- `tool/convention_rules/cross_feature_presentation_import.dart` — the rule
+- `test/tool/cross_feature_presentation_import_test.dart` — multi-line test fixtures
+- `lib/app/routes/app_routes.dart` — route constants
+- `lib/app/routes/app_router.dart` — `onGenerateRoute` registry
+- Voice-foundation PR — added the rule, the registry, and migrated the three offenders
+
+---
+
+### empty-state-columns-need-scrollable-centering
+
+- **Severity:** Low
+- **Status:** Resolved-but-monitor
+- **First observed:** 2026-05-23
+- **Last verified:** 2026-05-23
+- **Area:** other
+
+**Symptom**
+
+`BOTTOM OVERFLOWED BY <N> PIXELS` debug stripe on the Library Exercises (and Meals) tab whenever the catalog is empty, on phones with a tight viewport — the empty-state column plus the sticky "Add Exercise" CTA plus the bottom nav inset exceed available height.
+
+**Root cause**
+
+The empty-state pattern was `Center > Padding(40) > Column(MainAxisAlignment.center, children: [icon, headline, description, CTA])`. `Center` provides no scrolling fallback. When the surrounding `Column`'s `Expanded` shrinks below the empty state's intrinsic height (sticky bottom CTA, smaller screens, in-call status bar), the column overflows and Flutter renders the yellow/black stripe. The same shape repeats across `library/presentation/widgets/{exercises_tab,meals_tab}.dart` and `log/presentation/widgets/log_exercise_tab.dart`.
+
+**Workaround / fix**
+
+Replace the `Center > Padding > Column` shape with `LayoutBuilder > SingleChildScrollView > ConstrainedBox(minHeight: constraints.maxHeight - 80) > IntrinsicHeight > Column(MainAxisAlignment.center)`. This centers when the empty state fits and degrades to scrolling when it does not. Applied to both Library tabs; apply the same pattern to any new empty-state widget that lives above a sticky CTA.
+
+**References**
+
+- `lib/features/library/presentation/widgets/exercises_tab.dart` — `_buildEmptyState`
+- `lib/features/library/presentation/widgets/meals_tab.dart` — `_buildEmptyState`

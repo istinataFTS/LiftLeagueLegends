@@ -13,27 +13,10 @@ import '../../features/log/application/nutrition_log_bloc.dart';
 import '../../features/log/presentation/pages/log_page.dart';
 import '../../features/profile/profile.dart';
 import '../../features/settings/presentation/settings_scope.dart';
-import '../../features/voice/application/voice_settings_cubit.dart';
-import '../../domain/services/voice_wake_word_service.dart';
 import '../../features/voice/presentation/widgets/voice_fab.dart';
-import '../../injection/injection_container.dart';
 
 class BottomNavigation extends StatefulWidget {
-  const BottomNavigation({
-    super.key,
-    this.voiceSettingsCubit,
-    this.voiceWakeWordService,
-  });
-
-  /// Optional override for [VoiceSettingsCubit]; falls back to
-  /// `sl<VoiceSettingsCubit>()` when omitted. Inject in tests to avoid
-  /// a GetIt dependency.
-  final VoiceSettingsCubit? voiceSettingsCubit;
-
-  /// Optional override for [VoiceWakeWordService]; falls back to
-  /// `sl<VoiceWakeWordService>()` when omitted. Inject in tests to avoid
-  /// a GetIt dependency.
-  final VoiceWakeWordService? voiceWakeWordService;
+  const BottomNavigation({super.key});
 
   @override
   State<BottomNavigation> createState() => _BottomNavigationState();
@@ -51,33 +34,9 @@ class _BottomNavigationState extends State<BottomNavigation> {
 
   final Set<int> _visitedTabs = <int>{_homeTabIndex};
 
-  // Voice FAB dependencies — created once, live for the duration of the
-  // navigation shell, then torn down when the scaffold is removed from the tree.
-  late final VoiceSettingsCubit _voiceSettingsCubit;
-  late final VoiceWakeWordService _voiceWakeWordService;
-
   bool _didRequestExerciseData = false;
   bool _didRequestMealData = false;
   bool _didRequestNutritionLogData = false;
-
-  @override
-  void initState() {
-    super.initState();
-    _voiceSettingsCubit = widget.voiceSettingsCubit ?? sl<VoiceSettingsCubit>();
-    _voiceWakeWordService =
-        widget.voiceWakeWordService ?? sl<VoiceWakeWordService>();
-  }
-
-  @override
-  void dispose() {
-    // Only close when we own the cubit (i.e., it was not injected via the
-    // constructor). Tests pass their own instances and manage lifecycle
-    // themselves.
-    if (widget.voiceSettingsCubit == null) {
-      _voiceSettingsCubit.close();
-    }
-    super.dispose();
-  }
 
   void _onItemTapped(int index) {
     if (_selectedIndex == index) {
@@ -172,11 +131,7 @@ class _BottomNavigationState extends State<BottomNavigation> {
   Widget build(BuildContext context) {
     final session = context.watch<ProfileCubit>().state.session;
     return Scaffold(
-      floatingActionButton: VoiceFab(
-        session: session,
-        wakeWordService: _voiceWakeWordService,
-        settingsCubit: _voiceSettingsCubit,
-      ),
+      floatingActionButton: VoiceFab(session: session),
       floatingActionButtonLocation: FloatingActionButtonLocation.endFloat,
       body: IndexedStack(
         index: _selectedIndex,

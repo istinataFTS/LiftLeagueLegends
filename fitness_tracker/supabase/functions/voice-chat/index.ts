@@ -41,7 +41,8 @@ Tool usage rules:
 - For queries (getWeeklyVolume, getDailyMacros, getRecentSets), call the tool — the app will execute it locally and speak the result; you do not need to generate a verbal summary.
 - Use clarify only when the user's intent cannot be resolved without one specific question.
 - If the user confirms ("yes", "do it", "confirm"), and you have enough data, call the mutation tool immediately without re-asking.
-- Never repeat a clarifying question you already asked.`;
+- Never repeat a clarifying question you already asked.
+- For multi-field edits, prefer issuing one \`clarify\` per ambiguous field rather than expecting the user to dictate every field at once. Example: if the user says "change my breakfast macros," ask "What should the protein be?" — then on the next turn ask about carbs, etc. The 15-second STT window can accept short multi-field utterances, but a clarify-per-field loop is more reliable than a multi-field utterance.`;
 
 interface ParsedChat {
   sessionId: string;

@@ -24,7 +24,7 @@ import 'package:fitness_tracker/features/log/application/workout_bloc.dart';
 import 'package:fitness_tracker/features/voice/application/voice_bloc.dart';
 import 'package:fitness_tracker/features/voice/data/coordinator/offline_voice_coordinator.dart';
 import 'package:fitness_tracker/features/voice/data/lookup/exercise_lookup.dart';
-import 'package:fitness_tracker/features/voice/presentation/voice_command_router.dart';
+import 'package:fitness_tracker/app/voice/voice_command_router.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:flutter_test/flutter_test.dart';

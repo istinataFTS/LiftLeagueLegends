@@ -43,6 +43,10 @@ abstract final class VoiceConstants {
 
   /// Hard upper bound for STT listening ΓÇö even if the user keeps
   /// talking, force a stop at this duration to bound costs and UX.
-  /// Spec §3.4 mandates a 10-second window.
-  static const Duration sttListenTimeout = Duration(seconds: 10);
+  ///
+  /// Raised from 10 s to 15 s to accommodate multi-field edit utterances
+  /// (e.g. "change carbs to 60, fat to 15") without forcing the user to
+  /// dictate everything in one breath. 15 s is still tight enough to bound
+  /// per-utterance audio cost and discourage 30 s rambles.
+  static const Duration sttListenTimeout = Duration(seconds: 15);
 }

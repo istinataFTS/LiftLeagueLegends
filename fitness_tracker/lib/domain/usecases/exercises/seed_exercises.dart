@@ -129,13 +129,19 @@ class SeedExercises {
     // Note: In a production app, you might want to use batch insert
     for (final exerciseData in defaultExercises) {
       try {
-        // Deterministic, name-derived id: stable across every device,
-        // reseed and account, so the workout_sets→exercise reference never
-        // diverges (the root cause of the sign-in failure / "Unknown
-        // exercise"). User-created exercises still get a v4 id via
-        // AddExercise — only the curated defaults are deterministic.
+        // Deterministic, (owner, name)-derived id: stable across every
+        // device, reseed and account for a given owner, so the
+        // workout_sets→exercise reference never diverges. Owner scoping
+        // keeps the guest catalog and each authenticated user's catalog on
+        // disjoint PKs — without it the post-sign-in provisioning step
+        // would always abort against the pre-existing guest rows.
+        // User-created exercises still get a v4 id via AddExercise; only
+        // the curated defaults are deterministic.
         final exercise = exerciseData.toEntity(
-          DeterministicCatalogId.fromName(exerciseData.name),
+          DeterministicCatalogId.forOwner(
+            ownerUserId: ownerUserId,
+            name: exerciseData.name,
+          ),
           now,
           ownerUserId: ownerUserId,
         );

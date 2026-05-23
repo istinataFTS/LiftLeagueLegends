@@ -1,13 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 
+import '../../../app/routes/app_routes.dart';
 import '../../../core/themes/app_theme.dart';
 import '../../../domain/entities/user_profile.dart';
-import '../../../features/auth/presentation/sign_in_page.dart';
-import '../../../features/settings/presentation/settings_page.dart';
-import '../../../features/voice/application/voice_settings_cubit.dart';
-import '../../../features/voice/presentation/voice_settings_page.dart';
-import '../../../injection/injection_container.dart';
 import '../application/profile_cubit.dart';
 import 'mappers/profile_view_data_mapper.dart';
 import 'models/profile_view_data.dart';
@@ -89,11 +85,9 @@ class _ProfileViewState extends State<_ProfileView> {
                   tooltip: 'Sign in',
                   onPressed: () async {
                     final ProfileCubit cubit = context.read<ProfileCubit>();
-                    final didSignIn = await Navigator.of(context).push<bool>(
-                      MaterialPageRoute<bool>(
-                        builder: (_) => const SignInPage(),
-                      ),
-                    );
+                    final didSignIn = await Navigator.of(
+                      context,
+                    ).pushNamed<bool>(AppRoutes.signIn);
 
                     if (!mounted) return;
 
@@ -117,23 +111,12 @@ class _ProfileViewState extends State<_ProfileView> {
           body: ProfileContent(
             viewData: viewData,
             onRefresh: () => context.read<ProfileCubit>().refreshProfile(),
-            onOpenSettings: () {
-              Navigator.push(
-                context,
-                MaterialPageRoute<void>(builder: (_) => const SettingsPage()),
-              );
-            },
-            onOpenVoiceAssistant: () {
-              Navigator.push(
-                context,
-                MaterialPageRoute<void>(
-                  builder: (_) => BlocProvider<VoiceSettingsCubit>(
-                    create: (_) => sl<VoiceSettingsCubit>(),
-                    child: const VoiceSettingsPage(),
-                  ),
-                ),
-              );
-            },
+            onOpenSettings: () =>
+                Navigator.of(context).pushNamed(AppRoutes.settings),
+            // VoiceSettingsCubit is provided at the auth-session shell
+            // level, so the bare route resolves it via `context.read`.
+            onOpenVoiceAssistant: () =>
+                Navigator.of(context).pushNamed(AppRoutes.voiceSettings),
           ),
         );
       },

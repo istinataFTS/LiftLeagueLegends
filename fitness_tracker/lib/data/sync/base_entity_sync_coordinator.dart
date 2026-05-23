@@ -138,12 +138,25 @@ abstract class BaseEntitySyncCoordinator<T> {
     );
   }
 
+  /// Write-through entities whose metadata is `localOnly` (e.g. guest-owned
+  /// rows, or any write that intentionally opts out of remote sync) are
+  /// already in their terminal state once the local insert lands. Pushing
+  /// them anyway just produces an `AuthSyncException: unauthenticated` per
+  /// row from the remote DTO's `user_id` check, spamming the logs with a
+  /// failure that is by design and that the user has no way to act on.
+  /// The next legitimate sync (post sign-in, or sign-in adoption) drains
+  /// any rows that legitimately need to be uploaded.
+  bool _shouldAttemptRemotePush(T localEntity) {
+    return isRemoteSyncEnabled &&
+        getSyncMetadata(localEntity).status != SyncStatus.localOnly;
+  }
+
   Future<void> persistAdded(T entity) async {
     final localEntity = buildAddedLocalEntity(entity, DateTime.now());
 
     await insertLocal(localEntity);
 
-    if (!isRemoteSyncEnabled) {
+    if (!_shouldAttemptRemotePush(localEntity)) {
       return;
     }
 
@@ -179,7 +192,7 @@ abstract class BaseEntitySyncCoordinator<T> {
 
     await updateLocal(localEntity);
 
-    if (!isRemoteSyncEnabled) {
+    if (!_shouldAttemptRemotePush(localEntity)) {
       return;
     }
 

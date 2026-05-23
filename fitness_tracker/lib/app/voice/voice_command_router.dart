@@ -3,10 +3,10 @@ import 'dart:async';
 import 'package:flutter/widgets.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 
-import '../../../features/history/history.dart';
-import '../../../features/log/application/nutrition_log_bloc.dart';
-import '../../../features/log/application/workout_bloc.dart';
-import '../application/voice_bloc.dart';
+import '../../features/history/history.dart';
+import '../../features/log/application/nutrition_log_bloc.dart';
+import '../../features/log/application/workout_bloc.dart';
+import '../../features/voice/application/voice_bloc.dart';
 
 /// Listens to [VoiceBloc.effects] and dispatches each mutation command via
 /// `context.read<X>()`. Lives as a child of the auth-session shell's

@@ -88,10 +88,30 @@ dev_dependencies:
   # Linting
   flutter_lints: ^3.0.0
 
+  # App icon generation for Android + iOS from a single source PNG.
+  # Run `dart run flutter_launcher_icons` to regenerate after updating
+  # assets/branding/app_icon.png.
+  flutter_launcher_icons: ^0.14.1
+
+flutter_launcher_icons:
+  android: true
+  # iOS is disabled until the iOS portion of the project is scaffolded via
+  # `flutter create --platforms=ios .`. Once that runs and
+  # `ios/Runner/Assets.xcassets/AppIcon.appiconset/` exists, flip to
+  # `ios: true` and re-run `dart run flutter_launcher_icons`. The Info.plist
+  # CFBundleDisplayName / CFBundleName already say "Lift League Legends".
+  ios: false
+  image_path: "assets/branding/app_icon.png"
+  remove_alpha_ios: true
+  background_color_ios: "#FFFFFF"
+  adaptive_icon_background: "#FFFFFF"
+  adaptive_icon_foreground: "assets/branding/app_icon.png"
+
 flutter:
   uses-material-design: true
 
   assets:
+    - assets/branding/
     - assets/images/
     - assets/images/body/
     # Wake-word models (Picovoice Porcupine). Zero-byte placeholders until

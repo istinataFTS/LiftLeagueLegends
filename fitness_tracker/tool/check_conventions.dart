@@ -1,12 +1,14 @@
 import 'dart:io';
 
 import 'convention_rules/bloc_factory_registration.dart';
+import 'convention_rules/cross_feature_presentation_import.dart';
 import 'convention_rules/known_issues_schema.dart';
 import 'convention_rules/playbook_canonical_link.dart';
 import 'convention_rules/presentation_layer_imports.dart';
 import 'convention_rules/shared.dart';
 import 'convention_rules/sql_userid_interpolation.dart';
 import 'convention_rules/user_scoped_datasource.dart';
+import 'convention_rules/widget_state_bloc_field.dart';
 
 Future<void> main() async {
   final repoRoot = Directory.current.path;
@@ -15,7 +17,9 @@ Future<void> main() async {
   final rules = <ConventionRule>[
     UserScopedDatasourceRule(),
     PresentationLayerImportsRule(),
+    CrossFeaturePresentationImportRule(),
     BlocFactoryRegistrationRule(),
+    WidgetStateBlocFieldRule(),
     SqlUseridInterpolationRule(),
     KnownIssuesSchemaRule(),
     PlaybookCanonicalLinkRule(),

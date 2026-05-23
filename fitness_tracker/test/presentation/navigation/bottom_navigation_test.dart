@@ -11,8 +11,9 @@ import 'package:fitness_tracker/features/log/log.dart';
 import 'package:fitness_tracker/features/profile/application/profile_cubit.dart';
 import 'package:fitness_tracker/features/settings/application/app_settings_cubit.dart';
 import 'package:fitness_tracker/features/settings/presentation/settings_scope.dart';
-import 'package:fitness_tracker/features/voice/application/voice_settings_cubit.dart';
 import 'package:fitness_tracker/domain/services/voice_wake_word_service.dart';
+import 'package:fitness_tracker/features/voice/application/voice_settings_cubit.dart';
+import 'package:fitness_tracker/injection/injection_container.dart';
 import 'package:fitness_tracker/presentation/navigation/bottom_navigation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
@@ -245,9 +246,19 @@ void main() {
     when(() => exerciseBloc.add(any())).thenReturn(null);
     when(() => mealBloc.add(any())).thenReturn(null);
     when(() => historyBloc.add(any())).thenReturn(null);
+
+    // VoiceFab (rendered by BottomNavigation) reads VoiceWakeWordService
+    // from GetIt in initState; the fake is registered before each pump.
+    if (sl.isRegistered<VoiceWakeWordService>()) {
+      sl.unregister<VoiceWakeWordService>();
+    }
+    sl.registerSingleton<VoiceWakeWordService>(voiceWakeWordService);
   });
 
   tearDown(() async {
+    if (sl.isRegistered<VoiceWakeWordService>()) {
+      sl.unregister<VoiceWakeWordService>();
+    }
     await voiceWakeWordService.dispose();
   });
 
@@ -263,15 +274,10 @@ void main() {
         BlocProvider<WorkoutBloc>.value(value: workoutBloc),
         BlocProvider<HistoryBloc>.value(value: historyBloc),
         BlocProvider<NutritionLogBloc>.value(value: nutritionLogBloc),
+        // VoiceFab inside BottomNavigation reads this cubit from context.
+        BlocProvider<VoiceSettingsCubit>.value(value: voiceSettingsCubit),
       ],
-      child: SettingsScope(
-        child: MaterialApp(
-          home: BottomNavigation(
-            voiceSettingsCubit: voiceSettingsCubit,
-            voiceWakeWordService: voiceWakeWordService,
-          ),
-        ),
-      ),
+      child: SettingsScope(child: MaterialApp(home: const BottomNavigation())),
     );
   }
 

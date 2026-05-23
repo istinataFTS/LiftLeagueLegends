@@ -18,6 +18,7 @@ import '../presentation/navigation/bottom_navigation.dart';
 import 'auth_session_shell.dart';
 import 'listeners/app_domain_effects_listener.dart';
 import 'listeners/sync_completion_listener.dart';
+import 'routes/app_router.dart';
 import 'startup/app_startup_listener.dart';
 
 class AppHost extends StatelessWidget {
@@ -191,7 +192,14 @@ class AppShell extends StatelessWidget {
       theme: AppTheme.darkTheme,
       locale: locale,
       builder: builder,
+      // `home:` builds the initial route directly (instead of going
+      // through `onGenerateRoute` for '/'). Keeping `home:` for the
+      // initial widget lets the existing AppStartupListener →
+      // AppDomainEffectsListener → SyncCompletionListener → BottomNavigation
+      // composition stay in one place. Pushed routes go through
+      // [AppRouter.onGenerateRoute] via `Navigator.pushNamed`.
       home: home,
+      onGenerateRoute: AppRouter.onGenerateRoute,
       scrollBehavior: const MaterialScrollBehavior().copyWith(
         dragDevices: const <PointerDeviceKind>{
           PointerDeviceKind.mouse,
