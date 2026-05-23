@@ -8,7 +8,7 @@
     <!-- wakelock_plus: keep screen on during Workout Mode -->
     <uses-permission android:name="android.permission.WAKE_LOCK"/>
     <application
-        android:label="fitness_tracker"
+        android:label="Lift League Legends"
         android:name="${applicationName}"
         android:icon="@mipmap/ic_launcher">
         <activity
