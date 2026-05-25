@@ -750,6 +750,62 @@ void main() {
         expect(bloc.state.liveTranscript, isEmpty);
       },
     );
+
+    // Regression: silence-promotion path (two partials → synthetic final
+    // emitted by the STT service on `error_no_match`). The bloc must
+    // transition idle → listening → transcribing → thinking and dispatch
+    // VoiceSendMessage exactly once.
+    blocTest<VoiceBloc, VoiceState>(
+      'silence-promotion: two partials then synthetic final triggers '
+      'VoiceSendMessage exactly once and reaches thinking',
+      build: () {
+        when(
+          () => sendVoiceMessage(
+            userMessage: any(named: 'userMessage'),
+            sessionId: any(named: 'sessionId'),
+            history: any(named: 'history'),
+            settings: any(named: 'settings'),
+            weightUnit: any(named: 'weightUnit'),
+            recentSets: any(named: 'recentSets'),
+            recentNutritionLogs: any(named: 'recentNutritionLogs'),
+          ),
+        ).thenAnswer((_) async => Right(_assistantResult('done')));
+        return _makeBloc(
+          sendVoiceMessage: sendVoiceMessage,
+          getVoiceBudget: getBudget,
+          deleteVoiceHistory: deleteHistory,
+          appSettingsRepository: settingsRepo,
+          stt: sharedStt,
+        );
+      },
+      seed: () => const VoiceState(isGuest: false, sessionId: 'sid'),
+      act: (bloc) async {
+        bloc.add(const VoiceListenRequested());
+        await Future<void>.delayed(const Duration(milliseconds: 10));
+        // Simulate the service emitting partials then the silence-promoted
+        // final (the FakeVoiceSttService.emitFinal path mirrors what the
+        // real service does after promoteOnSilence).
+        sharedStt.emitPartial('log bench');
+        await Future<void>.delayed(const Duration(milliseconds: 10));
+        sharedStt.emitPartial('log bench press 80');
+        await Future<void>.delayed(const Duration(milliseconds: 10));
+        sharedStt.emitFinal('log bench press 80');
+        await Future<void>.delayed(const Duration(milliseconds: 50));
+      },
+      verify: (_) {
+        verify(
+          () => sendVoiceMessage(
+            userMessage: 'log bench press 80',
+            sessionId: any(named: 'sessionId'),
+            history: any(named: 'history'),
+            settings: any(named: 'settings'),
+            weightUnit: any(named: 'weightUnit'),
+            recentSets: any(named: 'recentSets'),
+            recentNutritionLogs: any(named: 'recentNutritionLogs'),
+          ),
+        ).called(1);
+      },
+    );
   });
 
   group('VoiceConversationCleared', () {

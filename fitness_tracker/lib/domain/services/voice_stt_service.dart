@@ -48,37 +48,45 @@ abstract class VoiceSttService {
   /// Begin listening and return a broadcast stream of [VoiceSttResult].
   ///
   /// Emits [VoiceSttResult] objects with [isFinal] == false for live
-  /// partial transcripts, then optionally a final result with
-  /// [isFinal] == true. On error the stream adds a [VoiceSttException]
-  /// via `onError`.
+  /// partial transcripts, then a final result with [isFinal] == true.
+  /// On unrecoverable error the stream adds a [VoiceSttException] via
+  /// `onError`.
+  ///
+  /// ### Continuous-listening session model
+  ///
+  /// The stream stays open until one of the following occurs:
+  ///   (a) A final transcript is emitted (`isFinal == true`).
+  ///   (b) The hard [VoiceConstants.sttListenTimeout] envelope elapses.
+  ///   (c) [cancel] or [stop] is called by the caller.
+  ///   (d) A non-recoverable error fires (see below).
+  ///
+  /// Transient `noSpeech` outcomes inside the envelope are handled
+  /// *internally* by the implementation:
+  ///   - If a partial transcript was already collected, it is promoted to
+  ///     a synthetic final result (Claude-voice-style auto-finalise on
+  ///     silence) and the stream closes normally.
+  ///   - If no partial exists yet, the underlying recogniser is silently
+  ///     restarted up to [VoiceConstants.sttMaxNoMatchRestarts] times
+  ///     (handles Samsung warm-up quirk). The caller sees uninterrupted
+  ///     "Listening…" state.
+  ///   - Once the restart budget is exhausted with still no speech, the
+  ///     stream closes via `onDone` without error.
+  ///
+  /// Callers **must not** assume that a `noSpeech` outcome will ever reach
+  /// them as an `onError` event — the implementation absorbs it.
   ///
   /// ### Error vs end-of-speech
   ///
-  /// [VoiceSttErrorKind.noSpeech] outcomes (e.g. Android `error_no_match` /
-  /// `error_speech_timeout`) are **not** errors and MUST NOT be added via
-  /// `onError`. They are a normal "the recogniser heard nothing
-  /// recognisable" signal and must terminate the stream via `onDone` so
-  /// callers revert UI state the same way they would after a natural pause.
-  /// Only [permissionDenied], [permissionPermanentlyDenied], [unavailable],
-  /// [network], and [unknown] kinds are propagated as errors.
+  /// [VoiceSttErrorKind.noSpeech] outcomes are handled internally (see
+  /// above). Only [permissionDenied], [permissionPermanentlyDenied],
+  /// [unavailable], [network], and [unknown] kinds are propagated as
+  /// stream errors.
   ///
   /// ### Stream-completion contract
   ///
   /// The returned stream **must** complete (fire `onDone`) in every
-  /// terminal scenario so callers can revert UI state. Implementations
-  /// are required to close the underlying controller when ANY of these
-  /// occur:
-  ///
-  ///   1. A final result has been emitted (isFinal == true).
-  ///   2. The engine reports it has stopped listening on its own — e.g.
-  ///      the user fell silent past the platform's pause threshold, or
-  ///      the hard listen-for timeout fired without recognised speech.
-  ///   3. [stop] or [cancel] is invoked.
-  ///   4. An error is added via `addError`.
-  ///
-  /// [VoiceBloc] relies on this contract to escape `VoiceStatus.listening`
-  /// when the user is silent — without it the overlay shows "Listening…"
-  /// forever and wake-word re-trigger is gated off permanently.
+  /// terminal scenario. [VoiceBloc] relies on this to escape
+  /// `VoiceStatus.listening` and re-arm the wake-word engine.
   ///
   /// [localeId] overrides the device default locale (e.g. `'en-US'`).
   /// Pass null to use the device default.

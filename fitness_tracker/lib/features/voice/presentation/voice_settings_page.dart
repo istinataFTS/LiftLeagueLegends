@@ -7,7 +7,6 @@ import '../../../core/themes/app_theme.dart';
 import '../../../domain/entities/voice_settings.dart';
 import '../../../domain/services/voice_tts_service.dart';
 import '../../../injection/injection_container.dart';
-import '../application/picovoice_key_cubit.dart';
 import '../application/voice_settings_cubit.dart';
 import 'voice_settings_page_keys.dart';
 
@@ -30,11 +29,7 @@ class VoiceSettingsPage extends StatelessWidget {
         title: const Text(AppStrings.voiceSettingsPageTitle),
         leading: const BackButton(),
       ),
-      // PicovoiceKeyCubit is scoped to this page — disposed on pop. It
-      // calls load() once on creation to hydrate from secure storage.
-      body: BlocProvider<PicovoiceKeyCubit>(
-        create: (_) => sl<PicovoiceKeyCubit>()..load(),
-        child: BlocBuilder<VoiceSettingsCubit, VoiceSettings>(
+      body: BlocBuilder<VoiceSettingsCubit, VoiceSettings>(
         builder: (context, settings) {
           final VoiceSettingsCubit cubit = context.read<VoiceSettingsCubit>();
           return ListView(
@@ -42,7 +37,6 @@ class VoiceSettingsPage extends StatelessWidget {
             children: <Widget>[
               // ── Wake Word ─────────────────────────────────────────────
               const _SectionHeader(AppStrings.voiceWakeWordSectionTitle),
-              const _PicovoiceKeySection(),
               _WakeWordPicker(
                 selected: settings.wakeWordPreset,
                 onSelect: cubit.setWakeWordPreset,
@@ -157,7 +151,6 @@ class VoiceSettingsPage extends StatelessWidget {
             ],
           );
         },
-        ),
       ),
     );
   }
@@ -386,298 +379,6 @@ class _SliderTile extends StatelessWidget {
             onChangeEnd: onChangeEnd,
           ),
         ],
-      ),
-    );
-  }
-}
-
-// ---------------------------------------------------------------------------
-// Picovoice access key section
-//
-// Lives above the wake-word preset picker because the picker is meaningless
-// until a key is configured. Two visual states:
-//
-//   * **Missing** — orange banner explaining that wake word is disabled and
-//     a tile with "Set up key" that opens the entry dialog.
-//   * **Present** — confirmation tile with overflow menu offering "Replace"
-//     and "Remove" actions.
-//
-// All side effects (storage I/O) live in [PicovoiceKeyCubit] — this widget
-// is a thin renderer of cubit state.
-// ---------------------------------------------------------------------------
-
-class _PicovoiceKeySection extends StatelessWidget {
-  const _PicovoiceKeySection();
-
-  @override
-  Widget build(BuildContext context) {
-    return BlocBuilder<PicovoiceKeyCubit, PicovoiceKeyState>(
-      builder: (context, state) {
-        if (state.isLoading) {
-          return const Padding(
-            key: VoiceSettingsPageKeys.picovoiceKeySectionKey,
-            padding: EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-            child: SizedBox(
-              height: 20,
-              width: 20,
-              child: CircularProgressIndicator(
-                strokeWidth: 2,
-                color: AppTheme.primaryOrange,
-              ),
-            ),
-          );
-        }
-
-        return Container(
-          key: VoiceSettingsPageKeys.picovoiceKeySectionKey,
-          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-          child: state.hasKey
-              ? const _PicovoiceKeyPresentTile()
-              : const _PicovoiceKeyMissingTile(),
-        );
-      },
-    );
-  }
-}
-
-class _PicovoiceKeyMissingTile extends StatelessWidget {
-  const _PicovoiceKeyMissingTile();
-
-  @override
-  Widget build(BuildContext context) {
-    final cubit = context.read<PicovoiceKeyCubit>();
-    return Container(
-      key: VoiceSettingsPageKeys.picovoiceKeyTileKey,
-      decoration: BoxDecoration(
-        color: AppTheme.primaryOrange.withValues(alpha: 0.08),
-        border: Border.all(
-          color: AppTheme.primaryOrange.withValues(alpha: 0.4),
-        ),
-        borderRadius: BorderRadius.circular(8),
-      ),
-      padding: const EdgeInsets.all(12),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: <Widget>[
-          const Row(
-            children: <Widget>[
-              Icon(
-                Icons.warning_amber_rounded,
-                color: AppTheme.primaryOrange,
-                size: 20,
-              ),
-              SizedBox(width: 8),
-              Expanded(
-                child: Text(
-                  AppStrings.voicePicovoiceKeyMissingTitle,
-                  style: TextStyle(
-                    color: AppTheme.textLight,
-                    fontWeight: FontWeight.w600,
-                  ),
-                ),
-              ),
-            ],
-          ),
-          const SizedBox(height: 6),
-          const Text(
-            AppStrings.voicePicovoiceKeyMissingSubtitle,
-            style: TextStyle(color: AppTheme.textDim, fontSize: 12),
-          ),
-          const SizedBox(height: 10),
-          Align(
-            alignment: Alignment.centerRight,
-            child: TextButton.icon(
-              key: VoiceSettingsPageKeys.picovoiceKeySetUpButtonKey,
-              icon: const Icon(Icons.vpn_key_outlined, size: 18),
-              label: const Text(AppStrings.voicePicovoiceKeySetUpAction),
-              style: TextButton.styleFrom(
-                foregroundColor: AppTheme.primaryOrange,
-              ),
-              onPressed: () => _openKeyDialog(context, cubit),
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-}
-
-class _PicovoiceKeyPresentTile extends StatelessWidget {
-  const _PicovoiceKeyPresentTile();
-
-  @override
-  Widget build(BuildContext context) {
-    final cubit = context.read<PicovoiceKeyCubit>();
-    return Container(
-      key: VoiceSettingsPageKeys.picovoiceKeyTileKey,
-      decoration: BoxDecoration(
-        color: AppTheme.surfaceMedium,
-        borderRadius: BorderRadius.circular(8),
-      ),
-      child: ListTile(
-        leading: const Icon(
-          Icons.check_circle_outline,
-          color: AppTheme.primaryOrange,
-        ),
-        title: const Text(
-          AppStrings.voicePicovoiceKeyPresentTitle,
-          style: TextStyle(color: AppTheme.textLight),
-        ),
-        subtitle: const Text(
-          AppStrings.voicePicovoiceKeyPresentSubtitle,
-          style: TextStyle(color: AppTheme.textDim, fontSize: 12),
-        ),
-        trailing: PopupMenuButton<_PicovoiceKeyAction>(
-          icon: const Icon(Icons.more_vert, color: AppTheme.textDim),
-          color: AppTheme.surfaceDark,
-          onSelected: (action) async {
-            switch (action) {
-              case _PicovoiceKeyAction.replace:
-                await _openKeyDialog(context, cubit);
-              case _PicovoiceKeyAction.clear:
-                await _confirmClear(context, cubit);
-            }
-          },
-          itemBuilder: (_) => const <PopupMenuEntry<_PicovoiceKeyAction>>[
-            PopupMenuItem<_PicovoiceKeyAction>(
-              key: VoiceSettingsPageKeys.picovoiceKeyReplaceButtonKey,
-              value: _PicovoiceKeyAction.replace,
-              child: Text(
-                AppStrings.voicePicovoiceKeyReplaceAction,
-                style: TextStyle(color: AppTheme.textLight),
-              ),
-            ),
-            PopupMenuItem<_PicovoiceKeyAction>(
-              key: VoiceSettingsPageKeys.picovoiceKeyClearButtonKey,
-              value: _PicovoiceKeyAction.clear,
-              child: Text(
-                AppStrings.voicePicovoiceKeyClearAction,
-                style: TextStyle(color: AppTheme.errorRed),
-              ),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-}
-
-enum _PicovoiceKeyAction { replace, clear }
-
-Future<void> _openKeyDialog(
-  BuildContext context,
-  PicovoiceKeyCubit cubit,
-) async {
-  final controller = TextEditingController();
-  final messenger = ScaffoldMessenger.of(context);
-  final saved = await showDialog<bool>(
-    context: context,
-    builder: (dialogContext) => AlertDialog(
-      key: VoiceSettingsPageKeys.picovoiceKeyDialogKey,
-      backgroundColor: AppTheme.surfaceDark,
-      title: const Text(
-        AppStrings.voicePicovoiceKeyDialogTitle,
-        style: TextStyle(color: AppTheme.textLight),
-      ),
-      content: Column(
-        mainAxisSize: MainAxisSize.min,
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: <Widget>[
-          const Text(
-            AppStrings.voicePicovoiceKeyDialogBody,
-            style: TextStyle(color: AppTheme.textMedium, fontSize: 13),
-          ),
-          const SizedBox(height: 12),
-          TextField(
-            key: VoiceSettingsPageKeys.picovoiceKeyTextFieldKey,
-            controller: controller,
-            autofocus: true,
-            obscureText: true,
-            style: const TextStyle(color: AppTheme.textLight),
-            decoration: const InputDecoration(
-              hintText: AppStrings.voicePicovoiceKeyDialogHint,
-              hintStyle: TextStyle(color: AppTheme.textDim),
-            ),
-          ),
-        ],
-      ),
-      actions: <Widget>[
-        TextButton(
-          key: VoiceSettingsPageKeys.picovoiceKeyDialogCancelKey,
-          onPressed: () => Navigator.of(dialogContext).pop(false),
-          child: const Text(
-            AppStrings.voicePicovoiceKeyDialogCancel,
-            style: TextStyle(color: AppTheme.textDim),
-          ),
-        ),
-        TextButton(
-          key: VoiceSettingsPageKeys.picovoiceKeyDialogSaveKey,
-          onPressed: () async {
-            final ok = await cubit.save(controller.text);
-            if (dialogContext.mounted) {
-              Navigator.of(dialogContext).pop(ok);
-            }
-          },
-          child: const Text(
-            AppStrings.voicePicovoiceKeyDialogSave,
-            style: TextStyle(color: AppTheme.primaryOrange),
-          ),
-        ),
-      ],
-    ),
-  );
-
-  if (saved == true) {
-    messenger.showSnackBar(
-      const SnackBar(
-        content: Text(AppStrings.voicePicovoiceKeySaveSuccess),
-      ),
-    );
-  }
-}
-
-Future<void> _confirmClear(
-  BuildContext context,
-  PicovoiceKeyCubit cubit,
-) async {
-  final messenger = ScaffoldMessenger.of(context);
-  final confirmed = await showDialog<bool>(
-    context: context,
-    builder: (dialogContext) => AlertDialog(
-      backgroundColor: AppTheme.surfaceDark,
-      title: const Text(
-        AppStrings.voicePicovoiceKeyClearConfirmTitle,
-        style: TextStyle(color: AppTheme.textLight),
-      ),
-      content: const Text(
-        AppStrings.voicePicovoiceKeyClearConfirmBody,
-        style: TextStyle(color: AppTheme.textMedium),
-      ),
-      actions: <Widget>[
-        TextButton(
-          onPressed: () => Navigator.of(dialogContext).pop(false),
-          child: const Text(
-            AppStrings.voicePicovoiceKeyDialogCancel,
-            style: TextStyle(color: AppTheme.textDim),
-          ),
-        ),
-        TextButton(
-          onPressed: () => Navigator.of(dialogContext).pop(true),
-          child: const Text(
-            AppStrings.voicePicovoiceKeyClearConfirmAction,
-            style: TextStyle(color: AppTheme.errorRed),
-          ),
-        ),
-      ],
-    ),
-  );
-
-  if (confirmed != true) return;
-  final ok = await cubit.clear();
-  if (ok) {
-    messenger.showSnackBar(
-      const SnackBar(
-        content: Text(AppStrings.voicePicovoiceKeyClearSuccess),
       ),
     );
   }

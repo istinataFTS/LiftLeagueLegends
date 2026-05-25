@@ -24,24 +24,45 @@ import 'widgets/voice_workout_mode_banner.dart';
 /// Scopes a fresh [VoiceBloc] instance (factory) and fires
 /// [VoiceSessionStarted] on first build. Manages connectivity and
 /// wake-word subscriptions for the duration the overlay is visible.
+///
+/// When [openedByWakeWord] is true (the overlay was opened by a Porcupine
+/// detection, not by the user tapping the FAB), [VoiceListenRequested] is
+/// dispatched on the first post-frame callback so STT starts automatically —
+/// closing the first-fire gap where the user already spoke the wake word
+/// and expects the assistant to be listening immediately.
 class VoiceOverlayPage extends StatelessWidget {
-  const VoiceOverlayPage({required this.session, super.key});
+  const VoiceOverlayPage({
+    required this.session,
+    this.openedByWakeWord = false,
+    super.key,
+  });
 
   final AppSession session;
+
+  /// Whether this overlay was triggered by a wake-word detection (vs. a
+  /// manual FAB tap). When true, STT starts automatically on first frame.
+  final bool openedByWakeWord;
 
   @override
   Widget build(BuildContext context) {
     return BlocProvider<VoiceBloc>(
       create: (_) => sl<VoiceBloc>()..add(VoiceSessionStarted(session)),
-      child: _VoiceOverlayView(session: session),
+      child: _VoiceOverlayView(
+        session: session,
+        openedByWakeWord: openedByWakeWord,
+      ),
     );
   }
 }
 
 class _VoiceOverlayView extends StatefulWidget {
-  const _VoiceOverlayView({required this.session});
+  const _VoiceOverlayView({
+    required this.session,
+    required this.openedByWakeWord,
+  });
 
   final AppSession session;
+  final bool openedByWakeWord;
 
   @override
   State<_VoiceOverlayView> createState() => _VoiceOverlayViewState();
@@ -64,6 +85,13 @@ class _VoiceOverlayViewState extends State<_VoiceOverlayView> {
     _checkInitialConnectivity();
     _subscribeToConnectivity();
     _subscribeToWakeWord();
+    if (widget.openedByWakeWord) {
+      // Auto-start STT on first frame: the user has already spoken the wake
+      // word and expects the assistant to be listening immediately.
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (mounted) context.read<VoiceBloc>().add(const VoiceListenRequested());
+      });
+    }
   }
 
   @override

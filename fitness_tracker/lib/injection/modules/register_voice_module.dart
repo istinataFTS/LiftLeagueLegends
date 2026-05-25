@@ -25,7 +25,6 @@ import '../../domain/usecases/voice/send_voice_message.dart';
 import '../../domain/usecases/workout_sets/get_sets_by_date_range.dart';
 import '../../domain/usecases/workout_sets/get_weekly_sets.dart';
 import '../../features/settings/application/app_settings_cubit.dart';
-import '../../features/voice/application/picovoice_key_cubit.dart';
 import '../../features/voice/application/voice_bloc.dart';
 import '../../features/voice/application/voice_settings_cubit.dart';
 import '../../features/voice/data/coordinator/offline_voice_coordinator.dart';
@@ -56,8 +55,11 @@ void registerVoiceModule(GetIt sl) {
   }
 
   // ── Voice credential service ───────────────────────────────────────────
+  // Registered with a dispose hook so the change-notification stream is
+  // closed when the container is reset (e.g. between integration tests).
   sl.registerLazySingleton<VoiceCredentialService>(
     () => SecureStorageVoiceCredentialService(sl<FlutterSecureStorage>()),
+    dispose: (s) => s.dispose(),
   );
 
   // ── Device services (STT + TTS) ────────────────────────────────────────
@@ -140,13 +142,6 @@ void registerVoiceModule(GetIt sl) {
       repository: sl<AppSettingsRepository>(),
       deleteVoiceHistory: sl<DeleteVoiceHistory>(),
     ),
-  );
-
-  // PicovoiceKeyCubit: factory — one per voice settings page instance.
-  // Owns no native resources; reads / writes the Picovoice access key
-  // through VoiceCredentialService (secure storage).
-  sl.registerFactory(
-    () => PicovoiceKeyCubit(credentials: sl<VoiceCredentialService>()),
   );
 
   // VoiceBloc: factory — per voice overlay instance.
