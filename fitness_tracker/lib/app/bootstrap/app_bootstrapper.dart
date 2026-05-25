@@ -15,6 +15,7 @@ import '../../core/utils/app_lifecycle_manager.dart';
 import '../../core/utils/performance_monitor.dart';
 import '../../demo/web_demo_runtime.dart';
 import '../../domain/services/voice_credential_service.dart';
+import '../../domain/services/voice_permission_service.dart';
 import '../../injection/injection_container.dart' as di;
 import 'app_data_seeder.dart';
 import 'app_debug_diagnostics_runner.dart';
@@ -181,7 +182,36 @@ class AppBootstrapper {
       unawaited(_seedDefaultDataIfNeeded());
       unawaited(_runDiagnosticsIfNeeded());
       unawaited(_seedPicovoiceKeyFromEnvIfNeeded());
+      unawaited(_requestVoicePermissionIfNeeded());
     });
+  }
+
+  /// Trigger the OS microphone permission dialog upfront so the user grants
+  /// it once, at first launch, rather than mid-session when the wake word
+  /// fires or the FAB is tapped. The OS dedupes on subsequent launches —
+  /// `request()` is a no-op when permission is already granted or has been
+  /// permanently denied.
+  ///
+  /// Non-fatal: if the user denies, voice features show a SnackBar with
+  /// "Open Settings" the first time they're invoked.
+  Future<void> _requestVoicePermissionIfNeeded() async {
+    if (kIsWeb) return;
+
+    try {
+      final permissionService = di.sl<VoicePermissionService>();
+      final status = await permissionService.checkMicrophonePermission();
+      if (status == VoicePermissionStatus.granted) {
+        return;
+      }
+      await permissionService.requestMicrophonePermission();
+    } catch (error, stackTrace) {
+      AppLogger.warning(
+        'Failed to request microphone permission at startup',
+        category: 'bootstrap',
+        error: error,
+        stackTrace: stackTrace,
+      );
+    }
   }
 
   /// At every launch: if `--dart-define=PICOVOICE_ACCESS_KEY=...` was
