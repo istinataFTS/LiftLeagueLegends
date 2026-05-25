@@ -44,7 +44,15 @@ Supabase deploy is manual — trigger the `Supabase Deploy` GitHub Action (`work
 
 All config is injected at build time via `--dart-define`. `EnvConfig` (`lib/config/env_config.dart`) is the single source of truth. Supabase is **off by default** (`ENABLE_SUPABASE=false`) — a bare `flutter run` produces a local-only build whose sign-in surface fails with "Remote auth is not configured".
 
-The committed `dart_defines.json` holds the project's `--dart-define` values (Supabase URL, anon key, env). Use the wrapper script so a single command does the right thing on every machine:
+**`dart_defines.json` is gitignored** — it contains secrets (the Picovoice access key) and must never be committed. A `dart_defines.example.json` template is committed instead. On a fresh clone:
+
+```powershell
+copy dart_defines.example.json dart_defines.json   # Windows
+cp  dart_defines.example.json dart_defines.json    # macOS/Linux
+# then edit dart_defines.json and fill in real values
+```
+
+Use the wrapper script so a single command does the right thing on every machine:
 
 ```powershell
 ./scripts/run.ps1                    # debug, default device, Supabase enabled
@@ -52,7 +60,19 @@ The committed `dart_defines.json` holds the project's `--dart-define` values (Su
 ./scripts/run.ps1 -d chrome          # pick a device
 ```
 
-Equivalent raw command: `flutter run --dart-define-from-file=dart_defines.json`. VS Code launch configs in `.vscode/launch.json` mirror the same values for IDE-driven runs.
+The script errors if `dart_defines.json` is missing. Equivalent raw command: `flutter run --dart-define-from-file=dart_defines.json`. VS Code launch configs in `.vscode/launch.json` mirror the same values for IDE-driven runs.
+
+**Required keys in `dart_defines.json`:**
+
+| Key | Description |
+|---|---|
+| `APP_ENV` | `development` / `production` |
+| `ENABLE_SUPABASE` | `true` / `false` |
+| `SUPABASE_URL` | Your Supabase project URL |
+| `SUPABASE_ANON_KEY` | Supabase anon/public key |
+| `PICOVOICE_ACCESS_KEY` | Picovoice Console access key (voice wake word) |
+
+The `PICOVOICE_ACCESS_KEY` is written into `flutter_secure_storage` by `AppBootstrapper` on every launch. The wake-word engine starts automatically after the write via `VoiceCredentialService.onPicovoiceKeyChanged`. See KNOWN_ISSUES `#voice-picovoice-key-must-ship-via-dart-define`.
 
 ## Known issues and the 15-minute rule
 

@@ -3,12 +3,12 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 
-import '../../../../app/routes/app_routes.dart';
 import '../../../../core/constants/app_strings.dart';
 import '../../../../core/logging/app_logger.dart';
 import '../../../../core/themes/app_theme.dart';
 import '../../../../domain/entities/app_session.dart';
 import '../../../../domain/entities/voice_settings.dart';
+import '../../../../domain/services/voice_credential_service.dart';
 import '../../../../domain/services/voice_wake_word_service.dart';
 import '../../../../injection/injection_container.dart';
 import '../../application/voice_settings_cubit.dart';
@@ -45,22 +45,22 @@ class _VoiceFabState extends State<VoiceFab>
   /// rule because the type does not end in `Bloc`/`Cubit`.
   late final VoiceWakeWordService _wakeWordService;
 
+  /// Credential service — subscribed to detect when the Picovoice key is
+  /// written by the bootstrap seeder so the wake-word engine can be started
+  /// without a manual app restart or page navigation.
+  late final VoiceCredentialService _credentialService;
+
   StreamSubscription<WakeWordPreset>? _wakeWordSub;
   StreamSubscription<VoiceWakeWordException>? _wakeWordErrorSub;
+  StreamSubscription<void>? _credentialChangeSub;
   bool _overlayOpen = false;
-
-  /// One-shot guard: the "wake word needs setup" snackbar is shown at most
-  /// once per app session. Without this, every `_startWakeWordIfArmed()`
-  /// call (initial mount + every resume + every armed-toggle flip) would
-  /// trigger a fresh snackbar in users who simply have not configured the
-  /// Picovoice key yet.
-  bool _noAccessKeyPromptShown = false;
 
   @override
   void initState() {
     super.initState();
     WidgetsBinding.instance.addObserver(this);
     _wakeWordService = sl<VoiceWakeWordService>();
+    _credentialService = sl<VoiceCredentialService>();
 
     _pulseController = AnimationController(
       vsync: this,
@@ -77,6 +77,7 @@ class _VoiceFabState extends State<VoiceFab>
 
     _listenToWakeWordStream();
     _listenToWakeWordErrors();
+    _listenToCredentialChanges();
     _startWakeWordIfArmed();
   }
 
@@ -85,6 +86,7 @@ class _VoiceFabState extends State<VoiceFab>
     WidgetsBinding.instance.removeObserver(this);
     _wakeWordSub?.cancel();
     _wakeWordErrorSub?.cancel();
+    _credentialChangeSub?.cancel();
     unawaited(_wakeWordService.stop());
     _pulseController.dispose();
     super.dispose();
@@ -123,34 +125,7 @@ class _VoiceFabState extends State<VoiceFab>
             error: e,
             category: 'voice',
           );
-          // Surface the most common, recoverable cause to the user. Other
-          // errors (engine init failures, missing model assets) are logged
-          // only — they indicate misconfiguration the user cannot fix from
-          // a snackbar.
-          if (e is VoiceWakeWordException &&
-              e.kind == VoiceWakeWordErrorKind.noAccessKey) {
-            _showWakeWordNeedsSetupSnackbar();
-          }
         });
-  }
-
-  void _showWakeWordNeedsSetupSnackbar() {
-    if (!mounted || _noAccessKeyPromptShown) return;
-    _noAccessKeyPromptShown = true;
-    final messenger = ScaffoldMessenger.maybeOf(context);
-    if (messenger == null) return;
-    messenger.showSnackBar(
-      SnackBar(
-        content: const Text(AppStrings.voiceFabWakeWordNeedsSetup),
-        action: SnackBarAction(
-          label: AppStrings.voiceFabWakeWordNeedsSetupAction,
-          onPressed: () {
-            if (!mounted) return;
-            Navigator.of(context).pushNamed(AppRoutes.voiceSettings);
-          },
-        ),
-      ),
-    );
   }
 
   void _listenToWakeWordStream() {
@@ -169,10 +144,23 @@ class _VoiceFabState extends State<VoiceFab>
     });
   }
 
+  /// Watches [VoiceCredentialService.onPicovoiceKeyChanged] so the wake-word
+  /// engine is started the moment the bootstrap seeder writes the key on
+  /// first launch — without requiring a manual page navigation or restart.
+  void _listenToCredentialChanges() {
+    _credentialChangeSub = _credentialService.onPicovoiceKeyChanged.listen((_) {
+      AppLogger.debug(
+        'VoiceFab: Picovoice key changed — retrying wake word start.',
+        category: 'voice',
+      );
+      _startWakeWordIfArmed();
+    });
+  }
+
   void _onWakeWordFired() {
     if (!mounted) return;
     if (_overlayOpen) return; // Overlay handles the listen trigger itself
-    _openOverlay();
+    _openOverlay(openedByWakeWord: true);
   }
 
   // ── Pulse animation ─────────────────────────────────────────────────────────
@@ -188,13 +176,16 @@ class _VoiceFabState extends State<VoiceFab>
 
   // ── Overlay navigation ──────────────────────────────────────────────────────
 
-  Future<void> _openOverlay() async {
+  Future<void> _openOverlay({bool openedByWakeWord = false}) async {
     if (_overlayOpen || !mounted) return;
     setState(() => _overlayOpen = true);
     await Navigator.of(context).push(
       PageRouteBuilder<void>(
         pageBuilder: (context, animation, secondaryAnimation) =>
-            VoiceOverlayPage(session: widget.session),
+            VoiceOverlayPage(
+              session: widget.session,
+              openedByWakeWord: openedByWakeWord,
+            ),
         transitionsBuilder: (context, animation, secondaryAnimation, child) {
           return FadeTransition(
             opacity: animation,

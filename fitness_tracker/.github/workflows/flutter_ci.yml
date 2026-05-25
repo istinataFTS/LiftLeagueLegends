@@ -38,6 +38,24 @@ jobs:
       - name: Install dependencies
         run: flutter pub get
 
+      # dart_defines.json is gitignored (contains secrets).
+      # For CI we create it from repository secrets so `flutter run`/`flutter build`
+      # commands work. `flutter test` does not need this file, but having it
+      # present avoids surprises if test helpers ever call EnvConfig.
+      - name: Create dart_defines.json from secrets
+        env:
+          PICOVOICE_ACCESS_KEY: ${{ secrets.PICOVOICE_ACCESS_KEY }}
+        run: |
+          cat > dart_defines.json <<EOF
+          {
+            "APP_ENV": "development",
+            "ENABLE_SUPABASE": "true",
+            "SUPABASE_URL": "${{ secrets.SUPABASE_URL }}",
+            "SUPABASE_ANON_KEY": "${{ secrets.SUPABASE_ANON_KEY }}",
+            "PICOVOICE_ACCESS_KEY": "${{ secrets.PICOVOICE_ACCESS_KEY }}"
+          }
+          EOF
+
       - name: Verify formatting
         run: dart format --output=none --set-exit-if-changed lib test
 

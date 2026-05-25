@@ -5,6 +5,7 @@ import 'package:fitness_tracker/core/constants/app_strings.dart';
 import 'package:fitness_tracker/core/enums/auth_mode.dart';
 import 'package:fitness_tracker/domain/entities/app_session.dart';
 import 'package:fitness_tracker/domain/entities/voice_settings.dart';
+import 'package:fitness_tracker/domain/services/voice_credential_service.dart';
 import 'package:fitness_tracker/domain/services/voice_wake_word_service.dart';
 import 'package:fitness_tracker/features/voice/application/voice_settings_cubit.dart';
 import 'package:fitness_tracker/features/voice/presentation/widgets/voice_fab.dart';
@@ -48,6 +49,37 @@ class FakeVoiceWakeWordService implements VoiceWakeWordService {
   }
 }
 
+/// Minimal in-memory [VoiceCredentialService] for FAB tests.
+///
+/// Exposes [emitKeyChange] so tests can simulate the credential change event
+/// that the bootstrap seeder fires after writing the Picovoice key.
+class FakeVoiceCredentialService implements VoiceCredentialService {
+  FakeVoiceCredentialService();
+
+  final _keyChangedController = StreamController<void>.broadcast(sync: true);
+
+  @override
+  Stream<void> get onPicovoiceKeyChanged => _keyChangedController.stream;
+
+  /// Simulates the credential seeder writing a new key.
+  void emitKeyChange() => _keyChangedController.add(null);
+
+  @override
+  Future<String?> getPicovoiceAccessKey() async => null;
+
+  @override
+  Future<void> setPicovoiceAccessKey(String key) async {}
+
+  @override
+  Future<void> clearPicovoiceAccessKey() async {}
+
+  @override
+  Future<bool> hasPicovoiceAccessKey() async => false;
+
+  @override
+  Future<void> dispose() => _keyChangedController.close();
+}
+
 // ---------------------------------------------------------------------------
 // Helpers
 // ---------------------------------------------------------------------------
@@ -60,9 +92,9 @@ Widget _wrap({
   required AppSession session,
   required VoiceSettingsCubit settingsCubit,
 }) {
-  // [VoiceFab] reads [VoiceWakeWordService] from the GetIt container in
-  // initState; tests register their fake before pumping. The cubit is
-  // resolved via [BlocProvider.value] inherited from the widget tree.
+  // [VoiceFab] reads [VoiceWakeWordService] and [VoiceCredentialService] from
+  // the GetIt container in initState; tests register their fakes before
+  // pumping. The cubit is resolved via [BlocProvider.value].
   return MaterialApp(
     home: Scaffold(
       floatingActionButton: BlocProvider<VoiceSettingsCubit>.value(
@@ -80,19 +112,25 @@ Widget _wrap({
 void main() {
   late MockVoiceSettingsCubit settingsCubit;
   late FakeVoiceWakeWordService wakeWordService;
+  late FakeVoiceCredentialService credentialService;
 
   final defaultSettings = const VoiceSettings.defaults();
 
   setUp(() {
     settingsCubit = MockVoiceSettingsCubit();
     wakeWordService = FakeVoiceWakeWordService();
+    credentialService = FakeVoiceCredentialService();
 
-    // VoiceFab reads VoiceWakeWordService from GetIt in initState; reset
-    // the container and register the fake so the widget sees it.
+    // Reset the container and register both fakes so the widget sees them.
     if (sl.isRegistered<VoiceWakeWordService>()) {
       sl.unregister<VoiceWakeWordService>();
     }
     sl.registerSingleton<VoiceWakeWordService>(wakeWordService);
+
+    if (sl.isRegistered<VoiceCredentialService>()) {
+      sl.unregister<VoiceCredentialService>();
+    }
+    sl.registerSingleton<VoiceCredentialService>(credentialService);
 
     when(() => settingsCubit.state).thenReturn(defaultSettings);
     whenListen(
@@ -106,6 +144,10 @@ void main() {
     if (sl.isRegistered<VoiceWakeWordService>()) {
       sl.unregister<VoiceWakeWordService>();
     }
+    if (sl.isRegistered<VoiceCredentialService>()) {
+      sl.unregister<VoiceCredentialService>();
+    }
+    await credentialService.dispose();
   });
 
   group('VoiceFab — authenticated user', () {
@@ -133,6 +175,22 @@ void main() {
       );
       expect(find.text(AppStrings.voiceFabTooltipGuest), findsNothing);
     });
+
+    testWidgets(
+      'attempts to start wake word when credential change event fires',
+      (tester) async {
+        await tester.pumpWidget(
+          _wrap(session: _authSession, settingsCubit: settingsCubit),
+        );
+
+        // Simulate the bootstrap seeder writing the Picovoice key.
+        credentialService.emitKeyChange();
+        await tester.pump();
+
+        // _startWakeWordIfArmed was called again — service is running.
+        expect(wakeWordService.isRunning, isTrue);
+      },
+    );
   });
 
   group('VoiceFab — guest user', () {
@@ -177,5 +235,20 @@ void main() {
       await tester.pump();
       expect(wakeWordService.isRunning, isFalse);
     });
+
+    testWidgets(
+      'credential change event does NOT start wake word for guests',
+      (tester) async {
+        await tester.pumpWidget(
+          _wrap(session: _guestSession, settingsCubit: settingsCubit),
+        );
+
+        credentialService.emitKeyChange();
+        await tester.pump();
+
+        // Guests bypass _startWakeWordIfArmed regardless of key presence.
+        expect(wakeWordService.isRunning, isFalse);
+      },
+    );
   });
 }
