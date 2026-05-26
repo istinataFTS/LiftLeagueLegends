@@ -22,10 +22,12 @@ void main() {
         );
       });
 
-      test('ensureValidRuntimeConfig does not throw for default configuration',
-          () {
-        expect(EnvConfig.ensureValidRuntimeConfig, returnsNormally);
-      });
+      test(
+        'ensureValidRuntimeConfig does not throw for default configuration',
+        () {
+          expect(EnvConfig.ensureValidRuntimeConfig, returnsNormally);
+        },
+      );
     });
 
     group('environment', () {

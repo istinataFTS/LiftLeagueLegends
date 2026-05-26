@@ -15,8 +15,8 @@ class GetExercisesForMuscle {
   });
 
   Future<Either<Failure, List<Exercise>>> call(String muscleGroup) async {
-    final sourcePreference =
-        await sourcePreferenceResolver.resolveReadPreference();
+    final sourcePreference = await sourcePreferenceResolver
+        .resolveReadPreference();
 
     return repository.getExercisesForMuscle(
       muscleGroup,

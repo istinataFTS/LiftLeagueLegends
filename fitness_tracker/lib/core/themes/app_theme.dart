@@ -125,31 +125,16 @@ class AppTheme {
         fontSize: 14,
         fontWeight: FontWeight.w500,
       ),
-      bodyLarge: TextStyle(
-        color: textLight,
-        fontSize: 16,
-      ),
-      bodyMedium: TextStyle(
-        color: textMedium,
-        fontSize: 14,
-      ),
-      bodySmall: TextStyle(
-        color: textDim,
-        fontSize: 12,
-      ),
+      bodyLarge: TextStyle(color: textLight, fontSize: 16),
+      bodyMedium: TextStyle(color: textMedium, fontSize: 14),
+      bodySmall: TextStyle(color: textDim, fontSize: 12),
       labelLarge: TextStyle(
         color: textLight,
         fontSize: 14,
         fontWeight: FontWeight.w500,
       ),
-      labelMedium: TextStyle(
-        color: textMedium,
-        fontSize: 12,
-      ),
-      labelSmall: TextStyle(
-        color: textDim,
-        fontSize: 10,
-      ),
+      labelMedium: TextStyle(color: textMedium, fontSize: 12),
+      labelSmall: TextStyle(color: textDim, fontSize: 10),
     ),
 
     // Input Decoration Theme
@@ -183,13 +168,8 @@ class AppTheme {
         foregroundColor: textLight,
         elevation: 2,
         padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
-        shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(8),
-        ),
-        textStyle: const TextStyle(
-          fontSize: 16,
-          fontWeight: FontWeight.w600,
-        ),
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+        textStyle: const TextStyle(fontSize: 16, fontWeight: FontWeight.w600),
       ),
     ),
 
@@ -197,10 +177,7 @@ class AppTheme {
       style: TextButton.styleFrom(
         foregroundColor: primaryOrange,
         padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-        textStyle: const TextStyle(
-          fontSize: 14,
-          fontWeight: FontWeight.w500,
-        ),
+        textStyle: const TextStyle(fontSize: 14, fontWeight: FontWeight.w500),
       ),
     ),
 
@@ -209,21 +186,13 @@ class AppTheme {
         foregroundColor: primaryOrange,
         side: const BorderSide(color: primaryOrange),
         padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
-        shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(8),
-        ),
-        textStyle: const TextStyle(
-          fontSize: 16,
-          fontWeight: FontWeight.w600,
-        ),
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+        textStyle: const TextStyle(fontSize: 16, fontWeight: FontWeight.w600),
       ),
     ),
 
     // Icon Theme
-    iconTheme: const IconThemeData(
-      color: textLight,
-      size: 24,
-    ),
+    iconTheme: const IconThemeData(color: textLight, size: 24),
 
     // Divider Theme
     dividerTheme: const DividerThemeData(
@@ -297,18 +266,13 @@ class AppTheme {
     dialogTheme: DialogThemeData(
       backgroundColor: surfaceDark,
       elevation: 8,
-      shape: RoundedRectangleBorder(
-        borderRadius: BorderRadius.circular(12),
-      ),
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
       titleTextStyle: const TextStyle(
         color: textLight,
         fontSize: 20,
         fontWeight: FontWeight.bold,
       ),
-      contentTextStyle: const TextStyle(
-        color: textMedium,
-        fontSize: 16,
-      ),
+      contentTextStyle: const TextStyle(color: textMedium, fontSize: 16),
     ),
 
     // Snackbar Theme
@@ -335,18 +299,10 @@ class AppTheme {
 
   // ==================== CUSTOM SHADOWS ====================
   static const List<BoxShadow> cardShadow = [
-    BoxShadow(
-      color: Color(0x40000000),
-      blurRadius: 8,
-      offset: Offset(0, 2),
-    ),
+    BoxShadow(color: Color(0x40000000), blurRadius: 8, offset: Offset(0, 2)),
   ];
 
   static const List<BoxShadow> elevatedShadow = [
-    BoxShadow(
-      color: Color(0x60000000),
-      blurRadius: 12,
-      offset: Offset(0, 4),
-    ),
+    BoxShadow(color: Color(0x60000000), blurRadius: 12, offset: Offset(0, 4)),
   ];
 }

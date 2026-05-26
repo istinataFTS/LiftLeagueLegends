@@ -15,10 +15,7 @@ class SettingsOption<T> {
 }
 
 class SettingsOptionSheet<T> extends StatelessWidget {
-  const SettingsOptionSheet({
-    super.key,
-    required this.options,
-  });
+  const SettingsOptionSheet({super.key, required this.options});
 
   final List<SettingsOption<T>> options;
 
@@ -32,10 +29,7 @@ class SettingsOptionSheet<T> extends StatelessWidget {
               (SettingsOption<T> option) => ListTile(
                 title: Text(option.title),
                 trailing: option.selected
-                    ? const Icon(
-                        Icons.check,
-                        color: AppTheme.primaryOrange,
-                      )
+                    ? const Icon(Icons.check, color: AppTheme.primaryOrange)
                     : null,
                 onTap: () => Navigator.of(context).pop(option.value),
               ),

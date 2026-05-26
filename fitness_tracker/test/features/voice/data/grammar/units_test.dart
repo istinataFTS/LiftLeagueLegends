@@ -4,7 +4,15 @@ import 'package:flutter_test/flutter_test.dart';
 void main() {
   group('VoiceUnitGrammar.canonicalWeightUnit', () {
     test('recognises kg aliases', () {
-      for (final alias in ['kg', 'kgs', 'kilo', 'kilos', 'kilogram', 'kilograms', 'k']) {
+      for (final alias in [
+        'kg',
+        'kgs',
+        'kilo',
+        'kilos',
+        'kilogram',
+        'kilograms',
+        'k',
+      ]) {
         expect(
           VoiceUnitGrammar.canonicalWeightUnit(alias),
           VoiceUnitGrammar.kg,
@@ -41,8 +49,20 @@ void main() {
 
   group('VoiceUnitGrammar.isRepAlias', () {
     test('recognises rep tokens', () {
-      for (final alias in ['rep', 'reps', 'repetition', 'repetitions', 'time', 'times', 'x']) {
-        expect(VoiceUnitGrammar.isRepAlias(alias), isTrue, reason: '"$alias" should be rep alias');
+      for (final alias in [
+        'rep',
+        'reps',
+        'repetition',
+        'repetitions',
+        'time',
+        'times',
+        'x',
+      ]) {
+        expect(
+          VoiceUnitGrammar.isRepAlias(alias),
+          isTrue,
+          reason: '"$alias" should be rep alias',
+        );
       }
     });
 

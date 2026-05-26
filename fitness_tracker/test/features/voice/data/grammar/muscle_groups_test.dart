@@ -7,8 +7,14 @@ void main() {
     test('resolves chest aliases', () {
       expect(VoiceMuscleGroupGrammar.resolve('chest'), MuscleStimulus.midChest);
       expect(VoiceMuscleGroupGrammar.resolve('pecs'), MuscleStimulus.midChest);
-      expect(VoiceMuscleGroupGrammar.resolve('upper chest'), MuscleStimulus.upperChest);
-      expect(VoiceMuscleGroupGrammar.resolve('lower chest'), MuscleStimulus.lowerChest);
+      expect(
+        VoiceMuscleGroupGrammar.resolve('upper chest'),
+        MuscleStimulus.upperChest,
+      );
+      expect(
+        VoiceMuscleGroupGrammar.resolve('lower chest'),
+        MuscleStimulus.lowerChest,
+      );
     });
 
     test('resolves back aliases', () {
@@ -18,22 +24,43 @@ void main() {
     });
 
     test('resolves shoulder aliases', () {
-      expect(VoiceMuscleGroupGrammar.resolve('shoulders'), MuscleStimulus.sideDelts);
-      expect(VoiceMuscleGroupGrammar.resolve('delts'), MuscleStimulus.sideDelts);
-      expect(VoiceMuscleGroupGrammar.resolve('front delts'), MuscleStimulus.frontDelts);
-      expect(VoiceMuscleGroupGrammar.resolve('rear delts'), MuscleStimulus.rearDelts);
+      expect(
+        VoiceMuscleGroupGrammar.resolve('shoulders'),
+        MuscleStimulus.sideDelts,
+      );
+      expect(
+        VoiceMuscleGroupGrammar.resolve('delts'),
+        MuscleStimulus.sideDelts,
+      );
+      expect(
+        VoiceMuscleGroupGrammar.resolve('front delts'),
+        MuscleStimulus.frontDelts,
+      );
+      expect(
+        VoiceMuscleGroupGrammar.resolve('rear delts'),
+        MuscleStimulus.rearDelts,
+      );
     });
 
     test('resolves arm aliases', () {
       expect(VoiceMuscleGroupGrammar.resolve('biceps'), MuscleStimulus.biceps);
-      expect(VoiceMuscleGroupGrammar.resolve('triceps'), MuscleStimulus.triceps);
-      expect(VoiceMuscleGroupGrammar.resolve('forearms'), MuscleStimulus.forearms);
+      expect(
+        VoiceMuscleGroupGrammar.resolve('triceps'),
+        MuscleStimulus.triceps,
+      );
+      expect(
+        VoiceMuscleGroupGrammar.resolve('forearms'),
+        MuscleStimulus.forearms,
+      );
     });
 
     test('resolves leg aliases', () {
       expect(VoiceMuscleGroupGrammar.resolve('legs'), MuscleStimulus.quads);
       expect(VoiceMuscleGroupGrammar.resolve('quads'), MuscleStimulus.quads);
-      expect(VoiceMuscleGroupGrammar.resolve('hamstrings'), MuscleStimulus.hamstrings);
+      expect(
+        VoiceMuscleGroupGrammar.resolve('hamstrings'),
+        MuscleStimulus.hamstrings,
+      );
       expect(VoiceMuscleGroupGrammar.resolve('glutes'), MuscleStimulus.glutes);
       expect(VoiceMuscleGroupGrammar.resolve('calves'), MuscleStimulus.calves);
     });
@@ -41,14 +68,29 @@ void main() {
     test('resolves core aliases', () {
       expect(VoiceMuscleGroupGrammar.resolve('abs'), MuscleStimulus.abs);
       expect(VoiceMuscleGroupGrammar.resolve('core'), MuscleStimulus.abs);
-      expect(VoiceMuscleGroupGrammar.resolve('obliques'), MuscleStimulus.obliques);
-      expect(VoiceMuscleGroupGrammar.resolve('lower back'), MuscleStimulus.lowerBack);
+      expect(
+        VoiceMuscleGroupGrammar.resolve('obliques'),
+        MuscleStimulus.obliques,
+      );
+      expect(
+        VoiceMuscleGroupGrammar.resolve('lower back'),
+        MuscleStimulus.lowerBack,
+      );
     });
 
     test('resolves trap aliases', () {
-      expect(VoiceMuscleGroupGrammar.resolve('traps'), MuscleStimulus.upperTraps);
-      expect(VoiceMuscleGroupGrammar.resolve('middle traps'), MuscleStimulus.middleTraps);
-      expect(VoiceMuscleGroupGrammar.resolve('lower traps'), MuscleStimulus.lowerTraps);
+      expect(
+        VoiceMuscleGroupGrammar.resolve('traps'),
+        MuscleStimulus.upperTraps,
+      );
+      expect(
+        VoiceMuscleGroupGrammar.resolve('middle traps'),
+        MuscleStimulus.middleTraps,
+      );
+      expect(
+        VoiceMuscleGroupGrammar.resolve('lower traps'),
+        MuscleStimulus.lowerTraps,
+      );
     });
 
     test('returns null for unknown aliases', () {
@@ -63,17 +105,29 @@ void main() {
     });
 
     test('trims whitespace', () {
-      expect(VoiceMuscleGroupGrammar.resolve(' chest '), MuscleStimulus.midChest);
+      expect(
+        VoiceMuscleGroupGrammar.resolve(' chest '),
+        MuscleStimulus.midChest,
+      );
     });
 
     test('all resolved values are valid MuscleStimulus group strings', () {
-      const knownAliases = ['chest', 'back', 'shoulders', 'biceps', 'triceps', 'legs', 'abs'];
+      const knownAliases = [
+        'chest',
+        'back',
+        'shoulders',
+        'biceps',
+        'triceps',
+        'legs',
+        'abs',
+      ];
       for (final alias in knownAliases) {
         final resolved = VoiceMuscleGroupGrammar.resolve(alias);
         expect(
           MuscleStimulus.allMuscleGroups.contains(resolved),
           isTrue,
-          reason: '"$alias" → "$resolved" must be in MuscleStimulus.allMuscleGroups',
+          reason:
+              '"$alias" → "$resolved" must be in MuscleStimulus.allMuscleGroups',
         );
       }
     });

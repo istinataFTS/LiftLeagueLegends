@@ -275,9 +275,7 @@ class _ExercisesTabState extends State<ExercisesTab> {
         return SingleChildScrollView(
           padding: const EdgeInsets.all(40),
           child: ConstrainedBox(
-            constraints: BoxConstraints(
-              minHeight: constraints.maxHeight - 80,
-            ),
+            constraints: BoxConstraints(minHeight: constraints.maxHeight - 80),
             child: IntrinsicHeight(
               child: Column(
                 mainAxisAlignment: MainAxisAlignment.center,

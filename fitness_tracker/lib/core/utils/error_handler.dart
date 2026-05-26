@@ -14,23 +14,16 @@ class ErrorHandler {
     SnackBarAction? action,
   }) {
     if (!context.mounted) return;
-    
+
     ScaffoldMessenger.of(context).hideCurrentSnackBar();
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(
         content: Row(
           children: [
-            const Icon(
-              Icons.error_outline,
-              color: Colors.white,
-              size: 20,
-            ),
+            const Icon(Icons.error_outline, color: Colors.white, size: 20),
             const SizedBox(width: 12),
             Expanded(
-              child: Text(
-                message,
-                style: const TextStyle(color: Colors.white),
-              ),
+              child: Text(message, style: const TextStyle(color: Colors.white)),
             ),
           ],
         ),
@@ -50,23 +43,16 @@ class ErrorHandler {
     Duration duration = const Duration(seconds: 3),
   }) {
     if (!context.mounted) return;
-    
+
     ScaffoldMessenger.of(context).hideCurrentSnackBar();
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(
         content: Row(
           children: [
-            const Icon(
-              Icons.check_circle,
-              color: Colors.white,
-              size: 20,
-            ),
+            const Icon(Icons.check_circle, color: Colors.white, size: 20),
             const SizedBox(width: 12),
             Expanded(
-              child: Text(
-                message,
-                style: const TextStyle(color: Colors.white),
-              ),
+              child: Text(message, style: const TextStyle(color: Colors.white)),
             ),
           ],
         ),
@@ -85,23 +71,16 @@ class ErrorHandler {
     Duration duration = const Duration(seconds: 3),
   }) {
     if (!context.mounted) return;
-    
+
     ScaffoldMessenger.of(context).hideCurrentSnackBar();
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(
         content: Row(
           children: [
-            const Icon(
-              Icons.info_outline,
-              color: Colors.white,
-              size: 20,
-            ),
+            const Icon(Icons.info_outline, color: Colors.white, size: 20),
             const SizedBox(width: 12),
             Expanded(
-              child: Text(
-                message,
-                style: const TextStyle(color: Colors.white),
-              ),
+              child: Text(message, style: const TextStyle(color: Colors.white)),
             ),
           ],
         ),
@@ -120,7 +99,7 @@ class ErrorHandler {
     String? fallbackMessage,
   }) {
     String message = fallbackMessage ?? 'An unexpected error occurred';
-    
+
     if (exception is PlatformException) {
       message = exception.message ?? message;
     } else if (exception is FormatException) {
@@ -132,9 +111,9 @@ class ErrorHandler {
     } else if (exception.toString().contains('Network')) {
       message = 'Network error. Check your connection.';
     }
-    
+
     showError(context, message);
-    
+
     // Log error for debugging (in production, send to crash reporting)
     debugPrint('Error: $exception');
   }
@@ -162,22 +141,21 @@ class ErrorHandler {
           TextButton(
             onPressed: () => Navigator.of(context).pop(true),
             style: TextButton.styleFrom(
-              foregroundColor: isDestructive ? AppTheme.errorRed : AppTheme.primaryOrange,
+              foregroundColor: isDestructive
+                  ? AppTheme.errorRed
+                  : AppTheme.primaryOrange,
             ),
             child: Text(confirmText),
           ),
         ],
       ),
     );
-    
+
     return result ?? false;
   }
 
   /// Show loading dialog
-  static void showLoadingDialog(
-    BuildContext context, {
-    String? message,
-  }) {
+  static void showLoadingDialog(BuildContext context, {String? message}) {
     showDialog(
       context: context,
       barrierDismissible: false,
@@ -189,9 +167,7 @@ class ErrorHandler {
             padding: const EdgeInsets.all(24),
             child: Row(
               children: [
-                const CircularProgressIndicator(
-                  color: AppTheme.primaryOrange,
-                ),
+                const CircularProgressIndicator(color: AppTheme.primaryOrange),
                 const SizedBox(width: 24),
                 Expanded(
                   child: Text(

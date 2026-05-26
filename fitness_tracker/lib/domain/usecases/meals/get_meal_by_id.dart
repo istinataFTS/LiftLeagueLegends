@@ -9,14 +9,11 @@ class GetMealById {
   final MealRepository repository;
   final AuthenticatedDataSourcePreferenceResolver sourcePreferenceResolver;
 
-  const GetMealById(
-    this.repository, {
-    required this.sourcePreferenceResolver,
-  });
+  const GetMealById(this.repository, {required this.sourcePreferenceResolver});
 
   Future<Either<Failure, Meal?>> call(String id) async {
-    final sourcePreference =
-        await sourcePreferenceResolver.resolveReadPreference();
+    final sourcePreference = await sourcePreferenceResolver
+        .resolveReadPreference();
 
     return repository.getMealById(id, sourcePreference: sourcePreference);
   }

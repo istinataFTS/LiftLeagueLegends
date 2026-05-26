@@ -9,24 +9,18 @@ class AddNutritionLog {
   final NutritionLogRepository repository;
   final AppSessionRepository appSessionRepository;
 
-  const AddNutritionLog(
-    this.repository, {
-    required this.appSessionRepository,
-  });
+  const AddNutritionLog(this.repository, {required this.appSessionRepository});
 
   Future<Either<Failure, void>> call(NutritionLog log) async {
     final sessionResult = await appSessionRepository.getCurrentSession();
 
-    final preparedLog = sessionResult.fold(
-      (_) => log,
-      (session) {
-        if (!session.isAuthenticated || session.user == null) {
-          return log;
-        }
+    final preparedLog = sessionResult.fold((_) => log, (session) {
+      if (!session.isAuthenticated || session.user == null) {
+        return log;
+      }
 
-        return log.copyWith(ownerUserId: session.user!.id);
-      },
-    );
+      return log.copyWith(ownerUserId: session.user!.id);
+    });
 
     return repository.addLog(preparedLog);
   }

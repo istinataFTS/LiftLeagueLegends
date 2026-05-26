@@ -227,13 +227,10 @@ class ExerciseBloc extends Bloc<ExerciseEvent, ExerciseState> {
 
           // Reload after seeding so the UI shows the freshly inserted exercises.
           final reloadResult = await getAllExercises();
-          reloadResult.fold(
-            (failure) {
-              _logFailure('LoadExercisesEvent (post-seed reload)', failure);
-              emit(ExerciseError(failure.message));
-            },
-            (seeded) => emit(ExercisesLoaded(seeded)),
-          );
+          reloadResult.fold((failure) {
+            _logFailure('LoadExercisesEvent (post-seed reload)', failure);
+            emit(ExerciseError(failure.message));
+          }, (seeded) => emit(ExercisesLoaded(seeded)));
           return;
         }
 
@@ -273,13 +270,10 @@ class ExerciseBloc extends Bloc<ExerciseEvent, ExerciseState> {
   ) async {
     emit(ExerciseLoading());
     final result = await getExercisesForMuscle(event.muscleGroup);
-    result.fold(
-      (failure) {
-        _logFailure('LoadExercisesForMuscleEvent(${event.muscleGroup})', failure);
-        emit(ExerciseError(failure.message));
-      },
-      (exercises) => emit(ExercisesLoaded(exercises)),
-    );
+    result.fold((failure) {
+      _logFailure('LoadExercisesForMuscleEvent(${event.muscleGroup})', failure);
+      emit(ExerciseError(failure.message));
+    }, (exercises) => emit(ExercisesLoaded(exercises)));
   }
 
   /// Loads the saved [MuscleFactor] rows for an exercise and emits

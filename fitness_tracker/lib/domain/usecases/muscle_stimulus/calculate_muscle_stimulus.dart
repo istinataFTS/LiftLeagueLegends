@@ -9,9 +9,7 @@ import '../../repositories/muscle_factor_repository.dart';
 class CalculateMuscleStimulus {
   final MuscleFactorRepository muscleFactorRepository;
 
-  const CalculateMuscleStimulus({
-    required this.muscleFactorRepository,
-  });
+  const CalculateMuscleStimulus({required this.muscleFactorRepository});
 
   /// Returns a map of muscleGroup -> stimulus value.
   Future<Either<Failure, Map<String, double>>> calculateForSet({
@@ -30,45 +28,42 @@ class CalculateMuscleStimulus {
         );
       }
 
-      final factorsResult =
-          await muscleFactorRepository.getFactorsForExercise(exerciseId);
-
-      return factorsResult.fold(
-        (failure) => Left(failure),
-        (factors) {
-          if (factors.isEmpty) {
-            // A valid exercise should always have at least one muscle factor.
-            // An empty result here means the seed for this exercise is missing
-            // (e.g. a user-created exercise that skipped `SyncExerciseMuscleFactors`,
-            // or a wiped factor table).  We keep returning `Right({})` so callers
-            // that iterate many sets — like `RebuildMuscleStimulusFromWorkoutHistory`
-            // — are not forced to abort the whole rebuild.  Instead we surface
-            // the situation as a warning so devs can spot it in production logs
-            // and callers can show a non-fatal UI banner.
-            AppLogger.warning(
-              'No muscle factors for exerciseId=$exerciseId — '
-              'the body map will not update for this set.',
-              category: 'stimulus',
-            );
-            return const Right({});
-          }
-
-          final muscleStimuli = <String, double>{};
-
-          for (final factor in factors) {
-            final setStimulus =
-                StimulusCalculationRules.calculateSetStimulus(
-              sets: sets,
-              intensity: intensity,
-              exerciseFactor: factor.factor,
-            );
-
-            muscleStimuli[factor.muscleGroup] = setStimulus;
-          }
-
-          return Right(muscleStimuli);
-        },
+      final factorsResult = await muscleFactorRepository.getFactorsForExercise(
+        exerciseId,
       );
+
+      return factorsResult.fold((failure) => Left(failure), (factors) {
+        if (factors.isEmpty) {
+          // A valid exercise should always have at least one muscle factor.
+          // An empty result here means the seed for this exercise is missing
+          // (e.g. a user-created exercise that skipped `SyncExerciseMuscleFactors`,
+          // or a wiped factor table).  We keep returning `Right({})` so callers
+          // that iterate many sets — like `RebuildMuscleStimulusFromWorkoutHistory`
+          // — are not forced to abort the whole rebuild.  Instead we surface
+          // the situation as a warning so devs can spot it in production logs
+          // and callers can show a non-fatal UI banner.
+          AppLogger.warning(
+            'No muscle factors for exerciseId=$exerciseId — '
+            'the body map will not update for this set.',
+            category: 'stimulus',
+          );
+          return const Right({});
+        }
+
+        final muscleStimuli = <String, double>{};
+
+        for (final factor in factors) {
+          final setStimulus = StimulusCalculationRules.calculateSetStimulus(
+            sets: sets,
+            intensity: intensity,
+            exerciseFactor: factor.factor,
+          );
+
+          muscleStimuli[factor.muscleGroup] = setStimulus;
+        }
+
+        return Right(muscleStimuli);
+      });
     } catch (e) {
       return Left(UnexpectedFailure('Failed to calculate stimulus: $e'));
     }
@@ -87,15 +82,12 @@ class CalculateMuscleStimulus {
           intensity: setInput.intensity,
         );
 
-        setResult.fold(
-          (_) {},
-          (muscleStimuli) {
-            for (final entry in muscleStimuli.entries) {
-              totalStimuli[entry.key] =
-                  (totalStimuli[entry.key] ?? 0.0) + entry.value;
-            }
-          },
-        );
+        setResult.fold((_) {}, (muscleStimuli) {
+          for (final entry in muscleStimuli.entries) {
+            totalStimuli[entry.key] =
+                (totalStimuli[entry.key] ?? 0.0) + entry.value;
+          }
+        });
       }
 
       return Right(totalStimuli);
@@ -125,8 +117,5 @@ class WorkoutSetInput {
   final String exerciseId;
   final int intensity;
 
-  const WorkoutSetInput({
-    required this.exerciseId,
-    required this.intensity,
-  });
+  const WorkoutSetInput({required this.exerciseId, required this.intensity});
 }

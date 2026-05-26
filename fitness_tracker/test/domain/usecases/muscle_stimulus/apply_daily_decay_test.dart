@@ -42,9 +42,7 @@ void main() {
   late ApplyDailyDecay useCase;
 
   setUpAll(() {
-    registerFallbackValue(
-      _makeStimulus(id: 'fallback', rollingWeeklyLoad: 0),
-    );
+    registerFallbackValue(_makeStimulus(id: 'fallback', rollingWeeklyLoad: 0));
   });
 
   setUp(() {
@@ -106,38 +104,40 @@ void main() {
         );
       });
 
-      test('updates each record and returns count of successful updates',
-          () async {
-        final rec1 = _makeStimulus(id: 'rec-1', rollingWeeklyLoad: 10.0);
-        final rec2 = _makeStimulus(id: 'rec-2', rollingWeeklyLoad: 20.0);
+      test(
+        'updates each record and returns count of successful updates',
+        () async {
+          final rec1 = _makeStimulus(id: 'rec-1', rollingWeeklyLoad: 10.0);
+          final rec2 = _makeStimulus(id: 'rec-2', rollingWeeklyLoad: 20.0);
 
-        when(
-          () => mockRepo.getAllStimulusForDate(_testUserId, date),
-        ).thenAnswer((_) async => Right([rec1, rec2]));
-        // 10.0 × 0.6 = 6.0,  20.0 × 0.6 = 12.0
-        when(
-          () => mockRepo.updateStimulusValues(
-            id: 'rec-1',
-            dailyStimulus: rec1.dailyStimulus,
-            rollingWeeklyLoad: 6.0,
-            lastSetTimestamp: rec1.lastSetTimestamp,
-            lastSetStimulus: rec1.lastSetStimulus,
-          ),
-        ).thenAnswer((_) async => const Right(null));
-        when(
-          () => mockRepo.updateStimulusValues(
-            id: 'rec-2',
-            dailyStimulus: rec2.dailyStimulus,
-            rollingWeeklyLoad: 12.0,
-            lastSetTimestamp: rec2.lastSetTimestamp,
-            lastSetStimulus: rec2.lastSetStimulus,
-          ),
-        ).thenAnswer((_) async => const Right(null));
+          when(
+            () => mockRepo.getAllStimulusForDate(_testUserId, date),
+          ).thenAnswer((_) async => Right([rec1, rec2]));
+          // 10.0 × 0.6 = 6.0,  20.0 × 0.6 = 12.0
+          when(
+            () => mockRepo.updateStimulusValues(
+              id: 'rec-1',
+              dailyStimulus: rec1.dailyStimulus,
+              rollingWeeklyLoad: 6.0,
+              lastSetTimestamp: rec1.lastSetTimestamp,
+              lastSetStimulus: rec1.lastSetStimulus,
+            ),
+          ).thenAnswer((_) async => const Right(null));
+          when(
+            () => mockRepo.updateStimulusValues(
+              id: 'rec-2',
+              dailyStimulus: rec2.dailyStimulus,
+              rollingWeeklyLoad: 12.0,
+              lastSetTimestamp: rec2.lastSetTimestamp,
+              lastSetStimulus: rec2.lastSetStimulus,
+            ),
+          ).thenAnswer((_) async => const Right(null));
 
-        final result = await useCase.applyDecayForDate(_testUserId, date);
+          final result = await useCase.applyDecayForDate(_testUserId, date);
 
-        expect(result, const Right(2));
-      });
+          expect(result, const Right(2));
+        },
+      );
 
       test('counts only successful updates on partial failure', () async {
         final rec1 = _makeStimulus(id: 'rec-1', rollingWeeklyLoad: 10.0);
@@ -171,25 +171,24 @@ void main() {
         expect(result, const Right(1));
       });
 
-      test('propagates repository failure from getAllStimulusForDate',
-          () async {
-        when(
-          () => mockRepo.getAllStimulusForDate(_testUserId, date),
-        ).thenAnswer((_) async => const Left(_dbFailure));
+      test(
+        'propagates repository failure from getAllStimulusForDate',
+        () async {
+          when(
+            () => mockRepo.getAllStimulusForDate(_testUserId, date),
+          ).thenAnswer((_) async => const Left(_dbFailure));
 
-        final result = await useCase.applyDecayForDate(_testUserId, date);
+          final result = await useCase.applyDecayForDate(_testUserId, date);
 
-        expect(result, const Left(_dbFailure));
-      });
+          expect(result, const Left(_dbFailure));
+        },
+      );
     });
 
     group('shouldApplyDecayToday', () {
       test('returns false when records already exist for today', () async {
         when(
-          () => mockRepo.getAllStimulusForDate(
-            _testUserId,
-            any(),
-          ),
+          () => mockRepo.getAllStimulusForDate(_testUserId, any()),
         ).thenAnswer(
           (_) async =>
               Right([_makeStimulus(id: 'rec-1', rollingWeeklyLoad: 5.0)]),

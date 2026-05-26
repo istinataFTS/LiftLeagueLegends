@@ -7,9 +7,7 @@ class FollowCounts extends Equatable {
     required this.followingCount,
   });
 
-  const FollowCounts.zero()
-      : followerCount = 0,
-        followingCount = 0;
+  const FollowCounts.zero() : followerCount = 0, followingCount = 0;
 
   final int followerCount;
   final int followingCount;

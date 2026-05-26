@@ -41,286 +41,383 @@ void main() {
     );
 
     when(() => authRemoteDataSource.isConfigured).thenReturn(false);
-    when(() => localDataSource.writeString(any(), any()))
-        .thenAnswer((_) async {});
-    when(() => localDataSource.writeBool(any(), any()))
-        .thenAnswer((_) async {});
-    when(() => localDataSource.writeDateTime(any(), any()))
-        .thenAnswer((_) async {});
-    when(() => localDataSource.writeJsonObject(any(), any()))
-        .thenAnswer((_) async {});
+    when(
+      () => localDataSource.writeString(any(), any()),
+    ).thenAnswer((_) async {});
+    when(
+      () => localDataSource.writeBool(any(), any()),
+    ).thenAnswer((_) async {});
+    when(
+      () => localDataSource.writeDateTime(any(), any()),
+    ).thenAnswer((_) async {});
+    when(
+      () => localDataSource.writeJsonObject(any(), any()),
+    ).thenAnswer((_) async {});
     when(() => localDataSource.delete(any())).thenAnswer((_) async {});
   });
 
   group('AppSessionRepositoryImpl.getCurrentSession', () {
     test('returns guest session from empty local metadata', () async {
-      when(() => localDataSource.readString(any())).thenAnswer((_) async => null);
-      when(() => localDataSource.readJsonObject(any()))
-          .thenAnswer((_) async => null);
+      when(
+        () => localDataSource.readString(any()),
+      ).thenAnswer((_) async => null);
+      when(
+        () => localDataSource.readJsonObject(any()),
+      ).thenAnswer((_) async => null);
       when(() => localDataSource.readBool(any())).thenAnswer((_) async => null);
-      when(() => localDataSource.readDateTime(any()))
-          .thenAnswer((_) async => null);
+      when(
+        () => localDataSource.readDateTime(any()),
+      ).thenAnswer((_) async => null);
 
-      final Either<Failure, AppSession> result =
-          await repository.getCurrentSession();
-
-      expect(result, const Right<Failure, AppSession>(AppSession.guest()));
-    });
-
-    test('returns authenticated local session when remote auth is disabled',
-        () async {
-      when(() => localDataSource.readString('session.auth_mode'))
-          .thenAnswer((_) async => AuthMode.authenticated.name);
-      when(() => localDataSource.readJsonObject('session.user')).thenAnswer(
-        (_) async => <String, dynamic>{
-          'id': user.id,
-          'email': user.email,
-          'displayName': user.displayName,
-        },
-      );
-      when(() => localDataSource.readBool('session.requires_initial_cloud_migration'))
-          .thenAnswer((_) async => true);
-      when(() => localDataSource.readDateTime('session.last_cloud_sync_at'))
-          .thenAnswer((_) async => baseDate);
-
-      final Either<Failure, AppSession> result =
-          await repository.getCurrentSession();
-
-      expect(
-        result,
-        Right<Failure, AppSession>(
-          AppSession(
-            authMode: AuthMode.authenticated,
-            user: user,
-            requiresInitialCloudMigration: true,
-            lastCloudSyncAt: baseDate,
-          ),
-        ),
-      );
-    });
-
-    test('prefers remote authenticated user when remote auth is configured',
-        () async {
-      when(() => authRemoteDataSource.isConfigured).thenReturn(true);
-      when(() => authRemoteDataSource.getCurrentUser())
-          .thenAnswer((_) async => user);
-      when(() => localDataSource.readString('session.auth_mode'))
-          .thenAnswer((_) async => AuthMode.guest.name);
-      when(() => localDataSource.readJsonObject('session.user'))
-          .thenAnswer((_) async => null);
-      when(() => localDataSource.readBool('session.requires_initial_cloud_migration'))
-          .thenAnswer((_) async => true);
-      when(() => localDataSource.readDateTime('session.last_cloud_sync_at'))
-          .thenAnswer((_) async => baseDate);
-
-      final Either<Failure, AppSession> result =
-          await repository.getCurrentSession();
-
-      expect(
-        result,
-        Right<Failure, AppSession>(
-          AppSession(
-            authMode: AuthMode.authenticated,
-            user: user,
-            requiresInitialCloudMigration: true,
-            lastCloudSyncAt: baseDate,
-          ),
-        ),
-      );
-    });
-
-    test('returns guest when local session says authenticated but remote is signed out',
-        () async {
-      when(() => authRemoteDataSource.isConfigured).thenReturn(true);
-      when(() => authRemoteDataSource.getCurrentUser())
-          .thenAnswer((_) async => null);
-      when(() => localDataSource.readString('session.auth_mode'))
-          .thenAnswer((_) async => AuthMode.authenticated.name);
-      when(() => localDataSource.readJsonObject('session.user')).thenAnswer(
-        (_) async => <String, dynamic>{
-          'id': user.id,
-          'email': user.email,
-        },
-      );
-      when(() => localDataSource.readBool(any())).thenAnswer((_) async => false);
-      when(() => localDataSource.readDateTime(any()))
-          .thenAnswer((_) async => null);
-
-      final Either<Failure, AppSession> result =
-          await repository.getCurrentSession();
+      final Either<Failure, AppSession> result = await repository
+          .getCurrentSession();
 
       expect(result, const Right<Failure, AppSession>(AppSession.guest()));
     });
+
+    test(
+      'returns authenticated local session when remote auth is disabled',
+      () async {
+        when(
+          () => localDataSource.readString('session.auth_mode'),
+        ).thenAnswer((_) async => AuthMode.authenticated.name);
+        when(() => localDataSource.readJsonObject('session.user')).thenAnswer(
+          (_) async => <String, dynamic>{
+            'id': user.id,
+            'email': user.email,
+            'displayName': user.displayName,
+          },
+        );
+        when(
+          () => localDataSource.readBool(
+            'session.requires_initial_cloud_migration',
+          ),
+        ).thenAnswer((_) async => true);
+        when(
+          () => localDataSource.readDateTime('session.last_cloud_sync_at'),
+        ).thenAnswer((_) async => baseDate);
+
+        final Either<Failure, AppSession> result = await repository
+            .getCurrentSession();
+
+        expect(
+          result,
+          Right<Failure, AppSession>(
+            AppSession(
+              authMode: AuthMode.authenticated,
+              user: user,
+              requiresInitialCloudMigration: true,
+              lastCloudSyncAt: baseDate,
+            ),
+          ),
+        );
+      },
+    );
+
+    test(
+      'prefers remote authenticated user when remote auth is configured',
+      () async {
+        when(() => authRemoteDataSource.isConfigured).thenReturn(true);
+        when(
+          () => authRemoteDataSource.getCurrentUser(),
+        ).thenAnswer((_) async => user);
+        when(
+          () => localDataSource.readString('session.auth_mode'),
+        ).thenAnswer((_) async => AuthMode.guest.name);
+        when(
+          () => localDataSource.readJsonObject('session.user'),
+        ).thenAnswer((_) async => null);
+        when(
+          () => localDataSource.readBool(
+            'session.requires_initial_cloud_migration',
+          ),
+        ).thenAnswer((_) async => true);
+        when(
+          () => localDataSource.readDateTime('session.last_cloud_sync_at'),
+        ).thenAnswer((_) async => baseDate);
+
+        final Either<Failure, AppSession> result = await repository
+            .getCurrentSession();
+
+        expect(
+          result,
+          Right<Failure, AppSession>(
+            AppSession(
+              authMode: AuthMode.authenticated,
+              user: user,
+              requiresInitialCloudMigration: true,
+              lastCloudSyncAt: baseDate,
+            ),
+          ),
+        );
+      },
+    );
+
+    test(
+      'returns guest when local session says authenticated but remote is signed out',
+      () async {
+        when(() => authRemoteDataSource.isConfigured).thenReturn(true);
+        when(
+          () => authRemoteDataSource.getCurrentUser(),
+        ).thenAnswer((_) async => null);
+        when(
+          () => localDataSource.readString('session.auth_mode'),
+        ).thenAnswer((_) async => AuthMode.authenticated.name);
+        when(() => localDataSource.readJsonObject('session.user')).thenAnswer(
+          (_) async => <String, dynamic>{'id': user.id, 'email': user.email},
+        );
+        when(
+          () => localDataSource.readBool(any()),
+        ).thenAnswer((_) async => false);
+        when(
+          () => localDataSource.readDateTime(any()),
+        ).thenAnswer((_) async => null);
+
+        final Either<Failure, AppSession> result = await repository
+            .getCurrentSession();
+
+        expect(result, const Right<Failure, AppSession>(AppSession.guest()));
+      },
+    );
   });
 
   group('AppSessionRepositoryImpl session transitions', () {
-    test('startGuestSession clears authenticated metadata and migration markers',
-        () async {
-      final Either<Failure, void> result = await repository.startGuestSession();
+    test(
+      'startGuestSession clears authenticated metadata and migration markers',
+      () async {
+        final Either<Failure, void> result = await repository
+            .startGuestSession();
 
-      expect(result.isRight(), isTrue);
-      verify(() => localDataSource.writeString(
+        expect(result.isRight(), isTrue);
+        verify(
+          () => localDataSource.writeString(
             'session.auth_mode',
             AuthMode.guest.name,
-          )).called(1);
-      verify(() => localDataSource.delete('session.user')).called(1);
-      verify(() => localDataSource.writeBool(
+          ),
+        ).called(1);
+        verify(() => localDataSource.delete('session.user')).called(1);
+        verify(
+          () => localDataSource.writeBool(
             'session.requires_initial_cloud_migration',
             false,
-          )).called(1);
-      verify(() => localDataSource.delete('session.last_cloud_sync_at'))
-          .called(1);
-      verify(() => localDataSource.delete(
+          ),
+        ).called(1);
+        verify(
+          () => localDataSource.delete('session.last_cloud_sync_at'),
+        ).called(1);
+        verify(
+          () => localDataSource.delete(
             AppMetadataKeys.currentAuthenticatedUserId,
-          )).called(1);
-      verify(() => localDataSource.delete(
+          ),
+        ).called(1);
+        verify(
+          () => localDataSource.delete(
             AppMetadataKeys.initialCloudMigrationCompleted,
-          )).called(1);
-      verify(() => localDataSource.delete(
+          ),
+        ).called(1);
+        verify(
+          () => localDataSource.delete(
             AppMetadataKeys.initialCloudMigrationCompletedAt,
-          )).called(1);
-      verify(() => localDataSource.delete(
+          ),
+        ).called(1);
+        verify(
+          () => localDataSource.delete(
             AppMetadataKeys.initialCloudMigrationState,
-          )).called(1);
-    });
+          ),
+        ).called(1);
+      },
+    );
 
-    test('startAuthenticatedSession persists user and migration-required state',
-        () async {
-      final Either<Failure, void> result =
-          await repository.startAuthenticatedSession(
-        user,
-        requiresInitialCloudMigration: true,
-      );
+    test(
+      'startAuthenticatedSession persists user and migration-required state',
+      () async {
+        final Either<Failure, void> result = await repository
+            .startAuthenticatedSession(
+              user,
+              requiresInitialCloudMigration: true,
+            );
 
-      expect(result.isRight(), isTrue);
-      verify(() => localDataSource.writeString(
+        expect(result.isRight(), isTrue);
+        verify(
+          () => localDataSource.writeString(
             'session.auth_mode',
             AuthMode.authenticated.name,
-          )).called(1);
-      verify(() => localDataSource.writeJsonObject(
-            'session.user',
-            <String, dynamic>{
-              'id': user.id,
-              'email': user.email,
-              'displayName': user.displayName,
-            },
-          )).called(1);
-      verify(() => localDataSource.writeBool(
+          ),
+        ).called(1);
+        verify(
+          () =>
+              localDataSource.writeJsonObject('session.user', <String, dynamic>{
+                'id': user.id,
+                'email': user.email,
+                'displayName': user.displayName,
+              }),
+        ).called(1);
+        verify(
+          () => localDataSource.writeBool(
             'session.requires_initial_cloud_migration',
             true,
-          )).called(1);
-      verify(() => localDataSource.writeString(
+          ),
+        ).called(1);
+        verify(
+          () => localDataSource.writeString(
             AppMetadataKeys.currentAuthenticatedUserId,
             user.id,
-          )).called(1);
-      verify(() => localDataSource.delete(
+          ),
+        ).called(1);
+        verify(
+          () => localDataSource.delete(
             AppMetadataKeys.initialCloudMigrationCompleted,
-          )).called(1);
-      verify(() => localDataSource.delete(
+          ),
+        ).called(1);
+        verify(
+          () => localDataSource.delete(
             AppMetadataKeys.initialCloudMigrationCompletedAt,
-          )).called(1);
-    });
+          ),
+        ).called(1);
+      },
+    );
 
-    test('startAuthenticatedSession clears migration state when migration is not required',
-        () async {
-      final Either<Failure, void> result =
-          await repository.startAuthenticatedSession(
-        user,
-        requiresInitialCloudMigration: false,
-      );
+    test(
+      'startAuthenticatedSession clears migration state when migration is not required',
+      () async {
+        final Either<Failure, void> result = await repository
+            .startAuthenticatedSession(
+              user,
+              requiresInitialCloudMigration: false,
+            );
 
-      expect(result.isRight(), isTrue);
-      verify(() => localDataSource.delete(
+        expect(result.isRight(), isTrue);
+        verify(
+          () => localDataSource.delete(
             AppMetadataKeys.initialCloudMigrationState,
-          )).called(1);
-    });
+          ),
+        ).called(1);
+      },
+    );
 
-    test('completeInitialCloudMigration updates completion markers and clears state',
-        () async {
-      final Either<Failure, void> result =
-          await repository.completeInitialCloudMigration();
+    test(
+      'completeInitialCloudMigration updates completion markers and clears state',
+      () async {
+        final Either<Failure, void> result = await repository
+            .completeInitialCloudMigration();
 
-      expect(result.isRight(), isTrue);
-      verify(() => localDataSource.writeBool(
+        expect(result.isRight(), isTrue);
+        verify(
+          () => localDataSource.writeBool(
             'session.requires_initial_cloud_migration',
             false,
-          )).called(1);
-      verify(() => localDataSource.writeBool(
+          ),
+        ).called(1);
+        verify(
+          () => localDataSource.writeBool(
             AppMetadataKeys.initialCloudMigrationCompleted,
             true,
-          )).called(1);
-      verify(() => localDataSource.writeDateTime(
+          ),
+        ).called(1);
+        verify(
+          () => localDataSource.writeDateTime(
             AppMetadataKeys.initialCloudMigrationCompletedAt,
             any(),
-          )).called(1);
-      verify(() => localDataSource.delete(
+          ),
+        ).called(1);
+        verify(
+          () => localDataSource.delete(
             AppMetadataKeys.initialCloudMigrationState,
-          )).called(1);
-    });
+          ),
+        ).called(1);
+      },
+    );
 
-    test('clearSession removes only local session state and does not call remote signOut',
-        () async {
-      final Either<Failure, void> result = await repository.clearSession();
+    test(
+      'clearSession removes only local session state and does not call remote signOut',
+      () async {
+        final Either<Failure, void> result = await repository.clearSession();
 
-      expect(result.isRight(), isTrue);
-      verifyNever(() => authRemoteDataSource.signOut());
-      verify(() => localDataSource.delete('session.auth_mode')).called(1);
-      verify(() => localDataSource.delete('session.user')).called(1);
-      verify(() => localDataSource.delete('session.requires_initial_cloud_migration'))
-          .called(1);
-      verify(() => localDataSource.delete('session.last_cloud_sync_at'))
-          .called(1);
-      verify(() => localDataSource.delete(
+        expect(result.isRight(), isTrue);
+        verifyNever(() => authRemoteDataSource.signOut());
+        verify(() => localDataSource.delete('session.auth_mode')).called(1);
+        verify(() => localDataSource.delete('session.user')).called(1);
+        verify(
+          () => localDataSource.delete(
+            'session.requires_initial_cloud_migration',
+          ),
+        ).called(1);
+        verify(
+          () => localDataSource.delete('session.last_cloud_sync_at'),
+        ).called(1);
+        verify(
+          () => localDataSource.delete(
             AppMetadataKeys.currentAuthenticatedUserId,
-          )).called(1);
-      verify(() => localDataSource.delete(
+          ),
+        ).called(1);
+        verify(
+          () => localDataSource.delete(
             AppMetadataKeys.initialCloudMigrationCompleted,
-          )).called(1);
-      verify(() => localDataSource.delete(
+          ),
+        ).called(1);
+        verify(
+          () => localDataSource.delete(
             AppMetadataKeys.initialCloudMigrationCompletedAt,
-          )).called(1);
-      verify(() => localDataSource.delete(
+          ),
+        ).called(1);
+        verify(
+          () => localDataSource.delete(
             AppMetadataKeys.initialCloudMigrationState,
-          )).called(1);
-    });
+          ),
+        ).called(1);
+      },
+    );
   });
 
   group('AppSessionRepositoryImpl migration state', () {
-    test('save and read initial cloud migration state round-trip through metadata',
-        () async {
-      final InitialCloudMigrationState state = InitialCloudMigrationState(
-        userId: user.id,
-        mealsCompleted: true,
-        nutritionLogsCompleted: false,
-        startedAt: baseDate,
-        updatedAt: baseDate,
-      );
+    test(
+      'save and read initial cloud migration state round-trip through metadata',
+      () async {
+        final InitialCloudMigrationState state = InitialCloudMigrationState(
+          userId: user.id,
+          mealsCompleted: true,
+          nutritionLogsCompleted: false,
+          startedAt: baseDate,
+          updatedAt: baseDate,
+        );
 
-      when(() => localDataSource.readJsonObject(
+        when(
+          () => localDataSource.readJsonObject(
             AppMetadataKeys.initialCloudMigrationState,
-          )).thenAnswer((_) async => state.toJson());
+          ),
+        ).thenAnswer((_) async => state.toJson());
 
-      final saveResult = await repository.saveInitialCloudMigrationState(state);
-      final readResult = await repository.getInitialCloudMigrationState();
+        final saveResult = await repository.saveInitialCloudMigrationState(
+          state,
+        );
+        final readResult = await repository.getInitialCloudMigrationState();
 
-      expect(saveResult.isRight(), isTrue);
-      verify(() => localDataSource.writeJsonObject(
+        expect(saveResult.isRight(), isTrue);
+        verify(
+          () => localDataSource.writeJsonObject(
             AppMetadataKeys.initialCloudMigrationState,
             state.toJson(),
-          )).called(1);
+          ),
+        ).called(1);
 
-      expect(readResult, Right<Failure, InitialCloudMigrationState?>(state));
-    });
+        expect(readResult, Right<Failure, InitialCloudMigrationState?>(state));
+      },
+    );
 
-    test('recordSuccessfulCloudSync stores last cloud sync timestamp', () async {
-      final Either<Failure, void> result =
-          await repository.recordSuccessfulCloudSync(baseDate);
+    test(
+      'recordSuccessfulCloudSync stores last cloud sync timestamp',
+      () async {
+        final Either<Failure, void> result = await repository
+            .recordSuccessfulCloudSync(baseDate);
 
-      expect(result.isRight(), isTrue);
-      verify(() => localDataSource.writeDateTime(
+        expect(result.isRight(), isTrue);
+        verify(
+          () => localDataSource.writeDateTime(
             'session.last_cloud_sync_at',
             baseDate,
-          )).called(1);
-    });
+          ),
+        ).called(1);
+      },
+    );
   });
 }

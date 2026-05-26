@@ -40,8 +40,9 @@ class NutritionLogModel extends NutritionLog {
   }
 
   factory NutritionLogModel.fromMap(Map<String, dynamic> map) {
-    final createdAt =
-        DateTime.parse(map[DatabaseTables.nutritionLogCreatedAt] as String);
+    final createdAt = DateTime.parse(
+      map[DatabaseTables.nutritionLogCreatedAt] as String,
+    );
     final updatedAtRaw = map[DatabaseTables.nutritionLogUpdatedAt] as String?;
 
     return NutritionLogModel(
@@ -49,17 +50,17 @@ class NutritionLogModel extends NutritionLog {
       ownerUserId: map['owner_user_id'] as String?,
       mealId: map[DatabaseTables.nutritionLogMealId] as String?,
       mealName: map[DatabaseTables.nutritionLogMealName] as String,
-      gramsConsumed:
-          (map[DatabaseTables.nutritionLogGrams] as num?)?.toDouble(),
-      proteinGrams:
-          (map[DatabaseTables.nutritionLogProtein] as num).toDouble(),
+      gramsConsumed: (map[DatabaseTables.nutritionLogGrams] as num?)
+          ?.toDouble(),
+      proteinGrams: (map[DatabaseTables.nutritionLogProtein] as num).toDouble(),
       carbsGrams: (map[DatabaseTables.nutritionLogCarbs] as num).toDouble(),
       fatGrams: (map[DatabaseTables.nutritionLogFat] as num).toDouble(),
       calories: (map[DatabaseTables.nutritionLogCalories] as num).toDouble(),
       loggedAt: DateTime.parse(map[DatabaseTables.nutritionLogDate] as String),
       createdAt: createdAt,
-      updatedAt:
-          updatedAtRaw == null ? createdAt : DateTime.parse(updatedAtRaw),
+      updatedAt: updatedAtRaw == null
+          ? createdAt
+          : DateTime.parse(updatedAtRaw),
       syncMetadata: EntitySyncMetadata(
         serverId: map[DatabaseTables.nutritionLogServerId] as String?,
         status: _syncStatusFromStorage(
@@ -68,8 +69,7 @@ class NutritionLogModel extends NutritionLog {
         lastSyncedAt: _parseNullableDateTime(
           map[DatabaseTables.nutritionLogLastSyncedAt] as String?,
         ),
-        lastSyncError:
-            map[DatabaseTables.nutritionLogLastSyncError] as String?,
+        lastSyncError: map[DatabaseTables.nutritionLogLastSyncError] as String?,
       ),
     );
   }
@@ -90,8 +90,8 @@ class NutritionLogModel extends NutritionLog {
       DatabaseTables.nutritionLogUpdatedAt: updatedAt.toIso8601String(),
       DatabaseTables.nutritionLogServerId: syncMetadata.serverId,
       DatabaseTables.nutritionLogSyncStatus: syncMetadata.status.name,
-      DatabaseTables.nutritionLogLastSyncedAt:
-          syncMetadata.lastSyncedAt?.toIso8601String(),
+      DatabaseTables.nutritionLogLastSyncedAt: syncMetadata.lastSyncedAt
+          ?.toIso8601String(),
       DatabaseTables.nutritionLogLastSyncError: syncMetadata.lastSyncError,
     };
   }
@@ -124,9 +124,7 @@ class NutritionLogModel extends NutritionLog {
 
   void validate() {
     if (isMealLog && !isValidMealLog) {
-      throw ArgumentError(
-        'Invalid meal log: Must have mealId and grams > 0',
-      );
+      throw ArgumentError('Invalid meal log: Must have mealId and grams > 0');
     }
     if (isDirectMacroLog && !isValidDirectMacroLog) {
       throw ArgumentError(

@@ -38,9 +38,9 @@ class SyncFeatureRunResult {
   });
 
   const SyncFeatureRunResult.success(String featureName)
-      : featureName = featureName,
-        isSuccess = true,
-        errorMessage = null;
+    : featureName = featureName,
+      isSuccess = true,
+      errorMessage = null;
 
   const SyncFeatureRunResult.failure({
     required this.featureName,

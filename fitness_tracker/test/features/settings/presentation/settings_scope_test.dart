@@ -26,11 +26,7 @@ void main() {
   Widget buildSubject() {
     return BlocProvider<AppSettingsCubit>.value(
       value: cubit,
-      child: const MaterialApp(
-        home: SettingsScope(
-          child: _SettingsProbe(),
-        ),
-      ),
+      child: const MaterialApp(home: SettingsScope(child: _SettingsProbe())),
     );
   }
 
@@ -48,18 +44,16 @@ void main() {
     when(() => cubit.state).thenReturn(initialState);
     whenListen<AppSettingsState>(
       cubit,
-      Stream<AppSettingsState>.fromIterable(
-        <AppSettingsState>[
-          initialState,
-          buildState(
-            const AppSettings(
-              notificationsEnabled: true,
-              weekStartDay: WeekStartDay.sunday,
-              weightUnit: WeightUnit.pounds,
-            ),
+      Stream<AppSettingsState>.fromIterable(<AppSettingsState>[
+        initialState,
+        buildState(
+          const AppSettings(
+            notificationsEnabled: true,
+            weekStartDay: WeekStartDay.sunday,
+            weightUnit: WeightUnit.pounds,
           ),
-        ],
-      ),
+        ),
+      ]),
       initialState: initialState,
     );
   });

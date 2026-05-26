@@ -117,7 +117,9 @@ void main() {
       final sub = subject.listen(localeId: 'en-US').listen(results.add);
       await Future<void>.delayed(Duration.zero);
 
-      remote.emit(const VoiceSttResult(transcript: 'log bench press', isFinal: true));
+      remote.emit(
+        const VoiceSttResult(transcript: 'log bench press', isFinal: true),
+      );
       await remote.complete();
       await sub.asFuture<void>();
 
@@ -134,7 +136,9 @@ void main() {
       final sub = subject.listen().listen(results.add);
       await Future<void>.delayed(Duration.zero);
 
-      onDevice.emit(const VoiceSttResult(transcript: 'log squat', isFinal: true));
+      onDevice.emit(
+        const VoiceSttResult(transcript: 'log squat', isFinal: true),
+      );
       await onDevice.complete();
       await sub.asFuture<void>();
 

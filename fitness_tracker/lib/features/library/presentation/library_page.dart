@@ -30,10 +30,7 @@ class LibraryPage extends StatelessWidget {
                 icon: Icon(Icons.fitness_center),
                 text: AppStrings.exercisesTab,
               ),
-              Tab(
-                icon: Icon(Icons.restaurant),
-                text: AppStrings.mealsTab,
-              ),
+              Tab(icon: Icon(Icons.restaurant), text: AppStrings.mealsTab),
             ],
           ),
           actions: <Widget>[
@@ -44,12 +41,7 @@ class LibraryPage extends StatelessWidget {
             ),
           ],
         ),
-        body: const TabBarView(
-          children: <Widget>[
-            ExercisesTab(),
-            MealsTab(),
-          ],
-        ),
+        body: const TabBarView(children: <Widget>[ExercisesTab(), MealsTab()]),
       ),
     );
   }

@@ -23,26 +23,26 @@ class FakeClock extends Clock {
 }
 
 WorkoutSet _set(String id) => WorkoutSet(
-      id: id,
-      exerciseId: 'ex-1',
-      reps: 10,
-      weight: 80,
-      intensity: 7,
-      date: DateTime(2026, 5, 15),
-      createdAt: DateTime(2026, 5, 15),
-      syncMetadata: const EntitySyncMetadata(),
-    );
+  id: id,
+  exerciseId: 'ex-1',
+  reps: 10,
+  weight: 80,
+  intensity: 7,
+  date: DateTime(2026, 5, 15),
+  createdAt: DateTime(2026, 5, 15),
+  syncMetadata: const EntitySyncMetadata(),
+);
 
 NutritionLog _log(String id) => NutritionLog(
-      id: id,
-      mealName: 'Oats',
-      proteinGrams: 10,
-      carbsGrams: 30,
-      fatGrams: 5,
-      calories: 200,
-      loggedAt: DateTime(2026, 5, 15, 8),
-      createdAt: DateTime(2026, 5, 15, 8),
-    );
+  id: id,
+  mealName: 'Oats',
+  proteinGrams: 10,
+  carbsGrams: 30,
+  fatGrams: 5,
+  calories: 200,
+  loggedAt: DateTime(2026, 5, 15, 8),
+  createdAt: DateTime(2026, 5, 15, 8),
+);
 
 void main() {
   late MockGetSetsByDateRange mockSets;
@@ -66,52 +66,62 @@ void main() {
     test('returns first set (datasource orders newest-first)', () async {
       final s1 = _set('s-1');
       final s2 = _set('s-2');
-      when(() => mockSets(
-            startDate: any(named: 'startDate'),
-            endDate: any(named: 'endDate'),
-            muscleGroup: any(named: 'muscleGroup'),
-          )).thenAnswer((_) async => Right([s1, s2]));
+      when(
+        () => mockSets(
+          startDate: any(named: 'startDate'),
+          endDate: any(named: 'endDate'),
+          muscleGroup: any(named: 'muscleGroup'),
+        ),
+      ).thenAnswer((_) async => Right([s1, s2]));
 
       final result = await lookup.mostRecentSet();
       expect(result, s1);
     });
 
     test('returns null when no sets in window', () async {
-      when(() => mockSets(
-            startDate: any(named: 'startDate'),
-            endDate: any(named: 'endDate'),
-            muscleGroup: any(named: 'muscleGroup'),
-          )).thenAnswer((_) async => const Right([]));
+      when(
+        () => mockSets(
+          startDate: any(named: 'startDate'),
+          endDate: any(named: 'endDate'),
+          muscleGroup: any(named: 'muscleGroup'),
+        ),
+      ).thenAnswer((_) async => const Right([]));
 
       final result = await lookup.mostRecentSet();
       expect(result, isNull);
     });
 
     test('returns null on use case failure', () async {
-      when(() => mockSets(
-            startDate: any(named: 'startDate'),
-            endDate: any(named: 'endDate'),
-            muscleGroup: any(named: 'muscleGroup'),
-          )).thenAnswer((_) async => Left(ServerFailure('error')));
+      when(
+        () => mockSets(
+          startDate: any(named: 'startDate'),
+          endDate: any(named: 'endDate'),
+          muscleGroup: any(named: 'muscleGroup'),
+        ),
+      ).thenAnswer((_) async => Left(ServerFailure('error')));
 
       final result = await lookup.mostRecentSet();
       expect(result, isNull);
     });
 
     test('queries startDate = now - within, endDate = now', () async {
-      when(() => mockSets(
-            startDate: any(named: 'startDate'),
-            endDate: any(named: 'endDate'),
-            muscleGroup: any(named: 'muscleGroup'),
-          )).thenAnswer((_) async => const Right([]));
+      when(
+        () => mockSets(
+          startDate: any(named: 'startDate'),
+          endDate: any(named: 'endDate'),
+          muscleGroup: any(named: 'muscleGroup'),
+        ),
+      ).thenAnswer((_) async => const Right([]));
 
       await lookup.mostRecentSet(within: const Duration(hours: 12));
 
-      final captured = verify(() => mockSets(
-            startDate: captureAny(named: 'startDate'),
-            endDate: captureAny(named: 'endDate'),
-            muscleGroup: any(named: 'muscleGroup'),
-          )).captured;
+      final captured = verify(
+        () => mockSets(
+          startDate: captureAny(named: 'startDate'),
+          endDate: captureAny(named: 'endDate'),
+          muscleGroup: any(named: 'muscleGroup'),
+        ),
+      ).captured;
 
       expect(captured[0], fixedNow.subtract(const Duration(hours: 12)));
       expect(captured[1], fixedNow);
@@ -136,8 +146,9 @@ void main() {
     });
 
     test('returns null on use case failure', () async {
-      when(() => mockLogs(any()))
-          .thenAnswer((_) async => Left(ServerFailure('error')));
+      when(
+        () => mockLogs(any()),
+      ).thenAnswer((_) async => Left(ServerFailure('error')));
 
       final result = await lookup.mostRecentLog();
       expect(result, isNull);

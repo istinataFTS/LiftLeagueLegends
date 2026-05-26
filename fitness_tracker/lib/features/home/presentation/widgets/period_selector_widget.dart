@@ -38,10 +38,7 @@ class PeriodSelectorWidget extends StatelessWidget {
       decoration: BoxDecoration(
         color: AppTheme.surfaceDark,
         borderRadius: BorderRadius.circular(12),
-        border: Border.all(
-          color: AppTheme.borderDark,
-          width: 1,
-        ),
+        border: Border.all(color: AppTheme.borderDark, width: 1),
       ),
       child: DropdownButtonHideUnderline(
         child: DropdownButton<TimePeriod>(
@@ -60,9 +57,9 @@ class PeriodSelectorWidget extends StatelessWidget {
           ),
           dropdownColor: AppTheme.surfaceDark,
           style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                fontWeight: FontWeight.w600,
-                color: enabled ? AppTheme.textLight : AppTheme.textDim,
-              ),
+            fontWeight: FontWeight.w600,
+            color: enabled ? AppTheme.textLight : AppTheme.textDim,
+          ),
           // Today and Week are intentionally omitted from the user-facing
           // selector. The Fatigue toggle already exposes the live "right
           // now" rolling-weekly view, so neither a Week nor a Today volume
@@ -99,11 +96,7 @@ class PeriodSelectorWidget extends StatelessWidget {
       value: value,
       child: Row(
         children: <Widget>[
-          Icon(
-            icon,
-            size: 20,
-            color: AppTheme.primaryOrange,
-          ),
+          Icon(icon, size: 20, color: AppTheme.primaryOrange),
           const SizedBox(width: 12),
           Text(label),
         ],

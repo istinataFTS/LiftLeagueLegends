@@ -9,8 +9,7 @@ import 'package:fitness_tracker/features/home/application/usecases/load_home_das
 import 'package:flutter_test/flutter_test.dart';
 import 'package:mocktail/mocktail.dart';
 
-class MockLoadHomeDashboardData extends Mock
-    implements LoadHomeDashboardData {}
+class MockLoadHomeDashboardData extends Mock implements LoadHomeDashboardData {}
 
 void main() {
   late MockLoadHomeDashboardData mockLoadHomeDashboardData;
@@ -62,9 +61,7 @@ void main() {
   setUp(() {
     mockLoadHomeDashboardData = MockLoadHomeDashboardData();
 
-    bloc = HomeBloc(
-      loadHomeDashboardData: mockLoadHomeDashboardData,
-    );
+    bloc = HomeBloc(loadHomeDashboardData: mockLoadHomeDashboardData);
   });
 
   tearDown(() async {
@@ -78,9 +75,9 @@ void main() {
   blocTest<HomeBloc, HomeState>(
     'emits [HomeLoading, HomeLoaded] when load succeeds',
     build: () {
-      when(() => mockLoadHomeDashboardData()).thenAnswer(
-        (_) async => Right(buildDashboardData()),
-      );
+      when(
+        () => mockLoadHomeDashboardData(),
+      ).thenAnswer((_) async => Right(buildDashboardData()));
       return bloc;
     },
     act: (HomeBloc bloc) => bloc.add(const LoadHomeDataEvent()),
@@ -97,9 +94,9 @@ void main() {
   blocTest<HomeBloc, HomeState>(
     'emits HomeError when dashboard loading fails',
     build: () {
-      when(() => mockLoadHomeDashboardData()).thenAnswer(
-        (_) async => const Left(CacheFailure('dashboard failed')),
-      );
+      when(
+        () => mockLoadHomeDashboardData(),
+      ).thenAnswer((_) async => const Left(CacheFailure('dashboard failed')));
       return bloc;
     },
     act: (HomeBloc bloc) => bloc.add(const LoadHomeDataEvent()),
@@ -116,15 +113,13 @@ void main() {
   blocTest<HomeBloc, HomeState>(
     'refresh preserves current HomeLoaded state when dashboard refresh fails',
     build: () {
-      when(() => mockLoadHomeDashboardData()).thenAnswer(
-        (_) async => const Left(CacheFailure('refresh failed')),
-      );
+      when(
+        () => mockLoadHomeDashboardData(),
+      ).thenAnswer((_) async => const Left(CacheFailure('refresh failed')));
       return bloc;
     },
     seed: () => HomeLoaded(
-      data: buildDashboardData(
-        todaysLogs: <NutritionLog>[newerLog],
-      ),
+      data: buildDashboardData(todaysLogs: <NutritionLog>[newerLog]),
     ),
     act: (HomeBloc bloc) => bloc.add(const RefreshHomeDataEvent()),
     // Bloc deduplication: emit(state) is a no-op when state hasn't changed,
@@ -136,9 +131,7 @@ void main() {
       expect(
         bloc.state,
         HomeLoaded(
-          data: buildDashboardData(
-            todaysLogs: <NutritionLog>[newerLog],
-          ),
+          data: buildDashboardData(todaysLogs: <NutritionLog>[newerLog]),
         ),
       );
     },
@@ -149,17 +142,13 @@ void main() {
     build: () {
       when(() => mockLoadHomeDashboardData()).thenAnswer(
         (_) async => Right(
-          buildDashboardData(
-            todaysLogs: <NutritionLog>[olderLog, newerLog],
-          ),
+          buildDashboardData(todaysLogs: <NutritionLog>[olderLog, newerLog]),
         ),
       );
       return bloc;
     },
     seed: () => HomeLoaded(
-      data: buildDashboardData(
-        todaysLogs: <NutritionLog>[newerLog],
-      ),
+      data: buildDashboardData(todaysLogs: <NutritionLog>[newerLog]),
     ),
     act: (HomeBloc bloc) => bloc.add(const RefreshHomeDataEvent()),
     expect: () => <HomeState>[

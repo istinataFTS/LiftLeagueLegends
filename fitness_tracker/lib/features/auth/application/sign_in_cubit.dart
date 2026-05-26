@@ -31,31 +31,24 @@ class SignInState extends Equatable {
     return SignInState(
       isSubmitting: isSubmitting ?? this.isSubmitting,
       isSuccess: isSuccess ?? this.isSuccess,
-      errorMessage:
-          clearErrorMessage ? null : (errorMessage ?? this.errorMessage),
+      errorMessage: clearErrorMessage
+          ? null
+          : (errorMessage ?? this.errorMessage),
     );
   }
 
   @override
-  List<Object?> get props => <Object?>[
-        isSubmitting,
-        isSuccess,
-        errorMessage,
-      ];
+  List<Object?> get props => <Object?>[isSubmitting, isSuccess, errorMessage];
 }
 
 class SignInCubit extends Cubit<SignInState> {
   final AuthSessionService _authSessionService;
 
-  SignInCubit({
-    required AuthSessionService authSessionService,
-  })  : _authSessionService = authSessionService,
-        super(SignInState.initial());
+  SignInCubit({required AuthSessionService authSessionService})
+    : _authSessionService = authSessionService,
+      super(SignInState.initial());
 
-  Future<void> submit({
-    required String email,
-    required String password,
-  }) async {
+  Future<void> submit({required String email, required String password}) async {
     if (state.isSubmitting) {
       return;
     }
@@ -111,10 +104,6 @@ class SignInCubit extends Cubit<SignInState> {
       return;
     }
 
-    emit(
-      state.copyWith(
-        clearErrorMessage: true,
-      ),
-    );
+    emit(state.copyWith(clearErrorMessage: true));
   }
 }

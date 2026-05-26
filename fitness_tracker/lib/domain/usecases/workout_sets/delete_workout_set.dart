@@ -9,7 +9,7 @@ class DeleteWorkoutSet {
   final WorkoutSetRepository repository;
   final AppSessionRepository appSessionRepository;
   final RebuildMuscleStimulusFromWorkoutHistory
-      rebuildMuscleStimulusFromWorkoutHistory;
+  rebuildMuscleStimulusFromWorkoutHistory;
 
   const DeleteWorkoutSet(
     this.repository, {

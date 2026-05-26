@@ -1,10 +1,7 @@
 import '../../domain/entities/app_user.dart';
 import '../session/session_sync_service.dart';
 
-enum AuthSessionActionStatus {
-  completed,
-  failed,
-}
+enum AuthSessionActionStatus { completed, failed }
 
 class AuthSessionActionResult {
   final AuthSessionActionStatus status;

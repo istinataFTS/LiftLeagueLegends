@@ -38,11 +38,11 @@ void main() {
 
       final LibraryExercisePageViewData viewData =
           LibraryExerciseViewDataMapper.map(
-        allExercises: <Exercise>[benchPress, pullUp],
-        filteredExercises: <Exercise>[benchPress],
-        searchQuery: 'bench',
-        selectedMuscle: 'chest',
-      );
+            allExercises: <Exercise>[benchPress, pullUp],
+            filteredExercises: <Exercise>[benchPress],
+            searchQuery: 'bench',
+            selectedMuscle: 'chest',
+          );
 
       expect(viewData.resultCountLabel, '1 of 2 exercises');
       expect(viewData.hasExercises, isTrue);
@@ -63,11 +63,11 @@ void main() {
     test('maps empty state without active filters', () {
       final LibraryExercisePageViewData viewData =
           LibraryExerciseViewDataMapper.map(
-        allExercises: const <Exercise>[],
-        filteredExercises: const <Exercise>[],
-        searchQuery: '   ',
-        selectedMuscle: null,
-      );
+            allExercises: const <Exercise>[],
+            filteredExercises: const <Exercise>[],
+            searchQuery: '   ',
+            selectedMuscle: null,
+          );
 
       expect(viewData.items, isEmpty);
       expect(viewData.resultCountLabel, '0 of 0 exercises');

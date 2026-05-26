@@ -26,8 +26,8 @@ class WorkoutSet extends Equatable {
     required this.createdAt,
     DateTime? updatedAt,
     EntitySyncMetadata? syncMetadata,
-  })  : updatedAt = updatedAt ?? createdAt,
-        syncMetadata = syncMetadata ?? const EntitySyncMetadata();
+  }) : updatedAt = updatedAt ?? createdAt,
+       syncMetadata = syncMetadata ?? const EntitySyncMetadata();
 
   bool get isOwnedByAuthenticatedUser => ownerUserId != null;
 
@@ -65,15 +65,15 @@ class WorkoutSet extends Equatable {
 
   @override
   List<Object?> get props => [
-        id,
-        ownerUserId,
-        exerciseId,
-        reps,
-        weight,
-        intensity,
-        date,
-        createdAt,
-        updatedAt,
-        syncMetadata,
-      ];
+    id,
+    ownerUserId,
+    exerciseId,
+    reps,
+    weight,
+    intensity,
+    date,
+    createdAt,
+    updatedAt,
+    syncMetadata,
+  ];
 }

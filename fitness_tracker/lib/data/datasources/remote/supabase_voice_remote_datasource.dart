@@ -66,14 +66,16 @@ class SupabaseVoiceRemoteDataSource implements VoiceRemoteDataSource {
 
     final http.Response response;
     try {
-      response = await http.post(
-        uri,
-        headers: <String, String>{
-          'Authorization': 'Bearer $token',
-          'Content-Type': 'application/json',
-        },
-        body: jsonEncode(body),
-      ).timeout(VoiceConstants.voiceChatHttpTimeout);
+      response = await http
+          .post(
+            uri,
+            headers: <String, String>{
+              'Authorization': 'Bearer $token',
+              'Content-Type': 'application/json',
+            },
+            body: jsonEncode(body),
+          )
+          .timeout(VoiceConstants.voiceChatHttpTimeout);
     } on TimeoutException {
       throw const ServerFailure(
         'TIMEOUT: Voice service did not respond in time',
@@ -105,11 +107,7 @@ class SupabaseVoiceRemoteDataSource implements VoiceRemoteDataSource {
     final request = http.MultipartRequest('POST', uri)
       ..headers['Authorization'] = 'Bearer $token'
       ..files.add(
-        http.MultipartFile.fromBytes(
-          'file',
-          audioBytes,
-          filename: filename,
-        ),
+        http.MultipartFile.fromBytes('file', audioBytes, filename: filename),
       );
     if (sessionId != null && sessionId.isNotEmpty) {
       request.fields['session_id'] = sessionId;
@@ -121,8 +119,8 @@ class SupabaseVoiceRemoteDataSource implements VoiceRemoteDataSource {
     final http.StreamedResponse streamed;
     try {
       streamed = await request.send().timeout(
-            VoiceConstants.voiceTranscribeHttpTimeout,
-          );
+        VoiceConstants.voiceTranscribeHttpTimeout,
+      );
     } on TimeoutException {
       throw const ServerFailure(
         'TIMEOUT: Voice transcription did not respond in time',
@@ -197,24 +195,30 @@ class SupabaseVoiceRemoteDataSource implements VoiceRemoteDataSource {
     return <String, dynamic>{
       'currentDate': currentDate,
       'weightUnit': _weightUnitCode(weightUnit),
-      'recentSets': recentSets
-              ?.map((s) => <String, dynamic>{
-                    'setId': s.setId,
-                    'exerciseName': s.exerciseName,
-                    'weight': s.weight,
-                    'reps': s.reps,
-                    'intensity': s.intensity,
-                    'date': _formatDate(s.date),
-                  })
+      'recentSets':
+          recentSets
+              ?.map(
+                (s) => <String, dynamic>{
+                  'setId': s.setId,
+                  'exerciseName': s.exerciseName,
+                  'weight': s.weight,
+                  'reps': s.reps,
+                  'intensity': s.intensity,
+                  'date': _formatDate(s.date),
+                },
+              )
               .toList() ??
           <dynamic>[],
-      'recentNutritionLogs': recentNutritionLogs
-              ?.map((l) => <String, dynamic>{
-                    'logId': l.logId,
-                    'mealName': l.mealName,
-                    'calories': l.calories,
-                    'date': _formatDate(l.date),
-                  })
+      'recentNutritionLogs':
+          recentNutritionLogs
+              ?.map(
+                (l) => <String, dynamic>{
+                  'logId': l.logId,
+                  'mealName': l.mealName,
+                  'calories': l.calories,
+                  'date': _formatDate(l.date),
+                },
+              )
               .toList() ??
           <dynamic>[],
     };
@@ -228,10 +232,12 @@ class SupabaseVoiceRemoteDataSource implements VoiceRemoteDataSource {
     final kind = json['kind'] as String?;
 
     if (kind == 'tool_call') {
-      final tc = json['tool_call'] as Map<String, dynamic>? ?? <String, dynamic>{};
+      final tc =
+          json['tool_call'] as Map<String, dynamic>? ?? <String, dynamic>{};
       final toolName = tc['name'] as String? ?? '';
       final toolCallId = tc['id'] as String? ?? '';
-      final args = (tc['arguments'] as Map<String, dynamic>?) ?? <String, dynamic>{};
+      final args =
+          (tc['arguments'] as Map<String, dynamic>?) ?? <String, dynamic>{};
 
       // clarify → plain text spoken question
       if (toolName == 'clarify') {
@@ -246,7 +252,11 @@ class SupabaseVoiceRemoteDataSource implements VoiceRemoteDataSource {
       }
 
       // Query tools → client executes locally, no confirmation card
-      const queryTools = <String>{'getWeeklyVolume', 'getDailyMacros', 'getRecentSets'};
+      const queryTools = <String>{
+        'getWeeklyVolume',
+        'getDailyMacros',
+        'getRecentSets',
+      };
       if (queryTools.contains(toolName)) {
         return VoiceChatQueryCall(
           toolCallId: toolCallId,
@@ -297,7 +307,8 @@ class SupabaseVoiceRemoteDataSource implements VoiceRemoteDataSource {
         final parts = <String>[];
         if (args['reps'] != null) parts.add('reps: ${args['reps']}');
         if (args['weight'] != null) parts.add('weight: ${args['weight']}');
-        if (args['intensity'] != null) parts.add('intensity: ${args['intensity']}');
+        if (args['intensity'] != null)
+          parts.add('intensity: ${args['intensity']}');
         final changes = parts.isEmpty ? 'no changes' : parts.join(', ');
         return 'Edit: $exercise ($changes)';
 
@@ -332,10 +343,12 @@ class SupabaseVoiceRemoteDataSource implements VoiceRemoteDataSource {
 
   List<Map<String, String>> _serializeHistory(List<VoiceMessage> history) {
     return history
-        .map((m) => <String, String>{
-              'role': m.role == VoiceRole.user ? 'user' : 'assistant',
-              'content': m.content,
-            })
+        .map(
+          (m) => <String, String>{
+            'role': m.role == VoiceRole.user ? 'user' : 'assistant',
+            'content': m.content,
+          },
+        )
         .toList();
   }
 
@@ -361,14 +374,33 @@ class SupabaseVoiceRemoteDataSource implements VoiceRemoteDataSource {
     }
   }
 
+  /// Builds a [ServerFailure] from a non-2xx Edge Function response.
+  ///
+  /// The shape of an error body from `_shared/errors.ts` is
+  /// `{ "code": "<ErrorCode>", "message": "<human-readable>" }`. We encode
+  /// the code, the HTTP status, and the message into the failure's message
+  /// using the pipe-delimited form `"CODE|status|message"` so that the
+  /// Whisper STT classifier can map it to a typed [VoiceSttErrorKind]
+  /// without re-implementing the HTTP layer. The legacy `error` field is
+  /// kept as a fallback for older function builds that haven't been
+  /// redeployed yet.
   Never _throwFromErrorBody(String body, int statusCode) {
     String message = 'Voice service error ($statusCode)';
+    String? code;
     try {
       final json = jsonDecode(body) as Map<String, dynamic>;
-      message = json['error'] as String? ?? message;
+      final extractedMessage = json['message'] ?? json['error'];
+      if (extractedMessage is String && extractedMessage.isNotEmpty) {
+        message = extractedMessage;
+      }
+      final extractedCode = json['code'];
+      if (extractedCode is String && extractedCode.isNotEmpty) {
+        code = extractedCode;
+      }
     } catch (_) {
       // Body is not JSON — keep the default message.
     }
-    throw ServerFailure(message);
+    final encoded = '${code ?? 'HTTP_$statusCode'}|$statusCode|$message';
+    throw ServerFailure(encoded);
   }
 }

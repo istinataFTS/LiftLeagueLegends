@@ -4,23 +4,16 @@ import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 
 void main() {
-  Widget buildSubject({
-    int initialIndex = 0,
-    DateTime? initialDate,
-  }) {
+  Widget buildSubject({int initialIndex = 0, DateTime? initialDate}) {
     return AppShell(
       home: LogPage(
         initialIndex: initialIndex,
         initialDate: initialDate,
-        exerciseTabBuilder: (_) => const Center(
-          child: Text('exercise-tab-content'),
-        ),
-        mealTabBuilder: (_) => const Center(
-          child: Text('meal-tab-content'),
-        ),
-        macrosTabBuilder: (_) => const Center(
-          child: Text('macros-tab-content'),
-        ),
+        exerciseTabBuilder: (_) =>
+            const Center(child: Text('exercise-tab-content')),
+        mealTabBuilder: (_) => const Center(child: Text('meal-tab-content')),
+        macrosTabBuilder: (_) =>
+            const Center(child: Text('macros-tab-content')),
       ),
     );
   }

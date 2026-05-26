@@ -492,7 +492,7 @@ The key ships via `--dart-define=PICOVOICE_ACCESS_KEY=<key>` at build time (stor
 - **Severity:** High
 - **Status:** Resolved-but-monitor
 - **First observed:** 2026-05-25
-- **Last verified:** 2026-05-25
+- **Last verified:** 2026-05-26
 - **Area:** voice
 
 **Symptom**
@@ -510,6 +510,7 @@ The Picovoice Porcupine access key is a per-app-registration credential — a si
 3. `AppBootstrapper._seedPicovoiceKeyFromEnvIfNeeded` writes the dart-define value into secure storage on every launch, overwriting stale values.
 4. `VoiceCredentialService.onPicovoiceKeyChanged` emits immediately after the write; `VoiceFab._listenToCredentialChanges` calls `_startWakeWordIfArmed()` so the engine starts within the same post-frame cycle as the seed — no restart required.
 5. `VoiceOverlayPage.openedByWakeWord: true` auto-dispatches `VoiceListenRequested` on first frame when opened by a wake-word event, closing the first-fire gap where STT was not started automatically.
+6. **Loud surfacing (2026-05-26):** the bootstrapper now detects the unfilled `<paste-...>` placeholder and logs an `error`-level message that names the env var, points at `dart_defines.example.json`, and cites this anchor. Any stale placeholder previously written to secure storage is wiped on startup so `VoiceCredentialService.isWakeWordConfigured()` returns the truth. The Voice Settings page renders a warning banner above the wake-word picker when the key isn't configured — a developer can no longer waste a debug cycle on this without a clear signal in both the terminal and the UI.
 
 **References**
 
@@ -518,9 +519,10 @@ The Picovoice Porcupine access key is a per-app-registration credential — a si
 - `lib/config/env_config.dart` — `EnvConfig.picovoiceAccessKey` dart-define binding
 - `lib/app/bootstrap/app_bootstrapper.dart` — `_seedPicovoiceKeyFromEnvIfNeeded`
 - `lib/domain/services/voice_credential_service.dart` — `onPicovoiceKeyChanged` + `dispose()`
-- `lib/features/voice/data/services/secure_storage_voice_credential_service.dart` — sync broadcast stream
+- `lib/features/voice/data/services/secure_storage_voice_credential_service.dart` — sync broadcast stream, `isWakeWordConfigured()` placeholder-aware check
 - `lib/features/voice/presentation/widgets/voice_fab.dart` — `_listenToCredentialChanges`, `_openOverlay(openedByWakeWord:)`
 - `lib/features/voice/presentation/voice_overlay_page.dart` — `openedByWakeWord` flag
+- `lib/features/voice/presentation/voice_settings_page.dart` — `_WakeWordMisconfiguredBanner` warning surface
 - `lib/injection/modules/register_voice_module.dart` — `dispose:` hook on `VoiceCredentialService`
 
 ---

@@ -10,10 +10,7 @@ import '../voice_overlay_keys.dart';
 /// the duration of the session. The user can dismiss or toggle via the
 /// [onToggle] callback.
 class VoiceWorkoutModeBanner extends StatelessWidget {
-  const VoiceWorkoutModeBanner({
-    required this.onToggle,
-    super.key,
-  });
+  const VoiceWorkoutModeBanner({required this.onToggle, super.key});
 
   final VoidCallback onToggle;
 
@@ -26,11 +23,8 @@ class VoiceWorkoutModeBanner extends StatelessWidget {
         onTap: onToggle,
         child: Container(
           width: double.infinity,
-          padding:
-              const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-          decoration: const BoxDecoration(
-            color: AppTheme.primaryOrange,
-          ),
+          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+          decoration: const BoxDecoration(color: AppTheme.primaryOrange),
           child: const Row(
             mainAxisAlignment: MainAxisAlignment.center,
             children: <Widget>[
@@ -50,11 +44,7 @@ class VoiceWorkoutModeBanner extends StatelessWidget {
                 ),
               ),
               SizedBox(width: 8),
-              Icon(
-                Icons.close_rounded,
-                size: 14,
-                color: AppTheme.textLight,
-              ),
+              Icon(Icons.close_rounded, size: 14, color: AppTheme.textLight),
             ],
           ),
         ),

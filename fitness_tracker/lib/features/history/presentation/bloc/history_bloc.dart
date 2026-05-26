@@ -65,10 +65,7 @@ class HistoryBloc extends Bloc<HistoryEvent, HistoryState>
     }
   }
 
-  void _onSelectDate(
-    SelectDateEvent event,
-    Emitter<HistoryState> emit,
-  ) {
+  void _onSelectDate(SelectDateEvent event, Emitter<HistoryState> emit) {
     _selectedDate = _normalizeDate(event.date);
     emit(_buildLoadedState());
   }
@@ -152,19 +149,18 @@ class HistoryBloc extends Bloc<HistoryEvent, HistoryState>
   }) async {
     final dynamic result = await action();
 
-    await result.fold(
-      (failure) async => emit(HistoryError(failure.message)),
-      (_) async {
-        final HistoryLoaded? reloaded = await _reloadCurrentMonth();
-        if (reloaded == null) {
-          emit(const HistoryError(HistoryStrings.reloadFailed));
-          return;
-        }
+    await result.fold((failure) async => emit(HistoryError(failure.message)), (
+      _,
+    ) async {
+      final HistoryLoaded? reloaded = await _reloadCurrentMonth();
+      if (reloaded == null) {
+        emit(const HistoryError(HistoryStrings.reloadFailed));
+        return;
+      }
 
-        emit(reloaded);
-        emitEffect(HistorySuccessEffect(successMessage));
-      },
-    );
+      emit(reloaded);
+      emitEffect(HistorySuccessEffect(successMessage));
+    });
   }
 
   Future<HistoryLoaded?> _reloadCurrentMonth() async {
@@ -185,45 +181,39 @@ class HistoryBloc extends Bloc<HistoryEvent, HistoryState>
       endDate: lastDay,
     );
 
-    final Map<DateTime, List<WorkoutSet>>? groupedSets =
-        setsResult.fold<Map<DateTime, List<WorkoutSet>>?>(
-      (_) => null,
-      (sets) {
-        final Map<DateTime, List<WorkoutSet>> grouped =
-            <DateTime, List<WorkoutSet>>{};
-        for (final WorkoutSet set in sets) {
-          final DateTime dateKey = _normalizeDate(set.date);
-          grouped.putIfAbsent(dateKey, () => <WorkoutSet>[]);
-          grouped[dateKey]!.add(set);
-        }
-        for (final List<WorkoutSet> items in grouped.values) {
-          items.sort((a, b) => b.createdAt.compareTo(a.createdAt));
-        }
-        return grouped;
-      },
-    );
+    final Map<DateTime, List<WorkoutSet>>? groupedSets = setsResult
+        .fold<Map<DateTime, List<WorkoutSet>>?>((_) => null, (sets) {
+          final Map<DateTime, List<WorkoutSet>> grouped =
+              <DateTime, List<WorkoutSet>>{};
+          for (final WorkoutSet set in sets) {
+            final DateTime dateKey = _normalizeDate(set.date);
+            grouped.putIfAbsent(dateKey, () => <WorkoutSet>[]);
+            grouped[dateKey]!.add(set);
+          }
+          for (final List<WorkoutSet> items in grouped.values) {
+            items.sort((a, b) => b.createdAt.compareTo(a.createdAt));
+          }
+          return grouped;
+        });
 
     if (groupedSets == null) {
       return null;
     }
 
-    final Map<DateTime, List<NutritionLog>>? groupedNutrition =
-        nutritionResult.fold<Map<DateTime, List<NutritionLog>>?>(
-      (_) => null,
-      (logs) {
-        final Map<DateTime, List<NutritionLog>> grouped =
-            <DateTime, List<NutritionLog>>{};
-        for (final NutritionLog log in logs) {
-          final DateTime dateKey = _normalizeDate(log.loggedAt);
-          grouped.putIfAbsent(dateKey, () => <NutritionLog>[]);
-          grouped[dateKey]!.add(log);
-        }
-        for (final List<NutritionLog> items in grouped.values) {
-          items.sort((a, b) => b.createdAt.compareTo(a.createdAt));
-        }
-        return grouped;
-      },
-    );
+    final Map<DateTime, List<NutritionLog>>? groupedNutrition = nutritionResult
+        .fold<Map<DateTime, List<NutritionLog>>?>((_) => null, (logs) {
+          final Map<DateTime, List<NutritionLog>> grouped =
+              <DateTime, List<NutritionLog>>{};
+          for (final NutritionLog log in logs) {
+            final DateTime dateKey = _normalizeDate(log.loggedAt);
+            grouped.putIfAbsent(dateKey, () => <NutritionLog>[]);
+            grouped[dateKey]!.add(log);
+          }
+          for (final List<NutritionLog> items in grouped.values) {
+            items.sort((a, b) => b.createdAt.compareTo(a.createdAt));
+          }
+          return grouped;
+        });
 
     if (groupedNutrition == null) {
       return null;
@@ -237,8 +227,8 @@ class HistoryBloc extends Bloc<HistoryEvent, HistoryState>
       final DateTime normalizedSelectedDate = _normalizeDate(_selectedDate!);
       final bool hasActivity =
           (_monthSets[normalizedSelectedDate] ?? <WorkoutSet>[]).isNotEmpty ||
-              (_monthNutritionLogs[normalizedSelectedDate] ?? <NutritionLog>[])
-                  .isNotEmpty;
+          (_monthNutritionLogs[normalizedSelectedDate] ?? <NutritionLog>[])
+              .isNotEmpty;
 
       if (!hasActivity) {
         _selectedDate = null;

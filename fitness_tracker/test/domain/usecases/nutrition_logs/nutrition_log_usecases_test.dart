@@ -79,12 +79,12 @@ void main() {
     });
 
     test('does not set ownerUserId when session fails', () async {
-      when(() => mockSessionRepo.getCurrentSession()).thenAnswer(
-        (_) async => const Left(CacheFailure('no session')),
-      );
-      when(() => mockLogRepo.addLog(_logFixture)).thenAnswer(
-        (_) async => const Right(null),
-      );
+      when(
+        () => mockSessionRepo.getCurrentSession(),
+      ).thenAnswer((_) async => const Left(CacheFailure('no session')));
+      when(
+        () => mockLogRepo.addLog(_logFixture),
+      ).thenAnswer((_) async => const Right(null));
 
       final result = await useCase(_logFixture);
 
@@ -95,12 +95,12 @@ void main() {
     test('sets ownerUserId when session is authenticated', () async {
       final logWithOwner = _logFixture.copyWith(ownerUserId: 'user-1');
 
-      when(() => mockSessionRepo.getCurrentSession()).thenAnswer(
-        (_) async => const Right(_authenticatedSession),
-      );
-      when(() => mockLogRepo.addLog(logWithOwner)).thenAnswer(
-        (_) async => const Right(null),
-      );
+      when(
+        () => mockSessionRepo.getCurrentSession(),
+      ).thenAnswer((_) async => const Right(_authenticatedSession));
+      when(
+        () => mockLogRepo.addLog(logWithOwner),
+      ).thenAnswer((_) async => const Right(null));
 
       final result = await useCase(_logFixture);
 
@@ -108,27 +108,30 @@ void main() {
       verify(() => mockLogRepo.addLog(logWithOwner)).called(1);
     });
 
-    test('does not set ownerUserId for unauthenticated guest session', () async {
-      when(() => mockSessionRepo.getCurrentSession()).thenAnswer(
-        (_) async => const Right(AppSession.guest()),
-      );
-      when(() => mockLogRepo.addLog(_logFixture)).thenAnswer(
-        (_) async => const Right(null),
-      );
+    test(
+      'does not set ownerUserId for unauthenticated guest session',
+      () async {
+        when(
+          () => mockSessionRepo.getCurrentSession(),
+        ).thenAnswer((_) async => const Right(AppSession.guest()));
+        when(
+          () => mockLogRepo.addLog(_logFixture),
+        ).thenAnswer((_) async => const Right(null));
 
-      final result = await useCase(_logFixture);
+        final result = await useCase(_logFixture);
 
-      expect(result.isRight(), isTrue);
-      verify(() => mockLogRepo.addLog(_logFixture)).called(1);
-    });
+        expect(result.isRight(), isTrue);
+        verify(() => mockLogRepo.addLog(_logFixture)).called(1);
+      },
+    );
 
     test('propagates repository failure', () async {
-      when(() => mockSessionRepo.getCurrentSession()).thenAnswer(
-        (_) async => const Left(CacheFailure('no session')),
-      );
-      when(() => mockLogRepo.addLog(_logFixture)).thenAnswer(
-        (_) async => const Left(_dbFailure),
-      );
+      when(
+        () => mockSessionRepo.getCurrentSession(),
+      ).thenAnswer((_) async => const Left(CacheFailure('no session')));
+      when(
+        () => mockLogRepo.addLog(_logFixture),
+      ).thenAnswer((_) async => const Left(_dbFailure));
 
       final result = await useCase(_logFixture);
 
@@ -146,9 +149,9 @@ void main() {
     setUp(() => useCase = DeleteNutritionLog(mockLogRepo));
 
     test('delegates to repository on success', () async {
-      when(() => mockLogRepo.deleteLog('log-1')).thenAnswer(
-        (_) async => const Right(null),
-      );
+      when(
+        () => mockLogRepo.deleteLog('log-1'),
+      ).thenAnswer((_) async => const Right(null));
 
       final result = await useCase('log-1');
 
@@ -156,9 +159,9 @@ void main() {
     });
 
     test('propagates repository failure', () async {
-      when(() => mockLogRepo.deleteLog('log-1')).thenAnswer(
-        (_) async => const Left(_dbFailure),
-      );
+      when(
+        () => mockLogRepo.deleteLog('log-1'),
+      ).thenAnswer((_) async => const Left(_dbFailure));
 
       final result = await useCase('log-1');
 
@@ -178,9 +181,9 @@ void main() {
         mockLogRepo,
         sourcePreferenceResolver: mockResolver,
       );
-      when(() => mockResolver.resolveReadPreference()).thenAnswer(
-        (_) async => DataSourcePreference.localOnly,
-      );
+      when(
+        () => mockResolver.resolveReadPreference(),
+      ).thenAnswer((_) async => DataSourcePreference.localOnly);
     });
 
     test('returns all-zero totals for empty log list', () async {
@@ -276,9 +279,9 @@ void main() {
         mockLogRepo,
         sourcePreferenceResolver: mockResolver,
       );
-      when(() => mockResolver.resolveReadPreference()).thenAnswer(
-        (_) async => DataSourcePreference.localOnly,
-      );
+      when(
+        () => mockResolver.resolveReadPreference(),
+      ).thenAnswer((_) async => DataSourcePreference.localOnly);
     });
 
     test('returns logs for the given date', () async {
@@ -324,9 +327,9 @@ void main() {
         mockLogRepo,
         sourcePreferenceResolver: mockResolver,
       );
-      when(() => mockResolver.resolveReadPreference()).thenAnswer(
-        (_) async => DataSourcePreference.localOnly,
-      );
+      when(
+        () => mockResolver.resolveReadPreference(),
+      ).thenAnswer((_) async => DataSourcePreference.localOnly);
     });
 
     test('returns logs within the date range', () async {
@@ -373,28 +376,30 @@ void main() {
       );
     });
 
-    test('updates log without changing ownerUserId when session fails',
-        () async {
-      when(() => mockSessionRepo.getCurrentSession()).thenAnswer(
-        (_) async => const Left(CacheFailure('no session')),
-      );
-      when(() => mockLogRepo.updateLog(_logFixture)).thenAnswer(
-        (_) async => const Right(null),
-      );
+    test(
+      'updates log without changing ownerUserId when session fails',
+      () async {
+        when(
+          () => mockSessionRepo.getCurrentSession(),
+        ).thenAnswer((_) async => const Left(CacheFailure('no session')));
+        when(
+          () => mockLogRepo.updateLog(_logFixture),
+        ).thenAnswer((_) async => const Right(null));
 
-      final result = await useCase(_logFixture);
+        final result = await useCase(_logFixture);
 
-      expect(result.isRight(), isTrue);
-      verify(() => mockLogRepo.updateLog(_logFixture)).called(1);
-    });
+        expect(result.isRight(), isTrue);
+        verify(() => mockLogRepo.updateLog(_logFixture)).called(1);
+      },
+    );
 
     test('propagates repository failure', () async {
-      when(() => mockSessionRepo.getCurrentSession()).thenAnswer(
-        (_) async => const Left(CacheFailure('no session')),
-      );
-      when(() => mockLogRepo.updateLog(_logFixture)).thenAnswer(
-        (_) async => const Left(_dbFailure),
-      );
+      when(
+        () => mockSessionRepo.getCurrentSession(),
+      ).thenAnswer((_) async => const Left(CacheFailure('no session')));
+      when(
+        () => mockLogRepo.updateLog(_logFixture),
+      ).thenAnswer((_) async => const Left(_dbFailure));
 
       final result = await useCase(_logFixture);
 

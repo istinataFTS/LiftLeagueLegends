@@ -97,25 +97,28 @@ void main() {
       expect(log.isValidDirectMacroLog, isTrue);
     });
 
-    test('validate throws for an invalid direct macro log with all macros zero', () {
-      final NutritionLogModel log = buildDirectMacroLog(
-        proteinGrams: 0,
-        carbsGrams: 0,
-        fatGrams: 0,
-        calories: 0,
-      );
+    test(
+      'validate throws for an invalid direct macro log with all macros zero',
+      () {
+        final NutritionLogModel log = buildDirectMacroLog(
+          proteinGrams: 0,
+          carbsGrams: 0,
+          fatGrams: 0,
+          calories: 0,
+        );
 
-      expect(
-        log.validate,
-        throwsA(
-          isA<ArgumentError>().having(
-            (ArgumentError error) => error.message,
-            'message',
-            'Invalid direct macro log: Must have at least one macro > 0',
+        expect(
+          log.validate,
+          throwsA(
+            isA<ArgumentError>().having(
+              (ArgumentError error) => error.message,
+              'message',
+              'Invalid direct macro log: Must have at least one macro > 0',
+            ),
           ),
-        ),
-      );
-    });
+        );
+      },
+    );
 
     test('fromEntity preserves log fields', () {
       final NutritionLogModel original = buildMealLog(

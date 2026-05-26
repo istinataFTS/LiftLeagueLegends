@@ -11,6 +11,7 @@ import 'package:fitness_tracker/features/log/log.dart';
 import 'package:fitness_tracker/features/profile/application/profile_cubit.dart';
 import 'package:fitness_tracker/features/settings/application/app_settings_cubit.dart';
 import 'package:fitness_tracker/features/settings/presentation/settings_scope.dart';
+import 'package:fitness_tracker/domain/services/voice_credential_service.dart';
 import 'package:fitness_tracker/domain/services/voice_wake_word_service.dart';
 import 'package:fitness_tracker/features/voice/application/voice_settings_cubit.dart';
 import 'package:fitness_tracker/injection/injection_container.dart';
@@ -119,6 +120,38 @@ class _FakeVoiceWakeWordService implements VoiceWakeWordService {
 }
 
 // ---------------------------------------------------------------------------
+// Fake VoiceCredentialService — no-op, stream-safe.
+// VoiceFab reads this from GetIt in initState to subscribe to key-change
+// events. Tests don't exercise wake-word flow, so all methods are no-ops.
+// ---------------------------------------------------------------------------
+
+class _FakeVoiceCredentialService implements VoiceCredentialService {
+  final StreamController<void> _changedCtrl =
+      StreamController<void>.broadcast(sync: true);
+
+  @override
+  Stream<void> get onPicovoiceKeyChanged => _changedCtrl.stream;
+
+  @override
+  Future<String?> getPicovoiceAccessKey() async => null;
+
+  @override
+  Future<void> setPicovoiceAccessKey(String key) async {}
+
+  @override
+  Future<void> clearPicovoiceAccessKey() async {}
+
+  @override
+  Future<bool> hasPicovoiceAccessKey() async => false;
+
+  @override
+  Future<bool> isWakeWordConfigured() async => false;
+
+  @override
+  Future<void> dispose() => _changedCtrl.close();
+}
+
+// ---------------------------------------------------------------------------
 // Tests
 // ---------------------------------------------------------------------------
 
@@ -127,6 +160,7 @@ void main() {
   late MockProfileCubit profileCubit;
   late MockVoiceSettingsCubit voiceSettingsCubit;
   late _FakeVoiceWakeWordService voiceWakeWordService;
+  late _FakeVoiceCredentialService voiceCredentialService;
   late MockHomeBloc homeBloc;
   late MockMuscleVisualBloc muscleVisualBloc;
   late MockExerciseBloc exerciseBloc;
@@ -157,6 +191,7 @@ void main() {
     profileCubit = MockProfileCubit();
     voiceSettingsCubit = MockVoiceSettingsCubit();
     voiceWakeWordService = _FakeVoiceWakeWordService();
+    voiceCredentialService = _FakeVoiceCredentialService();
     homeBloc = MockHomeBloc();
     muscleVisualBloc = MockMuscleVisualBloc();
     exerciseBloc = MockExerciseBloc();
@@ -248,18 +283,27 @@ void main() {
     when(() => historyBloc.add(any())).thenReturn(null);
 
     // VoiceFab (rendered by BottomNavigation) reads VoiceWakeWordService
-    // from GetIt in initState; the fake is registered before each pump.
+    // AND VoiceCredentialService from GetIt in initState; both fakes are
+    // registered before each pump.
     if (sl.isRegistered<VoiceWakeWordService>()) {
       sl.unregister<VoiceWakeWordService>();
     }
     sl.registerSingleton<VoiceWakeWordService>(voiceWakeWordService);
+    if (sl.isRegistered<VoiceCredentialService>()) {
+      sl.unregister<VoiceCredentialService>();
+    }
+    sl.registerSingleton<VoiceCredentialService>(voiceCredentialService);
   });
 
   tearDown(() async {
     if (sl.isRegistered<VoiceWakeWordService>()) {
       sl.unregister<VoiceWakeWordService>();
     }
+    if (sl.isRegistered<VoiceCredentialService>()) {
+      sl.unregister<VoiceCredentialService>();
+    }
     await voiceWakeWordService.dispose();
+    await voiceCredentialService.dispose();
   });
 
   Widget buildSubject() {

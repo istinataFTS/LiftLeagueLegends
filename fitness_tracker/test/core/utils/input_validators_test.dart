@@ -5,32 +5,53 @@ void main() {
   group('InputValidators', () {
     group('validateExerciseName', () {
       test('returns error for null', () {
-        expect(InputValidators.validateExerciseName(null), 'Exercise name is required');
+        expect(
+          InputValidators.validateExerciseName(null),
+          'Exercise name is required',
+        );
       });
 
       test('returns error for empty string', () {
-        expect(InputValidators.validateExerciseName(''), 'Exercise name is required');
+        expect(
+          InputValidators.validateExerciseName(''),
+          'Exercise name is required',
+        );
       });
 
       test('returns error for whitespace-only string', () {
-        expect(InputValidators.validateExerciseName('   '), 'Exercise name is required');
+        expect(
+          InputValidators.validateExerciseName('   '),
+          'Exercise name is required',
+        );
       });
 
       test('returns error for single character after trim', () {
-        expect(InputValidators.validateExerciseName('A'), 'Name must be at least 2 characters');
+        expect(
+          InputValidators.validateExerciseName('A'),
+          'Name must be at least 2 characters',
+        );
       });
 
       test('returns error for name exceeding 50 characters', () {
         final longName = 'A' * 51;
-        expect(InputValidators.validateExerciseName(longName), 'Name must be less than 50 characters');
+        expect(
+          InputValidators.validateExerciseName(longName),
+          'Name must be less than 50 characters',
+        );
       });
 
       test('returns error for name containing @', () {
-        expect(InputValidators.validateExerciseName('Bench@Press'), 'Name contains invalid characters');
+        expect(
+          InputValidators.validateExerciseName('Bench@Press'),
+          'Name contains invalid characters',
+        );
       });
 
       test('returns error for name containing #', () {
-        expect(InputValidators.validateExerciseName('Bench#Press'), 'Name contains invalid characters');
+        expect(
+          InputValidators.validateExerciseName('Bench#Press'),
+          'Name contains invalid characters',
+        );
       });
 
       test('returns null for valid name with hyphen', () {
@@ -69,7 +90,10 @@ void main() {
       });
 
       test('returns error for 1001', () {
-        expect(InputValidators.validateReps('1001'), 'Reps must be less than 1000');
+        expect(
+          InputValidators.validateReps('1001'),
+          'Reps must be less than 1000',
+        );
       });
 
       test('returns null for lower boundary of 1', () {
@@ -99,19 +123,31 @@ void main() {
       });
 
       test('returns error for zero', () {
-        expect(InputValidators.validateWeight('0'), 'Weight must be greater than 0');
+        expect(
+          InputValidators.validateWeight('0'),
+          'Weight must be greater than 0',
+        );
       });
 
       test('returns error for negative value', () {
-        expect(InputValidators.validateWeight('-5'), 'Weight must be greater than 0');
+        expect(
+          InputValidators.validateWeight('-5'),
+          'Weight must be greater than 0',
+        );
       });
 
       test('returns error for value above 1000', () {
-        expect(InputValidators.validateWeight('1001'), 'Weight must be less than 1000kg');
+        expect(
+          InputValidators.validateWeight('1001'),
+          'Weight must be less than 1000kg',
+        );
       });
 
       test('returns error for 3 decimal places', () {
-        expect(InputValidators.validateWeight('10.123'), 'Maximum 2 decimal places');
+        expect(
+          InputValidators.validateWeight('10.123'),
+          'Maximum 2 decimal places',
+        );
       });
 
       test('returns null for valid integer weight', () {
@@ -137,11 +173,17 @@ void main() {
       });
 
       test('returns error for zero', () {
-        expect(InputValidators.validateWeeklyGoal(0), 'Goal must be at least 1');
+        expect(
+          InputValidators.validateWeeklyGoal(0),
+          'Goal must be at least 1',
+        );
       });
 
       test('returns error for 101', () {
-        expect(InputValidators.validateWeeklyGoal(101), 'Goal must be less than 100');
+        expect(
+          InputValidators.validateWeeklyGoal(101),
+          'Goal must be less than 100',
+        );
       });
 
       test('returns null for lower boundary of 1', () {
@@ -159,16 +201,25 @@ void main() {
 
     group('validateMuscleGroups', () {
       test('returns error for null', () {
-        expect(InputValidators.validateMuscleGroups(null), 'Select at least one muscle group');
+        expect(
+          InputValidators.validateMuscleGroups(null),
+          'Select at least one muscle group',
+        );
       });
 
       test('returns error for empty list', () {
-        expect(InputValidators.validateMuscleGroups([]), 'Select at least one muscle group');
+        expect(
+          InputValidators.validateMuscleGroups([]),
+          'Select at least one muscle group',
+        );
       });
 
       test('returns error for more than 10 groups', () {
         final groups = List.generate(11, (i) => 'muscle_$i');
-        expect(InputValidators.validateMuscleGroups(groups), 'Maximum 10 muscle groups');
+        expect(
+          InputValidators.validateMuscleGroups(groups),
+          'Maximum 10 muscle groups',
+        );
       });
 
       test('returns null for single group', () {
@@ -211,7 +262,10 @@ void main() {
       });
 
       test('preserves valid alphanumeric content', () {
-        expect(InputValidators.sanitizeInput('Bench Press 100'), 'Bench Press 100');
+        expect(
+          InputValidators.sanitizeInput('Bench Press 100'),
+          'Bench Press 100',
+        );
       });
     });
 

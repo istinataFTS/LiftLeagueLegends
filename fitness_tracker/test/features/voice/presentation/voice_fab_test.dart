@@ -77,6 +77,9 @@ class FakeVoiceCredentialService implements VoiceCredentialService {
   Future<bool> hasPicovoiceAccessKey() async => false;
 
   @override
+  Future<bool> isWakeWordConfigured() async => false;
+
+  @override
   Future<void> dispose() => _keyChangedController.close();
 }
 
@@ -236,19 +239,18 @@ void main() {
       expect(wakeWordService.isRunning, isFalse);
     });
 
-    testWidgets(
-      'credential change event does NOT start wake word for guests',
-      (tester) async {
-        await tester.pumpWidget(
-          _wrap(session: _guestSession, settingsCubit: settingsCubit),
-        );
+    testWidgets('credential change event does NOT start wake word for guests', (
+      tester,
+    ) async {
+      await tester.pumpWidget(
+        _wrap(session: _guestSession, settingsCubit: settingsCubit),
+      );
 
-        credentialService.emitKeyChange();
-        await tester.pump();
+      credentialService.emitKeyChange();
+      await tester.pump();
 
-        // Guests bypass _startWakeWordIfArmed regardless of key presence.
-        expect(wakeWordService.isRunning, isFalse);
-      },
-    );
+      // Guests bypass _startWakeWordIfArmed regardless of key presence.
+      expect(wakeWordService.isRunning, isFalse);
+    });
   });
 }

@@ -71,17 +71,16 @@ ExerciseBloc _makeBloc({
   required MockUpdateExercise mockUpdate,
   required MockDeleteExercise mockDelete,
   required MockGetMuscleFactorsForExercise mockGetFactors,
-}) =>
-    ExerciseBloc(
-      getAllExercises: mockGetAll,
-      getExerciseById: MockGetExerciseById(),
-      getExercisesForMuscle: MockGetExercisesForMuscle(),
-      addExercise: mockAdd,
-      updateExercise: mockUpdate,
-      deleteExercise: mockDelete,
-      ensureDefaultExercises: MockEnsureDefaultExercises(),
-      getMuscleFactorsForExercise: mockGetFactors,
-    );
+}) => ExerciseBloc(
+  getAllExercises: mockGetAll,
+  getExerciseById: MockGetExerciseById(),
+  getExercisesForMuscle: MockGetExercisesForMuscle(),
+  addExercise: mockAdd,
+  updateExercise: mockUpdate,
+  deleteExercise: mockDelete,
+  ensureDefaultExercises: MockEnsureDefaultExercises(),
+  getMuscleFactorsForExercise: mockGetFactors,
+);
 
 // Opens the "Add exercise" dialog and settles the UI.
 Future<void> _openAddDialog(WidgetTester tester, ExerciseBloc bloc) async {
@@ -132,126 +131,115 @@ void main() {
     mockDelete = MockDeleteExercise();
     mockGetFactors = MockGetMuscleFactorsForExercise();
 
-    when(() => mockGetAll())
-        .thenAnswer((_) async => Right(<Exercise>[_exercise]));
-    when(() => mockGetFactors(any()))
-        .thenAnswer((_) async => Right(<MuscleFactor>[]));
+    when(
+      () => mockGetAll(),
+    ).thenAnswer((_) async => Right(<Exercise>[_exercise]));
+    when(
+      () => mockGetFactors(any()),
+    ).thenAnswer((_) async => Right(<MuscleFactor>[]));
   });
 
   group('new exercise dialog — factor editor', () {
-    testWidgets(
-      'factor editor is hidden before any muscle chip is selected',
-      (WidgetTester tester) async {
-        final bloc = _makeBloc(
-          mockGetAll: mockGetAll,
-          mockAdd: mockAdd,
-          mockUpdate: mockUpdate,
-          mockDelete: mockDelete,
-          mockGetFactors: mockGetFactors,
-        );
-        addTearDown(bloc.close);
+    testWidgets('factor editor is hidden before any muscle chip is selected', (
+      WidgetTester tester,
+    ) async {
+      final bloc = _makeBloc(
+        mockGetAll: mockGetAll,
+        mockAdd: mockAdd,
+        mockUpdate: mockUpdate,
+        mockDelete: mockDelete,
+        mockGetFactors: mockGetFactors,
+      );
+      addTearDown(bloc.close);
 
-        await _openAddDialog(tester, bloc);
+      await _openAddDialog(tester, bloc);
 
-        expect(find.byKey(ExercisesTab.factorEditorKey), findsNothing);
-      },
-    );
+      expect(find.byKey(ExercisesTab.factorEditorKey), findsNothing);
+    });
 
-    testWidgets(
-      'selecting a chip reveals a slider initialised at 1.00x',
-      (WidgetTester tester) async {
-        final bloc = _makeBloc(
-          mockGetAll: mockGetAll,
-          mockAdd: mockAdd,
-          mockUpdate: mockUpdate,
-          mockDelete: mockDelete,
-          mockGetFactors: mockGetFactors,
-        );
-        addTearDown(bloc.close);
+    testWidgets('selecting a chip reveals a slider initialised at 1.00x', (
+      WidgetTester tester,
+    ) async {
+      final bloc = _makeBloc(
+        mockGetAll: mockGetAll,
+        mockAdd: mockAdd,
+        mockUpdate: mockUpdate,
+        mockDelete: mockDelete,
+        mockGetFactors: mockGetFactors,
+      );
+      addTearDown(bloc.close);
 
-        await _openAddDialog(tester, bloc);
+      await _openAddDialog(tester, bloc);
 
-        await tester.tap(find.widgetWithText(FilterChip, 'Chest'));
-        await tester.pumpAndSettle();
+      await tester.tap(find.widgetWithText(FilterChip, 'Chest'));
+      await tester.pumpAndSettle();
 
-        expect(find.byKey(ExercisesTab.factorEditorKey), findsOneWidget);
-        expect(
-          find.byKey(ExercisesTab.factorSliderKey('chest')),
-          findsOneWidget,
-        );
-        expect(
-          tester
-              .widget<Text>(find.byKey(ExercisesTab.factorValueKey('chest')))
-              .data,
-          '1.00x',
-        );
-      },
-    );
+      expect(find.byKey(ExercisesTab.factorEditorKey), findsOneWidget);
+      expect(find.byKey(ExercisesTab.factorSliderKey('chest')), findsOneWidget);
+      expect(
+        tester
+            .widget<Text>(find.byKey(ExercisesTab.factorValueKey('chest')))
+            .data,
+        '1.00x',
+      );
+    });
 
-    testWidgets(
-      'deselecting a chip removes its slider row',
-      (WidgetTester tester) async {
-        final bloc = _makeBloc(
-          mockGetAll: mockGetAll,
-          mockAdd: mockAdd,
-          mockUpdate: mockUpdate,
-          mockDelete: mockDelete,
-          mockGetFactors: mockGetFactors,
-        );
-        addTearDown(bloc.close);
+    testWidgets('deselecting a chip removes its slider row', (
+      WidgetTester tester,
+    ) async {
+      final bloc = _makeBloc(
+        mockGetAll: mockGetAll,
+        mockAdd: mockAdd,
+        mockUpdate: mockUpdate,
+        mockDelete: mockDelete,
+        mockGetFactors: mockGetFactors,
+      );
+      addTearDown(bloc.close);
 
-        await _openAddDialog(tester, bloc);
+      await _openAddDialog(tester, bloc);
 
-        await tester.tap(find.widgetWithText(FilterChip, 'Chest'));
-        await tester.pumpAndSettle();
-        expect(
-          find.byKey(ExercisesTab.factorSliderKey('chest')),
-          findsOneWidget,
-        );
+      await tester.tap(find.widgetWithText(FilterChip, 'Chest'));
+      await tester.pumpAndSettle();
+      expect(find.byKey(ExercisesTab.factorSliderKey('chest')), findsOneWidget);
 
-        await tester.tap(find.widgetWithText(FilterChip, 'Chest'));
-        await tester.pumpAndSettle();
-        expect(
-          find.byKey(ExercisesTab.factorSliderKey('chest')),
-          findsNothing,
-        );
-      },
-    );
+      await tester.tap(find.widgetWithText(FilterChip, 'Chest'));
+      await tester.pumpAndSettle();
+      expect(find.byKey(ExercisesTab.factorSliderKey('chest')), findsNothing);
+    });
 
-    testWidgets(
-      '"Reset to defaults" button restores all sliders to 1.00x',
-      (WidgetTester tester) async {
-        final bloc = _makeBloc(
-          mockGetAll: mockGetAll,
-          mockAdd: mockAdd,
-          mockUpdate: mockUpdate,
-          mockDelete: mockDelete,
-          mockGetFactors: mockGetFactors,
-        );
-        addTearDown(bloc.close);
+    testWidgets('"Reset to defaults" button restores all sliders to 1.00x', (
+      WidgetTester tester,
+    ) async {
+      final bloc = _makeBloc(
+        mockGetAll: mockGetAll,
+        mockAdd: mockAdd,
+        mockUpdate: mockUpdate,
+        mockDelete: mockDelete,
+        mockGetFactors: mockGetFactors,
+      );
+      addTearDown(bloc.close);
 
-        await _openAddDialog(tester, bloc);
+      await _openAddDialog(tester, bloc);
 
-        await tester.tap(find.widgetWithText(FilterChip, 'Chest'));
-        await tester.pumpAndSettle();
+      await tester.tap(find.widgetWithText(FilterChip, 'Chest'));
+      await tester.pumpAndSettle();
 
-        // The Reset button lives inside the dialog's SingleChildScrollView and
-        // may be just below the visible portion; scroll it into view first.
-        await tester.ensureVisible(
-          find.byKey(ExercisesTab.resetFactorsButtonKey),
-        );
-        await tester.pumpAndSettle();
-        await tester.tap(find.byKey(ExercisesTab.resetFactorsButtonKey));
-        await tester.pumpAndSettle();
+      // The Reset button lives inside the dialog's SingleChildScrollView and
+      // may be just below the visible portion; scroll it into view first.
+      await tester.ensureVisible(
+        find.byKey(ExercisesTab.resetFactorsButtonKey),
+      );
+      await tester.pumpAndSettle();
+      await tester.tap(find.byKey(ExercisesTab.resetFactorsButtonKey));
+      await tester.pumpAndSettle();
 
-        expect(
-          tester
-              .widget<Text>(find.byKey(ExercisesTab.factorValueKey('chest')))
-              .data,
-          '1.00x',
-        );
-      },
-    );
+      expect(
+        tester
+            .widget<Text>(find.byKey(ExercisesTab.factorValueKey('chest')))
+            .data,
+        '1.00x',
+      );
+    });
 
     testWidgets(
       'tapping Save dispatches AddExerciseEvent with the factor map',
@@ -293,43 +281,36 @@ void main() {
         await tester.pumpAndSettle();
 
         verify(
-          () => mockAdd(
-            any(),
-            muscleFactors: any(named: 'muscleFactors'),
-          ),
+          () => mockAdd(any(), muscleFactors: any(named: 'muscleFactors')),
         ).called(1);
       },
     );
   });
 
   group('edit exercise dialog — factor loading', () {
-    testWidgets(
-      'opens with existing muscles pre-selected at 1.00x default',
-      (WidgetTester tester) async {
-        final bloc = _makeBloc(
-          mockGetAll: mockGetAll,
-          mockAdd: mockAdd,
-          mockUpdate: mockUpdate,
-          mockDelete: mockDelete,
-          mockGetFactors: mockGetFactors,
-        );
-        addTearDown(bloc.close);
+    testWidgets('opens with existing muscles pre-selected at 1.00x default', (
+      WidgetTester tester,
+    ) async {
+      final bloc = _makeBloc(
+        mockGetAll: mockGetAll,
+        mockAdd: mockAdd,
+        mockUpdate: mockUpdate,
+        mockDelete: mockDelete,
+        mockGetFactors: mockGetFactors,
+      );
+      addTearDown(bloc.close);
 
-        await _openEditDialog(tester, bloc);
+      await _openEditDialog(tester, bloc);
 
-        // chest and triceps come from _exercise.muscleGroups.
-        expect(
-          find.byKey(ExercisesTab.factorSliderKey('chest')),
-          findsOneWidget,
-        );
-        expect(
-          tester
-              .widget<Text>(find.byKey(ExercisesTab.factorValueKey('chest')))
-              .data,
-          '1.00x',
-        );
-      },
-    );
+      // chest and triceps come from _exercise.muscleGroups.
+      expect(find.byKey(ExercisesTab.factorSliderKey('chest')), findsOneWidget);
+      expect(
+        tester
+            .widget<Text>(find.byKey(ExercisesTab.factorValueKey('chest')))
+            .data,
+        '1.00x',
+      );
+    });
 
     testWidgets(
       'BlocListener updates slider values when ExerciseFactorsLoaded arrives',
@@ -362,46 +343,43 @@ void main() {
         );
         expect(
           tester
-              .widget<Text>(
-                find.byKey(ExercisesTab.factorValueKey('triceps')),
-              )
+              .widget<Text>(find.byKey(ExercisesTab.factorValueKey('triceps')))
               .data,
           '0.40x',
         );
       },
     );
 
-    testWidgets(
-      'factors loaded for a different exercise id are ignored',
-      (WidgetTester tester) async {
-        final bloc = _makeBloc(
-          mockGetAll: mockGetAll,
-          mockAdd: mockAdd,
-          mockUpdate: mockUpdate,
-          mockDelete: mockDelete,
-          mockGetFactors: mockGetFactors,
-        );
-        addTearDown(bloc.close);
+    testWidgets('factors loaded for a different exercise id are ignored', (
+      WidgetTester tester,
+    ) async {
+      final bloc = _makeBloc(
+        mockGetAll: mockGetAll,
+        mockAdd: mockAdd,
+        mockUpdate: mockUpdate,
+        mockDelete: mockDelete,
+        mockGetFactors: mockGetFactors,
+      );
+      addTearDown(bloc.close);
 
-        await _openEditDialog(tester, bloc);
+      await _openEditDialog(tester, bloc);
 
-        // Emit factors for a DIFFERENT exercise — should be ignored.
-        bloc.emit(
-          const ExerciseFactorsLoaded(
-            exerciseId: 'other-exercise-id',
-            factors: <String, double>{'chest': 0.1},
-          ),
-        );
-        await tester.pumpAndSettle();
+      // Emit factors for a DIFFERENT exercise — should be ignored.
+      bloc.emit(
+        const ExerciseFactorsLoaded(
+          exerciseId: 'other-exercise-id',
+          factors: <String, double>{'chest': 0.1},
+        ),
+      );
+      await tester.pumpAndSettle();
 
-        // Chest slider should still show the default 1.00x.
-        expect(
-          tester
-              .widget<Text>(find.byKey(ExercisesTab.factorValueKey('chest')))
-              .data,
-          '1.00x',
-        );
-      },
-    );
+      // Chest slider should still show the default 1.00x.
+      expect(
+        tester
+            .widget<Text>(find.byKey(ExercisesTab.factorValueKey('chest')))
+            .data,
+        '1.00x',
+      );
+    });
   });
 }

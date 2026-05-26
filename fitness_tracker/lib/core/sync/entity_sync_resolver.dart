@@ -29,10 +29,7 @@ class EntitySyncResolver<T> {
       for (final item in remoteItems) getId(item): item,
     };
 
-    final Set<String> allIds = <String>{
-      ...localById.keys,
-      ...remoteById.keys,
-    };
+    final Set<String> allIds = <String>{...localById.keys, ...remoteById.keys};
 
     final List<T> merged = <T>[];
 
@@ -56,12 +53,7 @@ class EntitySyncResolver<T> {
       }
 
       if (local != null && remote != null) {
-        merged.add(
-          resolveConflict(
-            local: local,
-            remote: remote,
-          ).winner,
-        );
+        merged.add(resolveConflict(local: local, remote: remote).winner);
       }
     }
 

@@ -40,20 +40,19 @@ class UpdateExercise {
       (session) => session.user?.id ?? '',
     );
 
-    final preparedExercise = sessionResult.fold(
-      (_) => normalizedExercise,
-      (session) {
-        if (!session.isAuthenticated || session.user == null) {
-          return normalizedExercise;
-        }
+    final preparedExercise = sessionResult.fold((_) => normalizedExercise, (
+      session,
+    ) {
+      if (!session.isAuthenticated || session.user == null) {
+        return normalizedExercise;
+      }
 
-        if (normalizedExercise.ownerUserId == session.user!.id) {
-          return normalizedExercise;
-        }
+      if (normalizedExercise.ownerUserId == session.user!.id) {
+        return normalizedExercise;
+      }
 
-        return normalizedExercise.copyWith(ownerUserId: session.user!.id);
-      },
-    );
+      return normalizedExercise.copyWith(ownerUserId: session.user!.id);
+    });
 
     final updateResult = await repository.updateExercise(preparedExercise);
 

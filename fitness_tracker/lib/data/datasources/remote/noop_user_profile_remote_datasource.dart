@@ -22,6 +22,5 @@ class NoopUserProfileRemoteDataSource implements UserProfileRemoteDataSource {
   Future<List<UserProfileSummary>> searchByUsername(
     String query, {
     int limit = 20,
-  }) async =>
-      const <UserProfileSummary>[];
+  }) async => const <UserProfileSummary>[];
 }

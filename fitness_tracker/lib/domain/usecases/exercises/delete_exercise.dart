@@ -11,7 +11,7 @@ class DeleteExercise {
   final AppSessionRepository appSessionRepository;
   final MuscleFactorRepository muscleFactorRepository;
   final RebuildMuscleStimulusFromWorkoutHistory
-      rebuildMuscleStimulusFromWorkoutHistory;
+  rebuildMuscleStimulusFromWorkoutHistory;
 
   const DeleteExercise(
     this.repository, {
@@ -30,8 +30,8 @@ class DeleteExercise {
     final deleteResult = await repository.deleteExercise(id);
 
     return deleteResult.fold((failure) async => Left(failure), (_) async {
-      final deleteFactorsResult =
-          await muscleFactorRepository.deleteMuscleFactorsByExerciseId(id);
+      final deleteFactorsResult = await muscleFactorRepository
+          .deleteMuscleFactorsByExerciseId(id);
 
       return deleteFactorsResult.fold(
         (failure) async => Left(failure),

@@ -21,9 +21,8 @@ const _completedResult = AuthSessionActionResult(
   message: 'ok',
 );
 
-Widget _buildPage() => MaterialApp(
-      home: OtpVerificationPage(email: _testEmail),
-    );
+Widget _buildPage() =>
+    MaterialApp(home: OtpVerificationPage(email: _testEmail));
 
 void main() {
   late MockAuthSessionService mockAuth;
@@ -36,10 +35,12 @@ void main() {
     }
     di.sl.registerLazySingleton<AuthSessionService>(() => mockAuth);
 
-    when(() => mockAuth.verifyEmailOtp(
-          email: any(named: 'email'),
-          token: any(named: 'token'),
-        )).thenAnswer((_) async => _completedResult);
+    when(
+      () => mockAuth.verifyEmailOtp(
+        email: any(named: 'email'),
+        token: any(named: 'token'),
+      ),
+    ).thenAnswer((_) async => _completedResult);
   });
 
   tearDown(() async {
@@ -50,8 +51,9 @@ void main() {
 
   group('OtpVerificationPage', () {
     group('rendering', () {
-      testWidgets('shows email address in the instructional text',
-          (WidgetTester tester) async {
+      testWidgets('shows email address in the instructional text', (
+        WidgetTester tester,
+      ) async {
         await tester.pumpWidget(_buildPage());
 
         expect(
@@ -60,87 +62,105 @@ void main() {
         );
       });
 
-      testWidgets('renders Confirm button and OTP text field',
-          (WidgetTester tester) async {
+      testWidgets('renders Confirm button and OTP text field', (
+        WidgetTester tester,
+      ) async {
         await tester.pumpWidget(_buildPage());
 
         expect(find.byType(TextField), findsOneWidget);
         expect(find.text('Confirm'), findsOneWidget);
       });
 
-      testWidgets('does not show error text in initial state',
-          (WidgetTester tester) async {
+      testWidgets('does not show error text in initial state', (
+        WidgetTester tester,
+      ) async {
         await tester.pumpWidget(_buildPage());
 
         // The error text widget is conditionally rendered; it should be absent
-        expect(find.text('Enter the 6-digit code from your email.'),
-            findsNothing);
+        expect(
+          find.text('Enter the 6-digit code from your email.'),
+          findsNothing,
+        );
       });
     });
 
     group('validation', () {
-      testWidgets('shows inline error when token is empty',
-          (WidgetTester tester) async {
+      testWidgets('shows inline error when token is empty', (
+        WidgetTester tester,
+      ) async {
         await tester.pumpWidget(_buildPage());
 
         await tester.tap(find.text('Confirm'));
         await tester.pump();
 
-        expect(find.text('Enter the 6-digit code from your email.'),
-            findsOneWidget);
-        verifyNever(() => mockAuth.verifyEmailOtp(
-              email: any(named: 'email'),
-              token: any(named: 'token'),
-            ));
+        expect(
+          find.text('Enter the 6-digit code from your email.'),
+          findsOneWidget,
+        );
+        verifyNever(
+          () => mockAuth.verifyEmailOtp(
+            email: any(named: 'email'),
+            token: any(named: 'token'),
+          ),
+        );
       });
 
-      testWidgets('shows inline error when token is fewer than 6 digits',
-          (WidgetTester tester) async {
+      testWidgets('shows inline error when token is fewer than 6 digits', (
+        WidgetTester tester,
+      ) async {
         await tester.pumpWidget(_buildPage());
 
         await tester.enterText(find.byType(TextField), '123');
         await tester.tap(find.text('Confirm'));
         await tester.pump();
 
-        expect(find.text('Enter the 6-digit code from your email.'),
-            findsOneWidget);
+        expect(
+          find.text('Enter the 6-digit code from your email.'),
+          findsOneWidget,
+        );
       });
 
-      testWidgets('shows inline error when token contains non-digits',
-          (WidgetTester tester) async {
+      testWidgets('shows inline error when token contains non-digits', (
+        WidgetTester tester,
+      ) async {
         await tester.pumpWidget(_buildPage());
 
         await tester.enterText(find.byType(TextField), 'abcdef');
         await tester.tap(find.text('Confirm'));
         await tester.pump();
 
-        expect(find.text('Enter the 6-digit code from your email.'),
-            findsOneWidget);
+        expect(
+          find.text('Enter the 6-digit code from your email.'),
+          findsOneWidget,
+        );
       });
     });
 
     group('submission', () {
-      testWidgets('calls service with email and trimmed token on valid input',
-          (WidgetTester tester) async {
+      testWidgets('calls service with email and trimmed token on valid input', (
+        WidgetTester tester,
+      ) async {
         await tester.pumpWidget(_buildPage());
 
         await tester.enterText(find.byType(TextField), _validToken);
         await tester.tap(find.text('Confirm'));
         await tester.pump();
 
-        verify(() => mockAuth.verifyEmailOtp(
-              email: _testEmail,
-              token: _validToken,
-            )).called(1);
+        verify(
+          () => mockAuth.verifyEmailOtp(email: _testEmail, token: _validToken),
+        ).called(1);
       });
 
-      testWidgets('disables Confirm button while request is in-flight',
-          (WidgetTester tester) async {
+      testWidgets('disables Confirm button while request is in-flight', (
+        WidgetTester tester,
+      ) async {
         final completer = Completer<AuthSessionActionResult>();
-        when(() => mockAuth.verifyEmailOtp(
-              email: any(named: 'email'),
-              token: any(named: 'token'),
-            )).thenAnswer((_) => completer.future);
+        when(
+          () => mockAuth.verifyEmailOtp(
+            email: any(named: 'email'),
+            token: any(named: 'token'),
+          ),
+        ).thenAnswer((_) => completer.future);
 
         await tester.pumpWidget(_buildPage());
 
@@ -157,15 +177,20 @@ void main() {
         await tester.pumpAndSettle();
       });
 
-      testWidgets('shows inline error message returned by service on failure',
-          (WidgetTester tester) async {
-        when(() => mockAuth.verifyEmailOtp(
-              email: any(named: 'email'),
-              token: any(named: 'token'),
-            )).thenAnswer((_) async => const AuthSessionActionResult(
-              status: AuthSessionActionStatus.failed,
-              message: 'Invalid or expired code',
-            ));
+      testWidgets('shows inline error message returned by service on failure', (
+        WidgetTester tester,
+      ) async {
+        when(
+          () => mockAuth.verifyEmailOtp(
+            email: any(named: 'email'),
+            token: any(named: 'token'),
+          ),
+        ).thenAnswer(
+          (_) async => const AuthSessionActionResult(
+            status: AuthSessionActionStatus.failed,
+            message: 'Invalid or expired code',
+          ),
+        );
 
         await tester.pumpWidget(_buildPage());
 
@@ -176,8 +201,9 @@ void main() {
         expect(find.text('Invalid or expired code'), findsOneWidget);
       });
 
-      testWidgets('pops with true result on successful verification',
-          (WidgetTester tester) async {
+      testWidgets('pops with true result on successful verification', (
+        WidgetTester tester,
+      ) async {
         bool? poppedResult;
 
         await tester.pumpWidget(

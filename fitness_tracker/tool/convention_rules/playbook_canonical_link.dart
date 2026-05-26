@@ -59,7 +59,24 @@ final class PlaybookCanonicalLinkRule implements ConventionRule {
   @override
   Future<List<Violation>> check(RepoView repo) async {
     final files = await repo.listFiles(_skillsDir);
-    final mdFiles = files.where((f) => f.endsWith('.md')).toList()..sort();
+    final allMdFiles = files.where((f) => f.endsWith('.md')).toList()..sort();
+
+    // Third-party skills installed via `npx skills add ...` ship under
+    // `.claude/skills/<plugin-name>/` and bring their own `SKILL.md` plus
+    // ancillary `.md` files (helpers, reference docs). Those aren't project
+    // playbooks — they have their own structure and don't follow our schema.
+    // Skip any directory that contains a `SKILL.md`.
+    final thirdPartySkillDirs = allMdFiles
+        .where((f) => f.split('/').last == 'SKILL.md')
+        .map((f) => f.substring(0, f.lastIndexOf('/') + 1))
+        .toSet();
+
+    final mdFiles = allMdFiles
+        .where(
+          (f) =>
+              !thirdPartySkillDirs.any((dir) => f.startsWith(dir)),
+        )
+        .toList();
 
     if (mdFiles.isEmpty) return [];
 

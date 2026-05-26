@@ -19,13 +19,11 @@ abstract class AuthRemoteDataSource {
     required String password,
   });
 
-
   Future<SignUpResult> signUpWithEmail({
     required String email,
     required String password,
     required String username,
   });
-
 
   Future<AppUser> verifyEmailOtp({
     required String email,

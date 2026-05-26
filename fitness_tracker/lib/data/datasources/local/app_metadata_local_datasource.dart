@@ -29,9 +29,7 @@ abstract class AppMetadataLocalDataSource {
 class AppMetadataLocalDataSourceImpl implements AppMetadataLocalDataSource {
   final DatabaseHelper databaseHelper;
 
-  const AppMetadataLocalDataSourceImpl({
-    required this.databaseHelper,
-  });
+  const AppMetadataLocalDataSourceImpl({required this.databaseHelper});
 
   @override
   Future<String?> readString(String key) async {
@@ -93,15 +91,11 @@ class AppMetadataLocalDataSourceImpl implements AppMetadataLocalDataSource {
   Future<void> writeString(String key, String value) async {
     try {
       final db = await databaseHelper.database;
-      await db.insert(
-        DatabaseTables.appMetadata,
-        <String, Object?>{
-          DatabaseTables.metadataKey: key,
-          DatabaseTables.metadataValue: value,
-          DatabaseTables.metadataUpdatedAt: DateTime.now().toIso8601String(),
-        },
-        conflictAlgorithm: ConflictAlgorithm.replace,
-      );
+      await db.insert(DatabaseTables.appMetadata, <String, Object?>{
+        DatabaseTables.metadataKey: key,
+        DatabaseTables.metadataValue: value,
+        DatabaseTables.metadataUpdatedAt: DateTime.now().toIso8601String(),
+      }, conflictAlgorithm: ConflictAlgorithm.replace);
     } catch (e) {
       throw CacheDatabaseException('Failed to write metadata string: $e');
     }

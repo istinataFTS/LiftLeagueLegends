@@ -13,9 +13,7 @@ import '../models/muscle_factor_model.dart';
 class MuscleFactorRepositoryImpl implements MuscleFactorRepository {
   final MuscleFactorLocalDataSource localDataSource;
 
-  const MuscleFactorRepositoryImpl({
-    required this.localDataSource,
-  });
+  const MuscleFactorRepositoryImpl({required this.localDataSource});
 
   @override
   Future<Either<Failure, MuscleFactor?>> getFactorById(String id) {
@@ -45,8 +43,8 @@ class MuscleFactorRepositoryImpl implements MuscleFactorRepository {
     String muscleGroup,
   ) {
     return RepositoryGuard.run(() async {
-      final List<MuscleFactorModel> allFactors =
-          await localDataSource.getAllFactors();
+      final List<MuscleFactorModel> allFactors = await localDataSource
+          .getAllFactors();
 
       return allFactors
           .where((MuscleFactor factor) => factor.muscleGroup == muscleGroup)

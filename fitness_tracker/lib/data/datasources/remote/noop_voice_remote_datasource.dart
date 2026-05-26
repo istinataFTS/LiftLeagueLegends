@@ -41,9 +41,9 @@ class NoopVoiceRemoteDataSource implements VoiceRemoteDataSource {
 
   @override
   Future<VoiceBudget> getBudget() async => const VoiceBudget(
-        usedUsd: 0,
-        dailyCapUsd: VoiceConstants.dailyBudgetCapUsd,
-      );
+    usedUsd: 0,
+    dailyCapUsd: VoiceConstants.dailyBudgetCapUsd,
+  );
 
   @override
   Future<void> deleteHistory() async {}

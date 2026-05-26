@@ -19,14 +19,13 @@ import '../../core/constants/muscle_stimulus_constants.dart';
 ///
 /// Instances are immutable; [decayed] returns a new instance.
 class NormalizedMuscleLoad {
-  const NormalizedMuscleLoad({
-    required this.raw,
-    required this.threshold,
-  });
+  const NormalizedMuscleLoad({required this.raw, required this.threshold});
 
   /// Zero-load constant, useful as an identity in folds.
-  static const NormalizedMuscleLoad zero =
-      NormalizedMuscleLoad(raw: 0.0, threshold: 1.0);
+  static const NormalizedMuscleLoad zero = NormalizedMuscleLoad(
+    raw: 0.0,
+    threshold: 1.0,
+  );
 
   /// Raw stimulus value in the same units as [threshold]
   /// (e.g. `rollingWeeklyLoad` for weekly calculations).

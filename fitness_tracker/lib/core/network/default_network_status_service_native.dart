@@ -11,8 +11,9 @@ class DefaultNetworkStatusService implements NetworkStatusService {
   @override
   Future<bool> isNetworkAvailable() async {
     try {
-      final result = await InternetAddress.lookup('example.com')
-          .timeout(const Duration(seconds: 5));
+      final result = await InternetAddress.lookup(
+        'example.com',
+      ).timeout(const Duration(seconds: 5));
       return result.isNotEmpty && result.first.rawAddress.isNotEmpty;
     } on SocketException {
       return false;
@@ -28,8 +29,7 @@ class DefaultNetworkStatusService implements NetworkStatusService {
   /// then confirms actual internet reachability before emitting.
   @override
   Stream<bool> get onConnectivityRestored {
-    return Connectivity()
-        .onConnectivityChanged
+    return Connectivity().onConnectivityChanged
         .asyncMap((List<ConnectivityResult> results) async {
           final bool hasInterface = results.any(
             (ConnectivityResult r) => r != ConnectivityResult.none,
@@ -46,15 +46,14 @@ class DefaultNetworkStatusService implements NetworkStatusService {
   /// once actual internet reachability is confirmed after a reconnect.
   @override
   Stream<bool> get onConnectivityChanged {
-    return Connectivity()
-        .onConnectivityChanged
-        .asyncMap((List<ConnectivityResult> results) async {
-          final bool hasInterface = results.any(
-            (ConnectivityResult r) => r != ConnectivityResult.none,
-          );
-          if (!hasInterface) return false;
-          return isNetworkAvailable();
-        })
-        .distinct();
+    return Connectivity().onConnectivityChanged.asyncMap((
+      List<ConnectivityResult> results,
+    ) async {
+      final bool hasInterface = results.any(
+        (ConnectivityResult r) => r != ConnectivityResult.none,
+      );
+      if (!hasInterface) return false;
+      return isNetworkAvailable();
+    }).distinct();
   }
 }

@@ -118,46 +118,48 @@ void main() {
   // ---------------------------------------------------------------------------
 
   group('success', () {
-    test('transitions to success and calls service with trimmed token',
-        () async {
-      when(
-        () => authSessionService.verifyEmailOtp(
-          email: any(named: 'email'),
-          token: any(named: 'token'),
-        ),
-      ).thenAnswer((_) async => successResult);
+    test(
+      'transitions to success and calls service with trimmed token',
+      () async {
+        when(
+          () => authSessionService.verifyEmailOtp(
+            email: any(named: 'email'),
+            token: any(named: 'token'),
+          ),
+        ).thenAnswer((_) async => successResult);
 
-      await cubit.submit(' 123456 ');
+        await cubit.submit(' 123456 ');
 
-      expect(cubit.state.isSuccess, isTrue);
-      expect(cubit.state.errorMessage, isNull);
+        expect(cubit.state.isSuccess, isTrue);
+        expect(cubit.state.errorMessage, isNull);
 
-      verify(
-        () => authSessionService.verifyEmailOtp(
-          email: email,
-          token: '123456',
-        ),
-      ).called(1);
-    });
+        verify(
+          () =>
+              authSessionService.verifyEmailOtp(email: email, token: '123456'),
+        ).called(1);
+      },
+    );
 
-    test('passes cubit email — not a user-supplied value — to service',
-        () async {
-      when(
-        () => authSessionService.verifyEmailOtp(
-          email: any(named: 'email'),
-          token: any(named: 'token'),
-        ),
-      ).thenAnswer((_) async => successResult);
+    test(
+      'passes cubit email — not a user-supplied value — to service',
+      () async {
+        when(
+          () => authSessionService.verifyEmailOtp(
+            email: any(named: 'email'),
+            token: any(named: 'token'),
+          ),
+        ).thenAnswer((_) async => successResult);
 
-      await cubit.submit('123456');
+        await cubit.submit('123456');
 
-      verify(
-        () => authSessionService.verifyEmailOtp(
-          email: email,
-          token: any(named: 'token'),
-        ),
-      ).called(1);
-    });
+        verify(
+          () => authSessionService.verifyEmailOtp(
+            email: email,
+            token: any(named: 'token'),
+          ),
+        ).called(1);
+      },
+    );
   });
 
   // ---------------------------------------------------------------------------

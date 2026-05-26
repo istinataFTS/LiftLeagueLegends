@@ -14,10 +14,10 @@ void main() {
   late MuscleFactorHealHook hook;
 
   PostSyncContext contextFor(Set<String> pulled) => PostSyncContext(
-        userId: 'user-1',
-        pulledFeatures: pulled,
-        trigger: SyncTrigger.appLaunch,
-      );
+    userId: 'user-1',
+    pulledFeatures: pulled,
+    trigger: SyncTrigger.appLaunch,
+  );
 
   setUp(() {
     seed = _MockSeedExerciseFactors();
@@ -29,8 +29,9 @@ void main() {
   });
 
   test('invokes the heal use case with the healing flag set', () async {
-    when(() => seed(allowHealingWhenEmpty: true))
-        .thenAnswer((_) async => const Right(3));
+    when(
+      () => seed(allowHealingWhenEmpty: true),
+    ).thenAnswer((_) async => const Right(3));
 
     await hook.run(contextFor(const {'exercises'}));
 
@@ -38,18 +39,17 @@ void main() {
   });
 
   test('swallows failures so the sync is not downgraded', () async {
-    when(() => seed(allowHealingWhenEmpty: true))
-        .thenAnswer((_) async => const Left(DatabaseFailure('boom')));
+    when(
+      () => seed(allowHealingWhenEmpty: true),
+    ).thenAnswer((_) async => const Left(DatabaseFailure('boom')));
 
-    await expectLater(
-      hook.run(contextFor(const {'exercises'})),
-      completes,
-    );
+    await expectLater(hook.run(contextFor(const {'exercises'})), completes);
   });
 
   test('is idempotent — a zero-heal result is a no-op by design', () async {
-    when(() => seed(allowHealingWhenEmpty: true))
-        .thenAnswer((_) async => const Right(0));
+    when(
+      () => seed(allowHealingWhenEmpty: true),
+    ).thenAnswer((_) async => const Right(0));
 
     await hook.run(contextFor(const {'exercises'}));
 

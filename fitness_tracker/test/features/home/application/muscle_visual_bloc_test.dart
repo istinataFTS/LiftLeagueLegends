@@ -53,29 +53,28 @@ TypeMatcher<MuscleVisualLoaded> _isLoaded({
   required TimePeriod period,
   Map<String, MuscleVisualData> data = _weekData,
   MuscleMapMode mode = MuscleMapMode.volume,
-}) =>
-    isA<MuscleVisualLoaded>()
-        .having((s) => s.currentPeriod, 'currentPeriod', period)
-        .having((s) => s.muscleData, 'muscleData', data)
-        .having((s) => s.mode, 'mode', mode);
+}) => isA<MuscleVisualLoaded>()
+    .having((s) => s.currentPeriod, 'currentPeriod', period)
+    .having((s) => s.muscleData, 'muscleData', data)
+    .having((s) => s.mode, 'mode', mode);
 
 void main() {
   late MockGetMuscleVisualData mockGet;
   late MockAppSessionRepository mockSession;
 
   MuscleVisualBloc buildBloc() => MuscleVisualBloc(
-        getMuscleVisualData: mockGet,
-        appSessionRepository: mockSession,
-      );
+    getMuscleVisualData: mockGet,
+    appSessionRepository: mockSession,
+  );
 
   setUp(() {
     mockGet = MockGetMuscleVisualData();
     mockSession = MockAppSessionRepository();
 
     // Default: return authenticated session with testUserId
-    when(() => mockSession.getCurrentSession()).thenAnswer(
-      (_) async => const Right(_authenticatedSession),
-    );
+    when(
+      () => mockSession.getCurrentSession(),
+    ).thenAnswer((_) async => const Right(_authenticatedSession));
   });
 
   group('MuscleVisualBloc', () {
@@ -84,8 +83,9 @@ void main() {
         'emits [Loading, Loaded] on success',
         build: buildBloc,
         setUp: () {
-          when(() => mockGet(TimePeriod.week, _testUserId))
-              .thenAnswer((_) async => const Right(_weekData));
+          when(
+            () => mockGet(TimePeriod.week, _testUserId),
+          ).thenAnswer((_) async => const Right(_weekData));
         },
         act: (bloc) => bloc.add(const LoadMuscleVisualsEvent(TimePeriod.week)),
         expect: () => [
@@ -98,8 +98,9 @@ void main() {
         'emits [Loading, Error] on use case failure',
         build: buildBloc,
         setUp: () {
-          when(() => mockGet(TimePeriod.week, _testUserId))
-              .thenAnswer((_) async => const Left(_dbFailure));
+          when(
+            () => mockGet(TimePeriod.week, _testUserId),
+          ).thenAnswer((_) async => const Left(_dbFailure));
         },
         act: (bloc) => bloc.add(const LoadMuscleVisualsEvent(TimePeriod.week)),
         expect: () => [
@@ -112,8 +113,9 @@ void main() {
         'serves second load from cache without a second use-case call',
         build: buildBloc,
         setUp: () {
-          when(() => mockGet(TimePeriod.week, _testUserId))
-              .thenAnswer((_) async => const Right(_weekData));
+          when(
+            () => mockGet(TimePeriod.week, _testUserId),
+          ).thenAnswer((_) async => const Right(_weekData));
         },
         act: (bloc) async {
           bloc.add(const LoadMuscleVisualsEvent(TimePeriod.week));
@@ -134,8 +136,9 @@ void main() {
         'resolves userId from session and forwards it to use case',
         build: buildBloc,
         setUp: () {
-          when(() => mockGet(TimePeriod.week, _testUserId))
-              .thenAnswer((_) async => const Right(_weekData));
+          when(
+            () => mockGet(TimePeriod.week, _testUserId),
+          ).thenAnswer((_) async => const Right(_weekData));
         },
         act: (bloc) => bloc.add(const LoadMuscleVisualsEvent(TimePeriod.week)),
         verify: (_) {
@@ -148,15 +151,15 @@ void main() {
         'uses empty userId when session resolves to guest',
         build: buildBloc,
         setUp: () {
-          when(() => mockSession.getCurrentSession()).thenAnswer(
-            (_) async => const Right(AppSession.guest()),
-          );
-          when(() => mockGet(TimePeriod.week, ''))
-              .thenAnswer((_) async => const Right(_weekData));
+          when(
+            () => mockSession.getCurrentSession(),
+          ).thenAnswer((_) async => const Right(AppSession.guest()));
+          when(
+            () => mockGet(TimePeriod.week, ''),
+          ).thenAnswer((_) async => const Right(_weekData));
         },
         act: (bloc) => bloc.add(const LoadMuscleVisualsEvent(TimePeriod.week)),
-        verify: (_) =>
-            verify(() => mockGet(TimePeriod.week, '')).called(1),
+        verify: (_) => verify(() => mockGet(TimePeriod.week, '')).called(1),
       );
     });
 
@@ -165,8 +168,9 @@ void main() {
         'loads data for the new period',
         build: buildBloc,
         setUp: () {
-          when(() => mockGet(TimePeriod.today, _testUserId))
-              .thenAnswer((_) async => const Right(_weekData));
+          when(
+            () => mockGet(TimePeriod.today, _testUserId),
+          ).thenAnswer((_) async => const Right(_weekData));
         },
         act: (bloc) => bloc.add(const ChangePeriodEvent(TimePeriod.today)),
         expect: () => [
@@ -192,10 +196,12 @@ void main() {
         'switches to volume mode when period is changed while in fatigue mode',
         build: buildBloc,
         setUp: () {
-          when(() => mockGet(TimePeriod.week, _testUserId))
-              .thenAnswer((_) async => const Right(_weekData));
-          when(() => mockGet(TimePeriod.today, _testUserId))
-              .thenAnswer((_) async => const Right(_weekData));
+          when(
+            () => mockGet(TimePeriod.week, _testUserId),
+          ).thenAnswer((_) async => const Right(_weekData));
+          when(
+            () => mockGet(TimePeriod.today, _testUserId),
+          ).thenAnswer((_) async => const Right(_weekData));
         },
         act: (bloc) async {
           // First load week to populate cache
@@ -227,10 +233,12 @@ void main() {
         'fatigue mode fetches week data regardless of current period',
         build: buildBloc,
         setUp: () {
-          when(() => mockGet(TimePeriod.today, _testUserId))
-              .thenAnswer((_) async => const Right(_weekData));
-          when(() => mockGet(TimePeriod.week, _testUserId))
-              .thenAnswer((_) async => const Right(_weekData));
+          when(
+            () => mockGet(TimePeriod.today, _testUserId),
+          ).thenAnswer((_) async => const Right(_weekData));
+          when(
+            () => mockGet(TimePeriod.week, _testUserId),
+          ).thenAnswer((_) async => const Right(_weekData));
         },
         act: (bloc) async {
           // Load today first so _currentPeriod = today
@@ -258,8 +266,9 @@ void main() {
         'serves from cache when week data is already cached for fatigue mode',
         build: buildBloc,
         setUp: () {
-          when(() => mockGet(TimePeriod.week, _testUserId))
-              .thenAnswer((_) async => const Right(_weekData));
+          when(
+            () => mockGet(TimePeriod.week, _testUserId),
+          ).thenAnswer((_) async => const Right(_weekData));
         },
         act: (bloc) async {
           // Load week first → caches week data
@@ -295,8 +304,9 @@ void main() {
         'bypasses cache and reloads current period',
         build: buildBloc,
         setUp: () {
-          when(() => mockGet(TimePeriod.week, _testUserId))
-              .thenAnswer((_) async => const Right(_weekData));
+          when(
+            () => mockGet(TimePeriod.week, _testUserId),
+          ).thenAnswer((_) async => const Right(_weekData));
         },
         act: (bloc) async {
           // Load once to populate cache
@@ -321,8 +331,9 @@ void main() {
         'clears cache and triggers a fresh load of the current period',
         build: buildBloc,
         setUp: () {
-          when(() => mockGet(TimePeriod.month, _testUserId))
-              .thenAnswer((_) async => const Right(_weekData));
+          when(
+            () => mockGet(TimePeriod.month, _testUserId),
+          ).thenAnswer((_) async => const Right(_weekData));
         },
         act: (bloc) => bloc.add(const ClearCacheEvent()),
         expect: () => [

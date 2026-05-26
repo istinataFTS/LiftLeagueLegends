@@ -108,8 +108,12 @@ void main() {
     when(() => exerciseLookup.refreshIfEmpty()).thenAnswer((_) async {});
     when(() => exerciseLookup.findByName(any())).thenAnswer((_) async => null);
     when(() => mealLookup.findByName(any())).thenAnswer((_) async => null);
-    when(() => recentEntityLookup.mostRecentSet()).thenAnswer((_) async => null);
-    when(() => recentEntityLookup.mostRecentLog()).thenAnswer((_) async => null);
+    when(
+      () => recentEntityLookup.mostRecentSet(),
+    ).thenAnswer((_) async => null);
+    when(
+      () => recentEntityLookup.mostRecentLog(),
+    ).thenAnswer((_) async => null);
   });
 
   // =========================================================================
@@ -118,11 +122,11 @@ void main() {
 
   group('log workout set', () {
     test('returns mutation call when exercise is found', () async {
-      when(() => exerciseLookup.findByName('bench press'))
-          .thenAnswer((_) async => _benchExercise);
+      when(
+        () => exerciseLookup.findByName('bench press'),
+      ).thenAnswer((_) async => _benchExercise);
 
-      final result =
-          await coordinator.process('log bench press 80 kg 10 reps');
+      final result = await coordinator.process('log bench press 80 kg 10 reps');
 
       expect(result, isA<VoiceChatMutationCall>());
       final tc = (result as VoiceChatMutationCall).toolCall;
@@ -134,8 +138,7 @@ void main() {
     });
 
     test('returns error text when exercise is not found', () async {
-      final result =
-          await coordinator.process('log unknown exercise 80 kg 10');
+      final result = await coordinator.process('log unknown exercise 80 kg 10');
 
       expect(result, isA<VoiceChatTextResponse>());
       final msg = (result as VoiceChatTextResponse).message.content;
@@ -143,23 +146,27 @@ void main() {
     });
 
     test('display summary includes weight unit', () async {
-      when(() => exerciseLookup.findByName(any()))
-          .thenAnswer((_) async => _benchExercise);
+      when(
+        () => exerciseLookup.findByName(any()),
+      ).thenAnswer((_) async => _benchExercise);
 
-      final result =
-          await coordinator.process('log bench press 80 kg 10 reps');
+      final result = await coordinator.process('log bench press 80 kg 10 reps');
       final tc = (result as VoiceChatMutationCall).toolCall;
       expect(tc.displaySummary, contains('kg'));
     });
 
-    test('defaults to kg when user unit is kilograms and no unit spoken', () async {
-      when(() => exerciseLookup.findByName(any()))
-          .thenAnswer((_) async => _benchExercise);
+    test(
+      'defaults to kg when user unit is kilograms and no unit spoken',
+      () async {
+        when(
+          () => exerciseLookup.findByName(any()),
+        ).thenAnswer((_) async => _benchExercise);
 
-      final result = await coordinator.process('log bench press 80 by 10');
-      final tc = (result as VoiceChatMutationCall).toolCall;
-      expect(tc.displaySummary, contains('kg'));
-    });
+        final result = await coordinator.process('log bench press 80 by 10');
+        final tc = (result as VoiceChatMutationCall).toolCall;
+        expect(tc.displaySummary, contains('kg'));
+      },
+    );
   });
 
   // =========================================================================
@@ -168,8 +175,9 @@ void main() {
 
   group('edit workout set', () {
     test('returns mutation call when recent set exists', () async {
-      when(() => recentEntityLookup.mostRecentSet())
-          .thenAnswer((_) async => _recentSet);
+      when(
+        () => recentEntityLookup.mostRecentSet(),
+      ).thenAnswer((_) async => _recentSet);
 
       final result = await coordinator.process('change the weight to 90 kg');
 
@@ -191,8 +199,9 @@ void main() {
     });
 
     test('patches only reps when reps-only edit', () async {
-      when(() => recentEntityLookup.mostRecentSet())
-          .thenAnswer((_) async => _recentSet);
+      when(
+        () => recentEntityLookup.mostRecentSet(),
+      ).thenAnswer((_) async => _recentSet);
 
       final result = await coordinator.process('update reps to 8');
 
@@ -209,8 +218,9 @@ void main() {
 
   group('delete workout set', () {
     test('returns mutation call when recent set exists', () async {
-      when(() => recentEntityLookup.mostRecentSet())
-          .thenAnswer((_) async => _recentSet);
+      when(
+        () => recentEntityLookup.mostRecentSet(),
+      ).thenAnswer((_) async => _recentSet);
 
       final result = await coordinator.process('delete my last set');
 
@@ -248,8 +258,9 @@ void main() {
 
     test('includes mealId when meal is resolved from library', () async {
       final oatsMeal = _fakeMeal(id: 'meal-oats', name: 'Oats');
-      when(() => mealLookup.findByName('oats'))
-          .thenAnswer((_) async => oatsMeal);
+      when(
+        () => mealLookup.findByName('oats'),
+      ).thenAnswer((_) async => oatsMeal);
 
       final result = await coordinator.process('log oats 300 calories');
 
@@ -258,8 +269,9 @@ void main() {
     });
 
     test('proceeds without mealId when meal not in library', () async {
-      final result =
-          await coordinator.process('log homemade stew 450 calories');
+      final result = await coordinator.process(
+        'log homemade stew 450 calories',
+      );
 
       final tc = (result as VoiceChatMutationCall).toolCall;
       expect(tc.args.containsKey('mealId'), isFalse);
@@ -283,11 +295,11 @@ void main() {
 
   group('edit nutrition', () {
     test('returns editNutritionLog mutation when recent log exists', () async {
-      when(() => recentEntityLookup.mostRecentLog())
-          .thenAnswer((_) async => _recentLog);
+      when(
+        () => recentEntityLookup.mostRecentLog(),
+      ).thenAnswer((_) async => _recentLog);
 
-      final result =
-          await coordinator.process('change the calories to 300');
+      final result = await coordinator.process('change the calories to 300');
 
       expect(result, isA<VoiceChatMutationCall>());
       final tc = (result as VoiceChatMutationCall).toolCall;
@@ -298,11 +310,11 @@ void main() {
     });
 
     test('patches only protein when protein-only edit', () async {
-      when(() => recentEntityLookup.mostRecentLog())
-          .thenAnswer((_) async => _recentLog);
+      when(
+        () => recentEntityLookup.mostRecentLog(),
+      ).thenAnswer((_) async => _recentLog);
 
-      final result =
-          await coordinator.process('update protein to 40 grams');
+      final result = await coordinator.process('update protein to 40 grams');
 
       final tc = (result as VoiceChatMutationCall).toolCall;
       expect(tc.toolName, 'editNutritionLog');
@@ -327,8 +339,9 @@ void main() {
 
   group('delete nutrition', () {
     test('returns mutation call when recent log exists', () async {
-      when(() => recentEntityLookup.mostRecentLog())
-          .thenAnswer((_) async => _recentLog);
+      when(
+        () => recentEntityLookup.mostRecentLog(),
+      ).thenAnswer((_) async => _recentLog);
 
       final result = await coordinator.process('delete my last meal');
 
@@ -388,8 +401,7 @@ void main() {
     });
 
     test('nonsense utterance → unrecognized text response', () async {
-      final result =
-          await coordinator.process('what is the meaning of life');
+      final result = await coordinator.process('what is the meaning of life');
       expect(result, isA<VoiceChatTextResponse>());
       expect(
         (result as VoiceChatTextResponse).message.content,

@@ -5,10 +5,7 @@ import 'package:flutter_test/flutter_test.dart';
 void main() {
   final DateTime createdAt = DateTime(2026, 1, 1);
 
-  Meal buildMeal({
-    required String id,
-    required String name,
-  }) {
+  Meal buildMeal({required String id, required String name}) {
     return Meal(
       id: id,
       name: name,

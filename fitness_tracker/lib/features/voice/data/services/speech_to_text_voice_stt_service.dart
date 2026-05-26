@@ -166,6 +166,13 @@ class SpeechToTextVoiceSttService implements VoiceSttService {
   Stream<VoiceSttResult> listen({String? localeId}) {
     _closeSession();
     _session = _ListenSession(localeId: localeId);
+    AppLogger.info(
+      'SpeechToTextVoiceSttService: listen() starting '
+      '(locale=${localeId ?? 'en-US'}, '
+      'listenFor=${VoiceConstants.sttListenTimeout.inSeconds}s, '
+      'pauseFor=${VoiceConstants.sttSilenceTimeout.inSeconds}s)',
+      category: 'voice/stt/on-device',
+    );
     _startListening();
     return _session!.controller.stream;
   }
@@ -212,6 +219,15 @@ class SpeechToTextVoiceSttService implements VoiceSttService {
     if (session == null || session.controller.isClosed) return;
 
     if (!result.finalResult) {
+      // Diagnostic: log when the recogniser produces its *first* partial of
+      // the session. Confirms the mic captured speech the engine could parse.
+      if (session.latestPartial.isEmpty && result.recognizedWords.isNotEmpty) {
+        AppLogger.info(
+          'SpeechToTextVoiceSttService: first partial received '
+          '(${result.recognizedWords.length} chars)',
+          category: 'voice/stt/on-device',
+        );
+      }
       session.latestPartial = result.recognizedWords;
       session.controller.add(
         VoiceSttResult(transcript: result.recognizedWords, isFinal: false),

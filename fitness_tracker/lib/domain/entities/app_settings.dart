@@ -2,15 +2,9 @@ import 'package:equatable/equatable.dart';
 
 import 'voice_settings.dart';
 
-enum WeekStartDay {
-  monday,
-  sunday,
-}
+enum WeekStartDay { monday, sunday }
 
-enum WeightUnit {
-  kilograms,
-  pounds,
-}
+enum WeightUnit { kilograms, pounds }
 
 class AppSettings extends Equatable {
   final bool notificationsEnabled;
@@ -34,11 +28,11 @@ class AppSettings extends Equatable {
   });
 
   const AppSettings.defaults()
-      : notificationsEnabled = true,
-        weekStartDay = WeekStartDay.monday,
-        weightUnit = WeightUnit.kilograms,
-        uiExpansionState = const <String, bool>{},
-        voiceSettings = const VoiceSettings.defaults();
+    : notificationsEnabled = true,
+      weekStartDay = WeekStartDay.monday,
+      weightUnit = WeightUnit.kilograms,
+      uiExpansionState = const <String, bool>{},
+      voiceSettings = const VoiceSettings.defaults();
 
   AppSettings copyWith({
     bool? notificationsEnabled,
@@ -48,8 +42,7 @@ class AppSettings extends Equatable {
     VoiceSettings? voiceSettings,
   }) {
     return AppSettings(
-      notificationsEnabled:
-          notificationsEnabled ?? this.notificationsEnabled,
+      notificationsEnabled: notificationsEnabled ?? this.notificationsEnabled,
       weekStartDay: weekStartDay ?? this.weekStartDay,
       weightUnit: weightUnit ?? this.weightUnit,
       uiExpansionState: uiExpansionState ?? this.uiExpansionState,
@@ -77,10 +70,10 @@ class AppSettings extends Equatable {
 
   @override
   List<Object?> get props => [
-        notificationsEnabled,
-        weekStartDay,
-        weightUnit,
-        uiExpansionState,
-        voiceSettings,
-      ];
+    notificationsEnabled,
+    weekStartDay,
+    weightUnit,
+    uiExpansionState,
+    voiceSettings,
+  ];
 }

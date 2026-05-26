@@ -2,20 +2,9 @@ import '../../core/constants/muscle_stimulus_constants.dart';
 import '../../core/constants/svg_muscle_mapping.dart';
 import '../entities/time_period.dart';
 
-enum MuscleVisualBucket {
-  empty,
-  light,
-  moderate,
-  heavy,
-  maximum,
-}
+enum MuscleVisualBucket { empty, light, moderate, heavy, maximum }
 
-enum MuscleVisualCoverageState {
-  empty,
-  partial,
-  full,
-  overflow,
-}
+enum MuscleVisualCoverageState { empty, partial, full, overflow }
 
 enum MuscleVisualAggregationMode {
   remainingDailyCapacity,
@@ -24,10 +13,7 @@ enum MuscleVisualAggregationMode {
   allTimePeakNormalized,
 }
 
-enum MuscleVisualSurface {
-  front,
-  back,
-}
+enum MuscleVisualSurface { front, back }
 
 class MuscleVisualComputationResult {
   final double stimulus;

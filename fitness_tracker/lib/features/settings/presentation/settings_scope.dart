@@ -5,16 +5,13 @@ import '../../../domain/entities/app_settings.dart';
 import '../application/app_settings_cubit.dart';
 
 class SettingsScope extends StatelessWidget {
-  const SettingsScope({
-    required this.child,
-    super.key,
-  });
+  const SettingsScope({required this.child, super.key});
 
   final Widget child;
 
   static AppSettings of(BuildContext context) {
-    final _InheritedSettingsScope? scope =
-        context.dependOnInheritedWidgetOfExactType<_InheritedSettingsScope>();
+    final _InheritedSettingsScope? scope = context
+        .dependOnInheritedWidgetOfExactType<_InheritedSettingsScope>();
 
     assert(
       scope != null,
@@ -25,8 +22,8 @@ class SettingsScope extends StatelessWidget {
   }
 
   static AppSettings? maybeOf(BuildContext context) {
-    final _InheritedSettingsScope? scope =
-        context.dependOnInheritedWidgetOfExactType<_InheritedSettingsScope>();
+    final _InheritedSettingsScope? scope = context
+        .dependOnInheritedWidgetOfExactType<_InheritedSettingsScope>();
 
     return scope?.settings;
   }
@@ -44,20 +41,14 @@ class SettingsScope extends StatelessWidget {
     return BlocSelector<AppSettingsCubit, AppSettingsState, AppSettings>(
       selector: (AppSettingsState state) => state.settings,
       builder: (BuildContext context, AppSettings settings) {
-        return _InheritedSettingsScope(
-          settings: settings,
-          child: child,
-        );
+        return _InheritedSettingsScope(settings: settings, child: child);
       },
     );
   }
 }
 
 class _InheritedSettingsScope extends InheritedWidget {
-  const _InheritedSettingsScope({
-    required this.settings,
-    required super.child,
-  });
+  const _InheritedSettingsScope({required this.settings, required super.child});
 
   final AppSettings settings;
 

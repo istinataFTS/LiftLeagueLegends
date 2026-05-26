@@ -57,15 +57,15 @@ void main() {
   late MockGetMuscleFactorsForExercise mockGetFactors;
 
   ExerciseBloc buildBloc() => ExerciseBloc(
-        getAllExercises: mockGetAll,
-        getExerciseById: mockGetById,
-        getExercisesForMuscle: mockGetForMuscle,
-        addExercise: mockAdd,
-        updateExercise: mockUpdate,
-        deleteExercise: mockDelete,
-        ensureDefaultExercises: mockEnsureDefaultExercises,
-        getMuscleFactorsForExercise: mockGetFactors,
-      );
+    getAllExercises: mockGetAll,
+    getExerciseById: mockGetById,
+    getExercisesForMuscle: mockGetForMuscle,
+    addExercise: mockAdd,
+    updateExercise: mockUpdate,
+    deleteExercise: mockDelete,
+    ensureDefaultExercises: mockEnsureDefaultExercises,
+    getMuscleFactorsForExercise: mockGetFactors,
+  );
 
   setUpAll(() {
     registerFallbackValue(_exercise);
@@ -88,8 +88,7 @@ void main() {
         'emits [Loading, ExercisesLoaded] on success',
         build: buildBloc,
         setUp: () {
-          when(() => mockGetAll())
-              .thenAnswer((_) async => Right([_exercise]));
+          when(() => mockGetAll()).thenAnswer((_) async => Right([_exercise]));
         },
         act: (bloc) => bloc.add(LoadExercisesEvent()),
         expect: () => [
@@ -102,14 +101,12 @@ void main() {
         'emits [Loading, ExerciseError] on failure',
         build: buildBloc,
         setUp: () {
-          when(() => mockGetAll())
-              .thenAnswer((_) async => const Left(_dbFailure));
+          when(
+            () => mockGetAll(),
+          ).thenAnswer((_) async => const Left(_dbFailure));
         },
         act: (bloc) => bloc.add(LoadExercisesEvent()),
-        expect: () => [
-          isA<ExerciseLoading>(),
-          const ExerciseError('db error'),
-        ],
+        expect: () => [isA<ExerciseLoading>(), const ExerciseError('db error')],
       );
     });
 
@@ -118,22 +115,21 @@ void main() {
         'emits [Loading, ExerciseLoaded] when exercise is found',
         build: buildBloc,
         setUp: () {
-          when(() => mockGetById('ex-1'))
-              .thenAnswer((_) async => Right(_exercise));
+          when(
+            () => mockGetById('ex-1'),
+          ).thenAnswer((_) async => Right(_exercise));
         },
         act: (bloc) => bloc.add(const LoadExerciseByIdEvent('ex-1')),
-        expect: () => [
-          isA<ExerciseLoading>(),
-          ExerciseLoaded(_exercise),
-        ],
+        expect: () => [isA<ExerciseLoading>(), ExerciseLoaded(_exercise)],
       );
 
       blocTest<ExerciseBloc, ExerciseState>(
         'emits [Loading, ExerciseError] when exercise is not found',
         build: buildBloc,
         setUp: () {
-          when(() => mockGetById('ex-1'))
-              .thenAnswer((_) async => const Right(null));
+          when(
+            () => mockGetById('ex-1'),
+          ).thenAnswer((_) async => const Right(null));
         },
         act: (bloc) => bloc.add(const LoadExerciseByIdEvent('ex-1')),
         expect: () => [
@@ -146,14 +142,12 @@ void main() {
         'emits [Loading, ExerciseError] on repository failure',
         build: buildBloc,
         setUp: () {
-          when(() => mockGetById('ex-1'))
-              .thenAnswer((_) async => const Left(_dbFailure));
+          when(
+            () => mockGetById('ex-1'),
+          ).thenAnswer((_) async => const Left(_dbFailure));
         },
         act: (bloc) => bloc.add(const LoadExerciseByIdEvent('ex-1')),
-        expect: () => [
-          isA<ExerciseLoading>(),
-          const ExerciseError('db error'),
-        ],
+        expect: () => [isA<ExerciseLoading>(), const ExerciseError('db error')],
       );
     });
 
@@ -162,11 +156,11 @@ void main() {
         'emits [Loading, ExercisesLoaded] on success',
         build: buildBloc,
         setUp: () {
-          when(() => mockGetForMuscle('chest'))
-              .thenAnswer((_) async => Right([_exercise]));
+          when(
+            () => mockGetForMuscle('chest'),
+          ).thenAnswer((_) async => Right([_exercise]));
         },
-        act: (bloc) =>
-            bloc.add(const LoadExercisesForMuscleEvent('chest')),
+        act: (bloc) => bloc.add(const LoadExercisesForMuscleEvent('chest')),
         expect: () => [
           isA<ExerciseLoading>(),
           ExercisesLoaded([_exercise]),
@@ -177,15 +171,12 @@ void main() {
         'emits [Loading, ExerciseError] on failure',
         build: buildBloc,
         setUp: () {
-          when(() => mockGetForMuscle('chest'))
-              .thenAnswer((_) async => const Left(_dbFailure));
+          when(
+            () => mockGetForMuscle('chest'),
+          ).thenAnswer((_) async => const Left(_dbFailure));
         },
-        act: (bloc) =>
-            bloc.add(const LoadExercisesForMuscleEvent('chest')),
-        expect: () => [
-          isA<ExerciseLoading>(),
-          const ExerciseError('db error'),
-        ],
+        act: (bloc) => bloc.add(const LoadExercisesForMuscleEvent('chest')),
+        expect: () => [isA<ExerciseLoading>(), const ExerciseError('db error')],
       );
     });
 
@@ -194,10 +185,10 @@ void main() {
         'emits [OperationSuccess, Loading, ExercisesLoaded] on success',
         build: buildBloc,
         setUp: () {
-          when(() => mockAdd(_exercise))
-              .thenAnswer((_) async => const Right(null));
-          when(() => mockGetAll())
-              .thenAnswer((_) async => Right([_exercise]));
+          when(
+            () => mockAdd(_exercise),
+          ).thenAnswer((_) async => const Right(null));
+          when(() => mockGetAll()).thenAnswer((_) async => Right([_exercise]));
         },
         act: (bloc) => bloc.add(AddExerciseEvent(_exercise)),
         expect: () => [
@@ -211,8 +202,9 @@ void main() {
         'emits [ExerciseError] on failure without reloading',
         build: buildBloc,
         setUp: () {
-          when(() => mockAdd(_exercise))
-              .thenAnswer((_) async => const Left(_dbFailure));
+          when(
+            () => mockAdd(_exercise),
+          ).thenAnswer((_) async => const Left(_dbFailure));
         },
         act: (bloc) => bloc.add(AddExerciseEvent(_exercise)),
         expect: () => [const ExerciseError('db error')],
@@ -225,10 +217,10 @@ void main() {
         'emits [OperationSuccess, Loading, ExercisesLoaded] on success',
         build: buildBloc,
         setUp: () {
-          when(() => mockUpdate(_exercise))
-              .thenAnswer((_) async => const Right(null));
-          when(() => mockGetAll())
-              .thenAnswer((_) async => Right([_exercise]));
+          when(
+            () => mockUpdate(_exercise),
+          ).thenAnswer((_) async => const Right(null));
+          when(() => mockGetAll()).thenAnswer((_) async => Right([_exercise]));
         },
         act: (bloc) => bloc.add(UpdateExerciseEvent(_exercise)),
         expect: () => [
@@ -242,8 +234,9 @@ void main() {
         'emits [ExerciseError] on failure without reloading',
         build: buildBloc,
         setUp: () {
-          when(() => mockUpdate(_exercise))
-              .thenAnswer((_) async => const Left(_dbFailure));
+          when(
+            () => mockUpdate(_exercise),
+          ).thenAnswer((_) async => const Left(_dbFailure));
         },
         act: (bloc) => bloc.add(UpdateExerciseEvent(_exercise)),
         expect: () => [const ExerciseError('db error')],
@@ -256,10 +249,10 @@ void main() {
         'emits [OperationSuccess, Loading, ExercisesLoaded] on success',
         build: buildBloc,
         setUp: () {
-          when(() => mockDelete('ex-1'))
-              .thenAnswer((_) async => const Right(null));
-          when(() => mockGetAll())
-              .thenAnswer((_) async => Right([_exercise]));
+          when(
+            () => mockDelete('ex-1'),
+          ).thenAnswer((_) async => const Right(null));
+          when(() => mockGetAll()).thenAnswer((_) async => Right([_exercise]));
         },
         act: (bloc) => bloc.add(const DeleteExerciseEvent('ex-1')),
         expect: () => [
@@ -273,8 +266,9 @@ void main() {
         'emits [ExerciseError] on failure without reloading',
         build: buildBloc,
         setUp: () {
-          when(() => mockDelete('ex-1'))
-              .thenAnswer((_) async => const Left(_dbFailure));
+          when(
+            () => mockDelete('ex-1'),
+          ).thenAnswer((_) async => const Left(_dbFailure));
         },
         act: (bloc) => bloc.add(const DeleteExerciseEvent('ex-1')),
         expect: () => [const ExerciseError('db error')],
@@ -302,11 +296,11 @@ void main() {
         'emits ExerciseFactorsLoaded with a factor map on success',
         build: buildBloc,
         setUp: () {
-          when(() => mockGetFactors('ex-1'))
-              .thenAnswer((_) async => Right(factors));
+          when(
+            () => mockGetFactors('ex-1'),
+          ).thenAnswer((_) async => Right(factors));
         },
-        act: (bloc) =>
-            bloc.add(const LoadExerciseFactorsEvent('ex-1')),
+        act: (bloc) => bloc.add(const LoadExerciseFactorsEvent('ex-1')),
         expect: () => [
           ExerciseFactorsLoaded(
             exerciseId: 'ex-1',
@@ -319,11 +313,11 @@ void main() {
         'emits nothing (silent fail) when repository returns a failure',
         build: buildBloc,
         setUp: () {
-          when(() => mockGetFactors('ex-1'))
-              .thenAnswer((_) async => const Left(_dbFailure));
+          when(
+            () => mockGetFactors('ex-1'),
+          ).thenAnswer((_) async => const Left(_dbFailure));
         },
-        act: (bloc) =>
-            bloc.add(const LoadExerciseFactorsEvent('ex-1')),
+        act: (bloc) => bloc.add(const LoadExerciseFactorsEvent('ex-1')),
         expect: () => <ExerciseState>[],
       );
     });

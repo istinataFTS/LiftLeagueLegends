@@ -52,12 +52,12 @@ class GetMuscleVisualData {
       final visualData = <String, MuscleVisualData>{};
 
       for (final muscleGroup in MuscleStimulus.allMuscleGroups) {
-        final stimulusResult =
-            await muscleStimulusRepository.getStimulusByMuscleAndDate(
-          userId: userId,
-          muscleGroup: muscleGroup,
-          date: todayStart,
-        );
+        final stimulusResult = await muscleStimulusRepository
+            .getStimulusByMuscleAndDate(
+              userId: userId,
+              muscleGroup: muscleGroup,
+              date: todayStart,
+            );
 
         visualData[muscleGroup] = stimulusResult.fold(
           (_) => MuscleVisualData.untrained(
@@ -101,12 +101,12 @@ class GetMuscleVisualData {
       final visualData = <String, MuscleVisualData>{};
 
       for (final muscleGroup in MuscleStimulus.allMuscleGroups) {
-        final stimulusResult =
-            await muscleStimulusRepository.getStimulusByMuscleAndDate(
-          userId: userId,
-          muscleGroup: muscleGroup,
-          date: todayStart,
-        );
+        final stimulusResult = await muscleStimulusRepository
+            .getStimulusByMuscleAndDate(
+              userId: userId,
+              muscleGroup: muscleGroup,
+              date: todayStart,
+            );
 
         if (stimulusResult.isLeft()) {
           visualData[muscleGroup] = MuscleVisualData.untrained(
@@ -184,8 +184,11 @@ class GetMuscleVisualData {
         // it — the same cutoff applied by NormalizedMuscleLoad.decayed().
         // Fresh sets logged today (lastSetTimestamp == today) bypass this
         // check so newly-trained muscles still light up immediately.
-        final int daysSinceLastSet =
-            _daysSinceLastSet(stimulus.lastSetTimestamp, stimulus.date, todayStart);
+        final int daysSinceLastSet = _daysSinceLastSet(
+          stimulus.lastSetTimestamp,
+          stimulus.date,
+          todayStart,
+        );
         if (daysSinceLastSet >= MuscleStimulus.maxFatigueDays) {
           visualData[muscleGroup] = MuscleVisualData.untrained(
             muscleGroup,
@@ -222,13 +225,13 @@ class GetMuscleVisualData {
       final visualData = <String, MuscleVisualData>{};
 
       for (final muscleGroup in MuscleStimulus.allMuscleGroups) {
-        final stimulusResult =
-            await muscleStimulusRepository.getStimulusByDateRange(
-          userId: userId,
-          muscleGroup: muscleGroup,
-          startDate: monthAgo,
-          endDate: todayStart,
-        );
+        final stimulusResult = await muscleStimulusRepository
+            .getStimulusByDateRange(
+              userId: userId,
+              muscleGroup: muscleGroup,
+              startDate: monthAgo,
+              endDate: todayStart,
+            );
 
         visualData[muscleGroup] = stimulusResult.fold(
           (_) => MuscleVisualData.untrained(
@@ -269,10 +272,8 @@ class GetMuscleVisualData {
       double maxStimulusAcrossAll = 0.0;
 
       for (final muscleGroup in MuscleStimulus.allMuscleGroups) {
-        final maxResult = await muscleStimulusRepository.getMaxStimulusForMuscle(
-          userId,
-          muscleGroup,
-        );
+        final maxResult = await muscleStimulusRepository
+            .getMaxStimulusForMuscle(userId, muscleGroup);
 
         maxResult.fold((_) {}, (maxStimulus) {
           if (maxStimulus > maxStimulusAcrossAll) {
@@ -286,10 +287,8 @@ class GetMuscleVisualData {
           : MuscleStimulus.dailyThreshold;
 
       for (final muscleGroup in MuscleStimulus.allMuscleGroups) {
-        final maxResult = await muscleStimulusRepository.getMaxStimulusForMuscle(
-          userId,
-          muscleGroup,
-        );
+        final maxResult = await muscleStimulusRepository
+            .getMaxStimulusForMuscle(userId, muscleGroup);
 
         visualData[muscleGroup] = maxResult.fold(
           (_) => MuscleVisualData.untrained(
@@ -332,13 +331,13 @@ class GetMuscleVisualData {
     // Look back up to 30 days for the most recent stored record and compute
     // decayedLoad = storedLoad * 0.6^daysSince (passive time-based decay).
     final lookbackStart = todayStart.subtract(const Duration(days: 30));
-    final pastRecordsResult =
-        await muscleStimulusRepository.getStimulusByDateRange(
-      userId: userId,
-      muscleGroup: muscleGroup,
-      startDate: lookbackStart,
-      endDate: todayStart.subtract(const Duration(days: 1)),
-    );
+    final pastRecordsResult = await muscleStimulusRepository
+        .getStimulusByDateRange(
+          userId: userId,
+          muscleGroup: muscleGroup,
+          startDate: lookbackStart,
+          endDate: todayStart.subtract(const Duration(days: 1)),
+        );
 
     return pastRecordsResult.fold(
       (_) => MuscleVisualData.untrained(
@@ -420,15 +419,18 @@ class GetMuscleVisualData {
       final raw = DateTime.fromMillisecondsSinceEpoch(lastSetTimestamp);
       lastSetDay = DateTime(raw.year, raw.month, raw.day);
     } else {
-      lastSetDay =
-          DateTime(stimulusDate.year, stimulusDate.month, stimulusDate.day);
+      lastSetDay = DateTime(
+        stimulusDate.year,
+        stimulusDate.month,
+        stimulusDate.day,
+      );
     }
     final int days = todayStart.difference(lastSetDay).inDays;
     return days < 0 ? 0 : days;
   }
 
   Future<Either<Failure, Map<String, MuscleVisualData>>>
-      getVisualDataForMuscles(
+  getVisualDataForMuscles(
     TimePeriod period,
     String userId,
     List<String> muscleGroups,

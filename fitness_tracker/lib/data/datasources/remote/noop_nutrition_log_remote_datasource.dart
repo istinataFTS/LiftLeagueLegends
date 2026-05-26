@@ -1,8 +1,7 @@
 import '../../../domain/entities/nutrition_log.dart';
 import 'nutrition_log_remote_datasource.dart';
 
-class NoopNutritionLogRemoteDataSource
-    implements NutritionLogRemoteDataSource {
+class NoopNutritionLogRemoteDataSource implements NutritionLogRemoteDataSource {
   const NoopNutritionLogRemoteDataSource();
 
   @override
@@ -42,10 +41,7 @@ class NoopNutritionLogRemoteDataSource
   }
 
   @override
-  Future<void> deleteLog({
-    required String localId,
-    String? serverId,
-  }) async {}
+  Future<void> deleteLog({required String localId, String? serverId}) async {}
 
   @override
   Future<List<NutritionLog>> fetchSince({

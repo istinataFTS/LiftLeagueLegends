@@ -159,15 +159,12 @@ void main() {
               2,
             )
             .having(
-              (state) => state.monthNutritionLogs[DateTime(2024, 1, 18)]?.length,
+              (state) =>
+                  state.monthNutritionLogs[DateTime(2024, 1, 18)]?.length,
               'nutrition count on Jan 18',
               1,
             )
-            .having(
-              (state) => state.selectedDate,
-              'selectedDate',
-              isNull,
-            ),
+            .having((state) => state.selectedDate, 'selectedDate', isNull),
       ],
     );
 
@@ -275,12 +272,11 @@ void main() {
       expect: () => <Matcher>[
         isA<HistoryLoading>(),
         isA<HistoryLoaded>(),
-        isA<HistoryLoaded>()
-            .having(
-              (state) => state.selectedDate,
-              'selectedDate',
-              DateTime(2024, 1, 15),
-            ),
+        isA<HistoryLoaded>().having(
+          (state) => state.selectedDate,
+          'selectedDate',
+          DateTime(2024, 1, 15),
+        ),
         isA<HistoryLoaded>()
             .having((state) => state.selectedDate, 'selectedDate', isNull)
             .having(

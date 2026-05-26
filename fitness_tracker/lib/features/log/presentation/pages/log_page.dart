@@ -55,9 +55,7 @@ class _LogPageState extends State<LogPage> {
       body: Column(
         children: <Widget>[
           _buildSegmentedControl(),
-          Expanded(
-            child: _buildContent(),
-          ),
+          Expanded(child: _buildContent()),
         ],
       ),
     );

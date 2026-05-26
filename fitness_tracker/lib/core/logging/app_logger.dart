@@ -2,12 +2,7 @@ import 'dart:developer' as developer;
 
 import 'package:flutter/foundation.dart';
 
-enum AppLogLevel {
-  debug,
-  info,
-  warning,
-  error,
-}
+enum AppLogLevel { debug, info, warning, error }
 
 class AppLogger {
   AppLogger._();
@@ -79,7 +74,8 @@ class AppLogger {
     Object? error,
     StackTrace? stackTrace,
   }) {
-    final formattedMessage = '[${level.name.toUpperCase()}][$category] $message';
+    final formattedMessage =
+        '[${level.name.toUpperCase()}][$category] $message';
 
     developer.log(
       formattedMessage,

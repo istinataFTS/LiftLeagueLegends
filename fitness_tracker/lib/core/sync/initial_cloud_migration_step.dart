@@ -7,8 +7,5 @@ class InitialCloudMigrationStep {
   final String key;
   final InitialCloudMigrationRunner run;
 
-  const InitialCloudMigrationStep({
-    required this.key,
-    required this.run,
-  });
+  const InitialCloudMigrationStep({required this.key, required this.run});
 }

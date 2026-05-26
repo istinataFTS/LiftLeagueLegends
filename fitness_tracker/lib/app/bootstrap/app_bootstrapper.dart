@@ -57,10 +57,7 @@ class AppBootstrapper {
         'Bootstrap finished in ${totalInitTimeMs}ms',
         category: 'bootstrap',
       );
-      PerformanceMonitor.logSummary(
-        _startupTimerName,
-        category: 'bootstrap',
-      );
+      PerformanceMonitor.logSummary(_startupTimerName, category: 'bootstrap');
     } catch (error, stackTrace) {
       final totalInitTimeMs = PerformanceMonitor.stopTimer(_startupTimerName);
 
@@ -85,7 +82,10 @@ class AppBootstrapper {
   }
 
   void _initializeLifecycle() {
-    AppLogger.debug('Initializing app lifecycle manager', category: 'bootstrap');
+    AppLogger.debug(
+      'Initializing app lifecycle manager',
+      category: 'bootstrap',
+    );
     AppLifecycleManager().initialize();
   }
 
@@ -137,9 +137,8 @@ class AppBootstrapper {
     AppLogger.info('Initializing dependencies', category: 'bootstrap');
     await PerformanceMonitor.trackAsync<void>(
       _dependencyInitTimerName,
-      () => di.init(
-        registerOverrides: kIsWeb ? registerWebDemoOverrides : null,
-      ),
+      () =>
+          di.init(registerOverrides: kIsWeb ? registerWebDemoOverrides : null),
       slowThresholdMs: 300,
       category: 'bootstrap',
     );
@@ -159,8 +158,8 @@ class AppBootstrapper {
     }
 
     final SyncOrchestrator syncOrchestrator = di.sl<SyncOrchestrator>();
-    final NetworkStatusService networkStatusService =
-        di.sl<NetworkStatusService>();
+    final NetworkStatusService networkStatusService = di
+        .sl<NetworkStatusService>();
 
     AppLifecycleManager().addResumeCallback(() {
       unawaited(syncOrchestrator.run(SyncTrigger.appResume));
@@ -215,17 +214,46 @@ class AppBootstrapper {
   }
 
   /// At every launch: if `--dart-define=PICOVOICE_ACCESS_KEY=...` was
-  /// supplied at build time, write it into secure storage — overwriting any
-  /// previously stored value that differs. This keeps the stored key in sync
-  /// with the shipped binary without requiring manual user setup.
+  /// supplied at build time with a real value, write it into secure storage —
+  /// overwriting any previously stored value that differs. This keeps the
+  /// stored key in sync with the shipped binary without requiring manual user
+  /// setup.
   ///
-  /// If the dart-define is absent (empty string) the method is a no-op.
-  /// Safe on every platform (the credential service is registered
-  /// unconditionally in `register_voice_module.dart`); silently no-ops on
-  /// web where secure storage is a `localStorage` shim.
+  /// If the dart-define is absent (empty string) **or** still contains the
+  /// `<paste-…>` placeholder from `dart_defines.example.json`, this method
+  /// logs an `error`-level warning naming the misconfiguration and clears any
+  /// stale placeholder that a previous bad build may have left in secure
+  /// storage. It does **not** throw — the app remains fully usable without
+  /// wake word.
+  ///
+  /// Safe on every platform; silently no-ops on web where secure storage is
+  /// a `localStorage` shim.
   Future<void> _seedPicovoiceKeyFromEnvIfNeeded() async {
     final fromEnv = EnvConfig.picovoiceAccessKey.trim();
-    if (fromEnv.isEmpty) return;
+    if (fromEnv.isEmpty || _looksLikePicovoicePlaceholder(fromEnv)) {
+      _logPicovoiceMisconfig(fromEnv);
+      // Self-heal: if a previous build wrote the placeholder into storage,
+      // wipe it so `isWakeWordConfigured` doesn't return a false positive.
+      try {
+        final credentials = di.sl<VoiceCredentialService>();
+        final stored = await credentials.getPicovoiceAccessKey();
+        if (stored != null && _looksLikePicovoicePlaceholder(stored)) {
+          await credentials.clearPicovoiceAccessKey();
+          AppLogger.info(
+            'Cleared placeholder Picovoice key from secure storage.',
+            category: 'bootstrap',
+          );
+        }
+      } catch (error, stackTrace) {
+        AppLogger.warning(
+          'Failed to clear stale placeholder Picovoice key',
+          category: 'bootstrap',
+          error: error,
+          stackTrace: stackTrace,
+        );
+      }
+      return;
+    }
 
     try {
       final credentials = di.sl<VoiceCredentialService>();
@@ -254,6 +282,28 @@ class AppBootstrapper {
         stackTrace: stackTrace,
       );
     }
+  }
+
+  /// Heuristic: the example file ships `<paste-your-picovoice-access-key-here>`.
+  /// Any value wrapped in angle brackets is treated as a placeholder — real
+  /// Picovoice keys are base64-ish ASCII and never contain `<` or `>`.
+  static bool _looksLikePicovoicePlaceholder(String value) {
+    final trimmed = value.trim();
+    return trimmed.startsWith('<') && trimmed.endsWith('>');
+  }
+
+  void _logPicovoiceMisconfig(String observed) {
+    final detail = observed.isEmpty
+        ? 'PICOVOICE_ACCESS_KEY dart-define is empty'
+        : 'PICOVOICE_ACCESS_KEY dart-define still holds the placeholder '
+              '"$observed" from dart_defines.example.json';
+    AppLogger.error(
+      'Wake-word disabled: $detail. '
+      'Copy dart_defines.example.json to dart_defines.json and paste your '
+      'real Picovoice Console key. '
+      'See KNOWN_ISSUES.md#voice-picovoice-key-must-ship-via-dart-define.',
+      category: 'bootstrap',
+    );
   }
 
   Future<void> _seedDefaultDataIfNeeded() async {

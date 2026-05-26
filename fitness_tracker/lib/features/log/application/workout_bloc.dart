@@ -124,16 +124,13 @@ class WorkoutBloc extends Bloc<WorkoutEvent, WorkoutState>
           intensity: event.workoutSet.intensity,
         );
 
-        final affectedMuscles = stimulusResult.fold(
-          (failure) {
-            AppLogger.warning(
-              'calculateMuscleStimulus failed: ${failure.message}',
-              category: 'workout',
-            );
-            return <String>[];
-          },
-          (muscleStimuli) => muscleStimuli.keys.toList(),
-        );
+        final affectedMuscles = stimulusResult.fold((failure) {
+          AppLogger.warning(
+            'calculateMuscleStimulus failed: ${failure.message}',
+            category: 'workout',
+          );
+          return <String>[];
+        }, (muscleStimuli) => muscleStimuli.keys.toList());
 
         final hadNoMuscleMapping = affectedMuscles.isEmpty;
         final message = hadNoMuscleMapping
@@ -177,13 +174,10 @@ class WorkoutBloc extends Bloc<WorkoutEvent, WorkoutState>
 
     final result = await getWeeklySets();
 
-    result.fold(
-      (failure) => emit(WorkoutError(failure.message)),
-      (sets) {
-        _cachedWeeklySets = sets;
-        emit(WorkoutLoaded(sets));
-      },
-    );
+    result.fold((failure) => emit(WorkoutError(failure.message)), (sets) {
+      _cachedWeeklySets = sets;
+      emit(WorkoutLoaded(sets));
+    });
   }
 
   List<WorkoutSet> get cachedWeeklySets => _cachedWeeklySets;

@@ -1,6 +1,9 @@
+import 'dart:async';
+
 import 'package:bloc_test/bloc_test.dart';
 import 'package:fitness_tracker/core/constants/app_strings.dart';
 import 'package:fitness_tracker/domain/entities/voice_settings.dart';
+import 'package:fitness_tracker/domain/services/voice_credential_service.dart';
 import 'package:fitness_tracker/domain/services/voice_tts_service.dart';
 import 'package:fitness_tracker/features/voice/application/voice_settings_cubit.dart';
 import 'package:fitness_tracker/features/voice/presentation/voice_settings_page.dart';
@@ -41,6 +44,36 @@ class FakeVoiceTtsService implements VoiceTtsService {
   Future<void> dispose() async {}
 }
 
+/// Minimal in-memory [VoiceCredentialService] for settings-page tests.
+/// [isWakeWordConfigured] is overridable per test so we can verify both the
+/// configured (no banner) and misconfigured (banner shown) renderings.
+class FakeVoiceCredentialService implements VoiceCredentialService {
+  FakeVoiceCredentialService({this.configured = true});
+
+  bool configured;
+
+  @override
+  Future<String?> getPicovoiceAccessKey() async => configured ? 'real' : null;
+
+  @override
+  Future<void> setPicovoiceAccessKey(String key) async {}
+
+  @override
+  Future<void> clearPicovoiceAccessKey() async {}
+
+  @override
+  Future<bool> hasPicovoiceAccessKey() async => configured;
+
+  @override
+  Future<bool> isWakeWordConfigured() async => configured;
+
+  @override
+  Stream<void> get onPicovoiceKeyChanged => const Stream.empty();
+
+  @override
+  Future<void> dispose() async {}
+}
+
 // ---------------------------------------------------------------------------
 // Helpers
 // ---------------------------------------------------------------------------
@@ -61,6 +94,8 @@ Widget _wrap(VoiceSettingsCubit cubit) {
 void main() {
   late MockVoiceSettingsCubit cubit;
 
+  late FakeVoiceCredentialService credentialService;
+
   setUpAll(() {
     // Register a fake TTS service so the audio preview callback in
     // _WakeWordPicker._preview() can call sl<VoiceTtsService>() without
@@ -68,11 +103,23 @@ void main() {
     if (!sl.isRegistered<VoiceTtsService>()) {
       sl.registerSingleton<VoiceTtsService>(FakeVoiceTtsService());
     }
+    // The page reads VoiceCredentialService at construction time to decide
+    // whether to render the "wake word disabled" banner. Register a fake
+    // here; per-test setUp() rebinds `configured` so individual tests can
+    // exercise both branches.
+    if (!sl.isRegistered<VoiceCredentialService>()) {
+      sl.registerSingleton<VoiceCredentialService>(
+        FakeVoiceCredentialService(),
+      );
+    }
   });
 
   tearDownAll(() async {
     if (sl.isRegistered<VoiceTtsService>()) {
       await sl.unregister<VoiceTtsService>();
+    }
+    if (sl.isRegistered<VoiceCredentialService>()) {
+      await sl.unregister<VoiceCredentialService>();
     }
   });
 
@@ -85,6 +132,11 @@ void main() {
       Stream<VoiceSettings>.empty(),
       initialState: const VoiceSettings.defaults(),
     );
+    // Default: wake word is configured → banner does NOT render. Tests that
+    // need the misconfigured path override this before pumping the widget.
+    credentialService =
+        sl<VoiceCredentialService>() as FakeVoiceCredentialService;
+    credentialService.configured = true;
   });
 
   group('VoiceSettingsPage', () {

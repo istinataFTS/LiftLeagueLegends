@@ -7,14 +7,17 @@ class StimulusCalculationRules {
   static double calculateIntensityFactor(int intensity) {
     // Clamp intensity to valid range
     final clampedIntensity = MuscleStimulus.clampIntensity(intensity);
-    
+
     // Handle zero intensity (warm-up sets)
     if (clampedIntensity == 0) return 0.0;
 
     // Calculate non-linear intensity factor
     final normalizedIntensity = clampedIntensity / MuscleStimulus.maxIntensity;
-    final intensityFactor = pow(normalizedIntensity, MuscleStimulus.intensityExponent);
-    
+    final intensityFactor = pow(
+      normalizedIntensity,
+      MuscleStimulus.intensityExponent,
+    );
+
     return intensityFactor.toDouble();
   }
 
@@ -25,8 +28,10 @@ class StimulusCalculationRules {
   }) {
     // Validate inputs
     assert(sets >= 0, 'Sets must be non-negative');
-    assert(exerciseFactor >= 0.0 && exerciseFactor <= 1.0, 
-           'Exercise factor must be between 0.0 and 1.0');
+    assert(
+      exerciseFactor >= 0.0 && exerciseFactor <= 1.0,
+      'Exercise factor must be between 0.0 and 1.0',
+    );
 
     // Calculate intensity factor
     final intensityFactor = calculateIntensityFactor(intensity);
@@ -39,7 +44,7 @@ class StimulusCalculationRules {
 
   static double aggregateDailyStimulus(List<double> setStimuliForDay) {
     if (setStimuliForDay.isEmpty) return 0.0;
-    
+
     return setStimuliForDay.reduce((sum, stimulus) => sum + stimulus);
   }
 
@@ -47,19 +52,21 @@ class StimulusCalculationRules {
     required double previousWeeklyLoad,
     required double dailyStimulus,
   }) {
-    assert(previousWeeklyLoad >= 0.0, 'Previous weekly load must be non-negative');
+    assert(
+      previousWeeklyLoad >= 0.0,
+      'Previous weekly load must be non-negative',
+    );
     assert(dailyStimulus >= 0.0, 'Daily stimulus must be non-negative');
 
-    final newWeeklyLoad = 
+    final newWeeklyLoad =
         (previousWeeklyLoad * MuscleStimulus.weeklyDecayFactor) + dailyStimulus;
-    
+
     return newWeeklyLoad;
   }
 
-
   static double applyDailyDecay(double currentWeeklyLoad) {
     assert(currentWeeklyLoad >= 0.0, 'Weekly load must be non-negative');
-    
+
     return currentWeeklyLoad * MuscleStimulus.weeklyDecayFactor;
   }
 
@@ -98,40 +105,44 @@ class StimulusCalculationRules {
 
     // Calculate and clamp intensity to 0-1 range
     final intensity = (totalStimulus / threshold).clamp(0.0, 1.0);
-    
+
     return intensity;
   }
 
   static double aggregateMonthlyStimulus(List<double> dailyStimuliForMonth) {
     if (dailyStimuliForMonth.isEmpty) return 0.0;
-    
+
     return dailyStimuliForMonth.reduce((sum, stimulus) => sum + stimulus);
   }
 
   static double findMaximumStimulus(List<double> allDailyStimuli) {
     if (allDailyStimuli.isEmpty) return 0.0;
-    
-    return allDailyStimuli.reduce((max, stimulus) => stimulus > max ? stimulus : max);
-  }  static bool validateStimulusInputs({
+
+    return allDailyStimuli.reduce(
+      (max, stimulus) => stimulus > max ? stimulus : max,
+    );
+  }
+
+  static bool validateStimulusInputs({
     required int sets,
     required int intensity,
     required double exerciseFactor,
   }) {
     return sets >= 0 &&
-           MuscleStimulus.isValidIntensity(intensity) &&
-           exerciseFactor >= 0.0 &&
-           exerciseFactor <= 1.0;
+        MuscleStimulus.isValidIntensity(intensity) &&
+        exerciseFactor >= 0.0 &&
+        exerciseFactor <= 1.0;
   }
 
   /// Validate that intensity value is within acceptable range
-  /// 
+  ///
   /// Returns: True if intensity is valid (0-5)
   static bool validateIntensity(int intensity) {
     return MuscleStimulus.isValidIntensity(intensity);
   }
 
   /// Validate that exercise factor is within acceptable range
-  /// 
+  ///
   /// Returns: True if factor is valid (0.0-1.0)
   static bool validateExerciseFactor(double factor) {
     return factor >= 0.0 && factor <= 1.0;

@@ -6,21 +6,27 @@ void main() {
   group('SettingsDisplayFormatter', () {
     group('weekPreview', () {
       // Default sample date is DateTime(2026, 3, 19) — a Thursday.
-      test('formats week range with monday start using default sample date', () {
-        // Mon Mar 16 – Sun Mar 22
-        expect(
-          SettingsDisplayFormatter.weekPreview(WeekStartDay.monday),
-          'Week preview: Mar 16 - Mar 22',
-        );
-      });
+      test(
+        'formats week range with monday start using default sample date',
+        () {
+          // Mon Mar 16 – Sun Mar 22
+          expect(
+            SettingsDisplayFormatter.weekPreview(WeekStartDay.monday),
+            'Week preview: Mar 16 - Mar 22',
+          );
+        },
+      );
 
-      test('formats week range with sunday start using default sample date', () {
-        // Sun Mar 15 – Sat Mar 21
-        expect(
-          SettingsDisplayFormatter.weekPreview(WeekStartDay.sunday),
-          'Week preview: Mar 15 - Mar 21',
-        );
-      });
+      test(
+        'formats week range with sunday start using default sample date',
+        () {
+          // Sun Mar 15 – Sat Mar 21
+          expect(
+            SettingsDisplayFormatter.weekPreview(WeekStartDay.sunday),
+            'Week preview: Mar 15 - Mar 21',
+          );
+        },
+      );
 
       test('formats week range with custom sample date', () {
         // Wednesday 2026-03-25, monday start → Mon Mar 23 – Sun Mar 29

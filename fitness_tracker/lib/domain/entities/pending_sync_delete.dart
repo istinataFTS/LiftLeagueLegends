@@ -44,18 +44,20 @@ class PendingSyncDelete extends Equatable {
       lastAttemptAt: clearLastAttemptAt
           ? null
           : (lastAttemptAt ?? this.lastAttemptAt),
-      errorMessage: clearErrorMessage ? null : (errorMessage ?? this.errorMessage),
+      errorMessage: clearErrorMessage
+          ? null
+          : (errorMessage ?? this.errorMessage),
     );
   }
 
   @override
   List<Object?> get props => [
-        id,
-        entityType,
-        localEntityId,
-        serverEntityId,
-        createdAt,
-        lastAttemptAt,
-        errorMessage,
-      ];
+    id,
+    entityType,
+    localEntityId,
+    serverEntityId,
+    createdAt,
+    lastAttemptAt,
+    errorMessage,
+  ];
 }

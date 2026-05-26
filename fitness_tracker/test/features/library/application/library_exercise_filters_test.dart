@@ -37,20 +37,23 @@ void main() {
   ];
 
   group('LibraryExerciseFilters', () {
-    test('returns all exercises when query is blank and no muscle is selected', () {
-      final List<Exercise> result = LibraryExerciseFilters.apply(
-        exercises: exercises,
-        query: '   ',
-        selectedMuscle: null,
-      );
+    test(
+      'returns all exercises when query is blank and no muscle is selected',
+      () {
+        final List<Exercise> result = LibraryExerciseFilters.apply(
+          exercises: exercises,
+          query: '   ',
+          selectedMuscle: null,
+        );
 
-      expect(result, hasLength(3));
-      expect(result.map((Exercise item) => item.name), <String>[
-        'Bench Press',
-        'Pull Up',
-        'Overhead Press',
-      ]);
-    });
+        expect(result, hasLength(3));
+        expect(result.map((Exercise item) => item.name), <String>[
+          'Bench Press',
+          'Pull Up',
+          'Overhead Press',
+        ]);
+      },
+    );
 
     test('filters by exercise name using case-insensitive matching', () {
       final List<Exercise> result = LibraryExerciseFilters.apply(

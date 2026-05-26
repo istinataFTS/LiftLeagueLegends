@@ -14,10 +14,10 @@ class LocalRemoteMerge<T> {
     required EntityUpdatedAtGetter<T> getUpdatedAt,
     required EntitySyncMetadataGetter<T> getSyncMetadata,
   }) : _resolver = EntitySyncResolver<T>(
-          getId: getId,
-          getUpdatedAt: getUpdatedAt,
-          getSyncMetadata: getSyncMetadata,
-        );
+         getId: getId,
+         getUpdatedAt: getUpdatedAt,
+         getSyncMetadata: getSyncMetadata,
+       );
 
   List<T> mergeLists({
     required List<T> localItems,
@@ -29,23 +29,14 @@ class LocalRemoteMerge<T> {
     );
   }
 
-  T chooseWinner({
-    required T local,
-    required T remote,
-  }) {
-    return _resolver.resolveConflict(
-      local: local,
-      remote: remote,
-    ).winner;
+  T chooseWinner({required T local, required T remote}) {
+    return _resolver.resolveConflict(local: local, remote: remote).winner;
   }
 
   SyncConflictResolution<T> resolveConflict({
     required T local,
     required T remote,
   }) {
-    return _resolver.resolveConflict(
-      local: local,
-      remote: remote,
-    );
+    return _resolver.resolveConflict(local: local, remote: remote);
   }
 }

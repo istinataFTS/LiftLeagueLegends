@@ -31,8 +31,9 @@ class MuscleFactorModel extends MuscleFactor {
     return MuscleFactorModel(
       id: map[DatabaseTables.factorId] as String,
       exerciseId: map[DatabaseTables.factorExerciseId] as String,
-      muscleGroup:
-          _normaliseMuscleGroup(map[DatabaseTables.factorMuscleGroup] as String),
+      muscleGroup: _normaliseMuscleGroup(
+        map[DatabaseTables.factorMuscleGroup] as String,
+      ),
       factor: (map[DatabaseTables.factorValue] as num).toDouble(),
     );
   }

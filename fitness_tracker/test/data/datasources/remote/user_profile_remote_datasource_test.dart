@@ -26,10 +26,7 @@ void main() {
 
     test('upsertProfile throws UnsupportedError', () async {
       final profile = _testProfile();
-      expect(
-        () => sut.upsertProfile(profile),
-        throwsUnsupportedError,
-      );
+      expect(() => sut.upsertProfile(profile), throwsUnsupportedError);
     });
   });
 
@@ -41,9 +38,7 @@ void main() {
       final provider = _MockSupabaseClientProvider();
       when(() => provider.isConfigured).thenReturn(false);
 
-      final sut = SupabaseUserProfileRemoteDataSource(
-        clientProvider: provider,
-      );
+      final sut = SupabaseUserProfileRemoteDataSource(clientProvider: provider);
 
       expect(sut.isConfigured, isFalse);
     });
@@ -52,9 +47,7 @@ void main() {
       final provider = _MockSupabaseClientProvider();
       when(() => provider.isConfigured).thenReturn(true);
 
-      final sut = SupabaseUserProfileRemoteDataSource(
-        clientProvider: provider,
-      );
+      final sut = SupabaseUserProfileRemoteDataSource(clientProvider: provider);
 
       expect(sut.isConfigured, isTrue);
     });
@@ -68,9 +61,7 @@ void main() {
       final provider = _MockSupabaseClientProvider();
       when(() => provider.isConfigured).thenReturn(false);
 
-      final sut = SupabaseUserProfileRemoteDataSource(
-        clientProvider: provider,
-      );
+      final sut = SupabaseUserProfileRemoteDataSource(clientProvider: provider);
 
       expect(await sut.getProfile('any-id'), isNull);
     });
@@ -84,9 +75,7 @@ void main() {
       final provider = _MockSupabaseClientProvider();
       when(() => provider.isConfigured).thenReturn(false);
 
-      final sut = SupabaseUserProfileRemoteDataSource(
-        clientProvider: provider,
-      );
+      final sut = SupabaseUserProfileRemoteDataSource(clientProvider: provider);
 
       expect(
         () => sut.upsertProfile(_testProfile()),

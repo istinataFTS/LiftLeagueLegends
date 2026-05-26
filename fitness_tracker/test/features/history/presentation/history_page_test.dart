@@ -70,14 +70,15 @@ void main() {
     historyBloc = MockHistoryBloc();
     exerciseBloc = MockExerciseBloc();
 
-    when(() => historyBloc.effects)
-        .thenAnswer((_) => const Stream<HistoryUiEffect>.empty());
+    when(
+      () => historyBloc.effects,
+    ).thenAnswer((_) => const Stream<HistoryUiEffect>.empty());
     when(() => historyBloc.add(any())).thenReturn(null);
     when(() => exerciseBloc.add(any())).thenReturn(null);
 
-    when(() => exerciseBloc.state).thenReturn(
-      ExercisesLoaded(<Exercise>[benchPress]),
-    );
+    when(
+      () => exerciseBloc.state,
+    ).thenReturn(ExercisesLoaded(<Exercise>[benchPress]));
     whenListen(
       exerciseBloc,
       const Stream<ExerciseState>.empty(),
@@ -106,9 +107,7 @@ void main() {
 
   group('HistoryPage', () {
     testWidgets('shows loading state', (tester) async {
-      await tester.pumpWidget(
-        buildSubject(const HistoryLoading()),
-      );
+      await tester.pumpWidget(buildSubject(const HistoryLoading()));
 
       expect(find.byType(CircularProgressIndicator), findsOneWidget);
     });
@@ -137,8 +136,9 @@ void main() {
       expect(find.text('Chicken Bowl'), findsOneWidget);
     });
 
-    testWidgets('shows error state and retry action dispatches load event',
-        (tester) async {
+    testWidgets('shows error state and retry action dispatches load event', (
+      tester,
+    ) async {
       await tester.pumpWidget(
         buildSubject(const HistoryError('Something went wrong')),
       );
@@ -148,11 +148,13 @@ void main() {
       expect(find.text('Retry'), findsOneWidget);
 
       reset(historyBloc);
-      when(() => historyBloc.effects)
-          .thenAnswer((_) => const Stream<HistoryUiEffect>.empty());
+      when(
+        () => historyBloc.effects,
+      ).thenAnswer((_) => const Stream<HistoryUiEffect>.empty());
       when(() => historyBloc.add(any())).thenReturn(null);
-      when(() => historyBloc.state)
-          .thenReturn(const HistoryError('Something went wrong'));
+      when(
+        () => historyBloc.state,
+      ).thenReturn(const HistoryError('Something went wrong'));
 
       await tester.tap(find.text('Retry'));
       await tester.pump();
@@ -162,8 +164,9 @@ void main() {
       ).called(1);
     });
 
-    testWidgets('tapping a calendar date dispatches SelectDateEvent',
-        (tester) async {
+    testWidgets('tapping a calendar date dispatches SelectDateEvent', (
+      tester,
+    ) async {
       final HistoryLoaded state = HistoryLoaded(
         currentMonth: januaryMonth,
         monthSets: <DateTime, List<WorkoutSet>>{
@@ -182,14 +185,13 @@ void main() {
       await tester.pump();
 
       verify(
-        () => historyBloc.add(
-          SelectDateEvent(DateTime(2024, 1, 15)),
-        ),
+        () => historyBloc.add(SelectDateEvent(DateTime(2024, 1, 15))),
       ).called(1);
     });
 
-    testWidgets('previous month button dispatches NavigateToMonthEvent',
-        (tester) async {
+    testWidgets('previous month button dispatches NavigateToMonthEvent', (
+      tester,
+    ) async {
       final HistoryLoaded state = HistoryLoaded(
         currentMonth: januaryMonth,
         monthSets: const <DateTime, List<WorkoutSet>>{},
@@ -203,14 +205,13 @@ void main() {
       await tester.pump();
 
       verify(
-        () => historyBloc.add(
-          NavigateToMonthEvent(DateTime(2023, 12, 1)),
-        ),
+        () => historyBloc.add(NavigateToMonthEvent(DateTime(2023, 12, 1))),
       ).called(1);
     });
 
-    testWidgets('next month navigation is blocked for future months',
-        (tester) async {
+    testWidgets('next month navigation is blocked for future months', (
+      tester,
+    ) async {
       final DateTime now = DateTime.now();
       final DateTime currentMonth = DateTime(now.year, now.month, 1);
 

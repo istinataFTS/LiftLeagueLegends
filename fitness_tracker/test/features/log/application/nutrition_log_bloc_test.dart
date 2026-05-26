@@ -55,12 +55,12 @@ void main() {
   late MockGetDailyMacros mockGetMacros;
 
   NutritionLogBloc buildBloc() => NutritionLogBloc(
-        getLogsForDate: mockGetLogs,
-        addNutritionLog: mockAdd,
-        updateNutritionLog: mockUpdate,
-        deleteNutritionLog: mockDelete,
-        getDailyMacros: mockGetMacros,
-      );
+    getLogsForDate: mockGetLogs,
+    addNutritionLog: mockAdd,
+    updateNutritionLog: mockUpdate,
+    deleteNutritionLog: mockDelete,
+    getDailyMacros: mockGetMacros,
+  );
 
   setUpAll(() {
     registerFallbackValue(_logFixture);
@@ -80,10 +80,12 @@ void main() {
         'emits [Loading, DailyLogsLoaded] on success',
         build: buildBloc,
         setUp: () {
-          when(() => mockGetLogs(_logDate))
-              .thenAnswer((_) async => Right([_logFixture]));
-          when(() => mockGetMacros(_logDate))
-              .thenAnswer((_) async => const Right(_macros));
+          when(
+            () => mockGetLogs(_logDate),
+          ).thenAnswer((_) async => Right([_logFixture]));
+          when(
+            () => mockGetMacros(_logDate),
+          ).thenAnswer((_) async => const Right(_macros));
         },
         act: (bloc) => bloc.add(LoadDailyLogsEvent(_logDate)),
         expect: () => [
@@ -100,8 +102,9 @@ void main() {
         'emits [Loading, NutritionLogError] when logs fetch fails',
         build: buildBloc,
         setUp: () {
-          when(() => mockGetLogs(_logDate))
-              .thenAnswer((_) async => const Left(_dbFailure));
+          when(
+            () => mockGetLogs(_logDate),
+          ).thenAnswer((_) async => const Left(_dbFailure));
         },
         act: (bloc) => bloc.add(LoadDailyLogsEvent(_logDate)),
         expect: () => [
@@ -114,10 +117,12 @@ void main() {
         'emits [Loading, NutritionLogError] when macros fetch fails',
         build: buildBloc,
         setUp: () {
-          when(() => mockGetLogs(_logDate))
-              .thenAnswer((_) async => Right([_logFixture]));
-          when(() => mockGetMacros(_logDate))
-              .thenAnswer((_) async => const Left(_dbFailure));
+          when(
+            () => mockGetLogs(_logDate),
+          ).thenAnswer((_) async => Right([_logFixture]));
+          when(
+            () => mockGetMacros(_logDate),
+          ).thenAnswer((_) async => const Left(_dbFailure));
         },
         act: (bloc) => bloc.add(LoadDailyLogsEvent(_logDate)),
         expect: () => [
@@ -132,37 +137,42 @@ void main() {
         'reloads the day and emits DailyLogsLoaded on success',
         build: buildBloc,
         setUp: () {
-          when(() => mockAdd(_logFixture))
-              .thenAnswer((_) async => const Right(null));
-          when(() => mockGetLogs(any()))
-              .thenAnswer((_) async => Right([_logFixture]));
-          when(() => mockGetMacros(any()))
-              .thenAnswer((_) async => const Right(_macros));
+          when(
+            () => mockAdd(_logFixture),
+          ).thenAnswer((_) async => const Right(null));
+          when(
+            () => mockGetLogs(any()),
+          ).thenAnswer((_) async => Right([_logFixture]));
+          when(
+            () => mockGetMacros(any()),
+          ).thenAnswer((_) async => const Right(_macros));
         },
         act: (bloc) => bloc.add(AddNutritionLogEvent(_logFixture)),
-        expect: () => [
-          isA<DailyLogsLoaded>(),
-        ],
+        expect: () => [isA<DailyLogsLoaded>()],
       );
 
       blocTest<NutritionLogBloc, NutritionLogState>(
         'emits NutritionLogError on failure',
         build: buildBloc,
         setUp: () {
-          when(() => mockAdd(_logFixture))
-              .thenAnswer((_) async => const Left(_dbFailure));
+          when(
+            () => mockAdd(_logFixture),
+          ).thenAnswer((_) async => const Left(_dbFailure));
         },
         act: (bloc) => bloc.add(AddNutritionLogEvent(_logFixture)),
         expect: () => [const NutritionLogError('db error')],
       );
 
       test('emits NutritionLogSuccessEffect on success', () async {
-        when(() => mockAdd(_logFixture))
-            .thenAnswer((_) async => const Right(null));
-        when(() => mockGetLogs(any()))
-            .thenAnswer((_) async => Right([_logFixture]));
-        when(() => mockGetMacros(any()))
-            .thenAnswer((_) async => const Right(_macros));
+        when(
+          () => mockAdd(_logFixture),
+        ).thenAnswer((_) async => const Right(null));
+        when(
+          () => mockGetLogs(any()),
+        ).thenAnswer((_) async => Right([_logFixture]));
+        when(
+          () => mockGetMacros(any()),
+        ).thenAnswer((_) async => const Right(_macros));
 
         final bloc = buildBloc();
         final effects = <NutritionLogUiEffect>[];
@@ -188,12 +198,15 @@ void main() {
         'reloads the day and emits DailyLogsLoaded on success',
         build: buildBloc,
         setUp: () {
-          when(() => mockUpdate(_logFixture))
-              .thenAnswer((_) async => const Right(null));
-          when(() => mockGetLogs(any()))
-              .thenAnswer((_) async => Right([_logFixture]));
-          when(() => mockGetMacros(any()))
-              .thenAnswer((_) async => const Right(_macros));
+          when(
+            () => mockUpdate(_logFixture),
+          ).thenAnswer((_) async => const Right(null));
+          when(
+            () => mockGetLogs(any()),
+          ).thenAnswer((_) async => Right([_logFixture]));
+          when(
+            () => mockGetMacros(any()),
+          ).thenAnswer((_) async => const Right(_macros));
         },
         act: (bloc) => bloc.add(UpdateNutritionLogEvent(_logFixture)),
         expect: () => [isA<DailyLogsLoaded>()],
@@ -203,20 +216,24 @@ void main() {
         'emits NutritionLogError on failure',
         build: buildBloc,
         setUp: () {
-          when(() => mockUpdate(_logFixture))
-              .thenAnswer((_) async => const Left(_dbFailure));
+          when(
+            () => mockUpdate(_logFixture),
+          ).thenAnswer((_) async => const Left(_dbFailure));
         },
         act: (bloc) => bloc.add(UpdateNutritionLogEvent(_logFixture)),
         expect: () => [const NutritionLogError('db error')],
       );
 
       test('emits NutritionLogSuccessEffect on success', () async {
-        when(() => mockUpdate(_logFixture))
-            .thenAnswer((_) async => const Right(null));
-        when(() => mockGetLogs(any()))
-            .thenAnswer((_) async => Right([_logFixture]));
-        when(() => mockGetMacros(any()))
-            .thenAnswer((_) async => const Right(_macros));
+        when(
+          () => mockUpdate(_logFixture),
+        ).thenAnswer((_) async => const Right(null));
+        when(
+          () => mockGetLogs(any()),
+        ).thenAnswer((_) async => Right([_logFixture]));
+        when(
+          () => mockGetMacros(any()),
+        ).thenAnswer((_) async => const Right(_macros));
 
         final bloc = buildBloc();
         final effects = <NutritionLogUiEffect>[];
@@ -241,10 +258,12 @@ void main() {
         'reloads the day and emits DailyLogsLoaded on success',
         build: buildBloc,
         setUp: () {
-          when(() => mockDelete('log-1'))
-              .thenAnswer((_) async => const Right(null));
-          when(() => mockGetLogs(any()))
-              .thenAnswer((_) async => const Right([]));
+          when(
+            () => mockDelete('log-1'),
+          ).thenAnswer((_) async => const Right(null));
+          when(
+            () => mockGetLogs(any()),
+          ).thenAnswer((_) async => const Right([]));
           when(() => mockGetMacros(any())).thenAnswer(
             (_) async => const Right({
               'protein': 0.0,
@@ -262,18 +281,19 @@ void main() {
         'emits NutritionLogError on failure',
         build: buildBloc,
         setUp: () {
-          when(() => mockDelete('log-1'))
-              .thenAnswer((_) async => const Left(_dbFailure));
+          when(
+            () => mockDelete('log-1'),
+          ).thenAnswer((_) async => const Left(_dbFailure));
         },
         act: (bloc) => bloc.add(const DeleteNutritionLogEvent('log-1')),
         expect: () => [const NutritionLogError('db error')],
       );
 
       test('emits NutritionLogSuccessEffect on success', () async {
-        when(() => mockDelete('log-1'))
-            .thenAnswer((_) async => const Right(null));
-        when(() => mockGetLogs(any()))
-            .thenAnswer((_) async => const Right([]));
+        when(
+          () => mockDelete('log-1'),
+        ).thenAnswer((_) async => const Right(null));
+        when(() => mockGetLogs(any())).thenAnswer((_) async => const Right([]));
         when(() => mockGetMacros(any())).thenAnswer(
           (_) async => const Right({
             'protein': 0.0,
@@ -306,10 +326,12 @@ void main() {
         'reloads the specified date without emitting Loading',
         build: buildBloc,
         setUp: () {
-          when(() => mockGetLogs(_logDate))
-              .thenAnswer((_) async => Right([_logFixture]));
-          when(() => mockGetMacros(_logDate))
-              .thenAnswer((_) async => const Right(_macros));
+          when(
+            () => mockGetLogs(_logDate),
+          ).thenAnswer((_) async => Right([_logFixture]));
+          when(
+            () => mockGetMacros(_logDate),
+          ).thenAnswer((_) async => const Right(_macros));
         },
         act: (bloc) => bloc.add(RefreshDailyLogsEvent(_logDate)),
         expect: () => [

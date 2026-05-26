@@ -150,9 +150,7 @@ class NutritionLogRepositoryImpl implements NutritionLogRepository {
             remote: remoteLog,
           );
 
-          await localDataSource.upsertLog(
-            NutritionLogModel.fromEntity(merged),
-          );
+          await localDataSource.upsertLog(NutritionLogModel.fromEntity(merged));
 
           return localDataSource.getLogById(id);
       }
@@ -237,10 +235,7 @@ class NutritionLogRepositoryImpl implements NutritionLogRepository {
   Future<Either<Failure, List<NutritionLog>>> getTodayLogs({
     DataSourcePreference sourcePreference = DataSourcePreference.localOnly,
   }) {
-    return getLogsByDate(
-      DateTime.now(),
-      sourcePreference: sourcePreference,
-    );
+    return getLogsByDate(DateTime.now(), sourcePreference: sourcePreference);
   }
 
   @override
@@ -255,7 +250,11 @@ class NutritionLogRepositoryImpl implements NutritionLogRepository {
 
       final now = DateTime.now();
       final weekStart = now.subtract(Duration(days: now.weekday - 1));
-      final startDate = DateTime(weekStart.year, weekStart.month, weekStart.day);
+      final startDate = DateTime(
+        weekStart.year,
+        weekStart.month,
+        weekStart.day,
+      );
 
       return getLogsByDateRange(
         startDate,
@@ -368,8 +367,8 @@ class NutritionLogRepositoryImpl implements NutritionLogRepository {
     DataSourcePreference sourcePreference = DataSourcePreference.localOnly,
   }) {
     return RepositoryGuard.run(() async {
-      final Map<String, dynamic> result = sourcePreference ==
-                  DataSourcePreference.localOnly ||
+      final Map<String, dynamic> result =
+          sourcePreference == DataSourcePreference.localOnly ||
               !remoteDataSource.isConfigured
           ? await localDataSource.getDailyMacros(date)
           : _aggregateDailyMacros(
@@ -377,10 +376,8 @@ class NutritionLogRepositoryImpl implements NutritionLogRepository {
                 date,
                 sourcePreference: sourcePreference,
               ).then(
-                (value) => value.fold(
-                  (_) => const <NutritionLog>[],
-                  (logs) => logs,
-                ),
+                (value) =>
+                    value.fold((_) => const <NutritionLog>[], (logs) => logs),
               ),
             );
 

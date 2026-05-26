@@ -97,12 +97,15 @@ void main() {
 
   group('getSetCountsByMuscle', () {
     test('returns counts per muscle for user sets', () async {
-      when(() => workoutSetRepo.getSetsByDateRange(start, end))
-          .thenAnswer((_) async => Right(<WorkoutSet>[benchSet, squatSet]));
-      when(() => muscleFactorRepo.getFactorsForExercise('bench-press'))
-          .thenAnswer((_) async => Right(benchFactors));
-      when(() => muscleFactorRepo.getFactorsForExercise('squat'))
-          .thenAnswer((_) async => Right(squatFactors));
+      when(
+        () => workoutSetRepo.getSetsByDateRange(start, end),
+      ).thenAnswer((_) async => Right(<WorkoutSet>[benchSet, squatSet]));
+      when(
+        () => muscleFactorRepo.getFactorsForExercise('bench-press'),
+      ).thenAnswer((_) async => Right(benchFactors));
+      when(
+        () => muscleFactorRepo.getFactorsForExercise('squat'),
+      ).thenAnswer((_) async => Right(squatFactors));
 
       final result = await resolver.getSetCountsByMuscle(
         userId: userId,
@@ -118,11 +121,12 @@ void main() {
     });
 
     test('excludes sets belonging to a different user', () async {
-      when(() => workoutSetRepo.getSetsByDateRange(start, end)).thenAnswer(
-        (_) async => Right(<WorkoutSet>[benchSet, otherUserSet]),
-      );
-      when(() => muscleFactorRepo.getFactorsForExercise('bench-press'))
-          .thenAnswer((_) async => Right(benchFactors));
+      when(
+        () => workoutSetRepo.getSetsByDateRange(start, end),
+      ).thenAnswer((_) async => Right(<WorkoutSet>[benchSet, otherUserSet]));
+      when(
+        () => muscleFactorRepo.getFactorsForExercise('bench-press'),
+      ).thenAnswer((_) async => Right(benchFactors));
 
       final result = await resolver.getSetCountsByMuscle(
         userId: userId,
@@ -136,8 +140,9 @@ void main() {
     });
 
     test('returns empty map when no sets in range', () async {
-      when(() => workoutSetRepo.getSetsByDateRange(start, end))
-          .thenAnswer((_) async => const Right(<WorkoutSet>[]));
+      when(
+        () => workoutSetRepo.getSetsByDateRange(start, end),
+      ).thenAnswer((_) async => const Right(<WorkoutSet>[]));
 
       final result = await resolver.getSetCountsByMuscle(
         userId: userId,
@@ -158,10 +163,12 @@ void main() {
         ),
       ];
 
-      when(() => workoutSetRepo.getSetsByDateRange(start, end))
-          .thenAnswer((_) async => Right(<WorkoutSet>[benchSet]));
-      when(() => muscleFactorRepo.getFactorsForExercise('bench-press'))
-          .thenAnswer((_) async => Right(zeroFactorList));
+      when(
+        () => workoutSetRepo.getSetsByDateRange(start, end),
+      ).thenAnswer((_) async => Right(<WorkoutSet>[benchSet]));
+      when(
+        () => muscleFactorRepo.getFactorsForExercise('bench-press'),
+      ).thenAnswer((_) async => Right(zeroFactorList));
 
       final result = await resolver.getSetCountsByMuscle(
         userId: userId,
@@ -174,9 +181,9 @@ void main() {
     });
 
     test('returns failure when repository errors', () async {
-      when(() => workoutSetRepo.getSetsByDateRange(start, end)).thenAnswer(
-        (_) async => const Left(CacheFailure('db error')),
-      );
+      when(
+        () => workoutSetRepo.getSetsByDateRange(start, end),
+      ).thenAnswer((_) async => const Left(CacheFailure('db error')));
 
       final result = await resolver.getSetCountsByMuscle(
         userId: userId,
@@ -190,10 +197,12 @@ void main() {
     test('accumulates multiple sets for the same muscle', () async {
       final WorkoutSet bench2 = benchSet.copyWith(id: 'set-1b');
 
-      when(() => workoutSetRepo.getSetsByDateRange(start, end))
-          .thenAnswer((_) async => Right(<WorkoutSet>[benchSet, bench2]));
-      when(() => muscleFactorRepo.getFactorsForExercise('bench-press'))
-          .thenAnswer((_) async => Right(benchFactors));
+      when(
+        () => workoutSetRepo.getSetsByDateRange(start, end),
+      ).thenAnswer((_) async => Right(<WorkoutSet>[benchSet, bench2]));
+      when(
+        () => muscleFactorRepo.getFactorsForExercise('bench-press'),
+      ).thenAnswer((_) async => Right(benchFactors));
 
       final result = await resolver.getSetCountsByMuscle(
         userId: userId,
@@ -209,10 +218,12 @@ void main() {
 
   group('getStimulusByMuscle', () {
     test('returns stimulus per muscle for user sets', () async {
-      when(() => workoutSetRepo.getSetsByDateRange(start, end))
-          .thenAnswer((_) async => Right(<WorkoutSet>[benchSet]));
-      when(() => muscleFactorRepo.getFactorsForExercise('bench-press'))
-          .thenAnswer((_) async => Right(benchFactors));
+      when(
+        () => workoutSetRepo.getSetsByDateRange(start, end),
+      ).thenAnswer((_) async => Right(<WorkoutSet>[benchSet]));
+      when(
+        () => muscleFactorRepo.getFactorsForExercise('bench-press'),
+      ).thenAnswer((_) async => Right(benchFactors));
 
       final result = await resolver.getStimulusByMuscle(
         userId: userId,
@@ -228,9 +239,9 @@ void main() {
     });
 
     test('excludes sets belonging to a different user', () async {
-      when(() => workoutSetRepo.getSetsByDateRange(start, end)).thenAnswer(
-        (_) async => Right(<WorkoutSet>[otherUserSet]),
-      );
+      when(
+        () => workoutSetRepo.getSetsByDateRange(start, end),
+      ).thenAnswer((_) async => Right(<WorkoutSet>[otherUserSet]));
 
       final result = await resolver.getStimulusByMuscle(
         userId: userId,
@@ -242,8 +253,9 @@ void main() {
     });
 
     test('returns empty map when no sets in range', () async {
-      when(() => workoutSetRepo.getSetsByDateRange(start, end))
-          .thenAnswer((_) async => const Right(<WorkoutSet>[]));
+      when(
+        () => workoutSetRepo.getSetsByDateRange(start, end),
+      ).thenAnswer((_) async => const Right(<WorkoutSet>[]));
 
       final result = await resolver.getStimulusByMuscle(
         userId: userId,
@@ -257,10 +269,12 @@ void main() {
     test('accumulates stimulus across multiple sets', () async {
       final WorkoutSet bench2 = benchSet.copyWith(id: 'set-1b');
 
-      when(() => workoutSetRepo.getSetsByDateRange(start, end))
-          .thenAnswer((_) async => Right(<WorkoutSet>[benchSet, bench2]));
-      when(() => muscleFactorRepo.getFactorsForExercise('bench-press'))
-          .thenAnswer((_) async => Right(benchFactors));
+      when(
+        () => workoutSetRepo.getSetsByDateRange(start, end),
+      ).thenAnswer((_) async => Right(<WorkoutSet>[benchSet, bench2]));
+      when(
+        () => muscleFactorRepo.getFactorsForExercise('bench-press'),
+      ).thenAnswer((_) async => Right(benchFactors));
 
       final result = await resolver.getStimulusByMuscle(
         userId: userId,
@@ -281,9 +295,9 @@ void main() {
     });
 
     test('returns failure when repository errors', () async {
-      when(() => workoutSetRepo.getSetsByDateRange(start, end)).thenAnswer(
-        (_) async => const Left(CacheFailure('db error')),
-      );
+      when(
+        () => workoutSetRepo.getSetsByDateRange(start, end),
+      ).thenAnswer((_) async => const Left(CacheFailure('db error')));
 
       final result = await resolver.getStimulusByMuscle(
         userId: userId,
@@ -296,30 +310,37 @@ void main() {
   });
 
   group('getTotalSetCount', () {
-    test('counts each set once regardless of how many muscles it hits', () async {
-      // benchSet has 2 positive factors (chest + triceps) but is still 1 set.
-      when(() => workoutSetRepo.getSetsByDateRange(start, end))
-          .thenAnswer((_) async => Right(<WorkoutSet>[benchSet, squatSet]));
-      when(() => muscleFactorRepo.getFactorsForExercise('bench-press'))
-          .thenAnswer((_) async => Right(benchFactors));
-      when(() => muscleFactorRepo.getFactorsForExercise('squat'))
-          .thenAnswer((_) async => Right(squatFactors));
+    test(
+      'counts each set once regardless of how many muscles it hits',
+      () async {
+        // benchSet has 2 positive factors (chest + triceps) but is still 1 set.
+        when(
+          () => workoutSetRepo.getSetsByDateRange(start, end),
+        ).thenAnswer((_) async => Right(<WorkoutSet>[benchSet, squatSet]));
+        when(
+          () => muscleFactorRepo.getFactorsForExercise('bench-press'),
+        ).thenAnswer((_) async => Right(benchFactors));
+        when(
+          () => muscleFactorRepo.getFactorsForExercise('squat'),
+        ).thenAnswer((_) async => Right(squatFactors));
 
-      final result = await resolver.getTotalSetCount(
-        userId: userId,
-        start: start,
-        end: end,
-      );
+        final result = await resolver.getTotalSetCount(
+          userId: userId,
+          start: start,
+          end: end,
+        );
 
-      expect(result.getOrElse(() => -1), 2);
-    });
+        expect(result.getOrElse(() => -1), 2);
+      },
+    );
 
     test('excludes sets belonging to other users', () async {
-      when(() => workoutSetRepo.getSetsByDateRange(start, end)).thenAnswer(
-        (_) async => Right(<WorkoutSet>[benchSet, otherUserSet]),
-      );
-      when(() => muscleFactorRepo.getFactorsForExercise('bench-press'))
-          .thenAnswer((_) async => Right(benchFactors));
+      when(
+        () => workoutSetRepo.getSetsByDateRange(start, end),
+      ).thenAnswer((_) async => Right(<WorkoutSet>[benchSet, otherUserSet]));
+      when(
+        () => muscleFactorRepo.getFactorsForExercise('bench-press'),
+      ).thenAnswer((_) async => Right(benchFactors));
 
       final result = await resolver.getTotalSetCount(
         userId: userId,
@@ -342,10 +363,12 @@ void main() {
           factor: 0.0,
         ),
       ];
-      when(() => workoutSetRepo.getSetsByDateRange(start, end))
-          .thenAnswer((_) async => Right(<WorkoutSet>[benchSet]));
-      when(() => muscleFactorRepo.getFactorsForExercise('bench-press'))
-          .thenAnswer((_) async => Right(zeroFactors));
+      when(
+        () => workoutSetRepo.getSetsByDateRange(start, end),
+      ).thenAnswer((_) async => Right(<WorkoutSet>[benchSet]));
+      when(
+        () => muscleFactorRepo.getFactorsForExercise('bench-press'),
+      ).thenAnswer((_) async => Right(zeroFactors));
 
       final result = await resolver.getTotalSetCount(
         userId: userId,
@@ -357,8 +380,9 @@ void main() {
     });
 
     test('returns 0 when no sets in range', () async {
-      when(() => workoutSetRepo.getSetsByDateRange(start, end))
-          .thenAnswer((_) async => const Right(<WorkoutSet>[]));
+      when(
+        () => workoutSetRepo.getSetsByDateRange(start, end),
+      ).thenAnswer((_) async => const Right(<WorkoutSet>[]));
 
       final result = await resolver.getTotalSetCount(
         userId: userId,
@@ -370,9 +394,9 @@ void main() {
     });
 
     test('propagates repository failure', () async {
-      when(() => workoutSetRepo.getSetsByDateRange(start, end)).thenAnswer(
-        (_) async => const Left(CacheFailure('db error')),
-      );
+      when(
+        () => workoutSetRepo.getSetsByDateRange(start, end),
+      ).thenAnswer((_) async => const Left(CacheFailure('db error')));
 
       final result = await resolver.getTotalSetCount(
         userId: userId,
@@ -386,12 +410,15 @@ void main() {
 
   group('parity', () {
     test('every muscle with count > 0 also has stimulus > 0', () async {
-      when(() => workoutSetRepo.getSetsByDateRange(start, end))
-          .thenAnswer((_) async => Right(<WorkoutSet>[benchSet, squatSet]));
-      when(() => muscleFactorRepo.getFactorsForExercise('bench-press'))
-          .thenAnswer((_) async => Right(benchFactors));
-      when(() => muscleFactorRepo.getFactorsForExercise('squat'))
-          .thenAnswer((_) async => Right(squatFactors));
+      when(
+        () => workoutSetRepo.getSetsByDateRange(start, end),
+      ).thenAnswer((_) async => Right(<WorkoutSet>[benchSet, squatSet]));
+      when(
+        () => muscleFactorRepo.getFactorsForExercise('bench-press'),
+      ).thenAnswer((_) async => Right(benchFactors));
+      when(
+        () => muscleFactorRepo.getFactorsForExercise('squat'),
+      ).thenAnswer((_) async => Right(squatFactors));
 
       final countResult = await resolver.getSetCountsByMuscle(
         userId: userId,
@@ -420,12 +447,15 @@ void main() {
       // If any muscle has count>0, the total set count must also be >0 —
       // otherwise the Sets stat card could read 0 while the map highlights
       // muscles.
-      when(() => workoutSetRepo.getSetsByDateRange(start, end))
-          .thenAnswer((_) async => Right(<WorkoutSet>[benchSet, squatSet]));
-      when(() => muscleFactorRepo.getFactorsForExercise('bench-press'))
-          .thenAnswer((_) async => Right(benchFactors));
-      when(() => muscleFactorRepo.getFactorsForExercise('squat'))
-          .thenAnswer((_) async => Right(squatFactors));
+      when(
+        () => workoutSetRepo.getSetsByDateRange(start, end),
+      ).thenAnswer((_) async => Right(<WorkoutSet>[benchSet, squatSet]));
+      when(
+        () => muscleFactorRepo.getFactorsForExercise('bench-press'),
+      ).thenAnswer((_) async => Right(benchFactors));
+      when(
+        () => muscleFactorRepo.getFactorsForExercise('squat'),
+      ).thenAnswer((_) async => Right(squatFactors));
 
       final countsResult = await resolver.getSetCountsByMuscle(
         userId: userId,

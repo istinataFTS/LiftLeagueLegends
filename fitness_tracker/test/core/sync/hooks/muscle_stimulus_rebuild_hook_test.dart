@@ -17,12 +17,11 @@ void main() {
   PostSyncContext contextFor({
     required String userId,
     required Set<String> pulled,
-  }) =>
-      PostSyncContext(
-        userId: userId,
-        pulledFeatures: pulled,
-        trigger: SyncTrigger.appLaunch,
-      );
+  }) => PostSyncContext(
+    userId: userId,
+    pulledFeatures: pulled,
+    trigger: SyncTrigger.appLaunch,
+  );
 
   setUp(() {
     rebuild = _MockRebuildMuscleStimulus();
@@ -40,20 +39,23 @@ void main() {
     expect(hook.triggeringFeatures, isEmpty);
   });
 
-  test('rebuilds for the context user — other profiles are never touched',
-      () async {
-    when(() => rebuild('user-42')).thenAnswer((_) async => const Right(null));
+  test(
+    'rebuilds for the context user — other profiles are never touched',
+    () async {
+      when(() => rebuild('user-42')).thenAnswer((_) async => const Right(null));
 
-    await hook.run(
-      contextFor(userId: 'user-42', pulled: const {'workout_sets'}),
-    );
+      await hook.run(
+        contextFor(userId: 'user-42', pulled: const {'workout_sets'}),
+      );
 
-    verify(() => rebuild('user-42')).called(1);
-  });
+      verify(() => rebuild('user-42')).called(1);
+    },
+  );
 
   test('swallows failures so the sync is not downgraded', () async {
-    when(() => rebuild(any()))
-        .thenAnswer((_) async => const Left(DatabaseFailure('boom')));
+    when(
+      () => rebuild(any()),
+    ).thenAnswer((_) async => const Left(DatabaseFailure('boom')));
 
     await expectLater(
       hook.run(contextFor(userId: 'user-1', pulled: const {'exercises'})),

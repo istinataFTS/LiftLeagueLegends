@@ -86,9 +86,9 @@ void main() {
   });
 
   void stubSuccessfulCoreLoads() {
-    when(() => mockAppSessionRepository.getCurrentSession()).thenAnswer(
-      (_) async => const Right(authenticatedSession),
-    );
+    when(
+      () => mockAppSessionRepository.getCurrentSession(),
+    ).thenAnswer((_) async => const Right(authenticatedSession));
     when(
       () => mockMuscleLoadResolver.getSetCountsByMuscle(
         userId: any(named: 'userId'),
@@ -105,41 +105,44 @@ void main() {
     ).thenAnswer((_) async => const Right(weeklySetCount));
   }
 
-  test('returns aggregated dashboard data when all core loads succeed', () async {
-    stubSuccessfulCoreLoads();
+  test(
+    'returns aggregated dashboard data when all core loads succeed',
+    () async {
+      stubSuccessfulCoreLoads();
 
-    when(() => mockGetLogsForDate(any())).thenAnswer(
-      (_) async => Right(<NutritionLog>[olderLog, newerLog]),
-    );
-    when(() => mockGetDailyMacros(any())).thenAnswer(
-      (_) async => Right(dailyMacros),
-    );
+      when(
+        () => mockGetLogsForDate(any()),
+      ).thenAnswer((_) async => Right(<NutritionLog>[olderLog, newerLog]));
+      when(
+        () => mockGetDailyMacros(any()),
+      ).thenAnswer((_) async => Right(dailyMacros));
 
-    final result = await usecase();
+      final result = await usecase();
 
-    expect(
-      result,
-      Right<Failure, HomeDashboardData>(
-        HomeDashboardData(
-          todaysLogs: <NutritionLog>[newerLog, olderLog],
-          dailyMacros: dailyMacros,
-          muscleSetCounts: muscleSetCounts,
-          weeklySetCount: weeklySetCount,
+      expect(
+        result,
+        Right<Failure, HomeDashboardData>(
+          HomeDashboardData(
+            todaysLogs: <NutritionLog>[newerLog, olderLog],
+            dailyMacros: dailyMacros,
+            muscleSetCounts: muscleSetCounts,
+            weeklySetCount: weeklySetCount,
+          ),
         ),
-      ),
-    );
-  });
+      );
+    },
+  );
 
   test('falls back to empty muscle counts for guest sessions', () async {
-    when(() => mockAppSessionRepository.getCurrentSession()).thenAnswer(
-      (_) async => const Right(AppSession.guest()),
-    );
-    when(() => mockGetLogsForDate(any())).thenAnswer(
-      (_) async => Right(<NutritionLog>[newerLog]),
-    );
-    when(() => mockGetDailyMacros(any())).thenAnswer(
-      (_) async => Right(dailyMacros),
-    );
+    when(
+      () => mockAppSessionRepository.getCurrentSession(),
+    ).thenAnswer((_) async => const Right(AppSession.guest()));
+    when(
+      () => mockGetLogsForDate(any()),
+    ).thenAnswer((_) async => Right(<NutritionLog>[newerLog]));
+    when(
+      () => mockGetDailyMacros(any()),
+    ).thenAnswer((_) async => Right(dailyMacros));
 
     final result = await usecase();
 
@@ -165,12 +168,12 @@ void main() {
   test('falls back to empty logs when logs loading fails', () async {
     stubSuccessfulCoreLoads();
 
-    when(() => mockGetLogsForDate(any())).thenAnswer(
-      (_) async => const Left(CacheFailure('logs failed')),
-    );
-    when(() => mockGetDailyMacros(any())).thenAnswer(
-      (_) async => Right(dailyMacros),
-    );
+    when(
+      () => mockGetLogsForDate(any()),
+    ).thenAnswer((_) async => const Left(CacheFailure('logs failed')));
+    when(
+      () => mockGetDailyMacros(any()),
+    ).thenAnswer((_) async => Right(dailyMacros));
 
     final result = await usecase();
 
@@ -190,12 +193,12 @@ void main() {
   test('falls back to empty daily macros when macros loading fails', () async {
     stubSuccessfulCoreLoads();
 
-    when(() => mockGetLogsForDate(any())).thenAnswer(
-      (_) async => Right(<NutritionLog>[newerLog]),
-    );
-    when(() => mockGetDailyMacros(any())).thenAnswer(
-      (_) async => const Left(CacheFailure('macros failed')),
-    );
+    when(
+      () => mockGetLogsForDate(any()),
+    ).thenAnswer((_) async => Right(<NutritionLog>[newerLog]));
+    when(
+      () => mockGetDailyMacros(any()),
+    ).thenAnswer((_) async => const Left(CacheFailure('macros failed')));
 
     final result = await usecase();
 

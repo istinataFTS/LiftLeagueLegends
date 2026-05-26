@@ -95,15 +95,15 @@ void main() {
     });
 
     test('deletes set and rebuilds stimulus on success', () async {
-      when(() => mockSessionRepo.getCurrentSession()).thenAnswer(
-        (_) async => const Right(_authenticatedSession),
-      );
-      when(() => mockSetRepo.deleteSet('ws-1')).thenAnswer(
-        (_) async => const Right(null),
-      );
-      when(() => mockRebuild('user-1')).thenAnswer(
-        (_) async => const Right(null),
-      );
+      when(
+        () => mockSessionRepo.getCurrentSession(),
+      ).thenAnswer((_) async => const Right(_authenticatedSession));
+      when(
+        () => mockSetRepo.deleteSet('ws-1'),
+      ).thenAnswer((_) async => const Right(null));
+      when(
+        () => mockRebuild('user-1'),
+      ).thenAnswer((_) async => const Right(null));
 
       final result = await useCase('ws-1');
 
@@ -112,12 +112,12 @@ void main() {
     });
 
     test('propagates repository failure without rebuilding', () async {
-      when(() => mockSessionRepo.getCurrentSession()).thenAnswer(
-        (_) async => const Right(_authenticatedSession),
-      );
-      when(() => mockSetRepo.deleteSet('ws-1')).thenAnswer(
-        (_) async => const Left(_dbFailure),
-      );
+      when(
+        () => mockSessionRepo.getCurrentSession(),
+      ).thenAnswer((_) async => const Right(_authenticatedSession));
+      when(
+        () => mockSetRepo.deleteSet('ws-1'),
+      ).thenAnswer((_) async => const Left(_dbFailure));
 
       final result = await useCase('ws-1');
 
@@ -138,9 +138,9 @@ void main() {
         mockSetRepo,
         sourcePreferenceResolver: mockResolver,
       );
-      when(() => mockResolver.resolveReadPreference()).thenAnswer(
-        (_) async => DataSourcePreference.localOnly,
-      );
+      when(
+        () => mockResolver.resolveReadPreference(),
+      ).thenAnswer((_) async => DataSourcePreference.localOnly);
     });
 
     test('returns all workout sets from repository', () async {
@@ -185,9 +185,9 @@ void main() {
         exerciseRepository: mockExerciseRepo,
         sourcePreferenceResolver: mockResolver,
       );
-      when(() => mockResolver.resolveReadPreference()).thenAnswer(
-        (_) async => DataSourcePreference.localOnly,
-      );
+      when(
+        () => mockResolver.resolveReadPreference(),
+      ).thenAnswer((_) async => DataSourcePreference.localOnly);
     });
 
     test('returns all sets when no muscle group filter is applied', () async {
@@ -203,9 +203,11 @@ void main() {
 
       expect(result.isRight(), isTrue);
       expect((result as Right).value, [_workoutSetFixture]);
-      verifyNever(() => mockExerciseRepo.getAllExercises(
-            sourcePreference: DataSourcePreference.localOnly,
-          ));
+      verifyNever(
+        () => mockExerciseRepo.getAllExercises(
+          sourcePreference: DataSourcePreference.localOnly,
+        ),
+      );
     });
 
     test('filters sets by muscle group when filter is provided', () async {
@@ -311,12 +313,12 @@ void main() {
     });
 
     test('updates set and rebuilds stimulus on success', () async {
-      when(() => mockSessionRepo.getCurrentSession()).thenAnswer(
-        (_) async => const Left(CacheFailure('no session')),
-      );
-      when(() => mockSetRepo.updateSet(_workoutSetFixture)).thenAnswer(
-        (_) async => const Right(null),
-      );
+      when(
+        () => mockSessionRepo.getCurrentSession(),
+      ).thenAnswer((_) async => const Left(CacheFailure('no session')));
+      when(
+        () => mockSetRepo.updateSet(_workoutSetFixture),
+      ).thenAnswer((_) async => const Right(null));
       when(() => mockRebuild('')).thenAnswer((_) async => const Right(null));
 
       final result = await useCase(_workoutSetFixture);
@@ -328,15 +330,15 @@ void main() {
     test('sets ownerUserId when session is authenticated', () async {
       final setWithOwner = _workoutSetFixture.copyWith(ownerUserId: 'user-1');
 
-      when(() => mockSessionRepo.getCurrentSession()).thenAnswer(
-        (_) async => const Right(_authenticatedSession),
-      );
-      when(() => mockSetRepo.updateSet(setWithOwner)).thenAnswer(
-        (_) async => const Right(null),
-      );
-      when(() => mockRebuild('user-1')).thenAnswer(
-        (_) async => const Right(null),
-      );
+      when(
+        () => mockSessionRepo.getCurrentSession(),
+      ).thenAnswer((_) async => const Right(_authenticatedSession));
+      when(
+        () => mockSetRepo.updateSet(setWithOwner),
+      ).thenAnswer((_) async => const Right(null));
+      when(
+        () => mockRebuild('user-1'),
+      ).thenAnswer((_) async => const Right(null));
 
       final result = await useCase(_workoutSetFixture);
 
@@ -345,12 +347,12 @@ void main() {
     });
 
     test('propagates repository failure without rebuilding', () async {
-      when(() => mockSessionRepo.getCurrentSession()).thenAnswer(
-        (_) async => const Left(CacheFailure('no session')),
-      );
-      when(() => mockSetRepo.updateSet(_workoutSetFixture)).thenAnswer(
-        (_) async => const Left(_dbFailure),
-      );
+      when(
+        () => mockSessionRepo.getCurrentSession(),
+      ).thenAnswer((_) async => const Left(CacheFailure('no session')));
+      when(
+        () => mockSetRepo.updateSet(_workoutSetFixture),
+      ).thenAnswer((_) async => const Left(_dbFailure));
 
       final result = await useCase(_workoutSetFixture);
 

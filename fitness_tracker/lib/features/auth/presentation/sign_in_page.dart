@@ -16,9 +16,8 @@ class SignInPage extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return BlocProvider<SignInCubit>(
-      create: (_) => SignInCubit(
-        authSessionService: di.sl<AuthSessionService>(),
-      ),
+      create: (_) =>
+          SignInCubit(authSessionService: di.sl<AuthSessionService>()),
       child: const _SignInView(),
     );
   }
@@ -59,9 +58,9 @@ class _SignInViewState extends State<_SignInView> {
           previous.isSuccess != current.isSuccess,
       listener: (context, state) {
         if (state.errorMessage != null && state.errorMessage!.isNotEmpty) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(content: Text(state.errorMessage!)),
-          );
+          ScaffoldMessenger.of(
+            context,
+          ).showSnackBar(SnackBar(content: Text(state.errorMessage!)));
           context.read<SignInCubit>().clearError();
         }
 
@@ -95,8 +94,7 @@ class _SignInViewState extends State<_SignInView> {
                       obscureText: true,
                       autocorrect: false,
                       textInputAction: TextInputAction.done,
-                      decoration:
-                          const InputDecoration(labelText: 'Password'),
+                      decoration: const InputDecoration(labelText: 'Password'),
                       onFieldSubmitted: (_) => _submit(context, state),
                     ),
                     const SizedBox(height: 20),
@@ -109,9 +107,7 @@ class _SignInViewState extends State<_SignInView> {
                           ? const SizedBox(
                               height: 18,
                               width: 18,
-                              child: CircularProgressIndicator(
-                                strokeWidth: 2,
-                              ),
+                              child: CircularProgressIndicator(strokeWidth: 2),
                             )
                           : const Text('Continue'),
                     ),
@@ -132,15 +128,15 @@ class _SignInViewState extends State<_SignInView> {
 
   void _submit(BuildContext context, SignInState state) {
     context.read<SignInCubit>().submit(
-          email: _emailController.text,
-          password: _passwordController.text,
-        );
+      email: _emailController.text,
+      password: _passwordController.text,
+    );
   }
 
   Future<void> _navigateToSignUp(BuildContext context) async {
-    final result = await Navigator.of(context).push<bool>(
-      MaterialPageRoute<bool>(builder: (_) => const SignUpPage()),
-    );
+    final result = await Navigator.of(
+      context,
+    ).push<bool>(MaterialPageRoute<bool>(builder: (_) => const SignUpPage()));
 
     // Sign-up succeeded and a session was established — propagate the
     // success back up the navigation stack the same way sign-in does.

@@ -42,8 +42,9 @@ void main() {
     });
 
     test('returns Left(failure) on AuthSyncException', () async {
-      when(() => mockRemote.follow(targetUserId))
-          .thenThrow(const AuthSyncException('unauthenticated'));
+      when(
+        () => mockRemote.follow(targetUserId),
+      ).thenThrow(const AuthSyncException('unauthenticated'));
 
       final result = await sut.follow(targetUserId);
 
@@ -64,8 +65,9 @@ void main() {
     });
 
     test('returns Left(failure) on NetworkSyncException', () async {
-      when(() => mockRemote.unfollow(targetUserId))
-          .thenThrow(const NetworkSyncException('offline'));
+      when(
+        () => mockRemote.unfollow(targetUserId),
+      ).thenThrow(const NetworkSyncException('offline'));
 
       final result = await sut.unfollow(targetUserId);
 
@@ -78,8 +80,9 @@ void main() {
   // ---------------------------------------------------------------------------
   group('isFollowing', () {
     test('returns Right(true) when following', () async {
-      when(() => mockRemote.isFollowing(targetUserId))
-          .thenAnswer((_) async => true);
+      when(
+        () => mockRemote.isFollowing(targetUserId),
+      ).thenAnswer((_) async => true);
 
       final result = await sut.isFollowing(targetUserId);
 
@@ -87,8 +90,9 @@ void main() {
     });
 
     test('returns Right(false) when not following', () async {
-      when(() => mockRemote.isFollowing(targetUserId))
-          .thenAnswer((_) async => false);
+      when(
+        () => mockRemote.isFollowing(targetUserId),
+      ).thenAnswer((_) async => false);
 
       final result = await sut.isFollowing(targetUserId);
 
@@ -101,8 +105,9 @@ void main() {
   // ---------------------------------------------------------------------------
   group('getFollowers', () {
     test('returns Right(list) on success', () async {
-      when(() => mockRemote.getFollowers(currentUserId))
-          .thenAnswer((_) async => <UserProfileSummary>[summaryA]);
+      when(
+        () => mockRemote.getFollowers(currentUserId),
+      ).thenAnswer((_) async => <UserProfileSummary>[summaryA]);
 
       final result = await sut.getFollowers(currentUserId);
 
@@ -114,8 +119,9 @@ void main() {
     });
 
     test('returns Right(empty) when no followers', () async {
-      when(() => mockRemote.getFollowers(currentUserId))
-          .thenAnswer((_) async => const <UserProfileSummary>[]);
+      when(
+        () => mockRemote.getFollowers(currentUserId),
+      ).thenAnswer((_) async => const <UserProfileSummary>[]);
 
       final result = await sut.getFollowers(currentUserId);
 
@@ -128,8 +134,9 @@ void main() {
   // ---------------------------------------------------------------------------
   group('getFollowing', () {
     test('returns Right(list) on success', () async {
-      when(() => mockRemote.getFollowing(currentUserId))
-          .thenAnswer((_) async => <UserProfileSummary>[summaryA]);
+      when(
+        () => mockRemote.getFollowing(currentUserId),
+      ).thenAnswer((_) async => <UserProfileSummary>[summaryA]);
 
       final result = await sut.getFollowing(currentUserId);
 
@@ -147,8 +154,9 @@ void main() {
   group('getFollowCounts', () {
     test('returns Right(counts) on success', () async {
       const counts = FollowCounts(followerCount: 10, followingCount: 5);
-      when(() => mockRemote.getFollowCounts(currentUserId))
-          .thenAnswer((_) async => counts);
+      when(
+        () => mockRemote.getFollowCounts(currentUserId),
+      ).thenAnswer((_) async => counts);
 
       final result = await sut.getFollowCounts(currentUserId);
 

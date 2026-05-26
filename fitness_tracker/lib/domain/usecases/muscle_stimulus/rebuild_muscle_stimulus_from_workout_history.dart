@@ -43,13 +43,15 @@ class RebuildMuscleStimulusFromWorkoutHistory {
         records,
       ) async {
         // Clears only the current user's records, leaving other profiles intact.
-        final clearResult =
-            await muscleStimulusRepository.clearStimulusForUser(userId);
+        final clearResult = await muscleStimulusRepository.clearStimulusForUser(
+          userId,
+        );
 
         return clearResult.fold((failure) async => Left(failure), (_) async {
           for (final record in records) {
-            final upsertResult =
-                await muscleStimulusRepository.upsertStimulus(record);
+            final upsertResult = await muscleStimulusRepository.upsertStimulus(
+              record,
+            );
             if (upsertResult.isLeft()) {
               return upsertResult;
             }

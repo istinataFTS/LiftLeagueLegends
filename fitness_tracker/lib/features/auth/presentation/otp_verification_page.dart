@@ -63,10 +63,7 @@ class _OtpVerificationViewState extends State<_OtpVerificationView> {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.stretch,
                 children: [
-                  const Icon(
-                    Icons.mark_email_unread_outlined,
-                    size: 64,
-                  ),
+                  const Icon(Icons.mark_email_unread_outlined, size: 64),
                   const SizedBox(height: 24),
                   Text(
                     'Enter the 6-digit code sent to $email',
@@ -98,8 +95,9 @@ class _OtpVerificationViewState extends State<_OtpVerificationView> {
                   ],
                   const SizedBox(height: 24),
                   ElevatedButton(
-                    onPressed:
-                        state.isSubmitting ? null : () => _submit(context),
+                    onPressed: state.isSubmitting
+                        ? null
+                        : () => _submit(context),
                     child: state.isSubmitting
                         ? const SizedBox(
                             height: 18,

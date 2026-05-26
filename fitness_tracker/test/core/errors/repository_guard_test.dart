@@ -19,7 +19,10 @@ void main() {
         () async => throw const ValidationException('invalid payload'),
       );
 
-      expect(result, const Left<Failure, void>(ValidationFailure('invalid payload')));
+      expect(
+        result,
+        const Left<Failure, void>(ValidationFailure('invalid payload')),
+      );
     });
 
     test('maps CacheDatabaseException through RepositoryErrorMapper', () async {
@@ -27,7 +30,10 @@ void main() {
         () async => throw const CacheDatabaseException('database unavailable'),
       );
 
-      expect(result, const Left<Failure, void>(DatabaseFailure('database unavailable')));
+      expect(
+        result,
+        const Left<Failure, void>(DatabaseFailure('database unavailable')),
+      );
     });
 
     test('maps CacheException through RepositoryErrorMapper', () async {
@@ -35,7 +41,10 @@ void main() {
         () async => throw const CacheException('cache unavailable'),
       );
 
-      expect(result, const Left<Failure, void>(CacheFailure('cache unavailable')));
+      expect(
+        result,
+        const Left<Failure, void>(CacheFailure('cache unavailable')),
+      );
     });
 
     test('maps unknown errors to UnexpectedFailure', () async {

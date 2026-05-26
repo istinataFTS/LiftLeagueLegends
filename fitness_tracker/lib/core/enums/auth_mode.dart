@@ -1,4 +1,1 @@
-enum AuthMode {
-  guest,
-  authenticated,
-}
+enum AuthMode { guest, authenticated }

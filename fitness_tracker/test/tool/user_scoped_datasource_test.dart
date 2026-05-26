@@ -7,39 +7,48 @@ void main() {
   final rule = UserScopedDatasourceRule();
 
   group('UserScopedDatasourceRule', () {
-    test('passes when all concrete impls extend UserScopedLocalDatasource', () async {
-      final repo = FakeRepoView({
-        'lib/data/datasources/local/foo_local_datasource_impl.dart':
-            'class FooLocalDataSourceImpl extends UserScopedLocalDatasource {\n}\n',
-      });
-      final violations = await rule.check(repo);
-      expect(violations, isEmpty);
-    });
+    test(
+      'passes when all concrete impls extend UserScopedLocalDatasource',
+      () async {
+        final repo = FakeRepoView({
+          'lib/data/datasources/local/foo_local_datasource_impl.dart':
+              'class FooLocalDataSourceImpl extends UserScopedLocalDatasource {\n}\n',
+        });
+        final violations = await rule.check(repo);
+        expect(violations, isEmpty);
+      },
+    );
 
-    test('passes for pure abstract interface files (no concrete class)', () async {
-      final repo = FakeRepoView({
-        'lib/data/datasources/local/foo_local_datasource.dart':
-            'abstract class FooLocalDataSource {\n'
-            '  Future<void> doSomething();\n'
-            '}\n',
-      });
-      final violations = await rule.check(repo);
-      expect(violations, isEmpty);
-    });
+    test(
+      'passes for pure abstract interface files (no concrete class)',
+      () async {
+        final repo = FakeRepoView({
+          'lib/data/datasources/local/foo_local_datasource.dart':
+              'abstract class FooLocalDataSource {\n'
+              '  Future<void> doSomething();\n'
+              '}\n',
+        });
+        final violations = await rule.check(repo);
+        expect(violations, isEmpty);
+      },
+    );
 
-    test('passes when file has both abstract interface and concrete impl that extends base', () async {
-      final repo = FakeRepoView({
-        'lib/data/datasources/local/exercise_local_datasource.dart':
-            'abstract class ExerciseLocalDataSource {\n'
-            '  Future<void> getAll();\n'
-            '}\n'
-            'class ExerciseLocalDataSourceImpl extends UserScopedLocalDatasource\n'
-            '    implements ExerciseLocalDataSource {\n'
-            '}\n',
-      });
-      final violations = await rule.check(repo);
-      expect(violations, isEmpty);
-    });
+    test(
+      'passes when file has both abstract interface and concrete impl that extends base',
+      () async {
+        final repo = FakeRepoView({
+          'lib/data/datasources/local/exercise_local_datasource.dart':
+              'abstract class ExerciseLocalDataSource {\n'
+              '  Future<void> getAll();\n'
+              '}\n'
+              'class ExerciseLocalDataSourceImpl extends UserScopedLocalDatasource\n'
+              '    implements ExerciseLocalDataSource {\n'
+              '}\n',
+        });
+        final violations = await rule.check(repo);
+        expect(violations, isEmpty);
+      },
+    );
 
     test('passes for the base class file itself', () async {
       final repo = FakeRepoView({
@@ -74,20 +83,23 @@ void main() {
       expect(violations, isEmpty);
     });
 
-    test('reports a violation for a concrete class that does not extend the base', () async {
-      final repo = FakeRepoView({
-        'lib/data/datasources/local/bar_local_datasource_impl.dart':
-            'class BarLocalDataSourceImpl implements BarLocalDataSource {\n'
-            '  Future<void> get() async {}\n'
-            '}\n',
-      });
-      final violations = await rule.check(repo);
-      expect(violations, hasLength(1));
-      expect(violations.first.ruleId, 'user-scoped-datasource');
-      expect(
-        violations.first.filePath,
-        'lib/data/datasources/local/bar_local_datasource_impl.dart',
-      );
-    });
+    test(
+      'reports a violation for a concrete class that does not extend the base',
+      () async {
+        final repo = FakeRepoView({
+          'lib/data/datasources/local/bar_local_datasource_impl.dart':
+              'class BarLocalDataSourceImpl implements BarLocalDataSource {\n'
+              '  Future<void> get() async {}\n'
+              '}\n',
+        });
+        final violations = await rule.check(repo);
+        expect(violations, hasLength(1));
+        expect(violations.first.ruleId, 'user-scoped-datasource');
+        expect(
+          violations.first.filePath,
+          'lib/data/datasources/local/bar_local_datasource_impl.dart',
+        );
+      },
+    );
   });
 }

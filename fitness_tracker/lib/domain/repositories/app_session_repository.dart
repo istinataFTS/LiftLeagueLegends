@@ -19,7 +19,7 @@ abstract class AppSessionRepository {
   Future<Either<Failure, void>> completeInitialCloudMigration();
 
   Future<Either<Failure, InitialCloudMigrationState?>>
-      getInitialCloudMigrationState();
+  getInitialCloudMigrationState();
 
   Future<Either<Failure, void>> saveInitialCloudMigrationState(
     InitialCloudMigrationState state,

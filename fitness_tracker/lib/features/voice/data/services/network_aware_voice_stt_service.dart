@@ -81,27 +81,34 @@ class NetworkAwareVoiceSttService implements VoiceSttService {
     final isOnline = await _resolveOnline();
     final backend = isOnline ? _remote : _onDevice;
     _activeBackend = backend;
-    AppLogger.debug(
+    // Promoted from debug → info so the device-log filter
+    // (`adb logcat | grep voice/stt`) shows which backend handled each
+    // utterance — critical when diagnosing "mic captured nothing"
+    // symptoms in the field.
+    AppLogger.info(
       'NetworkAwareVoiceSttService: routing listen() to '
-      '${isOnline ? 'remote (Whisper)' : 'on-device'} backend',
-      category: 'voice',
+      '${isOnline ? 'remote (Whisper)' : 'on-device'} backend '
+      '(online=$isOnline)',
+      category: 'voice/stt',
     );
 
     StreamSubscription<VoiceSttResult>? subscription;
-    subscription = backend.listen(localeId: localeId).listen(
-      (result) {
-        if (!outbound.isClosed) outbound.add(result);
-      },
-      onError: (Object error, StackTrace stackTrace) {
-        if (!outbound.isClosed) outbound.addError(error, stackTrace);
-      },
-      onDone: () {
-        unawaited(subscription?.cancel());
-        _activeBackend = null;
-        if (!outbound.isClosed) outbound.close();
-      },
-      cancelOnError: false,
-    );
+    subscription = backend
+        .listen(localeId: localeId)
+        .listen(
+          (result) {
+            if (!outbound.isClosed) outbound.add(result);
+          },
+          onError: (Object error, StackTrace stackTrace) {
+            if (!outbound.isClosed) outbound.addError(error, stackTrace);
+          },
+          onDone: () {
+            unawaited(subscription?.cancel());
+            _activeBackend = null;
+            if (!outbound.isClosed) outbound.close();
+          },
+          cancelOnError: false,
+        );
 
     // Propagate outbound stream cancellation down to the active backend.
     outbound.onCancel = () async {

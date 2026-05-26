@@ -47,29 +47,29 @@ void main() {
     group('rendering', () {
       testWidgets('shows the confirmation card container', (tester) async {
         await tester.pumpWidget(_wrap());
-        expect(find.byKey(VoiceOverlayKeys.confirmationCardKey), findsOneWidget);
+        expect(
+          find.byKey(VoiceOverlayKeys.confirmationCardKey),
+          findsOneWidget,
+        );
       });
 
       testWidgets('shows the action label', (tester) async {
         await tester.pumpWidget(_wrap());
-        expect(
-          find.text(AppStrings.voiceConfirmActionLabel),
-          findsOneWidget,
-        );
+        expect(find.text(AppStrings.voiceConfirmActionLabel), findsOneWidget);
       });
 
       testWidgets('shows toolCall.displaySummary', (tester) async {
         await tester.pumpWidget(_wrap());
-        expect(
-          find.text(_stubToolCall.displaySummary),
-          findsOneWidget,
-        );
+        expect(find.text(_stubToolCall.displaySummary), findsOneWidget);
       });
 
       testWidgets('shows Yes, Edit and Cancel buttons', (tester) async {
         await tester.pumpWidget(_wrap());
         expect(find.byKey(VoiceOverlayKeys.confirmationYesKey), findsOneWidget);
-        expect(find.byKey(VoiceOverlayKeys.confirmationEditKey), findsOneWidget);
+        expect(
+          find.byKey(VoiceOverlayKeys.confirmationEditKey),
+          findsOneWidget,
+        );
         expect(
           find.byKey(VoiceOverlayKeys.confirmationCancelKey),
           findsOneWidget,
@@ -145,7 +145,9 @@ void main() {
     });
 
     group('content update', () {
-      testWidgets('updates displaySummary when toolCall changes', (tester) async {
+      testWidgets('updates displaySummary when toolCall changes', (
+        tester,
+      ) async {
         await tester.pumpWidget(_wrap());
         expect(find.text(_stubToolCall.displaySummary), findsOneWidget);
 

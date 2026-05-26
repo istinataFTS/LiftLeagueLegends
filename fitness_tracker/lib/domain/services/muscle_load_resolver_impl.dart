@@ -24,34 +24,40 @@ class MuscleLoadResolverImpl implements MuscleLoadResolver {
     required DateTime end,
   }) async {
     try {
-      final setsResult = await workoutSetRepository.getSetsByDateRange(start, end);
-      return await setsResult.fold(
-        (f) async => Left(f),
-        (allSets) async {
-          final userSets = allSets.where((s) => s.ownerUserId == userId).toList();
-          if (userSets.isEmpty) return const Right({});
-
-          final factorCache = await _loadFactors(userSets.map((s) => s.exerciseId).toSet());
-
-          final stimulus = <String, double>{};
-          for (final set in userSets) {
-            final factors = factorCache[set.exerciseId];
-            if (factors == null || factors.isEmpty) continue;
-            for (final factor in factors) {
-              if (factor.factor <= 0) continue;
-              final value = StimulusCalculationRules.calculateSetStimulus(
-                sets: 1,
-                intensity: set.intensity,
-                exerciseFactor: factor.factor,
-              );
-              stimulus[factor.muscleGroup] = (stimulus[factor.muscleGroup] ?? 0.0) + value;
-            }
-          }
-          return Right(stimulus);
-        },
+      final setsResult = await workoutSetRepository.getSetsByDateRange(
+        start,
+        end,
       );
+      return await setsResult.fold((f) async => Left(f), (allSets) async {
+        final userSets = allSets.where((s) => s.ownerUserId == userId).toList();
+        if (userSets.isEmpty) return const Right({});
+
+        final factorCache = await _loadFactors(
+          userSets.map((s) => s.exerciseId).toSet(),
+        );
+
+        final stimulus = <String, double>{};
+        for (final set in userSets) {
+          final factors = factorCache[set.exerciseId];
+          if (factors == null || factors.isEmpty) continue;
+          for (final factor in factors) {
+            if (factor.factor <= 0) continue;
+            final value = StimulusCalculationRules.calculateSetStimulus(
+              sets: 1,
+              intensity: set.intensity,
+              exerciseFactor: factor.factor,
+            );
+            stimulus[factor.muscleGroup] =
+                (stimulus[factor.muscleGroup] ?? 0.0) + value;
+          }
+        }
+        return Right(stimulus);
+      });
     } catch (e) {
-      AppLogger.error('MuscleLoadResolver.getStimulusByMuscle failed: $e', category: 'resolver');
+      AppLogger.error(
+        'MuscleLoadResolver.getStimulusByMuscle failed: $e',
+        category: 'resolver',
+      );
       return Left(UnexpectedFailure('getStimulusByMuscle failed: $e'));
     }
   }
@@ -63,29 +69,34 @@ class MuscleLoadResolverImpl implements MuscleLoadResolver {
     required DateTime end,
   }) async {
     try {
-      final setsResult = await workoutSetRepository.getSetsByDateRange(start, end);
-      return await setsResult.fold(
-        (f) async => Left(f),
-        (allSets) async {
-          final userSets = allSets.where((s) => s.ownerUserId == userId).toList();
-          if (userSets.isEmpty) return const Right({});
-
-          final factorCache = await _loadFactors(userSets.map((s) => s.exerciseId).toSet());
-
-          final counts = <String, int>{};
-          for (final set in userSets) {
-            final factors = factorCache[set.exerciseId];
-            if (factors == null || factors.isEmpty) continue;
-            for (final factor in factors) {
-              if (factor.factor <= 0) continue;
-              counts[factor.muscleGroup] = (counts[factor.muscleGroup] ?? 0) + 1;
-            }
-          }
-          return Right(counts);
-        },
+      final setsResult = await workoutSetRepository.getSetsByDateRange(
+        start,
+        end,
       );
+      return await setsResult.fold((f) async => Left(f), (allSets) async {
+        final userSets = allSets.where((s) => s.ownerUserId == userId).toList();
+        if (userSets.isEmpty) return const Right({});
+
+        final factorCache = await _loadFactors(
+          userSets.map((s) => s.exerciseId).toSet(),
+        );
+
+        final counts = <String, int>{};
+        for (final set in userSets) {
+          final factors = factorCache[set.exerciseId];
+          if (factors == null || factors.isEmpty) continue;
+          for (final factor in factors) {
+            if (factor.factor <= 0) continue;
+            counts[factor.muscleGroup] = (counts[factor.muscleGroup] ?? 0) + 1;
+          }
+        }
+        return Right(counts);
+      });
     } catch (e) {
-      AppLogger.error('MuscleLoadResolver.getSetCountsByMuscle failed: $e', category: 'resolver');
+      AppLogger.error(
+        'MuscleLoadResolver.getSetCountsByMuscle failed: $e',
+        category: 'resolver',
+      );
       return Left(UnexpectedFailure('getSetCountsByMuscle failed: $e'));
     }
   }
@@ -97,29 +108,34 @@ class MuscleLoadResolverImpl implements MuscleLoadResolver {
     required DateTime end,
   }) async {
     try {
-      final setsResult = await workoutSetRepository.getSetsByDateRange(start, end);
-      return await setsResult.fold(
-        (f) async => Left(f),
-        (allSets) async {
-          final userSets = allSets.where((s) => s.ownerUserId == userId).toList();
-          if (userSets.isEmpty) return const Right(0);
-
-          final factorCache = await _loadFactors(userSets.map((s) => s.exerciseId).toSet());
-
-          // A set counts once if it has at least one positive factor — we
-          // count sets, not muscle-mappings, so multi-muscle exercises do
-          // not inflate the total.
-          var count = 0;
-          for (final set in userSets) {
-            final factors = factorCache[set.exerciseId];
-            if (factors == null || factors.isEmpty) continue;
-            if (factors.any((f) => f.factor > 0)) count++;
-          }
-          return Right(count);
-        },
+      final setsResult = await workoutSetRepository.getSetsByDateRange(
+        start,
+        end,
       );
+      return await setsResult.fold((f) async => Left(f), (allSets) async {
+        final userSets = allSets.where((s) => s.ownerUserId == userId).toList();
+        if (userSets.isEmpty) return const Right(0);
+
+        final factorCache = await _loadFactors(
+          userSets.map((s) => s.exerciseId).toSet(),
+        );
+
+        // A set counts once if it has at least one positive factor — we
+        // count sets, not muscle-mappings, so multi-muscle exercises do
+        // not inflate the total.
+        var count = 0;
+        for (final set in userSets) {
+          final factors = factorCache[set.exerciseId];
+          if (factors == null || factors.isEmpty) continue;
+          if (factors.any((f) => f.factor > 0)) count++;
+        }
+        return Right(count);
+      });
     } catch (e) {
-      AppLogger.error('MuscleLoadResolver.getTotalSetCount failed: $e', category: 'resolver');
+      AppLogger.error(
+        'MuscleLoadResolver.getTotalSetCount failed: $e',
+        category: 'resolver',
+      );
       return Left(UnexpectedFailure('getTotalSetCount failed: $e'));
     }
   }
@@ -135,14 +151,10 @@ class MuscleLoadResolverImpl implements MuscleLoadResolver {
   ) async {
     final entries = await Future.wait(
       exerciseIds.map((id) async {
-        final result =
-            await muscleFactorRepository.getFactorsForExercise(id);
+        final result = await muscleFactorRepository.getFactorsForExercise(id);
         return MapEntry(
           id,
-          result.fold(
-            (_) => const <MuscleFactor>[],
-            (factors) => factors,
-          ),
+          result.fold((_) => const <MuscleFactor>[], (factors) => factors),
         );
       }),
     );

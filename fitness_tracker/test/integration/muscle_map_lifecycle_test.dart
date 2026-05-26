@@ -40,8 +40,7 @@ class FakeWorkoutSetRepository implements WorkoutSetRepository {
   @override
   Future<Either<Failure, List<WorkoutSet>>> getAllSets({
     DataSourcePreference sourcePreference = DataSourcePreference.localOnly,
-  }) async =>
-      Right(List.unmodifiable(_sets));
+  }) async => Right(List.unmodifiable(_sets));
 
   // ── stubs that must not be called in these tests ──────────────────────────
 
@@ -49,23 +48,20 @@ class FakeWorkoutSetRepository implements WorkoutSetRepository {
   Future<Either<Failure, WorkoutSet?>> getSetById(
     String id, {
     DataSourcePreference sourcePreference = DataSourcePreference.localOnly,
-  }) =>
-      throw UnimplementedError();
+  }) => throw UnimplementedError();
 
   @override
   Future<Either<Failure, List<WorkoutSet>>> getSetsByExerciseId(
     String exerciseId, {
     DataSourcePreference sourcePreference = DataSourcePreference.localOnly,
-  }) =>
-      throw UnimplementedError();
+  }) => throw UnimplementedError();
 
   @override
   Future<Either<Failure, List<WorkoutSet>>> getSetsByDateRange(
     DateTime startDate,
     DateTime endDate, {
     DataSourcePreference sourcePreference = DataSourcePreference.localOnly,
-  }) =>
-      throw UnimplementedError();
+  }) => throw UnimplementedError();
 
   @override
   Future<Either<Failure, void>> addSet(WorkoutSet set) =>
@@ -99,9 +95,9 @@ class FakeMuscleStimulusRepository implements MuscleStimulusRepository {
 
   @override
   Future<Either<Failure, void>> upsertStimulus(MuscleStimulus stimulus) async {
-    _store.putIfAbsent(stimulus.ownerUserId, () => <MuscleStimulus>[]).add(
-          stimulus,
-        );
+    _store
+        .putIfAbsent(stimulus.ownerUserId, () => <MuscleStimulus>[])
+        .add(stimulus);
     return const Right(null);
   }
 
@@ -118,8 +114,7 @@ class FakeMuscleStimulusRepository implements MuscleStimulusRepository {
     required String userId,
     required String muscleGroup,
     required DateTime date,
-  }) =>
-      throw UnimplementedError();
+  }) => throw UnimplementedError();
 
   @override
   Future<Either<Failure, List<MuscleStimulus>>> getStimulusByDateRange({
@@ -127,22 +122,19 @@ class FakeMuscleStimulusRepository implements MuscleStimulusRepository {
     required String muscleGroup,
     required DateTime startDate,
     required DateTime endDate,
-  }) =>
-      throw UnimplementedError();
+  }) => throw UnimplementedError();
 
   @override
   Future<Either<Failure, MuscleStimulus?>> getTodayStimulus(
     String userId,
     String muscleGroup,
-  ) =>
-      throw UnimplementedError();
+  ) => throw UnimplementedError();
 
   @override
   Future<Either<Failure, List<MuscleStimulus>>> getAllStimulusForDate(
     String userId,
     DateTime date,
-  ) =>
-      throw UnimplementedError();
+  ) => throw UnimplementedError();
 
   @override
   Future<Either<Failure, void>> updateStimulusValues({
@@ -151,8 +143,7 @@ class FakeMuscleStimulusRepository implements MuscleStimulusRepository {
     required double rollingWeeklyLoad,
     int? lastSetTimestamp,
     double? lastSetStimulus,
-  }) =>
-      throw UnimplementedError();
+  }) => throw UnimplementedError();
 
   @override
   Future<Either<Failure, void>> applyDailyDecayToAll(String userId) =>
@@ -162,14 +153,10 @@ class FakeMuscleStimulusRepository implements MuscleStimulusRepository {
   Future<Either<Failure, double>> getMaxStimulusForMuscle(
     String userId,
     String muscleGroup,
-  ) =>
-      throw UnimplementedError();
+  ) => throw UnimplementedError();
 
   @override
-  Future<Either<Failure, void>> deleteOlderThan(
-    String userId,
-    DateTime date,
-  ) =>
+  Future<Either<Failure, void>> deleteOlderThan(String userId, DateTime date) =>
       throw UnimplementedError();
 
   @override
@@ -187,8 +174,7 @@ class FakeMuscleFactorRepository implements MuscleFactorRepository {
   @override
   Future<Either<Failure, List<MuscleFactor>>> getFactorsForExercise(
     String exerciseId,
-  ) async =>
-      Right(_factorsByExercise[exerciseId] ?? <MuscleFactor>[]);
+  ) async => Right(_factorsByExercise[exerciseId] ?? <MuscleFactor>[]);
 
   // ── stubs that must not be called in these tests ──────────────────────────
 
@@ -203,8 +189,7 @@ class FakeMuscleFactorRepository implements MuscleFactorRepository {
   @override
   Future<Either<Failure, List<MuscleFactor>>> getFactorsByMuscleGroup(
     String muscleGroup,
-  ) =>
-      throw UnimplementedError();
+  ) => throw UnimplementedError();
 
   @override
   Future<Either<Failure, void>> addMuscleFactor(MuscleFactor factor) =>
@@ -213,8 +198,7 @@ class FakeMuscleFactorRepository implements MuscleFactorRepository {
   @override
   Future<Either<Failure, void>> addMuscleFactorsBatch(
     List<MuscleFactor> factors,
-  ) =>
-      throw UnimplementedError();
+  ) => throw UnimplementedError();
 
   @override
   Future<Either<Failure, void>> updateMuscleFactor(MuscleFactor factor) =>
@@ -227,8 +211,7 @@ class FakeMuscleFactorRepository implements MuscleFactorRepository {
   @override
   Future<Either<Failure, void>> deleteMuscleFactorsByExerciseId(
     String exerciseId,
-  ) =>
-      throw UnimplementedError();
+  ) => throw UnimplementedError();
 
   @override
   Future<Either<Failure, void>> clearAllFactors() => throw UnimplementedError();
@@ -299,20 +282,17 @@ void main() {
     );
   });
 
-  test(
-    'rebuild writes stimulus records for the correct user',
-    () async {
-      final result = await rebuildUseCase(_userId);
+  test('rebuild writes stimulus records for the correct user', () async {
+    final result = await rebuildUseCase(_userId);
 
-      expect(result.isRight(), isTrue);
-      expect(stimulusRepo.stimulusFor(_userId), isNotEmpty);
-      expect(
-        stimulusRepo.stimulusFor(_userId).every((s) => s.ownerUserId == _userId),
-        isTrue,
-        reason: 'every record must be owned by the signed-in user',
-      );
-    },
-  );
+    expect(result.isRight(), isTrue);
+    expect(stimulusRepo.stimulusFor(_userId), isNotEmpty);
+    expect(
+      stimulusRepo.stimulusFor(_userId).every((s) => s.ownerUserId == _userId),
+      isTrue,
+      reason: 'every record must be owned by the signed-in user',
+    );
+  });
 
   test(
     'sign-out clears only the signed-in user — bystander data is untouched',
@@ -367,7 +347,8 @@ void main() {
       expect(
         stimulusRepo.stimulusFor(_userId),
         isEmpty,
-        reason: 'rebuilding with an empty userId must not write any user-1 records',
+        reason:
+            'rebuilding with an empty userId must not write any user-1 records',
       );
       expect(
         stimulusRepo.stimulusFor(_bystanderUserId),

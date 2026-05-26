@@ -2,37 +2,37 @@ class SvgMuscleMapping {
   SvgMuscleMapping._(); // Private constructor
 
   // ==================== FRONT VIEW MUSCLES ====================
-  
+
   /// Muscles visible on front body diagram
   static const List<String> frontViewMuscles = [
-    'front-delts',      // Front deltoids
-    'side-delts',       // Side deltoids (partially visible)
-    'upper-chest',      // Upper pectoralis major
-    'mid-chest',        // Mid pectoralis major
-    'lower-chest',      // Lower pectoralis major
-    'biceps',           // Biceps brachii
-    'forearms',         // Forearm flexors
-    'abs',              // Rectus abdominis
-    'obliques',         // External obliques
-    'quads',            // Quadriceps femoris
+    'front-delts', // Front deltoids
+    'side-delts', // Side deltoids (partially visible)
+    'upper-chest', // Upper pectoralis major
+    'mid-chest', // Mid pectoralis major
+    'lower-chest', // Lower pectoralis major
+    'biceps', // Biceps brachii
+    'forearms', // Forearm flexors
+    'abs', // Rectus abdominis
+    'obliques', // External obliques
+    'quads', // Quadriceps femoris
   ];
 
   // ==================== BACK VIEW MUSCLES ====================
-  
+
   /// Muscles visible on back body diagram
   static const List<String> backViewMuscles = [
-    'rear-delts',       // Rear deltoids
-    'side-delts',       // Side deltoids (partially visible)
-    'upper-traps',      // Upper trapezius
-    'middle-traps',     // Middle trapezius
-    'lower-traps',      // Lower trapezius
-    'lats',             // Latissimus dorsi
-    'triceps',          // Triceps brachii
-    'forearms',         // Forearm extensors
-    'lower-back',       // Erector spinae
-    'glutes',           // Gluteus maximus
-    'hamstrings',       // Hamstring complex
-    'calves',           // Gastrocnemius & soleus
+    'rear-delts', // Rear deltoids
+    'side-delts', // Side deltoids (partially visible)
+    'upper-traps', // Upper trapezius
+    'middle-traps', // Middle trapezius
+    'lower-traps', // Lower trapezius
+    'lats', // Latissimus dorsi
+    'triceps', // Triceps brachii
+    'forearms', // Forearm extensors
+    'lower-back', // Erector spinae
+    'glutes', // Gluteus maximus
+    'hamstrings', // Hamstring complex
+    'calves', // Gastrocnemius & soleus
   ];
 
   // ==================== SVG PATH MAPPING ====================
@@ -49,7 +49,7 @@ class SvgMuscleMapping {
     'abs-front': 'TODO',
     'obliques-front': 'TODO',
     'quads-front': 'TODO',
-    
+
     // ==================== BACK VIEW PATHS ====================
     'rear-delts-back': 'TODO',
     'side-delts-back': 'TODO',
@@ -66,7 +66,7 @@ class SvgMuscleMapping {
   };
 
   // ==================== BILATERAL MUSCLES ====================
-  
+
   /// Muscles that appear on both sides (left/right)
   /// May need separate path IDs for left and right sides
   static const List<String> bilateralMuscles = [
@@ -88,7 +88,7 @@ class SvgMuscleMapping {
   ];
 
   // ==================== MIDLINE MUSCLES ====================
-  
+
   /// Muscles that are single/central (not bilateral)
   static const List<String> midlineMuscles = [
     'upper-traps',
@@ -99,7 +99,7 @@ class SvgMuscleMapping {
   ];
 
   // ==================== COLOR APPLICATION ====================
-  
+
   /// Get view type for a muscle group
   static String? getMuscleView(String muscleGroup) {
     if (frontViewMuscles.contains(muscleGroup)) {
@@ -131,20 +131,23 @@ class SvgMuscleMapping {
   }
 
   // ==================== SVG INTEGRATION HELPERS ====================
-  
+
   /// Get SVG path ID(s) for a muscle group on a specific view
   /// Returns list of path IDs (may be empty, or multiple for bilateral muscles)
-  static List<String> getPathIdsForMuscle(String muscleGroup, bool isFrontView) {
+  static List<String> getPathIdsForMuscle(
+    String muscleGroup,
+    bool isFrontView,
+  ) {
     final view = isFrontView ? 'front' : 'back';
     final key = '$muscleGroup-$view';
-    
+
     if (svgPathIds.containsKey(key)) {
       final pathId = svgPathIds[key]!;
       if (pathId != 'TODO') {
         return [pathId];
       }
     }
-    
+
     return []; // No path configured yet
   }
 

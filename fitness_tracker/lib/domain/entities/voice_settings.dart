@@ -85,11 +85,11 @@ class VoiceSettings extends Equatable {
 
   @override
   List<Object?> get props => <Object?>[
-        wakeWordPreset,
-        sessionLoggingEnabled,
-        workoutModeAutoEnable,
-        ttsVolume,
-        ttsSpeechRate,
-        wakeWordArmedInForeground,
-      ];
+    wakeWordPreset,
+    sessionLoggingEnabled,
+    workoutModeAutoEnable,
+    ttsVolume,
+    ttsSpeechRate,
+    wakeWordArmedInForeground,
+  ];
 }

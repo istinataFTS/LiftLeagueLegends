@@ -18,12 +18,11 @@ class ExerciseRepositoryImpl implements ExerciseRepository {
   final ExerciseRemoteDataSource remoteDataSource;
   final ExerciseSyncCoordinator syncCoordinator;
 
-  static final LocalRemoteMerge<Exercise> _merge =
-      LocalRemoteMerge<Exercise>(
-        getId: (exercise) => exercise.id,
-        getUpdatedAt: (exercise) => exercise.updatedAt,
-        getSyncMetadata: (exercise) => exercise.syncMetadata,
-      );
+  static final LocalRemoteMerge<Exercise> _merge = LocalRemoteMerge<Exercise>(
+    getId: (exercise) => exercise.id,
+    getUpdatedAt: (exercise) => exercise.updatedAt,
+    getSyncMetadata: (exercise) => exercise.syncMetadata,
+  );
 
   const ExerciseRepositoryImpl({
     required this.localDataSource,
@@ -237,7 +236,9 @@ class ExerciseRepositoryImpl implements ExerciseRepository {
         return localDataSource.getExercisesForMuscle(muscleGroup);
       }
 
-      final exercises = await getAllExercises(sourcePreference: sourcePreference);
+      final exercises = await getAllExercises(
+        sourcePreference: sourcePreference,
+      );
       return exercises.fold(
         (_) => const <Exercise>[],
         (items) => items

@@ -112,19 +112,31 @@ class _MacroStrip extends StatelessWidget {
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: <Widget>[
           Expanded(
-            child: _MacroTile(label: AppStrings.calories, value: viewData.caloriesLabel),
+            child: _MacroTile(
+              label: AppStrings.calories,
+              value: viewData.caloriesLabel,
+            ),
           ),
           const VerticalDivider(color: AppTheme.borderDark, width: 1),
           Expanded(
-            child: _MacroTile(label: AppStrings.protein, value: viewData.proteinLabel),
+            child: _MacroTile(
+              label: AppStrings.protein,
+              value: viewData.proteinLabel,
+            ),
           ),
           const VerticalDivider(color: AppTheme.borderDark, width: 1),
           Expanded(
-            child: _MacroTile(label: AppStrings.carbs, value: viewData.carbsLabel),
+            child: _MacroTile(
+              label: AppStrings.carbs,
+              value: viewData.carbsLabel,
+            ),
           ),
           const VerticalDivider(color: AppTheme.borderDark, width: 1),
           Expanded(
-            child: _MacroTile(label: AppStrings.fats, value: viewData.fatsLabel),
+            child: _MacroTile(
+              label: AppStrings.fats,
+              value: viewData.fatsLabel,
+            ),
           ),
         ],
       ),
@@ -137,11 +149,17 @@ class _MacroStrip extends StatelessWidget {
         Row(
           children: <Widget>[
             Expanded(
-              child: _MacroTile(label: AppStrings.calories, value: viewData.caloriesLabel),
+              child: _MacroTile(
+                label: AppStrings.calories,
+                value: viewData.caloriesLabel,
+              ),
             ),
             const SizedBox(width: 1),
             Expanded(
-              child: _MacroTile(label: AppStrings.protein, value: viewData.proteinLabel),
+              child: _MacroTile(
+                label: AppStrings.protein,
+                value: viewData.proteinLabel,
+              ),
             ),
           ],
         ),
@@ -149,11 +167,17 @@ class _MacroStrip extends StatelessWidget {
         Row(
           children: <Widget>[
             Expanded(
-              child: _MacroTile(label: AppStrings.carbs, value: viewData.carbsLabel),
+              child: _MacroTile(
+                label: AppStrings.carbs,
+                value: viewData.carbsLabel,
+              ),
             ),
             const SizedBox(width: 1),
             Expanded(
-              child: _MacroTile(label: AppStrings.fats, value: viewData.fatsLabel),
+              child: _MacroTile(
+                label: AppStrings.fats,
+                value: viewData.fatsLabel,
+              ),
             ),
           ],
         ),
@@ -177,9 +201,9 @@ class _MacroTile extends StatelessWidget {
         children: <Widget>[
           Text(
             label,
-            style: Theme.of(context).textTheme.bodySmall?.copyWith(
-              color: AppTheme.textMedium,
-            ),
+            style: Theme.of(
+              context,
+            ).textTheme.bodySmall?.copyWith(color: AppTheme.textMedium),
           ),
           const SizedBox(height: 4),
           Text(
@@ -236,8 +260,9 @@ class _ProgressCard extends StatelessWidget {
                 Expanded(
                   child: Text(
                     viewData.title,
-                    style: Theme.of(context).textTheme.titleLarge
-                        ?.copyWith(fontWeight: FontWeight.w600),
+                    style: Theme.of(context).textTheme.titleLarge?.copyWith(
+                      fontWeight: FontWeight.w600,
+                    ),
                   ),
                 ),
                 const SizedBox(width: 8),
@@ -415,8 +440,7 @@ class _MuscleMapModeToggle extends StatelessWidget {
               style: TextStyle(
                 color: isSelected ? Colors.white : AppTheme.textDim,
                 fontSize: 12,
-                fontWeight:
-                    isSelected ? FontWeight.w600 : FontWeight.normal,
+                fontWeight: isSelected ? FontWeight.w600 : FontWeight.normal,
               ),
             ),
           ],

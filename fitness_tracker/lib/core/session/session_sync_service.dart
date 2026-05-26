@@ -1,11 +1,7 @@
 import '../sync/sync_orchestrator.dart';
 import '../../domain/entities/app_user.dart';
 
-enum SessionSyncActionStatus {
-  completed,
-  skipped,
-  failed,
-}
+enum SessionSyncActionStatus { completed, skipped, failed }
 
 class SessionSyncActionResult {
   final SessionSyncActionStatus status;

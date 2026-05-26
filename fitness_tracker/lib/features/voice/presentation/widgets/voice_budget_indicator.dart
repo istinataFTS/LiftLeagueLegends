@@ -21,8 +21,8 @@ class VoiceBudgetIndicator extends StatelessWidget {
         final barColor = fraction >= 0.9
             ? AppTheme.errorRed
             : fraction >= 0.7
-                ? Colors.orange
-                : AppTheme.primaryOrange;
+            ? Colors.orange
+            : AppTheme.primaryOrange;
 
         final remainingLabel =
             '\$${budget.remainingUsd.toStringAsFixed(3)} remaining today';
@@ -45,9 +45,9 @@ class VoiceBudgetIndicator extends StatelessWidget {
               const SizedBox(height: 4),
               Text(
                 remainingLabel,
-                style: Theme.of(context).textTheme.labelSmall?.copyWith(
-                      color: AppTheme.textMedium,
-                    ),
+                style: Theme.of(
+                  context,
+                ).textTheme.labelSmall?.copyWith(color: AppTheme.textMedium),
               ),
             ],
           ),

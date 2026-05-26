@@ -9,26 +9,26 @@ class MuscleStimulus extends Equatable {
   final String ownerUserId;
 
   final String muscleGroup;
-  
+
   /// Date in YYYY-MM-DD format
   final DateTime date;
-  
+
   /// Total stimulus accumulated for this muscle on this date
   /// Calculated as sum of all set stimuli for the day
   final double dailyStimulus;
-  
+
   /// Rolling weekly load with exponential decay
   /// Formula: previousWeeklyLoad * 0.6 + dailyStimulus
   final double rollingWeeklyLoad;
-  
+
   /// Unix timestamp (milliseconds) of the last set performed for this muscle
   /// Used for calculating real-time recovery decay
   final int? lastSetTimestamp;
-  
+
   /// Stimulus value of the last set performed
   /// Used as starting point for decay calculation
   final double? lastSetStimulus;
-  
+
   final DateTime createdAt;
   final DateTime updatedAt;
 
@@ -46,10 +46,10 @@ class MuscleStimulus extends Equatable {
   });
 
   /// Calculate remaining stimulus after recovery decay
-  /// 
+  ///
   /// Uses exponential decay formula: stimulus * e^(-k * hours)
   /// where k is the muscle-specific recovery rate
-  /// 
+  ///
   /// Returns the current remaining stimulus based on time elapsed since last set
   double calculateRemainingStimulus() {
     // If no last set recorded, return 0
@@ -60,7 +60,8 @@ class MuscleStimulus extends Equatable {
     // Calculate hours elapsed since last set
     final lastSetTime = DateTime.fromMillisecondsSinceEpoch(lastSetTimestamp!);
     final now = DateTime.now();
-    final hoursElapsed = now.difference(lastSetTime).inMilliseconds / (1000 * 60 * 60);
+    final hoursElapsed =
+        now.difference(lastSetTime).inMilliseconds / (1000 * 60 * 60);
 
     // Get recovery rate for this muscle
     final k = constants.MuscleStimulus.getRecoveryRate(muscleGroup);
@@ -80,30 +81,30 @@ class MuscleStimulus extends Equatable {
   /// Check if this stimulus record is from today
   bool get isToday {
     final now = DateTime.now();
-    return date.year == now.year && 
-           date.month == now.month && 
-           date.day == now.day;
+    return date.year == now.year &&
+        date.month == now.month &&
+        date.day == now.day;
   }
 
   /// Check if last set was performed today
   bool get lastSetWasToday {
     if (lastSetTimestamp == null) return false;
-    
+
     final lastSetTime = DateTime.fromMillisecondsSinceEpoch(lastSetTimestamp!);
     final now = DateTime.now();
-    
-    return lastSetTime.year == now.year && 
-           lastSetTime.month == now.month && 
-           lastSetTime.day == now.day;
+
+    return lastSetTime.year == now.year &&
+        lastSetTime.month == now.month &&
+        lastSetTime.day == now.day;
   }
 
   /// Get hours since last set
   double? get hoursSinceLastSet {
     if (lastSetTimestamp == null) return null;
-    
+
     final lastSetTime = DateTime.fromMillisecondsSinceEpoch(lastSetTimestamp!);
     final now = DateTime.now();
-    
+
     return now.difference(lastSetTime).inMilliseconds / (1000 * 60 * 60);
   }
 
@@ -135,15 +136,15 @@ class MuscleStimulus extends Equatable {
 
   @override
   List<Object?> get props => [
-        id,
-        ownerUserId,
-        muscleGroup,
-        date,
-        dailyStimulus,
-        rollingWeeklyLoad,
-        lastSetTimestamp,
-        lastSetStimulus,
-        createdAt,
-        updatedAt,
-      ];
+    id,
+    ownerUserId,
+    muscleGroup,
+    date,
+    dailyStimulus,
+    rollingWeeklyLoad,
+    lastSetTimestamp,
+    lastSetStimulus,
+    createdAt,
+    updatedAt,
+  ];
 }

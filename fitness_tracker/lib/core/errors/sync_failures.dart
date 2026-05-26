@@ -34,8 +34,8 @@ class BatchSyncFailure extends Failure {
 
   @override
   List<Object> get props => [
-        message,
-        failedUpsertEntityIds,
-        failedDeleteEntityIds,
-      ];
+    message,
+    failedUpsertEntityIds,
+    failedDeleteEntityIds,
+  ];
 }

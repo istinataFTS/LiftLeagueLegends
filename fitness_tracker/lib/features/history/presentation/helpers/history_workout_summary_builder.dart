@@ -57,19 +57,20 @@ class HistoryWorkoutSummaryBuilder {
       }
     }
 
-    final List<HistoryMuscleCount> muscleCounts = counts.entries
-        .map(
-          (MapEntry<String, int> e) => HistoryMuscleCount(
-            muscleGroup: e.key,
-            displayName: MuscleGroups.getDisplayName(e.key),
-            directSetCount: e.value,
-          ),
-        )
-        .toList()
-      ..sort(
-        (HistoryMuscleCount a, HistoryMuscleCount b) =>
-            b.directSetCount.compareTo(a.directSetCount),
-      );
+    final List<HistoryMuscleCount> muscleCounts =
+        counts.entries
+            .map(
+              (MapEntry<String, int> e) => HistoryMuscleCount(
+                muscleGroup: e.key,
+                displayName: MuscleGroups.getDisplayName(e.key),
+                directSetCount: e.value,
+              ),
+            )
+            .toList()
+          ..sort(
+            (HistoryMuscleCount a, HistoryMuscleCount b) =>
+                b.directSetCount.compareTo(a.directSetCount),
+          );
 
     return HistoryWorkoutSummary(
       muscleCounts: muscleCounts,

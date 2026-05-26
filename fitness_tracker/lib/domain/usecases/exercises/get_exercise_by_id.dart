@@ -15,8 +15,8 @@ class GetExerciseById {
   });
 
   Future<Either<Failure, Exercise?>> call(String id) async {
-    final sourcePreference =
-        await sourcePreferenceResolver.resolveReadPreference();
+    final sourcePreference = await sourcePreferenceResolver
+        .resolveReadPreference();
 
     return repository.getExerciseById(id, sourcePreference: sourcePreference);
   }

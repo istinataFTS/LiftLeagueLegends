@@ -147,11 +147,14 @@ void main() {
     });
 
     group('hasValidCalories', () {
-      test('returns true when stated calories match macros within tolerance', () {
-        // 60*4 + 13*4 + 7*9 = 240 + 52 + 63 = 355, stated 358 → diff=3 ≤ 5
-        final model = MealModel.fromEntity(_mealEntity);
-        expect(model.hasValidCalories, isTrue);
-      });
+      test(
+        'returns true when stated calories match macros within tolerance',
+        () {
+          // 60*4 + 13*4 + 7*9 = 240 + 52 + 63 = 355, stated 358 → diff=3 ≤ 5
+          final model = MealModel.fromEntity(_mealEntity);
+          expect(model.hasValidCalories, isTrue);
+        },
+      );
 
       test('returns false when stated calories differ by more than 5 kcal', () {
         final meal = Meal(
@@ -214,31 +217,35 @@ void main() {
     });
 
     group('withCalculatedMacros', () {
-      test('calculates calories from macros when caloriesPer100g is not given',
-          () {
-        final model = MealModel.withCalculatedMacros(
-          id: 'x',
-          name: 'Rice',
-          carbsPer100g: 40,
-          proteinPer100g: 5,
-          fatPer100g: 1,
-          // 40*4 + 5*4 + 1*9 = 160 + 20 + 9 = 189
-        );
-        expect(model.caloriesPer100g, closeTo(189.0, 0.01));
-      });
+      test(
+        'calculates calories from macros when caloriesPer100g is not given',
+        () {
+          final model = MealModel.withCalculatedMacros(
+            id: 'x',
+            name: 'Rice',
+            carbsPer100g: 40,
+            proteinPer100g: 5,
+            fatPer100g: 1,
+            // 40*4 + 5*4 + 1*9 = 160 + 20 + 9 = 189
+          );
+          expect(model.caloriesPer100g, closeTo(189.0, 0.01));
+        },
+      );
 
-      test('calculates missing carbs when calories and other macros are given',
-          () {
-        final model = MealModel.withCalculatedMacros(
-          id: 'x',
-          name: 'Custom',
-          caloriesPer100g: 200,
-          proteinPer100g: 10,
-          fatPer100g: 5,
-          // carbs = (200 - 10*4 - 5*9) / 4 = (200 - 40 - 45) / 4 = 115/4 = 28.75
-        );
-        expect(model.carbsPer100g, closeTo(28.75, 0.01));
-      });
+      test(
+        'calculates missing carbs when calories and other macros are given',
+        () {
+          final model = MealModel.withCalculatedMacros(
+            id: 'x',
+            name: 'Custom',
+            caloriesPer100g: 200,
+            proteinPer100g: 10,
+            fatPer100g: 5,
+            // carbs = (200 - 10*4 - 5*9) / 4 = (200 - 40 - 45) / 4 = 115/4 = 28.75
+          );
+          expect(model.carbsPer100g, closeTo(28.75, 0.01));
+        },
+      );
     });
   });
 

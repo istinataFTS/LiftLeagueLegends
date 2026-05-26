@@ -18,10 +18,7 @@ void main() {
   }) {
     return AppSession(
       authMode: AuthMode.authenticated,
-      user: const AppUser(
-        id: 'user-1',
-        email: 'user@test.com',
-      ),
+      user: const AppUser(id: 'user-1', email: 'user@test.com'),
       requiresInitialCloudMigration: requiresInitialCloudMigration,
     );
   }
@@ -29,8 +26,9 @@ void main() {
   setUp(() {
     networkStatusService = MockNetworkStatusService();
 
-    when(() => networkStatusService.isNetworkAvailable())
-        .thenAnswer((_) async => true);
+    when(
+      () => networkStatusService.isNetworkAvailable(),
+    ).thenAnswer((_) async => true);
   });
 
   test('denies when remote sync runtime policy is not configured', () async {
@@ -53,8 +51,9 @@ void main() {
   });
 
   test('denies when network is unavailable', () async {
-    when(() => networkStatusService.isNetworkAvailable())
-        .thenAnswer((_) async => false);
+    when(
+      () => networkStatusService.isNetworkAvailable(),
+    ).thenAnswer((_) async => false);
 
     final availability = RemoteSyncAvailability(
       runtimePolicy: const RemoteSyncRuntimePolicy(
@@ -93,25 +92,27 @@ void main() {
     expect(result.reason, 'session is not authenticated');
   });
 
-  test('denies non-initial-sign-in triggers while migration is pending',
-      () async {
-    final availability = RemoteSyncAvailability(
-      runtimePolicy: const RemoteSyncRuntimePolicy(
-        isSupabaseEnabled: true,
-        supabaseUrl: 'https://example.supabase.co',
-        supabaseAnonKey: 'anon-key',
-      ),
-      networkStatusService: networkStatusService,
-    );
+  test(
+    'denies non-initial-sign-in triggers while migration is pending',
+    () async {
+      final availability = RemoteSyncAvailability(
+        runtimePolicy: const RemoteSyncRuntimePolicy(
+          isSupabaseEnabled: true,
+          supabaseUrl: 'https://example.supabase.co',
+          supabaseAnonKey: 'anon-key',
+        ),
+        networkStatusService: networkStatusService,
+      );
 
-    final result = await availability.evaluate(
-      session: authenticatedSession(requiresInitialCloudMigration: true),
-      trigger: SyncTrigger.appResume,
-    );
+      final result = await availability.evaluate(
+        session: authenticatedSession(requiresInitialCloudMigration: true),
+        trigger: SyncTrigger.appResume,
+      );
 
-    expect(result.isAllowed, isFalse);
-    expect(result.reason, 'initial cloud migration is pending');
-  });
+      expect(result.isAllowed, isFalse);
+      expect(result.reason, 'initial cloud migration is pending');
+    },
+  );
 
   test('allows initial sign-in while migration is pending', () async {
     final availability = RemoteSyncAvailability(

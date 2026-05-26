@@ -105,7 +105,8 @@ class AuthSessionServiceImpl implements AuthSessionService {
       );
 
       // Best-effort profile creation — only when session was fully established.
-      if (sessionResult.isSuccess) {                          // ← fix: was isCompleted
+      if (sessionResult.isSuccess) {
+        // ← fix: was isCompleted
         await _createInitialProfile(
           userId: result.user.id,
           username: normalizedUsername,
@@ -161,7 +162,7 @@ class AuthSessionServiceImpl implements AuthSessionService {
       if (sessionResult.isSuccess) {
         final username =
             user.displayName?.replaceAll(' ', '_').toLowerCase() ??
-                'user_${user.id.substring(0, 8)}';
+            'user_${user.id.substring(0, 8)}';
         await _createInitialProfile(
           userId: user.id,
           username: username,
@@ -201,8 +202,8 @@ class AuthSessionServiceImpl implements AuthSessionService {
     required String successMessage,
     required String actionLabel,
   }) async {
-    final sessionResult =
-        await sessionSyncService.establishAuthenticatedSession(user);
+    final sessionResult = await sessionSyncService
+        .establishAuthenticatedSession(user);
 
     if (sessionResult.isFailure) {
       AppLogger.error(
@@ -213,7 +214,8 @@ class AuthSessionServiceImpl implements AuthSessionService {
 
       return AuthSessionActionResult(
         status: AuthSessionActionStatus.failed,
-        message: '$actionLabel succeeded but session initialization failed: '
+        message:
+            '$actionLabel succeeded but session initialization failed: '
             '${sessionResult.message}',
         user: user,
         sessionResult: sessionResult,
@@ -270,7 +272,8 @@ class AuthSessionServiceImpl implements AuthSessionService {
       category: 'auth',
     );
 
-    final username = user.displayName?.replaceAll(' ', '_').toLowerCase() ??
+    final username =
+        user.displayName?.replaceAll(' ', '_').toLowerCase() ??
         'user_${user.id.substring(0, 8)}';
 
     await _createInitialProfile(

@@ -53,9 +53,9 @@ void main() {
       });
 
       test('returns empty map when exercise has no muscle factors', () async {
-        when(() => mockFactorRepo.getFactorsForExercise('ex-1')).thenAnswer(
-          (_) async => const Right([]),
-        );
+        when(
+          () => mockFactorRepo.getFactorsForExercise('ex-1'),
+        ).thenAnswer((_) async => const Right([]));
 
         final result = await useCase.calculateForSet(
           exerciseId: 'ex-1',
@@ -75,9 +75,9 @@ void main() {
           factor: 1.0,
         );
 
-        when(() => mockFactorRepo.getFactorsForExercise('ex-1')).thenAnswer(
-          (_) async => Right([chestFactor]),
-        );
+        when(
+          () => mockFactorRepo.getFactorsForExercise('ex-1'),
+        ).thenAnswer((_) async => Right([chestFactor]));
 
         // intensity=5 → intensityFactor=(5/5)^1.35=1.0 → stimulus=1×1.0×1.0=1.0
         final result = await useCase.calculateForSet(
@@ -93,9 +93,9 @@ void main() {
 
       test('propagates repository failure', () async {
         const failure = DatabaseFailure('db error');
-        when(() => mockFactorRepo.getFactorsForExercise('ex-1')).thenAnswer(
-          (_) async => const Left(failure),
-        );
+        when(
+          () => mockFactorRepo.getFactorsForExercise('ex-1'),
+        ).thenAnswer((_) async => const Left(failure));
 
         final result = await useCase.calculateForSet(
           exerciseId: 'ex-1',
@@ -116,31 +116,39 @@ void main() {
         verifyNever(() => mockFactorRepo.getFactorsForExercise(any()));
       });
 
-      test('accumulates stimulus across multiple sets for the same muscle',
-          () async {
-        final chestFactor = MuscleFactor(
-          id: 'f-1',
-          exerciseId: 'ex-1',
-          muscleGroup: 'chest',
-          factor: 1.0,
-        );
+      test(
+        'accumulates stimulus across multiple sets for the same muscle',
+        () async {
+          final chestFactor = MuscleFactor(
+            id: 'f-1',
+            exerciseId: 'ex-1',
+            muscleGroup: 'chest',
+            factor: 1.0,
+          );
 
-        when(() => mockFactorRepo.getFactorsForExercise('ex-1')).thenAnswer(
-          (_) async => Right([chestFactor]),
-        );
+          when(
+            () => mockFactorRepo.getFactorsForExercise('ex-1'),
+          ).thenAnswer((_) async => Right([chestFactor]));
 
-        // Two sets at max intensity: each gives stimulus=1.0 → total=2.0
-        final result = await useCase.calculateForWorkout(
-          workoutSets: [
-            const WorkoutSetInput(exerciseId: 'ex-1', intensity: _maxIntensity),
-            const WorkoutSetInput(exerciseId: 'ex-1', intensity: _maxIntensity),
-          ],
-        );
+          // Two sets at max intensity: each gives stimulus=1.0 → total=2.0
+          final result = await useCase.calculateForWorkout(
+            workoutSets: [
+              const WorkoutSetInput(
+                exerciseId: 'ex-1',
+                intensity: _maxIntensity,
+              ),
+              const WorkoutSetInput(
+                exerciseId: 'ex-1',
+                intensity: _maxIntensity,
+              ),
+            ],
+          );
 
-        expect(result.isRight(), isTrue);
-        final stimuli = (result as Right).value as Map<String, double>;
-        expect(stimuli['chest'], closeTo(2.0, 0.001));
-      });
+          expect(result.isRight(), isTrue);
+          final stimuli = (result as Right).value as Map<String, double>;
+          expect(stimuli['chest'], closeTo(2.0, 0.001));
+        },
+      );
     });
 
     group('calculateIntensityFactor', () {
@@ -149,7 +157,10 @@ void main() {
       });
 
       test('returns 1.0 for maximum intensity', () {
-        expect(useCase.calculateIntensityFactor(_maxIntensity), closeTo(1.0, 0.001));
+        expect(
+          useCase.calculateIntensityFactor(_maxIntensity),
+          closeTo(1.0, 0.001),
+        );
       });
     });
 

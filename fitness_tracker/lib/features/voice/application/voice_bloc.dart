@@ -1592,8 +1592,22 @@ class VoiceBloc extends Bloc<VoiceEvent, VoiceState>
   }
 
   String _messageFor(Failure failure) {
-    if (failure.message.isNotEmpty) return failure.message;
-    return 'Something went wrong.';
+    // Edge-function failures arrive encoded as `CODE|status|message` (see
+    // SupabaseVoiceRemoteDataSource._throwFromErrorBody). Show the message
+    // tail to the user — the code/status are diagnostic, the prose is what
+    // helps. Falls through to the raw message for legacy / unencoded
+    // failures, and to the class name when even that is empty (so the
+    // chat bubble never shows the meaningless "Something went wrong"
+    // — that string is now reserved for the spoken TTS path).
+    final raw = failure.message;
+    if (raw.isNotEmpty) {
+      final parts = raw.split('|');
+      if (parts.length >= 3) {
+        return parts.sublist(2).join('|');
+      }
+      return raw;
+    }
+    return '${failure.runtimeType} (no detail provided)';
   }
 
   /// Returns the human-readable exercise name for [exerciseId] via the shared
@@ -1624,7 +1638,8 @@ class VoiceBloc extends Bloc<VoiceEvent, VoiceState>
     return DateTime(now.year, now.month, now.day - daysFromMonday);
   }
 
-  /// Maps STT error kinds to user-visible strings.
+  /// Maps STT error kinds to user-visible strings. Exhaustive switch so the
+  /// compiler flags new [VoiceSttErrorKind] values that we forgot to name.
   String _sttErrorMessage(VoiceSttErrorKind kind) {
     switch (kind) {
       case VoiceSttErrorKind.permissionDenied:
@@ -1639,17 +1654,36 @@ class VoiceBloc extends Bloc<VoiceEvent, VoiceState>
         return AppStrings.voiceSttErrorNetwork;
       case VoiceSttErrorKind.unknown:
         return AppStrings.voiceSttErrorUnknown;
+      case VoiceSttErrorKind.auth:
+        return AppStrings.voiceSttErrorAuth;
+      case VoiceSttErrorKind.audioTooLarge:
+        return AppStrings.voiceSttErrorAudioTooLarge;
+      case VoiceSttErrorKind.budgetExceeded:
+        return AppStrings.voiceSttErrorBudgetExceeded;
+      case VoiceSttErrorKind.serverUnavailable:
+        return AppStrings.voiceSttErrorServerUnavailable;
     }
   }
 
-  /// Maps STT error kinds to spoken strings played via device TTS.
+  /// Maps STT error kinds to spoken strings played via device TTS. Spoken
+  /// copy stays short and generic — full context lives in the chat bubble
+  /// (via [_sttErrorMessage]). The transient kinds get their own spoken
+  /// line so the user gets the most useful hint by ear.
   String? _sttSpokenMessage(VoiceSttErrorKind kind) {
     switch (kind) {
       case VoiceSttErrorKind.noSpeech:
         return AppStrings.voiceSpokenNoSpeech;
       case VoiceSttErrorKind.network:
         return AppStrings.voiceSpokenNetworkDown;
-      default:
+      case VoiceSttErrorKind.budgetExceeded:
+        return AppStrings.voiceSpokenBudgetExceeded;
+      case VoiceSttErrorKind.permissionDenied:
+      case VoiceSttErrorKind.permissionPermanentlyDenied:
+      case VoiceSttErrorKind.unavailable:
+      case VoiceSttErrorKind.auth:
+      case VoiceSttErrorKind.audioTooLarge:
+      case VoiceSttErrorKind.serverUnavailable:
+      case VoiceSttErrorKind.unknown:
         return AppStrings.voiceSpokenGenericError;
     }
   }

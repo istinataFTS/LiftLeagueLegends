@@ -33,10 +33,7 @@ void main() {
     createdAt: DateTime(2024, 1, 15, 10),
   );
 
-  final weeklySets = [
-    workoutSet,
-    workoutSet.copyWith(id: 'set-2', reps: 8),
-  ];
+  final weeklySets = [workoutSet, workoutSet.copyWith(id: 'set-2', reps: 8)];
 
   setUp(() {
     mockAddWorkoutSet = MockAddWorkoutSet();
@@ -60,15 +57,13 @@ void main() {
     blocTest<WorkoutBloc, WorkoutState>(
       'emits loading then loaded when weekly sets load succeeds',
       build: () {
-        when(() => mockGetWeeklySets())
-            .thenAnswer((_) async => Right(weeklySets));
+        when(
+          () => mockGetWeeklySets(),
+        ).thenAnswer((_) async => Right(weeklySets));
         return bloc;
       },
       act: (bloc) => bloc.add(const LoadWeeklySetsEvent()),
-      expect: () => [
-        isA<WorkoutLoading>(),
-        WorkoutLoaded(weeklySets),
-      ],
+      expect: () => [isA<WorkoutLoading>(), WorkoutLoaded(weeklySets)],
       verify: (_) {
         expect(bloc.cachedWeeklySets, weeklySets);
       },
@@ -78,7 +73,8 @@ void main() {
       'emits error when weekly sets load fails',
       build: () {
         when(() => mockGetWeeklySets()).thenAnswer(
-          (_) async => const Left(DatabaseFailure('Failed to load weekly sets')),
+          (_) async =>
+              const Left(DatabaseFailure('Failed to load weekly sets')),
         );
         return bloc;
       },
@@ -92,8 +88,9 @@ void main() {
     blocTest<WorkoutBloc, WorkoutState>(
       'emits loading then loaded when add workout set succeeds',
       build: () {
-        when(() => mockAddWorkoutSet(workoutSet))
-            .thenAnswer((_) async => const Right(null));
+        when(
+          () => mockAddWorkoutSet(workoutSet),
+        ).thenAnswer((_) async => const Right(null));
 
         when(
           () => mockCalculateMuscleStimulus.calculateForSet(
@@ -101,21 +98,17 @@ void main() {
             sets: 1,
             intensity: workoutSet.intensity,
           ),
-        ).thenAnswer(
-          (_) async => const Right({'chest': 5.0, 'triceps': 3.0}),
-        );
+        ).thenAnswer((_) async => const Right({'chest': 5.0, 'triceps': 3.0}));
 
-        when(() => mockGetWeeklySets())
-            .thenAnswer((_) async => Right(weeklySets));
+        when(
+          () => mockGetWeeklySets(),
+        ).thenAnswer((_) async => Right(weeklySets));
 
         _addSetEffectFuture = bloc.effects.first;
         return bloc;
       },
       act: (bloc) => bloc.add(AddWorkoutSetEvent(workoutSet)),
-      expect: () => [
-        isA<WorkoutLoading>(),
-        WorkoutLoaded(weeklySets),
-      ],
+      expect: () => [isA<WorkoutLoading>(), WorkoutLoaded(weeklySets)],
       verify: (_) async {
         expect(bloc.cachedWeeklySets, weeklySets);
 
@@ -149,14 +142,13 @@ void main() {
     blocTest<WorkoutBloc, WorkoutState>(
       'refresh emits loaded without forcing loading state',
       build: () {
-        when(() => mockGetWeeklySets())
-            .thenAnswer((_) async => Right(weeklySets));
+        when(
+          () => mockGetWeeklySets(),
+        ).thenAnswer((_) async => Right(weeklySets));
         return bloc;
       },
       act: (bloc) => bloc.add(const RefreshWeeklySetsEvent()),
-      expect: () => [
-        WorkoutLoaded(weeklySets),
-      ],
+      expect: () => [WorkoutLoaded(weeklySets)],
     );
   });
 }

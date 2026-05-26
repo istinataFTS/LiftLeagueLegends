@@ -21,13 +21,13 @@ class LibraryMealPageViewData extends Equatable {
 
   @override
   List<Object?> get props => <Object?>[
-        items,
-        resultCountLabel,
-        hasMeals,
-        hasResults,
-        hasActiveSearch,
-        searchQuery,
-      ];
+    items,
+    resultCountLabel,
+    hasMeals,
+    hasResults,
+    hasActiveSearch,
+    searchQuery,
+  ];
 }
 
 class LibraryMealItemViewData extends Equatable {
@@ -46,13 +46,7 @@ class LibraryMealItemViewData extends Equatable {
   final Meal meal;
 
   @override
-  List<Object?> get props => <Object?>[
-        id,
-        title,
-        subtitle,
-        macroSummary,
-        meal,
-      ];
+  List<Object?> get props => <Object?>[id, title, subtitle, macroSummary, meal];
 }
 
 class LibraryMealViewDataMapper {

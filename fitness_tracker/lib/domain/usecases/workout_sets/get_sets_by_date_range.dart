@@ -33,8 +33,8 @@ class GetSetsByDateRange {
     required DateTime endDate,
     String? muscleGroup,
   }) async {
-    final sourcePreference =
-        await sourcePreferenceResolver.resolveReadPreference();
+    final sourcePreference = await sourcePreferenceResolver
+        .resolveReadPreference();
 
     final setsResult = await workoutSetRepository.getSetsByDateRange(
       startDate,
@@ -46,33 +46,27 @@ class GetSetsByDateRange {
       return setsResult;
     }
 
-    return setsResult.fold(
-      (failure) => Left(failure),
-      (sets) async {
-        final exercisesResult = await exerciseRepository.getAllExercises(
-          sourcePreference: sourcePreference,
-        );
+    return setsResult.fold((failure) => Left(failure), (sets) async {
+      final exercisesResult = await exerciseRepository.getAllExercises(
+        sourcePreference: sourcePreference,
+      );
 
-        return exercisesResult.fold(
-          (failure) => Left(failure),
-          (exercises) {
-            final exerciseMap = <String, Exercise>{
-              for (final exercise in exercises) exercise.id: exercise,
-            };
+      return exercisesResult.fold((failure) => Left(failure), (exercises) {
+        final exerciseMap = <String, Exercise>{
+          for (final exercise in exercises) exercise.id: exercise,
+        };
 
-            final filteredSets = sets.where((set) {
-              final exercise = exerciseMap[set.exerciseId];
-              if (exercise == null) {
-                return false;
-              }
+        final filteredSets = sets.where((set) {
+          final exercise = exerciseMap[set.exerciseId];
+          if (exercise == null) {
+            return false;
+          }
 
-              return exercise.muscleGroups.contains(muscleGroup);
-            }).toList();
+          return exercise.muscleGroups.contains(muscleGroup);
+        }).toList();
 
-            return Right(filteredSets);
-          },
-        );
-      },
-    );
+        return Right(filteredSets);
+      });
+    });
   }
 }

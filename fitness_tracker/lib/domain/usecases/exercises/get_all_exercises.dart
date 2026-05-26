@@ -15,8 +15,8 @@ class GetAllExercises {
   });
 
   Future<Either<Failure, List<Exercise>>> call() async {
-    final sourcePreference =
-        await sourcePreferenceResolver.resolveReadPreference();
+    final sourcePreference = await sourcePreferenceResolver
+        .resolveReadPreference();
 
     return repository.getAllExercises(sourcePreference: sourcePreference);
   }

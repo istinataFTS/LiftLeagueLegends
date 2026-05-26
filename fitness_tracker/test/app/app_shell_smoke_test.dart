@@ -4,15 +4,12 @@ import 'package:flutter_test/flutter_test.dart';
 
 void main() {
   group('AppShell smoke test', () {
-    testWidgets('boots the root app shell without production DI',
-        (tester) async {
+    testWidgets('boots the root app shell without production DI', (
+      tester,
+    ) async {
       await tester.pumpWidget(
         const AppShell(
-          home: Scaffold(
-            body: Center(
-              child: Text('Boot OK'),
-            ),
-          ),
+          home: Scaffold(body: Center(child: Text('Boot OK'))),
         ),
       );
 

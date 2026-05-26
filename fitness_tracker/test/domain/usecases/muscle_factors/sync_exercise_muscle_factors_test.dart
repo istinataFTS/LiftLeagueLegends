@@ -46,14 +46,13 @@ void main() {
     savedFactors = <MuscleFactor>[];
 
     when(
-      () => muscleFactorRepository
-          .deleteMuscleFactorsByExerciseId(any()),
+      () => muscleFactorRepository.deleteMuscleFactorsByExerciseId(any()),
     ).thenAnswer((_) async => const Right(null));
 
-    when(() => muscleFactorRepository.addMuscleFactorsBatch(any()))
-        .thenAnswer((invocation) async {
-      savedFactors =
-          invocation.positionalArguments.first as List<MuscleFactor>;
+    when(() => muscleFactorRepository.addMuscleFactorsBatch(any())).thenAnswer((
+      invocation,
+    ) async {
+      savedFactors = invocation.positionalArguments.first as List<MuscleFactor>;
       return const Right(null);
     });
   });
@@ -122,29 +121,31 @@ void main() {
       expect(byMuscle['triceps'], closeTo(1.0, 0.001));
     });
 
-    test('factor 0.0 entries are skipped — no row saved for that muscle',
-        () async {
-      final result = await usecase(
-        exerciseSimple,
-        muscleFactors: const <String, double>{
-          'chest': 0.8,
-          'shoulder': 0.0, // should be skipped
-          'triceps': 0.5,
-        },
-      );
+    test(
+      'factor 0.0 entries are skipped — no row saved for that muscle',
+      () async {
+        final result = await usecase(
+          exerciseSimple,
+          muscleFactors: const <String, double>{
+            'chest': 0.8,
+            'shoulder': 0.0, // should be skipped
+            'triceps': 0.5,
+          },
+        );
 
-      expect(result, const Right(null));
-      // Only chest and triceps should be saved.
-      expect(savedFactors, hasLength(2));
-      expect(
-        savedFactors.map((f) => f.muscleGroup),
-        containsAll(<String>['chest', 'triceps']),
-      );
-      expect(
-        savedFactors.map((f) => f.muscleGroup),
-        isNot(contains('shoulder')),
-      );
-    });
+        expect(result, const Right(null));
+        // Only chest and triceps should be saved.
+        expect(savedFactors, hasLength(2));
+        expect(
+          savedFactors.map((f) => f.muscleGroup),
+          containsAll(<String>['chest', 'triceps']),
+        );
+        expect(
+          savedFactors.map((f) => f.muscleGroup),
+          isNot(contains('shoulder')),
+        );
+      },
+    );
 
     test('factors are clamped to [0.0, 1.0]', () async {
       final result = await usecase(

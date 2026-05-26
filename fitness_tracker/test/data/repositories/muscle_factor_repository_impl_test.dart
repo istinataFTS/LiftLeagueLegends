@@ -42,15 +42,14 @@ void main() {
 
   setUp(() {
     localDataSource = MockMuscleFactorLocalDataSource();
-    repository = MuscleFactorRepositoryImpl(
-      localDataSource: localDataSource,
-    );
+    repository = MuscleFactorRepositoryImpl(localDataSource: localDataSource);
   });
 
   group('getFactorById', () {
     test('returns factor when datasource succeeds', () async {
-      when(() => localDataSource.getFactorById('factor-1'))
-          .thenAnswer((_) async => chestFactor);
+      when(
+        () => localDataSource.getFactorById('factor-1'),
+      ).thenAnswer((_) async => chestFactor);
 
       final result = await repository.getFactorById('factor-1');
 
@@ -59,9 +58,9 @@ void main() {
     });
 
     test('returns failure when datasource throws', () async {
-      when(() => localDataSource.getFactorById('factor-1')).thenThrow(
-        const CacheDatabaseException('lookup failed'),
-      );
+      when(
+        () => localDataSource.getFactorById('factor-1'),
+      ).thenThrow(const CacheDatabaseException('lookup failed'));
 
       final result = await repository.getFactorById('factor-1');
 
@@ -127,29 +126,28 @@ void main() {
         ),
       ];
 
-      when(() => localDataSource.addFactorsBatch(any()))
-          .thenAnswer((_) async {});
+      when(
+        () => localDataSource.addFactorsBatch(any()),
+      ).thenAnswer((_) async {});
 
       final result = await repository.addMuscleFactorsBatch(factors);
 
       expect(result, const Right(null));
       verify(
-        () => localDataSource.addFactorsBatch(
-          const <MuscleFactorModel>[
-            MuscleFactorModel(
-              id: 'factor-1',
-              exerciseId: 'exercise-1',
-              muscleGroup: 'chest',
-              factor: 1.0,
-            ),
-            MuscleFactorModel(
-              id: 'factor-2',
-              exerciseId: 'exercise-1',
-              muscleGroup: 'triceps',
-              factor: 0.5,
-            ),
-          ],
-        ),
+        () => localDataSource.addFactorsBatch(const <MuscleFactorModel>[
+          MuscleFactorModel(
+            id: 'factor-1',
+            exerciseId: 'exercise-1',
+            muscleGroup: 'chest',
+            factor: 1.0,
+          ),
+          MuscleFactorModel(
+            id: 'factor-2',
+            exerciseId: 'exercise-1',
+            muscleGroup: 'triceps',
+            factor: 0.5,
+          ),
+        ]),
       ).called(1);
     });
   });

@@ -39,8 +39,9 @@ class AppSessionRepositoryImpl implements AppSessionRepository {
       final userJson = await localDataSource.readJsonObject(_userKey);
       final requiresInitialMigration =
           await localDataSource.readBool(_requiresInitialMigrationKey) ?? false;
-      final lastCloudSyncAt =
-          await localDataSource.readDateTime(_lastCloudSyncAtKey);
+      final lastCloudSyncAt = await localDataSource.readDateTime(
+        _lastCloudSyncAtKey,
+      );
 
       final localAuthMode = authModeValue == AuthMode.authenticated.name
           ? AuthMode.authenticated
@@ -113,14 +114,11 @@ class AppSessionRepositoryImpl implements AppSessionRepository {
         _authModeKey,
         AuthMode.authenticated.name,
       );
-      await localDataSource.writeJsonObject(
-        _userKey,
-        <String, dynamic>{
-          'id': user.id,
-          'email': user.email,
-          'displayName': user.displayName,
-        },
-      );
+      await localDataSource.writeJsonObject(_userKey, <String, dynamic>{
+        'id': user.id,
+        'email': user.email,
+        'displayName': user.displayName,
+      });
       await localDataSource.writeBool(
         _requiresInitialMigrationKey,
         requiresInitialCloudMigration,
@@ -161,7 +159,7 @@ class AppSessionRepositoryImpl implements AppSessionRepository {
 
   @override
   Future<Either<Failure, InitialCloudMigrationState?>>
-      getInitialCloudMigrationState() {
+  getInitialCloudMigrationState() {
     return RepositoryGuard.run(() async {
       final json = await localDataSource.readJsonObject(
         AppMetadataKeys.initialCloudMigrationState,

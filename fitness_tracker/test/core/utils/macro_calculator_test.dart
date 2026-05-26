@@ -22,7 +22,11 @@ void main() {
       test('handles fractional gram values with float precision', () {
         // 33.3×4 + 22.2×4 + 11.1×9 = 133.2 + 88.8 + 99.9 = 321.9
         expect(
-          MacroCalculator.calculateCalories(carbs: 33.3, protein: 22.2, fat: 11.1),
+          MacroCalculator.calculateCalories(
+            carbs: 33.3,
+            protein: 22.2,
+            fat: 11.1,
+          ),
           closeTo(321.9, 0.001),
         );
       });

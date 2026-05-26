@@ -1,4 +1,9 @@
 /// Error categories surfaced by [VoiceSttService].
+///
+/// The first six values are device-native concepts. The last four
+/// ([auth], [audioTooLarge], [budgetExceeded], [serverUnavailable]) only ever
+/// surface from the Whisper-backed STT path — but they live on the shared
+/// enum so [VoiceBloc] has one place to map errors to user-facing copy.
 enum VoiceSttErrorKind {
   permissionDenied,
   permissionPermanentlyDenied,
@@ -6,6 +11,10 @@ enum VoiceSttErrorKind {
   noSpeech,
   network,
   unknown,
+  auth,
+  audioTooLarge,
+  budgetExceeded,
+  serverUnavailable,
 }
 
 /// A single STT result emitted on the [VoiceSttService.listen] stream.

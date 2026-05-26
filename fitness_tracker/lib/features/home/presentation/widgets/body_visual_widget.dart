@@ -43,8 +43,9 @@ class _BodyVisualWidgetState extends State<BodyVisualWidget> {
     final bool isFront = _side == BodySide.front;
     final String label = isFront ? 'Front' : 'Back';
     final String asset = isFront ? _frontBaseAsset : _backBaseAsset;
-    final List<HomeBodyOverlayViewData> layers =
-        isFront ? widget.viewData.frontLayers : widget.viewData.backLayers;
+    final List<HomeBodyOverlayViewData> layers = isFront
+        ? widget.viewData.frontLayers
+        : widget.viewData.backLayers;
 
     return Container(
       key: HomePageKeys.bodyVisualKey,
@@ -97,10 +98,7 @@ class _BodyVisualWidgetState extends State<BodyVisualWidget> {
           const SizedBox(height: 12),
           Align(
             alignment: Alignment.center,
-            child: _FlipControl(
-              currentSide: _side,
-              onFlip: _flip,
-            ),
+            child: _FlipControl(currentSide: _side, onFlip: _flip),
           ),
         ],
       ),
@@ -128,9 +126,9 @@ class _BodyFigure extends StatelessWidget {
         Text(
           label,
           style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                color: AppTheme.textMedium,
-                fontWeight: FontWeight.w600,
-              ),
+            color: AppTheme.textMedium,
+            fontWeight: FontWeight.w600,
+          ),
         ),
         const SizedBox(height: 8),
         Expanded(
@@ -157,18 +155,16 @@ class _BodyFigure extends StatelessWidget {
 }
 
 class _FlipControl extends StatelessWidget {
-  const _FlipControl({
-    required this.currentSide,
-    required this.onFlip,
-  });
+  const _FlipControl({required this.currentSide, required this.onFlip});
 
   final BodySide currentSide;
   final VoidCallback onFlip;
 
   @override
   Widget build(BuildContext context) {
-    final String nextLabel =
-        currentSide == BodySide.front ? 'Show back' : 'Show front';
+    final String nextLabel = currentSide == BodySide.front
+        ? 'Show back'
+        : 'Show front';
 
     return TextButton.icon(
       key: HomePageKeys.bodyVisualFlipButtonKey,

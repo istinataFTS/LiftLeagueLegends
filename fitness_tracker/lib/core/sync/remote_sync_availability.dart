@@ -13,11 +13,10 @@ class RemoteSyncAvailabilityDecision {
   });
 
   const RemoteSyncAvailabilityDecision.allowed()
-      : isAllowed = true,
-        reason = 'remote sync allowed';
+    : isAllowed = true,
+      reason = 'remote sync allowed';
 
-  const RemoteSyncAvailabilityDecision.denied(this.reason)
-      : isAllowed = false;
+  const RemoteSyncAvailabilityDecision.denied(this.reason) : isAllowed = false;
 }
 
 class RemoteSyncAvailability {
@@ -41,9 +40,7 @@ class RemoteSyncAvailability {
 
     final isNetworkAvailable = await networkStatusService.isNetworkAvailable();
     if (!isNetworkAvailable) {
-      return const RemoteSyncAvailabilityDecision.denied(
-        'network unavailable',
-      );
+      return const RemoteSyncAvailabilityDecision.denied('network unavailable');
     }
 
     if (!session.isAuthenticated) {

@@ -18,8 +18,8 @@ class GetLogsByDateRange {
     required DateTime startDate,
     required DateTime endDate,
   }) async {
-    final sourcePreference =
-        await sourcePreferenceResolver.resolveReadPreference();
+    final sourcePreference = await sourcePreferenceResolver
+        .resolveReadPreference();
 
     return repository.getLogsByDateRange(
       startDate,

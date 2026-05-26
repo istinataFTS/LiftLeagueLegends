@@ -20,13 +20,7 @@ abstract final class VoiceUnitGrammar {
   };
 
   /// Weight tokens that map to pounds.
-  static const Set<String> lbsAliases = {
-    'lb',
-    'lbs',
-    'pound',
-    'pounds',
-    'p',
-  };
+  static const Set<String> lbsAliases = {'lb', 'lbs', 'pound', 'pounds', 'p'};
 
   /// Tokens that indicate a repetition count (not weight).
   static const Set<String> repAliases = {
