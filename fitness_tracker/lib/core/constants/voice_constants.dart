@@ -31,22 +31,71 @@ abstract final class VoiceConstants {
   /// Default TTS volume (1.0 = full).
   static const double defaultTtsVolume = 1.0;
 
-  /// STT recognition timeout ΓÇö drops the partial transcript if the user
-  /// has stopped speaking for this long. Tuned for short workout-log
-  /// utterances ("log bench, 80 by 10") rather than free-form prose.
-  static const Duration sttSilenceTimeout = Duration(seconds: 2);
+  /// STT recognition timeout — closes the session after this much silence
+  /// post-speech. 3 s gives the user time to pause mid-utterance without
+  /// triggering a premature finalisation, while staying tight enough to
+  /// feel responsive after the user stops talking.
+  static const Duration sttSilenceTimeout = Duration(seconds: 3);
 
   /// HTTP timeout for the `voice-chat` Edge Function call. Generous
   /// enough for GPT-4o-mini (typically 1–3 s) plus network latency,
   /// but short enough to avoid hanging indefinitely on poor connections.
   static const Duration voiceChatHttpTimeout = Duration(seconds: 30);
 
-  /// Hard upper bound for STT listening ΓÇö even if the user keeps
-  /// talking, force a stop at this duration to bound costs and UX.
+  /// Hard upper bound for a single STT session — even if the user keeps
+  /// talking, force a stop at this duration to bound audio cost and UX.
   ///
-  /// Raised from 10 s to 15 s to accommodate multi-field edit utterances
-  /// (e.g. "change carbs to 60, fat to 15") without forcing the user to
-  /// dictate everything in one breath. 15 s is still tight enough to bound
-  /// per-utterance audio cost and discourage 30 s rambles.
-  static const Duration sttListenTimeout = Duration(seconds: 15);
+  /// 20 s accommodates multi-field edit utterances ("change carbs to 60,
+  /// fat to 15") plus the Samsung warm-up restarts without ever hanging
+  /// indefinitely.
+  static const Duration sttListenTimeout = Duration(seconds: 20);
+
+  /// Maximum number of times the STT session may silently restart the
+  /// recogniser after an `error_no_match` with no partial transcript yet.
+  /// This covers Samsung's warm-up quirk (engine fires `no_match` before
+  /// the user has spoken) without letting a stuck engine loop forever.
+  static const int sttMaxNoMatchRestarts = 2;
+
+  // ───────────────────────────────────────────────────────────────────────
+  // Whisper (server-side STT)
+  // ───────────────────────────────────────────────────────────────────────
+
+  /// HTTP timeout for the `voice-transcribe` Edge Function call. Whisper
+  /// processing on the server is bounded by the function-side
+  /// `OPENAI_TIMEOUT_MS` (30s) — this is the client-side envelope including
+  /// upload, queueing, and response. 35s leaves a small headroom over the
+  /// server's 30s so the server-side `TIMEOUT` error reaches the client
+  /// instead of being masked by a client-side abort.
+  static const Duration voiceTranscribeHttpTimeout = Duration(seconds: 35);
+
+  /// Hard upper bound for a Whisper-backed recording session. Audio beyond
+  /// this point is dropped. Matches [sttListenTimeout] so the UX envelope
+  /// is identical between the two STT backends.
+  static const Duration whisperMaxAudioDuration = Duration(seconds: 20);
+
+  /// Silence window that auto-stops the recorder. Tighter than the
+  /// on-device 3s timeout because Whisper has no incremental partials —
+  /// the user can't watch a transcript fill in, so we end the turn faster
+  /// to keep perceived latency low.
+  static const Duration whisperSilenceTimeout = Duration(milliseconds: 2000);
+
+  /// Amplitude (dBFS) below which the recorder is considered to be picking
+  /// up silence. Values near 0 dBFS are loud; values near -160 dBFS are
+  /// effectively silent. -45 dBFS is quiet-room background noise on most
+  /// phone microphones — speech reliably exceeds it.
+  static const double whisperSilenceAmplitudeDbfs = -45.0;
+
+  /// Polling interval for the recorder's amplitude monitor. 200 ms gives a
+  /// responsive auto-stop without burning CPU on every frame.
+  static const Duration whisperAmplitudePollInterval =
+      Duration(milliseconds: 200);
+
+  /// AAC bitrate for the m4a file uploaded to Whisper. 32 kbps mono is
+  /// sufficient for speech and keeps the upload under 100 KB for a 20s
+  /// utterance — important on mobile networks.
+  static const int whisperAudioBitrate = 32000;
+
+  /// Sample rate for the recording. 16 kHz is Whisper's optimal input — the
+  /// server downsamples anything higher anyway. Mono.
+  static const int whisperAudioSampleRate = 16000;
 }

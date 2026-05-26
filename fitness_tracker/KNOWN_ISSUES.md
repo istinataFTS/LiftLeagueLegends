@@ -75,6 +75,13 @@ Numbered steps or a short paragraph. State what to do and what *not* to do.
 10. [voice-fab-is-disabled-not-hidden-for-guests](#voice-fab-is-disabled-not-hidden-for-guests)
 11. [voice-stt-no-match-is-not-an-error](#voice-stt-no-match-is-not-an-error)
 12. [voice-wake-word-requires-picovoice-key-in-secure-storage](#voice-wake-word-requires-picovoice-key-in-secure-storage)
+13. [voice-stt-samsung-no-match-terminates-recogniser](#voice-stt-samsung-no-match-terminates-recogniser)
+14. [voice-picovoice-key-must-ship-via-dart-define](#voice-picovoice-key-must-ship-via-dart-define)
+15. [voice-context-keys-must-be-camelcase](#voice-context-keys-must-be-camelcase)
+16. [voice-openai-api-key-must-be-supabase-secret](#voice-openai-api-key-must-be-supabase-secret)
+17. [voice-mic-permission-must-be-requested-before-overlay](#voice-mic-permission-must-be-requested-before-overlay)
+18. [voice-whisper-is-the-default-stt-backend](#voice-whisper-is-the-default-stt-backend)
+19. [voice-transcribe-must-deploy-with-openai-secret-and-cors](#voice-transcribe-must-deploy-with-openai-secret-and-cors)
 
 ### Database
 11. [sqflite-version-15-rejects-incompatible-legacy-databases](#sqflite-version-15-rejects-incompatible-legacy-databases)
@@ -410,12 +417,50 @@ The `noSpeech` kind is now classified as a graceful end-of-stream, not an error.
 
 ---
 
+### voice-stt-samsung-no-match-terminates-recogniser
+
+- **Severity:** High
+- **Status:** Resolved-but-monitor
+- **First observed:** 2026-05-23
+- **Last verified:** 2026-05-25
+- **Area:** voice
+
+**Symptom**
+
+Mic shuts off silently 3–5 seconds after the overlay opens. The user hears nothing (no error message, no TTS), the overlay reverts to idle, and the bot never processes the utterance. Logs show `SpeechToTextVoiceSttService: closing gracefully` with no transcript, even though the user spoke.
+
+**Root cause**
+
+Android `SpeechRecognizer.onError(ERROR_NO_MATCH)` is a **terminal** callback — once it fires, the recogniser engine has stopped completely. The previous fix (treating `no_match` as graceful end-of-stream and closing the controller) was half-correct: it removed the error UI but still ended the session before any partial could be promoted. On Samsung devices, `error_no_match` fires aggressively during recogniser warm-up (~2–3 s) and again at the first post-speech silence, so the old 2 s `sttSilenceTimeout` caused near-instant termination even after the user finished speaking.
+
+**Workaround / fix**
+
+The STT service now implements a continuous-listening session model:
+
+1. **On `error_no_match` with a non-empty partial** — the latest partial transcript is promoted to a synthetic final result (Claude-voice-style auto-finalise on silence) and the stream closes normally. `VoiceBloc` follows the existing `isFinal: true` path: `listening → transcribing → thinking → VoiceSendMessage`.
+2. **On `error_no_match` with no partial yet** — the underlying `SpeechRecognizer` is silently restarted up to `VoiceConstants.sttMaxNoMatchRestarts` times (covers the Samsung warm-up quirk). The user sees uninterrupted "Listening…".
+3. **On `status='done'` with an un-finalised partial** — same promotion as (1), handles Samsung's quirk of ending cleanly via `pauseFor` without tagging the last `onResult` as final.
+4. `sttSilenceTimeout` raised from 2 s to 3 s; `sttListenTimeout` raised from 15 s to 20 s; `sttMaxNoMatchRestarts = 2` added.
+5. `ListenMode.dictation` replaces the default `confirmation` mode — designed for longer, pause-tolerant utterances.
+
+Do **not** revert to the old approach of closing the session on `error_no_match` — the recogniser is terminal and cannot recover on its own.
+
+**References**
+
+- `lib/features/voice/data/services/speech_to_text_voice_stt_service.dart` — `_ListenSession`, `_onError`, `_onStatus`, `promoteOnSilence`, `shouldRestartOnNoMatch`
+- `lib/core/constants/voice_constants.dart` — `sttSilenceTimeout`, `sttListenTimeout`, `sttMaxNoMatchRestarts`
+- `lib/domain/services/voice_stt_service.dart` — updated `listen()` contract doc
+- `test/features/voice/services/speech_to_text_voice_stt_service_test.dart` — promotion and restart regression tests
+- `test/features/voice/application/voice_bloc_test.dart` — silence-promotion bloc regression test
+
+---
+
 ### voice-wake-word-requires-picovoice-key-in-secure-storage
 
 - **Severity:** Medium
 - **Status:** Resolved-but-monitor
 - **First observed:** 2026-05-23
-- **Last verified:** 2026-05-23
+- **Last verified:** 2026-05-25
 - **Area:** voice
 
 **Symptom**
@@ -424,22 +469,205 @@ Wake-word detection never activates on a fresh install. The VoiceFab logs `Voice
 
 **Root cause**
 
-The Picovoice Porcupine access key is a per-device secret that lives exclusively in `flutter_secure_storage` (key `voice.picovoice_access_key`). `PorcupineVoiceWakeWordService.start()` throws `VoiceWakeWordErrorKind.noAccessKey` when no value is present. The key is **not** read from `EnvConfig` at runtime, **not** built into the binary, and **not** stored in the committed `dart_defines.json` (which is checked into the repo and would leak the secret). A freshly-installed app therefore has no key and no way for the user to discover this.
+The Picovoice Porcupine access key is a per-device secret that lives exclusively in `flutter_secure_storage` (key `voice.picovoice_access_key`). `PorcupineVoiceWakeWordService.start()` throws `VoiceWakeWordErrorKind.noAccessKey` when no value is present. The key must ship out-of-band rather than being entered at runtime.
 
 **Workaround / fix**
 
-The Voice settings page now renders a Picovoice key section (above the wake-word picker) backed by `PicovoiceKeyCubit` — see the canonical bloc reference. The cubit delegates to `VoiceCredentialService`; the secret never leaves secure storage and never lands in the cubit's state (only a `hasKey` boolean is observable). The VoiceFab also surfaces a one-shot snackbar with a "Set up" action when wake-word start fails with `noAccessKey`, so users hit the recovery path immediately. For local dev convenience, a `PICOVOICE_ACCESS_KEY` dart-define is supported as a one-time first-launch seed (see `EnvConfig.picovoiceAccessKey` and `AppBootstrapper._seedPicovoiceKeyFromEnvIfNeeded`); never put the value in the committed `dart_defines.json` — pass it on the CLI or via an untracked `dart_defines.local.json`.
+The key ships via `--dart-define=PICOVOICE_ACCESS_KEY=<key>` at build time (stored in the gitignored `dart_defines.json`; template at `dart_defines.example.json`). `AppBootstrapper._seedPicovoiceKeyFromEnvIfNeeded` writes the dart-define value into secure storage on every launch, overwriting if the value has changed. `VoiceCredentialService.onPicovoiceKeyChanged` (sync broadcast stream) fires after the write; `VoiceFab` subscribes and calls `_startWakeWordIfArmed()` so the engine starts without a restart. See `[voice-picovoice-key-must-ship-via-dart-define](#voice-picovoice-key-must-ship-via-dart-define)` for the gitignore and CI setup.
 
 **References**
 
-- `lib/features/voice/application/picovoice_key_cubit.dart` — load/save/clear surface
-- `lib/features/voice/presentation/voice_settings_page.dart` — `_PicovoiceKeySection`
-- `lib/features/voice/presentation/widgets/voice_fab.dart` — `_showWakeWordNeedsSetupSnackbar`
-- `lib/config/env_config.dart` — `EnvConfig.picovoiceAccessKey`
+- `lib/config/env_config.dart` — `EnvConfig.picovoiceAccessKey` dart-define binding
 - `lib/app/bootstrap/app_bootstrapper.dart` — `_seedPicovoiceKeyFromEnvIfNeeded`
-- `lib/features/voice/data/services/secure_storage_voice_credential_service.dart` — storage key constant
-- `test/features/voice/application/picovoice_key_cubit_test.dart` — cubit contract tests
-- `test/features/voice/presentation/voice_settings_page_test.dart` — "Picovoice key section" widget tests
+- `lib/domain/services/voice_credential_service.dart` — `onPicovoiceKeyChanged` contract
+- `lib/features/voice/data/services/secure_storage_voice_credential_service.dart` — sync broadcast stream implementation
+- `lib/features/voice/presentation/widgets/voice_fab.dart` — `_listenToCredentialChanges`
+- `dart_defines.example.json` — template with `PICOVOICE_ACCESS_KEY` placeholder
+- `test/features/voice/services/voice_credential_service_test.dart` — stream contract tests
+
+---
+
+### voice-picovoice-key-must-ship-via-dart-define
+
+- **Severity:** High
+- **Status:** Resolved-but-monitor
+- **First observed:** 2026-05-25
+- **Last verified:** 2026-05-25
+- **Area:** voice
+
+**Symptom**
+
+Wake-word engine never starts on a fresh install or CI build. `PorcupineVoiceWakeWordService.start()` throws `VoiceWakeWordErrorKind.noAccessKey` because `flutter_secure_storage` has no Picovoice key. There is no user-facing setup UI to recover.
+
+**Root cause**
+
+The Picovoice Porcupine access key is a per-app-registration credential — a single key covers all installs of the app but must not be committed to version control. The old approach (user enters the key in a settings screen) was both a poor UX and unnecessary: the key is fixed per app registration and belongs in the build configuration, not in the user's hands. `dart_defines.json` was previously committed to the repo and did not contain `PICOVOICE_ACCESS_KEY`, so every fresh install was missing the key.
+
+**Workaround / fix**
+
+1. `dart_defines.json` is now **gitignored**. Copy `dart_defines.example.json` → `dart_defines.json` and fill in your real `PICOVOICE_ACCESS_KEY` before running the app.
+2. CI builds inject the key via a repository secret: `PICOVOICE_ACCESS_KEY` → `dart_defines.json` at build time.
+3. `AppBootstrapper._seedPicovoiceKeyFromEnvIfNeeded` writes the dart-define value into secure storage on every launch, overwriting stale values.
+4. `VoiceCredentialService.onPicovoiceKeyChanged` emits immediately after the write; `VoiceFab._listenToCredentialChanges` calls `_startWakeWordIfArmed()` so the engine starts within the same post-frame cycle as the seed — no restart required.
+5. `VoiceOverlayPage.openedByWakeWord: true` auto-dispatches `VoiceListenRequested` on first frame when opened by a wake-word event, closing the first-fire gap where STT was not started automatically.
+
+**References**
+
+- `dart_defines.example.json` — committed template with `PICOVOICE_ACCESS_KEY` placeholder
+- `.gitignore` — `dart_defines.json` exclusion rule
+- `lib/config/env_config.dart` — `EnvConfig.picovoiceAccessKey` dart-define binding
+- `lib/app/bootstrap/app_bootstrapper.dart` — `_seedPicovoiceKeyFromEnvIfNeeded`
+- `lib/domain/services/voice_credential_service.dart` — `onPicovoiceKeyChanged` + `dispose()`
+- `lib/features/voice/data/services/secure_storage_voice_credential_service.dart` — sync broadcast stream
+- `lib/features/voice/presentation/widgets/voice_fab.dart` — `_listenToCredentialChanges`, `_openOverlay(openedByWakeWord:)`
+- `lib/features/voice/presentation/voice_overlay_page.dart` — `openedByWakeWord` flag
+- `lib/injection/modules/register_voice_module.dart` — `dispose:` hook on `VoiceCredentialService`
+
+---
+
+### voice-context-keys-must-be-camelcase
+
+- **Severity:** High
+- **Status:** Resolved-but-monitor
+- **First observed:** 2026-05-25
+- **Last verified:** 2026-05-25
+- **Area:** voice
+
+**Symptom**
+
+The LLM always received default/empty context regardless of actual user data — today's date was correct but `recentSets` and `recentNutritionLogs` were always empty arrays, and `weightUnit` was always `kg` even for `lbs` users. Context was silently dropped with no error.
+
+**Root cause**
+
+`_buildContext()` in `supabase_voice_remote_datasource.dart` sent snake_case keys (`current_date`, `weight_unit`, `recent_sets`, `recent_nutrition_logs`, `set_id`, `exercise_name`, `log_id`, `meal_name`) but the TypeScript Edge Function (`supabase/functions/voice-chat/index.ts`) reads camelCase properties (`ctx.currentDate`, `ctx.weightUnit`, `ctx.recentSets`, `ctx.recentNutritionLogs`). Unmatched keys are `undefined` in JavaScript and the type guards `isRecentSet` / `isRecentNutritionLog` silently rejected every entry, so the LLM always saw empty lists.
+
+**Workaround / fix**
+
+All keys in `_buildContext()` must be camelCase to match the TypeScript interface. The fix changed every snake_case key to camelCase. If the Edge Function TypeScript interface is ever refactored, the Dart datasource must be updated in the same PR — the two are a coupled contract.
+
+**References**
+
+- `lib/data/datasources/remote/supabase_voice_remote_datasource.dart` — `_buildContext()`
+- `supabase/functions/voice-chat/index.ts` — `isRecentSet`, `isRecentNutritionLog` type guards
+
+---
+
+### voice-openai-api-key-must-be-supabase-secret
+
+- **Severity:** Critical
+- **Status:** Resolved-but-monitor
+- **First observed:** 2026-05-25
+- **Last verified:** 2026-05-25
+- **Area:** voice
+
+**Symptom**
+
+Every voice chat call returned a generic "Something went wrong" TTS readback. The Edge Function responded with HTTP 502 and no further detail was surfaced to the client.
+
+**Root cause**
+
+`supabase/functions/_shared/openai.ts` — `getApiKey()` throws `VoiceError(OPENAI_UNAVAILABLE, 502)` when the `OPENAI_API_KEY` environment variable is absent. The key was never set as a Supabase function secret, so every call from the deployed function failed at the key-retrieval step before reaching OpenAI.
+
+**Workaround / fix**
+
+Run `supabase secrets set OPENAI_API_KEY=<key>` from the Supabase CLI to provision the secret in the target Supabase project. The key is a server-side secret only — it must never appear in Flutter client code or in the repository. Verify the secret is set before deploying the Edge Function to any new environment.
+
+**References**
+
+- `supabase/functions/_shared/openai.ts` — `getApiKey()`
+- `supabase/functions/voice-chat/index.ts` — entry point that calls `getApiKey()`
+- `CLAUDE.md` — "`OPENAI_API_KEY` lives exclusively as a Supabase function secret"
+
+---
+
+### voice-mic-permission-must-be-requested-before-overlay
+
+- **Severity:** Medium
+- **Status:** Resolved-but-monitor
+- **First observed:** 2026-05-25
+- **Last verified:** 2026-05-25
+- **Area:** voice
+
+**Symptom**
+
+The microphone permission dialog appeared mid-session — during STT initialisation inside `VoiceBloc._onListenRequested` — rather than before the overlay opened. On some Android devices this caused STT to fail silently on first use: the permission grant was asynchronous and the recogniser had already been asked to start without the permission being granted yet.
+
+**Root cause**
+
+`VoicePermissionService` was implemented (`PermissionHandlerVoicePermissionService`) but never registered in the DI container and never called before the overlay was pushed. STT's `speech_to_text` plugin triggers the OS permission dialog internally when `initialize()` is called, which happens inside the BLoC after the overlay is already visible.
+
+**Workaround / fix**
+
+`VoicePermissionService` is now registered as `registerLazySingleton` in `register_voice_module.dart`. `VoiceFab._openOverlay()` performs an explicit `checkMicrophonePermission` → `requestMicrophonePermission` sequence before pushing the overlay route. If permission is permanently denied, a SnackBar with an "Open Settings" action is shown and the overlay is not opened. Do not move the permission check inside the BLoC or overlay — it must happen before the overlay route is pushed.
+
+**References**
+
+- `lib/domain/services/voice_permission_service.dart` — `VoicePermissionService` interface
+- `lib/features/voice/data/services/permission_handler_voice_permission_service.dart` — implementation
+- `lib/features/voice/presentation/widgets/voice_fab.dart` — `_openOverlay()`
+- `lib/injection/modules/register_voice_module.dart` — `VoicePermissionService` registration
+
+---
+
+### voice-whisper-is-the-default-stt-backend
+
+- **Severity:** Medium
+- **Status:** Resolved-but-monitor
+- **First observed:** 2026-05-26
+- **Last verified:** 2026-05-26
+- **Area:** voice
+
+**Symptom**
+
+Voice utterances are now uploaded to OpenAI Whisper (server-side) rather than recognised on-device. A developer who expects the old on-device flow (no network call, no per-utterance cost) may be surprised by the new latency profile (~500ms-1s upload + transcription) and the per-utterance line items in `voice_usage_log`.
+
+**Root cause**
+
+Android `SpeechRecognizer` (especially the Samsung variant) mishears gym jargon — `bench press` → `walk me lunch press`, `RPE` → `R&P`, etc. — even with the per-platform vocabulary nudges available to it. Whisper with the `WHISPER_VOCABULARY_PROMPT` gym/nutrition prompt recognises these terms reliably. The trade-off was accepted in the voice-whisper-stt PR.
+
+**Workaround / fix**
+
+`NetworkAwareVoiceSttService` is the registered `VoiceSttService` implementation. It delegates each `listen()` call to `WhisperVoiceSttService` when `NetworkStatusService.isNetworkAvailable()` returns `true`, and falls back to `SpeechToTextVoiceSttService` when offline (or when the connectivity check itself throws). The routing decision is made **once per session** — a connectivity change mid-utterance does **not** swap backends. Do not bypass the composite by registering one of the underlying backends directly; the composite is the only entry point that respects the offline fallback contract.
+
+Per-utterance cost: ~$0.001-0.002 against the $0.50/day budget (caps at ~250 utterances/day). Whisper bills audio rounded up to the nearest second; the daily budget gate enforced in `voice-transcribe/index.ts` shares the same `voice_usage_log` table and `dailyCapUsd` as `voice-chat`.
+
+**References**
+
+- `lib/features/voice/data/services/network_aware_voice_stt_service.dart` — composite routing
+- `lib/features/voice/data/services/whisper_voice_stt_service.dart` — record + upload + emit
+- `supabase/functions/voice-transcribe/index.ts` — server entry
+- `supabase/functions/_shared/whisper.ts` — Whisper API wrapper + `WHISPER_VOCABULARY_PROMPT`
+- `lib/injection/modules/register_voice_module.dart` — composite registration
+
+---
+
+### voice-transcribe-must-deploy-with-openai-secret-and-cors
+
+- **Severity:** High
+- **Status:** Resolved-but-monitor
+- **First observed:** 2026-05-26
+- **Last verified:** 2026-05-26
+- **Area:** voice
+
+**Symptom**
+
+After the Whisper migration ships, every voice utterance fails with `ServerFailure: Voice transcription is not available in offline mode.` or with a 502 from the function. The Flutter logs show the new error path firing on every tap.
+
+**Root cause**
+
+The `voice-transcribe` Edge Function is a **new** function — Supabase does not auto-deploy it. Until it is deployed via the Supabase CLI or the `Supabase Deploy` GitHub Action, the function URL returns 404 and the Flutter client surfaces the failure as a generic ServerFailure. Additionally, the function shares the `OPENAI_API_KEY` secret with `voice-chat` — if the secret is set for `voice-chat` only (older deployments) the new function still inherits it because Supabase secrets are project-scoped, but a fresh project without the secret will 502.
+
+**Workaround / fix**
+
+1. Deploy: trigger the `Supabase Deploy` GitHub Action with target `functions` (or run `supabase functions deploy voice-transcribe` locally with the project linked). The same workflow already deploys `voice-chat`; the new function lands alongside it.
+2. Verify the secret: `supabase secrets list` must show `OPENAI_API_KEY`. If absent, set with `supabase secrets set OPENAI_API_KEY=<key>`.
+3. CORS headers are shared via `supabase/functions/_shared/cors.ts` — both functions return the same preflight response; no per-function CORS work is required.
+
+**References**
+
+- `supabase/functions/voice-transcribe/index.ts` — entry
+- `supabase/functions/_shared/cors.ts` — shared CORS preflight
+- `.github/workflows/supabase-deploy.yml` — manual deploy workflow
 
 ---
 

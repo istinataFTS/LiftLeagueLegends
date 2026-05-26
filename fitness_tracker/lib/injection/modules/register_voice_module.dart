@@ -13,6 +13,7 @@ import '../../domain/repositories/app_settings_repository.dart';
 import '../../domain/repositories/meal_repository.dart';
 import '../../domain/repositories/voice_repository.dart';
 import '../../domain/services/voice_credential_service.dart';
+import '../../domain/services/voice_permission_service.dart';
 import '../../domain/services/voice_stt_service.dart';
 import '../../domain/services/voice_tts_service.dart';
 import '../../domain/services/voice_wake_word_service.dart';
@@ -25,7 +26,6 @@ import '../../domain/usecases/voice/send_voice_message.dart';
 import '../../domain/usecases/workout_sets/get_sets_by_date_range.dart';
 import '../../domain/usecases/workout_sets/get_weekly_sets.dart';
 import '../../features/settings/application/app_settings_cubit.dart';
-import '../../features/voice/application/picovoice_key_cubit.dart';
 import '../../features/voice/application/voice_bloc.dart';
 import '../../features/voice/application/voice_settings_cubit.dart';
 import '../../features/voice/data/coordinator/offline_voice_coordinator.dart';
@@ -37,9 +37,12 @@ import '../../features/voice/data/parser/matchers/nutrition_matchers.dart';
 import '../../features/voice/data/parser/matchers/query_matchers.dart';
 import '../../features/voice/data/parser/matchers/workout_set_matchers.dart';
 import '../../features/voice/data/services/flutter_tts_voice_tts_service.dart';
+import '../../features/voice/data/services/network_aware_voice_stt_service.dart';
+import '../../features/voice/data/services/permission_handler_voice_permission_service.dart';
 import '../../features/voice/data/services/porcupine_voice_wake_word_service.dart';
 import '../../features/voice/data/services/secure_storage_voice_credential_service.dart';
 import '../../features/voice/data/services/speech_to_text_voice_stt_service.dart';
+import '../../features/voice/data/services/whisper_voice_stt_service.dart';
 
 /// Wires up the voice feature.
 ///
@@ -56,15 +59,36 @@ void registerVoiceModule(GetIt sl) {
   }
 
   // ── Voice credential service ───────────────────────────────────────────
+  // Registered with a dispose hook so the change-notification stream is
+  // closed when the container is reset (e.g. between integration tests).
   sl.registerLazySingleton<VoiceCredentialService>(
     () => SecureStorageVoiceCredentialService(sl<FlutterSecureStorage>()),
+    dispose: (s) => s.dispose(),
+  );
+
+  // ── Microphone permission service ──────────────────────────────────────
+  sl.registerLazySingleton<VoicePermissionService>(
+    () => const PermissionHandlerVoicePermissionService(),
   );
 
   // ── Device services (STT + TTS) ────────────────────────────────────────
   // Lazy singletons: the underlying plugins hold native resources
   // (microphone session, TTS engine) and must not be torn down /
   // re-created per overlay instance.
-  sl.registerLazySingleton<VoiceSttService>(SpeechToTextVoiceSttService.new);
+  //
+  // STT routing: the composite NetworkAwareVoiceSttService delegates each
+  // listen() call to Whisper when online (better gym-jargon recognition,
+  // billed server-side) and falls back to the on-device speech_to_text
+  // plugin when offline. Both backends are warmed up at initialise time.
+  sl.registerLazySingleton<VoiceSttService>(
+    () => NetworkAwareVoiceSttService(
+      remoteService: WhisperVoiceSttService(
+        remoteDataSource: sl<VoiceRemoteDataSource>(),
+      ),
+      onDeviceService: SpeechToTextVoiceSttService(),
+      networkStatusService: sl<NetworkStatusService>(),
+    ),
+  );
   sl.registerLazySingleton<VoiceTtsService>(FlutterTtsVoiceTtsService.new);
 
   // ── Wake-word engine ───────────────────────────────────────────────────
@@ -140,13 +164,6 @@ void registerVoiceModule(GetIt sl) {
       repository: sl<AppSettingsRepository>(),
       deleteVoiceHistory: sl<DeleteVoiceHistory>(),
     ),
-  );
-
-  // PicovoiceKeyCubit: factory — one per voice settings page instance.
-  // Owns no native resources; reads / writes the Picovoice access key
-  // through VoiceCredentialService (secure storage).
-  sl.registerFactory(
-    () => PicovoiceKeyCubit(credentials: sl<VoiceCredentialService>()),
   );
 
   // VoiceBloc: factory — per voice overlay instance.

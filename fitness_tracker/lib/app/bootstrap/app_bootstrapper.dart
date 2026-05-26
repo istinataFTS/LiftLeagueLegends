@@ -15,6 +15,7 @@ import '../../core/utils/app_lifecycle_manager.dart';
 import '../../core/utils/performance_monitor.dart';
 import '../../demo/web_demo_runtime.dart';
 import '../../domain/services/voice_credential_service.dart';
+import '../../domain/services/voice_permission_service.dart';
 import '../../injection/injection_container.dart' as di;
 import 'app_data_seeder.dart';
 import 'app_debug_diagnostics_runner.dart';
@@ -181,40 +182,73 @@ class AppBootstrapper {
       unawaited(_seedDefaultDataIfNeeded());
       unawaited(_runDiagnosticsIfNeeded());
       unawaited(_seedPicovoiceKeyFromEnvIfNeeded());
+      unawaited(_requestVoicePermissionIfNeeded());
     });
   }
 
-  /// Developer convenience: if `--dart-define=PICOVOICE_ACCESS_KEY=...` was
-  /// supplied at build time AND no key is currently in secure storage, seed
-  /// the storage with the build-time value. Never overwrites a user-entered
-  /// key. Safe on every platform (the credential service is registered
+  /// Trigger the OS microphone permission dialog upfront so the user grants
+  /// it once, at first launch, rather than mid-session when the wake word
+  /// fires or the FAB is tapped. The OS dedupes on subsequent launches —
+  /// `request()` is a no-op when permission is already granted or has been
+  /// permanently denied.
+  ///
+  /// Non-fatal: if the user denies, voice features show a SnackBar with
+  /// "Open Settings" the first time they're invoked.
+  Future<void> _requestVoicePermissionIfNeeded() async {
+    if (kIsWeb) return;
+
+    try {
+      final permissionService = di.sl<VoicePermissionService>();
+      final status = await permissionService.checkMicrophonePermission();
+      if (status == VoicePermissionStatus.granted) {
+        return;
+      }
+      await permissionService.requestMicrophonePermission();
+    } catch (error, stackTrace) {
+      AppLogger.warning(
+        'Failed to request microphone permission at startup',
+        category: 'bootstrap',
+        error: error,
+        stackTrace: stackTrace,
+      );
+    }
+  }
+
+  /// At every launch: if `--dart-define=PICOVOICE_ACCESS_KEY=...` was
+  /// supplied at build time, write it into secure storage — overwriting any
+  /// previously stored value that differs. This keeps the stored key in sync
+  /// with the shipped binary without requiring manual user setup.
+  ///
+  /// If the dart-define is absent (empty string) the method is a no-op.
+  /// Safe on every platform (the credential service is registered
   /// unconditionally in `register_voice_module.dart`); silently no-ops on
   /// web where secure storage is a `localStorage` shim.
   Future<void> _seedPicovoiceKeyFromEnvIfNeeded() async {
-    final fallback = EnvConfig.picovoiceAccessKey.trim();
-    if (fallback.isEmpty) return;
+    final fromEnv = EnvConfig.picovoiceAccessKey.trim();
+    if (fromEnv.isEmpty) return;
 
     try {
       final credentials = di.sl<VoiceCredentialService>();
-      if (await credentials.hasPicovoiceAccessKey()) {
+      final stored = await credentials.getPicovoiceAccessKey();
+      if (stored == fromEnv) {
         AppLogger.debug(
-          'Picovoice key already present in secure storage; '
-          'ignoring PICOVOICE_ACCESS_KEY dart-define.',
+          'Picovoice key already in sync with PICOVOICE_ACCESS_KEY dart-define; '
+          'skipping write.',
           category: 'bootstrap',
         );
         return;
       }
-      await credentials.setPicovoiceAccessKey(fallback);
+      await credentials.setPicovoiceAccessKey(fromEnv);
       AppLogger.info(
-        'Seeded Picovoice access key from PICOVOICE_ACCESS_KEY dart-define '
-        'into secure storage (first-launch fallback).',
+        'Synced Picovoice access key from PICOVOICE_ACCESS_KEY dart-define '
+        'into secure storage.',
         category: 'bootstrap',
       );
     } catch (error, stackTrace) {
-      // Non-fatal: voice will surface "key not configured" through the
-      // FAB / settings UI, so the user can still recover.
+      // Non-fatal: voice will fail to start the wake-word engine and log a
+      // warning — the app remains fully usable without wake word.
       AppLogger.warning(
-        'Failed to seed Picovoice access key from dart-define fallback',
+        'Failed to sync Picovoice access key from dart-define',
         category: 'bootstrap',
         error: error,
         stackTrace: stackTrace,

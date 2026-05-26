@@ -1,4 +1,4 @@
-export type FunctionName = 'voice-chat';
+export type FunctionName = 'voice-chat' | 'voice-transcribe';
 
 export interface AuthedUser {
   readonly id: string;  // auth.users.id (uuid)

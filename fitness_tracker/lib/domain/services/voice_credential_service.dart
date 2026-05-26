@@ -11,4 +11,14 @@ abstract interface class VoiceCredentialService {
 
   /// Whether a non-empty Picovoice access key is currently configured.
   Future<bool> hasPicovoiceAccessKey();
+
+  /// Emits a void event every time the key is written or cleared via this
+  /// service instance. Listeners (e.g. [VoiceFab]) subscribe to this stream
+  /// so they can react when the bootstrap seeder populates the key on first
+  /// launch without requiring a widget rebuild.
+  Stream<void> get onPicovoiceKeyChanged;
+
+  /// Releases internal resources (closes the change-notification stream).
+  /// Called by the DI container's `dispose` hook on unregister.
+  Future<void> dispose();
 }

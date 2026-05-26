@@ -1,6 +1,0 @@
-{
-  "APP_ENV": "development",
-  "ENABLE_SUPABASE": "true",
-  "SUPABASE_URL": "https://liftleaguelegends.com",
-  "SUPABASE_ANON_KEY": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJyb2xlIjoiYW5vbiIsImlzcyI6InN1cGFiYXNlIiwiaWF0IjoxNzc1MDc5NTYzLCJleHAiOjE5MzI3NTk1NjN9.Pchm8XcfRaT0xAD7JHOE_53IJPoIuV1V6qGPK8dQZO4"
-}

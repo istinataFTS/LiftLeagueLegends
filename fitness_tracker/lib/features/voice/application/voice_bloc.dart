@@ -749,6 +749,11 @@ class VoiceBloc extends Bloc<VoiceEvent, VoiceState>
     );
 
     await chatResult.fold((failure) async {
+      AppLogger.error(
+        'VoiceBloc: chat call failed — ${failure.runtimeType}: ${failure.message}',
+        category: 'voice',
+        error: failure,
+      );
       final spokenMessage = _spokenMessageFor(failure);
       emit(
         state.copyWith(
