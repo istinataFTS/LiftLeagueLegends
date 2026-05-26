@@ -73,6 +73,7 @@ The script errors if `dart_defines.json` is missing. Equivalent raw command: `fl
 | `PICOVOICE_ACCESS_KEY` | Picovoice Console access key (voice wake word) |
 
 The `PICOVOICE_ACCESS_KEY` is written into `flutter_secure_storage` by `AppBootstrapper` on every launch. The wake-word engine starts automatically after the write via `VoiceCredentialService.onPicovoiceKeyChanged`. See KNOWN_ISSUES `#voice-picovoice-key-must-ship-via-dart-define`.
+<<<<<<< HEAD
 
 ## Platform support
 
@@ -102,6 +103,8 @@ The `PICOVOICE_ACCESS_KEY` is written into `flutter_secure_storage` by `AppBoots
 - `ios/Runner/Assets.xcassets/` — iOS icons (does not exist yet)
 
 Do not introduce platform-specific Dart code via `Platform.isAndroid` / `Platform.isIOS` checks unless the platform abstraction layer (a `VoiceXxxService` interface in `lib/domain/services/`) cannot reasonably express the difference. Prefer one interface, two implementations registered per platform in DI.
+=======
+>>>>>>> origin/main
 
 ## Known issues and the 15-minute rule
 
