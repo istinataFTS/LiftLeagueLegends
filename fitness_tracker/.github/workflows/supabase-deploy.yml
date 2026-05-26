@@ -34,4 +34,65 @@ jobs:
 
       - name: Deploy functions
         if: ${{ inputs.target != 'migrations' }}
-        run: supabase functions deploy voice-chat
+        shell: bash
+        run: |
+          set -euo pipefail
+          shopt -s nullglob
+          deployed=0
+          for dir in supabase/functions/*/; do
+            name="$(basename "$dir")"
+            # Skip shared modules and any hidden directories.
+            if [[ "$name" == "_shared" || "$name" == .* ]]; then
+              continue
+            fi
+            # Require an index.ts to call this directory a function.
+            if [[ ! -f "$dir/index.ts" ]]; then
+              echo "::warning::Skipping $name — no index.ts found"
+              continue
+            fi
+            echo "::group::Deploying $name"
+            supabase functions deploy "$name"
+            echo "::endgroup::"
+            deployed=$((deployed + 1))
+          done
+          if [[ "$deployed" -eq 0 ]]; then
+            echo "::error::No edge functions deployed — directory layout unexpected"
+            exit 1
+          fi
+          echo "Deployed $deployed function(s)."
+
+      - name: Smoke-test deployed functions
+        if: ${{ inputs.target != 'migrations' }}
+        shell: bash
+        env:
+          SUPABASE_PROJECT_REF: ${{ secrets.SUPABASE_PROJECT_REF }}
+        run: |
+          set -euo pipefail
+          shopt -s nullglob
+          base="https://${SUPABASE_PROJECT_REF}.supabase.co/functions/v1"
+          failures=0
+          for dir in supabase/functions/*/; do
+            name="$(basename "$dir")"
+            if [[ "$name" == "_shared" || "$name" == .* ]]; then continue; fi
+            if [[ ! -f "$dir/index.ts" ]]; then continue; fi
+            url="$base/$name"
+            echo "Probing $url"
+            # CORS preflight: wildcard origin — _shared/cors.ts returns 204 for any OPTIONS.
+            status="$(curl -s -o /dev/null -w '%{http_code}' \
+              -X OPTIONS "$url" \
+              -H 'Origin: https://smoke-test.local' \
+              -H 'Access-Control-Request-Method: POST' \
+              -H 'Access-Control-Request-Headers: authorization,content-type' \
+              --max-time 15 || echo '000')"
+            if [[ "$status" =~ ^2 ]]; then
+              echo "  OK ($status)"
+            else
+              echo "::error::Function $name unreachable (HTTP $status)"
+              failures=$((failures + 1))
+            fi
+          done
+          if [[ "$failures" -gt 0 ]]; then
+            echo "::error::$failures function(s) failed smoke test"
+            exit 1
+          fi
+          echo "All functions reachable."
