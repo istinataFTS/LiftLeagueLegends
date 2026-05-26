@@ -34,4 +34,29 @@ jobs:
 
       - name: Deploy functions
         if: ${{ inputs.target != 'migrations' }}
-        run: supabase functions deploy voice-chat
+        shell: bash
+        run: |
+          set -euo pipefail
+          shopt -s nullglob
+          deployed=0
+          for dir in supabase/functions/*/; do
+            name="$(basename "$dir")"
+            # Skip shared modules and any hidden directories.
+            if [[ "$name" == "_shared" || "$name" == .* ]]; then
+              continue
+            fi
+            # Require an index.ts to call this directory a function.
+            if [[ ! -f "$dir/index.ts" ]]; then
+              echo "::warning::Skipping $name — no index.ts found"
+              continue
+            fi
+            echo "::group::Deploying $name"
+            supabase functions deploy "$name"
+            echo "::endgroup::"
+            deployed=$((deployed + 1))
+          done
+          if [[ "$deployed" -eq 0 ]]; then
+            echo "::error::No edge functions deployed — directory layout unexpected"
+            exit 1
+          fi
+          echo "Deployed $deployed function(s)."
