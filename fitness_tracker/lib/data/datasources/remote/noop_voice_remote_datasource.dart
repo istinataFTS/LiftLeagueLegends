@@ -1,3 +1,5 @@
+import 'dart:typed_data';
+
 import '../../../core/constants/voice_constants.dart';
 import '../../../core/errors/failures.dart';
 import '../../../domain/entities/app_settings.dart' show WeightUnit;
@@ -23,6 +25,18 @@ class NoopVoiceRemoteDataSource implements VoiceRemoteDataSource {
     List<RecentNutritionLogContext>? recentNutritionLogs,
   }) async {
     throw const ServerFailure('Voice is not available in offline mode.');
+  }
+
+  @override
+  Future<String> transcribe({
+    required Uint8List audioBytes,
+    required String filename,
+    String? sessionId,
+    String? language,
+  }) async {
+    throw const ServerFailure(
+      'Voice transcription is not available in offline mode.',
+    );
   }
 
   @override

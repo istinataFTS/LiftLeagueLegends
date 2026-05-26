@@ -55,4 +55,47 @@ abstract final class VoiceConstants {
   /// This covers Samsung's warm-up quirk (engine fires `no_match` before
   /// the user has spoken) without letting a stuck engine loop forever.
   static const int sttMaxNoMatchRestarts = 2;
+
+  // ───────────────────────────────────────────────────────────────────────
+  // Whisper (server-side STT)
+  // ───────────────────────────────────────────────────────────────────────
+
+  /// HTTP timeout for the `voice-transcribe` Edge Function call. Whisper
+  /// processing on the server is bounded by the function-side
+  /// `OPENAI_TIMEOUT_MS` (30s) — this is the client-side envelope including
+  /// upload, queueing, and response. 35s leaves a small headroom over the
+  /// server's 30s so the server-side `TIMEOUT` error reaches the client
+  /// instead of being masked by a client-side abort.
+  static const Duration voiceTranscribeHttpTimeout = Duration(seconds: 35);
+
+  /// Hard upper bound for a Whisper-backed recording session. Audio beyond
+  /// this point is dropped. Matches [sttListenTimeout] so the UX envelope
+  /// is identical between the two STT backends.
+  static const Duration whisperMaxAudioDuration = Duration(seconds: 20);
+
+  /// Silence window that auto-stops the recorder. Tighter than the
+  /// on-device 3s timeout because Whisper has no incremental partials —
+  /// the user can't watch a transcript fill in, so we end the turn faster
+  /// to keep perceived latency low.
+  static const Duration whisperSilenceTimeout = Duration(milliseconds: 2000);
+
+  /// Amplitude (dBFS) below which the recorder is considered to be picking
+  /// up silence. Values near 0 dBFS are loud; values near -160 dBFS are
+  /// effectively silent. -45 dBFS is quiet-room background noise on most
+  /// phone microphones — speech reliably exceeds it.
+  static const double whisperSilenceAmplitudeDbfs = -45.0;
+
+  /// Polling interval for the recorder's amplitude monitor. 200 ms gives a
+  /// responsive auto-stop without burning CPU on every frame.
+  static const Duration whisperAmplitudePollInterval =
+      Duration(milliseconds: 200);
+
+  /// AAC bitrate for the m4a file uploaded to Whisper. 32 kbps mono is
+  /// sufficient for speech and keeps the upload under 100 KB for a 20s
+  /// utterance — important on mobile networks.
+  static const int whisperAudioBitrate = 32000;
+
+  /// Sample rate for the recording. 16 kHz is Whisper's optimal input — the
+  /// server downsamples anything higher anyway. Mono.
+  static const int whisperAudioSampleRate = 16000;
 }

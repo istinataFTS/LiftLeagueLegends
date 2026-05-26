@@ -477,6 +477,9 @@ class AppStrings {
   static const String voiceFabWakeWordNeedsSetup =
       'Wake word needs setup. Open Voice settings to add your key.';
   static const String voiceFabWakeWordNeedsSetupAction = 'Set up';
+  static const String voiceFabMicPermissionDenied =
+      'Microphone access denied. Enable it in Settings to use the voice assistant.';
+  static const String voiceFabMicPermissionOpenSettings = 'Open Settings';
 
   // ── Voice Settings — Picovoice access key ─────────────────────────────────
   static const String voicePicovoiceKeySectionTitle = 'Voice Engine Key';
@@ -594,6 +597,14 @@ class AppStrings {
       "Something went wrong. Please try again.";
   static const String voiceSpokenTimeout =
       "That took too long. Please try again.";
+
+  // ── Voice Whisper (remote STT) display messages ──────────────────────────
+  static const String voiceWhisperErrorRecording =
+      'Could not access the microphone. Please try again.';
+  static const String voiceWhisperErrorUpload =
+      'Could not upload your voice. Check your connection and try again.';
+  static const String voiceWhisperErrorEmpty =
+      'I did not catch that. Please try again.';
 
   // ── Voice STT display messages (shown in transcript) ─────────────────────
   static const String voiceSttErrorPermission =

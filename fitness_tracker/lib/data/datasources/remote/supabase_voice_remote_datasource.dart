@@ -1,5 +1,6 @@
 import 'dart:async';
 import 'dart:convert';
+import 'dart:typed_data';
 
 import 'package:http/http.dart' as http;
 import 'package:supabase_flutter/supabase_flutter.dart';
@@ -88,6 +89,57 @@ class SupabaseVoiceRemoteDataSource implements VoiceRemoteDataSource {
   }
 
   // ---------------------------------------------------------------------------
+  // Transcribe (voice-transcribe — Whisper)
+  // ---------------------------------------------------------------------------
+
+  @override
+  Future<String> transcribe({
+    required Uint8List audioBytes,
+    required String filename,
+    String? sessionId,
+    String? language,
+  }) async {
+    final token = await _bearerToken();
+    final uri = Uri.parse('$_functionsBaseUrl/voice-transcribe');
+
+    final request = http.MultipartRequest('POST', uri)
+      ..headers['Authorization'] = 'Bearer $token'
+      ..files.add(
+        http.MultipartFile.fromBytes(
+          'file',
+          audioBytes,
+          filename: filename,
+        ),
+      );
+    if (sessionId != null && sessionId.isNotEmpty) {
+      request.fields['session_id'] = sessionId;
+    }
+    if (language != null && language.isNotEmpty) {
+      request.fields['language'] = language;
+    }
+
+    final http.StreamedResponse streamed;
+    try {
+      streamed = await request.send().timeout(
+            VoiceConstants.voiceTranscribeHttpTimeout,
+          );
+    } on TimeoutException {
+      throw const ServerFailure(
+        'TIMEOUT: Voice transcription did not respond in time',
+      );
+    }
+
+    final body = await streamed.stream.bytesToString();
+    if (streamed.statusCode != 200) {
+      _throwFromErrorBody(body, streamed.statusCode);
+    }
+
+    final json = jsonDecode(body) as Map<String, dynamic>;
+    final transcript = json['transcript'] as String? ?? '';
+    return transcript;
+  }
+
+  // ---------------------------------------------------------------------------
   // Budget
   // ---------------------------------------------------------------------------
 
@@ -143,12 +195,12 @@ class SupabaseVoiceRemoteDataSource implements VoiceRemoteDataSource {
     final currentDate = _formatDate(now);
 
     return <String, dynamic>{
-      'current_date': currentDate,
-      'weight_unit': _weightUnitCode(weightUnit),
-      'recent_sets': recentSets
+      'currentDate': currentDate,
+      'weightUnit': _weightUnitCode(weightUnit),
+      'recentSets': recentSets
               ?.map((s) => <String, dynamic>{
-                    'set_id': s.setId,
-                    'exercise_name': s.exerciseName,
+                    'setId': s.setId,
+                    'exerciseName': s.exerciseName,
                     'weight': s.weight,
                     'reps': s.reps,
                     'intensity': s.intensity,
@@ -156,10 +208,10 @@ class SupabaseVoiceRemoteDataSource implements VoiceRemoteDataSource {
                   })
               .toList() ??
           <dynamic>[],
-      'recent_nutrition_logs': recentNutritionLogs
+      'recentNutritionLogs': recentNutritionLogs
               ?.map((l) => <String, dynamic>{
-                    'log_id': l.logId,
-                    'meal_name': l.mealName,
+                    'logId': l.logId,
+                    'mealName': l.mealName,
                     'calories': l.calories,
                     'date': _formatDate(l.date),
                   })
