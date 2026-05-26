@@ -86,11 +86,12 @@ void main() {
     });
 
     test('maps unknown errors to UnexpectedFailure', () {
-      final Failure result = RepositoryErrorMapper.map(
-        StateError('boom'),
-      );
+      final Failure result = RepositoryErrorMapper.map(StateError('boom'));
 
-      expect(result, const UnexpectedFailure('Unexpected error: Bad state: boom'));
+      expect(
+        result,
+        const UnexpectedFailure('Unexpected error: Bad state: boom'),
+      );
     });
   });
 }

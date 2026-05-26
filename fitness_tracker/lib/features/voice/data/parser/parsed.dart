@@ -38,11 +38,7 @@ final class ParsedLogWorkoutSet extends ParsedIntent {
 /// Edit the most-recently logged workout set.
 /// Only non-null fields are applied; all others keep their existing values.
 final class ParsedEditWorkoutSet extends ParsedIntent {
-  const ParsedEditWorkoutSet({
-    this.reps,
-    this.weight,
-    this.weightUnit,
-  });
+  const ParsedEditWorkoutSet({this.reps, this.weight, this.weightUnit});
 
   final int? reps;
   final double? weight;

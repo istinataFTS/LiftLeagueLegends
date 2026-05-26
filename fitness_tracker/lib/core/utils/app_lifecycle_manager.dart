@@ -23,10 +23,7 @@ class AppLifecycleManager with WidgetsBindingObserver {
 
   void initialize() {
     WidgetsBinding.instance.addObserver(this);
-    AppLogger.info(
-      'App lifecycle manager initialized',
-      category: 'lifecycle',
-    );
+    AppLogger.info('App lifecycle manager initialized', category: 'lifecycle');
   }
 
   void dispose() {
@@ -34,10 +31,7 @@ class AppLifecycleManager with WidgetsBindingObserver {
     _resumeCallbacks.clear();
     _pauseCallbacks.clear();
 
-    AppLogger.info(
-      'App lifecycle manager disposed',
-      category: 'lifecycle',
-    );
+    AppLogger.info('App lifecycle manager disposed', category: 'lifecycle');
   }
 
   void addResumeCallback(VoidCallback callback) {
@@ -66,19 +60,13 @@ class AppLifecycleManager with WidgetsBindingObserver {
         _handleAppDetached();
         break;
       case AppLifecycleState.hidden:
-        AppLogger.debug(
-          'App hidden',
-          category: 'lifecycle',
-        );
+        AppLogger.debug('App hidden', category: 'lifecycle');
         break;
     }
   }
 
   void _handleAppResumed() {
-    AppLogger.info(
-      'App resumed',
-      category: 'lifecycle',
-    );
+    AppLogger.info('App resumed', category: 'lifecycle');
 
     if (_lastPauseTime != null) {
       final pauseDuration = DateTime.now().difference(_lastPauseTime!);
@@ -111,10 +99,7 @@ class AppLifecycleManager with WidgetsBindingObserver {
   }
 
   void _handleAppPaused() {
-    AppLogger.info(
-      'App paused',
-      category: 'lifecycle',
-    );
+    AppLogger.info('App paused', category: 'lifecycle');
 
     _lastPauseTime = DateTime.now();
 
@@ -138,10 +123,7 @@ class AppLifecycleManager with WidgetsBindingObserver {
   }
 
   void _handleAppInactive() {
-    AppLogger.debug(
-      'App inactive',
-      category: 'lifecycle',
-    );
+    AppLogger.debug('App inactive', category: 'lifecycle');
     // No database operations needed during inactive state
   }
 
@@ -184,9 +166,7 @@ class AppLifecycleManager with WidgetsBindingObserver {
     }
   }
 
-  bool isSessionExpired({
-    Duration maxIdleTime = const Duration(hours: 24),
-  }) {
+  bool isSessionExpired({Duration maxIdleTime = const Duration(hours: 24)}) {
     if (_lastPauseTime == null) {
       return false;
     }

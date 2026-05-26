@@ -70,9 +70,10 @@ class _CollapsibleSectionState extends State<CollapsibleSection> {
     _persistDebounce?.cancel();
     _persistDebounce = Timer(const Duration(milliseconds: 500), () {
       if (!mounted) return;
-      context
-          .read<AppSettingsCubit>()
-          .setSectionExpanded(widget.id, expanded: _expanded);
+      context.read<AppSettingsCubit>().setSectionExpanded(
+        widget.id,
+        expanded: _expanded,
+      );
     });
   }
 
@@ -124,8 +125,8 @@ class _CollapsibleSectionState extends State<CollapsibleSection> {
                   child: Text(
                     widget.title,
                     style: Theme.of(context).textTheme.titleSmall?.copyWith(
-                          fontWeight: FontWeight.w700,
-                        ),
+                      fontWeight: FontWeight.w700,
+                    ),
                   ),
                 ),
                 if (widget.onAddPressed != null)
@@ -152,9 +153,9 @@ class _CollapsibleSectionState extends State<CollapsibleSection> {
             const SizedBox(height: 4),
             Text(
               widget.subtitle,
-              style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                    color: AppTheme.textMedium,
-                  ),
+              style: Theme.of(
+                context,
+              ).textTheme.bodySmall?.copyWith(color: AppTheme.textMedium),
             ),
             if (widget.headerTrailing != null && _expanded) ...<Widget>[
               const SizedBox(height: 12),

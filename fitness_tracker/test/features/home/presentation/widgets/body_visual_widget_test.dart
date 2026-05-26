@@ -37,22 +37,23 @@ void main() {
     testWidgets('renders the front side and a flip control by default', (
       WidgetTester tester,
     ) async {
-      await tester.pumpWidget(wrap(BodyVisualWidget(viewData: buildViewData())));
+      await tester.pumpWidget(
+        wrap(BodyVisualWidget(viewData: buildViewData())),
+      );
       await tester.pump();
 
       expect(find.text('Front'), findsOneWidget);
       expect(find.text('Back'), findsNothing);
-      expect(
-        find.byKey(HomePageKeys.bodyVisualFlipButtonKey),
-        findsOneWidget,
-      );
+      expect(find.byKey(HomePageKeys.bodyVisualFlipButtonKey), findsOneWidget);
       expect(find.text('Show back'), findsOneWidget);
     });
 
     testWidgets('flips to the back side when the flip control is tapped', (
       WidgetTester tester,
     ) async {
-      await tester.pumpWidget(wrap(BodyVisualWidget(viewData: buildViewData())));
+      await tester.pumpWidget(
+        wrap(BodyVisualWidget(viewData: buildViewData())),
+      );
       await tester.pump();
 
       await tester.tap(find.byKey(HomePageKeys.bodyVisualFlipButtonKey));
@@ -66,7 +67,9 @@ void main() {
     testWidgets('flips back to the front on a second tap', (
       WidgetTester tester,
     ) async {
-      await tester.pumpWidget(wrap(BodyVisualWidget(viewData: buildViewData())));
+      await tester.pumpWidget(
+        wrap(BodyVisualWidget(viewData: buildViewData())),
+      );
       await tester.pump();
 
       await tester.tap(find.byKey(HomePageKeys.bodyVisualFlipButtonKey));
@@ -96,7 +99,9 @@ void main() {
     testWidgets('does not render the removed Sets/Target/Muscles labels', (
       WidgetTester tester,
     ) async {
-      await tester.pumpWidget(wrap(BodyVisualWidget(viewData: buildViewData())));
+      await tester.pumpWidget(
+        wrap(BodyVisualWidget(viewData: buildViewData())),
+      );
       await tester.pump();
 
       expect(find.text('Sets'), findsNothing);

@@ -37,9 +37,7 @@ class VoiceOverlayStatusView extends StatelessWidget {
       padding: const EdgeInsets.fromLTRB(24, 20, 24, 32),
       decoration: const BoxDecoration(
         color: AppTheme.surfaceDark,
-        border: Border(
-          top: BorderSide(color: AppTheme.borderDark),
-        ),
+        border: Border(top: BorderSide(color: AppTheme.borderDark)),
       ),
       child: Column(
         mainAxisSize: MainAxisSize.min,
@@ -97,10 +95,7 @@ class _HintText extends StatelessWidget {
       child: Text(
         _hint,
         key: ValueKey<VoiceStatus>(status),
-        style: const TextStyle(
-          color: AppTheme.textDim,
-          fontSize: 14,
-        ),
+        style: const TextStyle(color: AppTheme.textDim, fontSize: 14),
         textAlign: TextAlign.center,
       ),
     );
@@ -160,9 +155,7 @@ class _ActionRow extends StatelessWidget {
               onPressed: onStopListening,
               icon: const Icon(Icons.stop_rounded, size: 16),
               label: const Text(AppStrings.voiceOverlayStopListening),
-              style: TextButton.styleFrom(
-                foregroundColor: AppTheme.textMedium,
-              ),
+              style: TextButton.styleFrom(foregroundColor: AppTheme.textMedium),
             ),
           ],
         );
@@ -177,9 +170,7 @@ class _ActionRow extends StatelessWidget {
           onPressed: onInterrupt,
           icon: const Icon(Icons.pan_tool_rounded, size: 16),
           label: const Text(AppStrings.voiceOverlayInterrupt),
-          style: TextButton.styleFrom(
-            foregroundColor: AppTheme.primaryOrange,
-          ),
+          style: TextButton.styleFrom(foregroundColor: AppTheme.primaryOrange),
         );
 
       case VoiceStatus.error:
@@ -198,11 +189,7 @@ class _ActionRow extends StatelessWidget {
 }
 
 class _MicButton extends StatelessWidget {
-  const _MicButton({
-    required this.onTap,
-    required this.isActive,
-    super.key,
-  });
+  const _MicButton({required this.onTap, required this.isActive, super.key});
 
   final VoidCallback onTap;
   final bool isActive;
@@ -217,13 +204,9 @@ class _MicButton extends StatelessWidget {
         height: 72,
         decoration: BoxDecoration(
           shape: BoxShape.circle,
-          color: isActive
-              ? AppTheme.primaryOrange
-              : AppTheme.surfaceMedium,
+          color: isActive ? AppTheme.primaryOrange : AppTheme.surfaceMedium,
           border: Border.all(
-            color: isActive
-                ? AppTheme.primaryOrange
-                : AppTheme.borderMedium,
+            color: isActive ? AppTheme.primaryOrange : AppTheme.borderMedium,
             width: 2,
           ),
           boxShadow: isActive
@@ -265,10 +248,7 @@ class _SpinnerButton extends StatelessWidget {
 }
 
 class _WorkoutModeRow extends StatelessWidget {
-  const _WorkoutModeRow({
-    required this.isActive,
-    required this.onToggle,
-  });
+  const _WorkoutModeRow({required this.isActive, required this.onToggle});
 
   final bool isActive;
   final VoidCallback onToggle;
@@ -286,10 +266,7 @@ class _WorkoutModeRow extends StatelessWidget {
         const SizedBox(width: 6),
         const Text(
           AppStrings.voiceOverlayWorkoutModeLabel,
-          style: TextStyle(
-            color: AppTheme.textDim,
-            fontSize: 13,
-          ),
+          style: TextStyle(color: AppTheme.textDim, fontSize: 13),
         ),
         const SizedBox(width: 8),
         Switch(

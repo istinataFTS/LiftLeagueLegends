@@ -19,22 +19,19 @@ class TestEntity {
 void main() {
   final DateTime baseTime = DateTime(2026, 3, 26, 10, 0);
 
-  final EntitySyncResolver<TestEntity> resolver = EntitySyncResolver<TestEntity>(
-    getId: (entity) => entity.id,
-    getUpdatedAt: (entity) => entity.updatedAt,
-    getSyncMetadata: (entity) => entity.syncMetadata,
-  );
+  final EntitySyncResolver<TestEntity> resolver =
+      EntitySyncResolver<TestEntity>(
+        getId: (entity) => entity.id,
+        getUpdatedAt: (entity) => entity.updatedAt,
+        getSyncMetadata: (entity) => entity.syncMetadata,
+      );
 
   TestEntity buildEntity({
     required String id,
     required DateTime updatedAt,
     EntitySyncMetadata syncMetadata = const EntitySyncMetadata(),
   }) {
-    return TestEntity(
-      id: id,
-      updatedAt: updatedAt,
-      syncMetadata: syncMetadata,
-    );
+    return TestEntity(id: id, updatedAt: updatedAt, syncMetadata: syncMetadata);
   }
 
   group('EntitySyncResolver.resolveConflict', () {
@@ -49,16 +46,11 @@ void main() {
       final TestEntity remote = buildEntity(
         id: 'entity-1',
         updatedAt: baseTime.add(const Duration(hours: 1)),
-        syncMetadata: const EntitySyncMetadata(
-          status: SyncStatus.synced,
-        ),
+        syncMetadata: const EntitySyncMetadata(status: SyncStatus.synced),
       );
 
-      final SyncConflictResolution<TestEntity> resolution =
-          resolver.resolveConflict(
-        local: local,
-        remote: remote,
-      );
+      final SyncConflictResolution<TestEntity> resolution = resolver
+          .resolveConflict(local: local, remote: remote);
 
       expect(resolution.winner, same(local));
       expect(resolution.outcome, SyncConflictOutcome.localPendingDelete);
@@ -79,11 +71,8 @@ void main() {
         updatedAt: baseTime.add(const Duration(hours: 1)),
       );
 
-      final SyncConflictResolution<TestEntity> resolution =
-          resolver.resolveConflict(
-        local: local,
-        remote: remote,
-      );
+      final SyncConflictResolution<TestEntity> resolution = resolver
+          .resolveConflict(local: local, remote: remote);
 
       expect(resolution.winner, same(local));
       expect(resolution.outcome, SyncConflictOutcome.localPendingUpdate);
@@ -93,20 +82,15 @@ void main() {
       final TestEntity local = buildEntity(
         id: 'entity-1',
         updatedAt: baseTime,
-        syncMetadata: const EntitySyncMetadata(
-          status: SyncStatus.synced,
-        ),
+        syncMetadata: const EntitySyncMetadata(status: SyncStatus.synced),
       );
       final TestEntity remote = buildEntity(
         id: 'entity-1',
         updatedAt: baseTime.add(const Duration(hours: 1)),
       );
 
-      final SyncConflictResolution<TestEntity> resolution =
-          resolver.resolveConflict(
-        local: local,
-        remote: remote,
-      );
+      final SyncConflictResolution<TestEntity> resolution = resolver
+          .resolveConflict(local: local, remote: remote);
 
       expect(resolution.winner, same(remote));
       expect(resolution.outcome, SyncConflictOutcome.remoteNewer);
@@ -117,40 +101,29 @@ void main() {
       final TestEntity local = buildEntity(
         id: 'entity-1',
         updatedAt: baseTime.add(const Duration(hours: 1)),
-        syncMetadata: const EntitySyncMetadata(
-          status: SyncStatus.synced,
-        ),
+        syncMetadata: const EntitySyncMetadata(status: SyncStatus.synced),
       );
       final TestEntity remote = buildEntity(
         id: 'entity-1',
         updatedAt: baseTime,
       );
 
-      final SyncConflictResolution<TestEntity> resolution =
-          resolver.resolveConflict(
-        local: local,
-        remote: remote,
-      );
+      final SyncConflictResolution<TestEntity> resolution = resolver
+          .resolveConflict(local: local, remote: remote);
 
       expect(resolution.winner, same(local));
       expect(resolution.outcome, SyncConflictOutcome.localNewer);
     });
 
     test('prefers local on equal timestamps for deterministic merges', () {
-      final TestEntity local = buildEntity(
-        id: 'entity-1',
-        updatedAt: baseTime,
-      );
+      final TestEntity local = buildEntity(id: 'entity-1', updatedAt: baseTime);
       final TestEntity remote = buildEntity(
         id: 'entity-1',
         updatedAt: baseTime,
       );
 
-      final SyncConflictResolution<TestEntity> resolution =
-          resolver.resolveConflict(
-        local: local,
-        remote: remote,
-      );
+      final SyncConflictResolution<TestEntity> resolution = resolver
+          .resolveConflict(local: local, remote: remote);
 
       expect(resolution.winner, same(local));
       expect(resolution.outcome, SyncConflictOutcome.sameTimestampPreferLocal);

@@ -9,6 +9,7 @@ import '../../../../core/themes/app_theme.dart';
 import '../../../../domain/entities/app_session.dart';
 import '../../../../domain/entities/voice_settings.dart';
 import '../../../../domain/services/voice_credential_service.dart';
+import '../../../../domain/services/voice_permission_service.dart';
 import '../../../../domain/services/voice_wake_word_service.dart';
 import '../../../../injection/injection_container.dart';
 import '../../application/voice_settings_cubit.dart';
@@ -178,7 +179,48 @@ class _VoiceFabState extends State<VoiceFab>
 
   Future<void> _openOverlay({bool openedByWakeWord = false}) async {
     if (_overlayOpen || !mounted) return;
+
+    final permissionService = sl<VoicePermissionService>();
+    var status = await permissionService.checkMicrophonePermission();
+    if (status == VoicePermissionStatus.denied) {
+      status = await permissionService.requestMicrophonePermission();
+    }
+    if (!mounted) return;
+    if (status != VoicePermissionStatus.granted) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: const Text(AppStrings.voiceFabMicPermissionDenied),
+          action: SnackBarAction(
+            label: AppStrings.voiceFabMicPermissionOpenSettings,
+            onPressed: permissionService.openAppSettings,
+          ),
+        ),
+      );
+      return;
+    }
+
     setState(() => _overlayOpen = true);
+
+    // Release the mic from the wake-word engine before the overlay's STT
+    // tries to acquire it. Porcupine holds the mic continuously while armed;
+    // on Android the recorder will silently fail to capture any audio if
+    // another listener already owns the input stream. Stopping here, and
+    // restarting after the overlay closes, keeps the two paths from racing.
+    final bool wakeWordWasRunning = _wakeWordService.isRunning;
+    if (wakeWordWasRunning) {
+      try {
+        await _wakeWordService.stop();
+      } catch (error, stackTrace) {
+        AppLogger.warning(
+          'VoiceFab: failed to stop wake word before overlay push',
+          error: error,
+          stackTrace: stackTrace,
+          category: 'voice',
+        );
+      }
+      _stopPulse();
+    }
+
     await Navigator.of(context).push(
       PageRouteBuilder<void>(
         pageBuilder: (context, animation, secondaryAnimation) =>
@@ -206,7 +248,16 @@ class _VoiceFabState extends State<VoiceFab>
         },
       ),
     );
-    if (mounted) setState(() => _overlayOpen = false);
+    if (mounted) {
+      setState(() => _overlayOpen = false);
+      // Re-arm the wake-word engine if it was running before we opened the
+      // overlay AND the setting is still on. `_startWakeWordIfArmed` re-reads
+      // the cubit so toggling the setting while the overlay was open is
+      // respected.
+      if (wakeWordWasRunning) {
+        _startWakeWordIfArmed();
+      }
+    }
   }
 
   // ── Build ───────────────────────────────────────────────────────────────────

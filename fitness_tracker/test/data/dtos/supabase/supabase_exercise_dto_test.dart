@@ -21,9 +21,7 @@ void main() {
       muscleGroups: muscleGroups,
       createdAt: baseDate,
       updatedAt: baseDate.add(const Duration(hours: 1)),
-      syncMetadata: EntitySyncMetadata(
-        serverId: serverId,
-      ),
+      syncMetadata: EntitySyncMetadata(serverId: serverId),
     );
   }
 
@@ -46,10 +44,7 @@ void main() {
     });
 
     test('falls back to local id when server id is missing', () {
-      final exercise = buildExercise(
-        id: 'local-1',
-        ownerUserId: 'user-1',
-      );
+      final exercise = buildExercise(id: 'local-1', ownerUserId: 'user-1');
 
       final dto = SupabaseExerciseDto.fromEntity(exercise);
 

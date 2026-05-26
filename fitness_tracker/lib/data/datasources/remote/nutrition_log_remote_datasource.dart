@@ -18,10 +18,7 @@ abstract class NutritionLogRemoteDataSource {
 
   Future<NutritionLog> upsertLog(NutritionLog log);
 
-  Future<void> deleteLog({
-    required String localId,
-    String? serverId,
-  });
+  Future<void> deleteLog({required String localId, String? serverId});
 
   /// Returns all logs for [userId] whose `updated_at` is after [since].
   /// Pass [since] = null to fetch all logs (e.g. on initial re-login).

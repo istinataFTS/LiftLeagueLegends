@@ -7,10 +7,7 @@ import '../../features/home/application/muscle_visual_bloc.dart';
 import '../../features/log/log.dart';
 
 class AppStartupListener extends StatefulWidget {
-  const AppStartupListener({
-    required this.child,
-    super.key,
-  });
+  const AppStartupListener({required this.child, super.key});
 
   final Widget child;
 
@@ -42,8 +39,8 @@ class _AppStartupListenerState extends State<AppStartupListener> {
     context.read<WorkoutBloc>().add(const LoadWeeklySetsEvent());
     context.read<HomeBloc>().add(LoadHomeDataEvent());
     context.read<MuscleVisualBloc>().add(
-          const LoadMuscleVisualsEvent(TimePeriod.week),
-        );
+      const LoadMuscleVisualsEvent(TimePeriod.week),
+    );
   }
 
   @override

@@ -37,13 +37,13 @@ class HistoryLoaded extends HistoryState {
 
   @override
   List<Object?> get props => <Object?>[
-        currentMonth,
-        monthSets,
-        monthNutritionLogs,
-        selectedDate,
-        selectedDateSets,
-        selectedDateNutritionLogs,
-      ];
+    currentMonth,
+    monthSets,
+    monthNutritionLogs,
+    selectedDate,
+    selectedDateSets,
+    selectedDateNutritionLogs,
+  ];
 }
 
 class HistoryError extends HistoryState {

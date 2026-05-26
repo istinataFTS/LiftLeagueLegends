@@ -17,12 +17,14 @@ class CalendarConstants {
   static const double bottomSheetMaxHeight = 0.75; // 75% of screen height
   static const double bottomSheetMinHeight = 0.3; // 30% of screen height
   static const double bottomSheetBorderRadius = 24.0;
-  static const Duration bottomSheetAnimationDuration = Duration(milliseconds: 300);
+  static const Duration bottomSheetAnimationDuration = Duration(
+    milliseconds: 300,
+  );
 
   // ==================== Performance ====================
   /// Number of months to preload for smooth navigation
   static const int preloadMonthsCount = 3; // current + 1 before + 1 after
-  
+
   /// Cache duration for month data
   static const Duration monthDataCacheDuration = Duration(minutes: 10);
 

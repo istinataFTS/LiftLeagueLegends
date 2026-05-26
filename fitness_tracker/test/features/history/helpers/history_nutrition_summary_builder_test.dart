@@ -107,7 +107,9 @@ void main() {
         gramsConsumed: 185,
       );
 
-      final result = HistoryNutritionSummaryBuilder.buildConsumedGramsLabel(log);
+      final result = HistoryNutritionSummaryBuilder.buildConsumedGramsLabel(
+        log,
+      );
 
       expect(result, '185 g consumed');
     });
@@ -122,7 +124,9 @@ void main() {
         calories: 377,
       );
 
-      final result = HistoryNutritionSummaryBuilder.buildConsumedGramsLabel(log);
+      final result = HistoryNutritionSummaryBuilder.buildConsumedGramsLabel(
+        log,
+      );
 
       expect(result, isNull);
     });

@@ -46,10 +46,5 @@ class EntitySyncMetadata extends Equatable {
   }
 
   @override
-  List<Object?> get props => [
-        serverId,
-        status,
-        lastSyncedAt,
-        lastSyncError,
-      ];
+  List<Object?> get props => [serverId, status, lastSyncedAt, lastSyncError];
 }

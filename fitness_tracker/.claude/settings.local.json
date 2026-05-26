@@ -76,7 +76,8 @@
       "Bash(sed -n '20,30p' test/features/voice/services/voice_wake_word_service_test.dart)",
       "Bash(echo \"ANALYZE_EXIT=$?\")",
       "Bash(sed -n '1,60p' test/core/sync/sync_orchestrator_impl_test.dart)",
-      "Bash(sed -n '380,440p' test/core/sync/sync_orchestrator_impl_test.dart)"
+      "Bash(sed -n '380,440p' test/core/sync/sync_orchestrator_impl_test.dart)",
+      "Bash(git stash *)"
     ]
   }
 }

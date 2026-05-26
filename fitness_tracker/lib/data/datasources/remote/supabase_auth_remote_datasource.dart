@@ -41,9 +41,7 @@ class SupabaseAuthRemoteDataSource implements AuthRemoteDataSource {
 
       final user = response.user;
       if (user == null) {
-        throw const AuthSyncException(
-          'sign-in completed without a user',
-        );
+        throw const AuthSyncException('sign-in completed without a user');
       }
 
       return _mapUser(user);
@@ -60,17 +58,12 @@ class SupabaseAuthRemoteDataSource implements AuthRemoteDataSource {
       final response = await clientProvider.client.auth.signUp(
         email: email,
         password: password,
-        data: <String, dynamic>{
-          'display_name': username,
-          'username': username,
-        },
+        data: <String, dynamic>{'display_name': username, 'username': username},
       );
 
       final user = response.user;
       if (user == null) {
-        throw const AuthSyncException(
-          'sign-up completed without a user',
-        );
+        throw const AuthSyncException('sign-up completed without a user');
       }
 
       return SignUpResult(

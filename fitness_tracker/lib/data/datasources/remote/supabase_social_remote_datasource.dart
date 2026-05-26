@@ -124,23 +124,25 @@ class SupabaseSocialRemoteDataSource implements SocialRemoteDataSource {
 
   List<String> _extractIds(dynamic data, String column) {
     return (data as List<dynamic>)
-        .map((dynamic row) =>
-            (Map<String, dynamic>.from(row as Map))[column] as String)
+        .map(
+          (dynamic row) =>
+              (Map<String, dynamic>.from(row as Map))[column] as String,
+        )
         .toList();
   }
 
-  Future<List<UserProfileSummary>> _fetchSummaries(
-    List<String> userIds,
-  ) async {
+  Future<List<UserProfileSummary>> _fetchSummaries(List<String> userIds) async {
     final dynamic data = await clientProvider.client
         .from(_profilesTable)
         .select('id, username, display_name, avatar_url')
         .inFilter('id', userIds);
 
     return (data as List<dynamic>)
-        .map((dynamic row) => SupabaseUserProfileSummaryDto.fromMap(
-              Map<String, dynamic>.from(row as Map),
-            ).toEntity())
+        .map(
+          (dynamic row) => SupabaseUserProfileSummaryDto.fromMap(
+            Map<String, dynamic>.from(row as Map),
+          ).toEntity(),
+        )
         .toList();
   }
 }

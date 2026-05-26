@@ -63,12 +63,15 @@ void main() {
       expect(violations, isEmpty);
     });
 
-    test('does not report the template inside a code fence as an entry', () async {
-      final repo = FakeRepoView({'KNOWN_ISSUES.md': _templateInFence});
-      final violations = await rule.check(repo);
-      // The template is inside ``` so no entry should be parsed.
-      expect(violations, isEmpty);
-    });
+    test(
+      'does not report the template inside a code fence as an entry',
+      () async {
+        final repo = FakeRepoView({'KNOWN_ISSUES.md': _templateInFence});
+        final violations = await rule.check(repo);
+        // The template is inside ``` so no entry should be parsed.
+        expect(violations, isEmpty);
+      },
+    );
 
     test('reports a missing Severity field', () async {
       const bad = '''
@@ -170,9 +173,7 @@ void main() {
       final repo = FakeRepoView({'KNOWN_ISSUES.md': bad});
       final violations = await rule.check(repo);
       expect(
-        violations.any(
-          (v) => v.message.contains('"Last verified"'),
-        ),
+        violations.any((v) => v.message.contains('"Last verified"')),
         isTrue,
       );
     });
@@ -223,9 +224,7 @@ void main() {
       final repo = FakeRepoView({'KNOWN_ISSUES.md': bad});
       final violations = await rule.check(repo);
       expect(
-        violations.any(
-          (v) => v.message.contains('"**Workaround / fix**"'),
-        ),
+        violations.any((v) => v.message.contains('"**Workaround / fix**"')),
         isTrue,
       );
     });

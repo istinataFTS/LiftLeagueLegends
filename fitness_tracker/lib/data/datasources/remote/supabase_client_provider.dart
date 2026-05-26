@@ -3,9 +3,7 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 class SupabaseClientProvider {
   final bool isConfigured;
 
-  const SupabaseClientProvider({
-    required this.isConfigured,
-  });
+  const SupabaseClientProvider({required this.isConfigured});
 
   SupabaseClient get client {
     if (!isConfigured) {

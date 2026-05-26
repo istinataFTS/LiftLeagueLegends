@@ -1,5 +1,4 @@
 class MuscleGroups {
-  
   static const List<String> all = [
     'shoulder',
     'traps',
@@ -17,7 +16,7 @@ class MuscleGroups {
     'quads',
     'calves',
   ];
-  
+
   /// Display names for muscle groups (for UI)
   static const Map<String, String> displayNames = {
     'shoulder': 'Shoulders',

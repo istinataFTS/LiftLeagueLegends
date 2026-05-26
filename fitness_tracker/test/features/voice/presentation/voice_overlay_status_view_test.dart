@@ -96,10 +96,7 @@ void main() {
 
       testWidgets('thinking shows thinking hint', (tester) async {
         await tester.pumpWidget(_wrap(status: VoiceStatus.thinking));
-        expect(
-          find.text(AppStrings.voiceOverlayHintThinking),
-          findsOneWidget,
-        );
+        expect(find.text(AppStrings.voiceOverlayHintThinking), findsOneWidget);
       });
 
       testWidgets('no mic or stop button while thinking', (tester) async {
@@ -163,7 +160,9 @@ void main() {
         );
       });
 
-      testWidgets('workout mode toggle fires onWorkoutModeToggle', (tester) async {
+      testWidgets('workout mode toggle fires onWorkoutModeToggle', (
+        tester,
+      ) async {
         var toggled = false;
         await tester.pumpWidget(
           _wrap(

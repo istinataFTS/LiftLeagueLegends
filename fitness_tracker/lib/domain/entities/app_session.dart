@@ -17,10 +17,10 @@ class AppSession extends Equatable {
   });
 
   const AppSession.guest()
-      : authMode = AuthMode.guest,
-        user = null,
-        requiresInitialCloudMigration = false,
-        lastCloudSyncAt = null;
+    : authMode = AuthMode.guest,
+      user = null,
+      requiresInitialCloudMigration = false,
+      lastCloudSyncAt = null;
 
   bool get isGuest => authMode == AuthMode.guest;
 
@@ -48,9 +48,9 @@ class AppSession extends Equatable {
 
   @override
   List<Object?> get props => [
-        authMode,
-        user,
-        requiresInitialCloudMigration,
-        lastCloudSyncAt,
-      ];
+    authMode,
+    user,
+    requiresInitialCloudMigration,
+    lastCloudSyncAt,
+  ];
 }

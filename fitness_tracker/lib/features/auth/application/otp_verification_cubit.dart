@@ -3,21 +3,13 @@ import 'package:flutter_bloc/flutter_bloc.dart';
 
 import '../../../core/auth/auth_session_service.dart';
 
-enum OtpVerificationStatus {
-  initial,
-  submitting,
-  success,
-  failure,
-}
+enum OtpVerificationStatus { initial, submitting, success, failure }
 
 class OtpVerificationState extends Equatable {
   final OtpVerificationStatus status;
   final String? errorMessage;
 
-  const OtpVerificationState({
-    required this.status,
-    this.errorMessage,
-  });
+  const OtpVerificationState({required this.status, this.errorMessage});
 
   factory OtpVerificationState.initial() =>
       const OtpVerificationState(status: OtpVerificationStatus.initial);
@@ -33,8 +25,9 @@ class OtpVerificationState extends Equatable {
   }) {
     return OtpVerificationState(
       status: status ?? this.status,
-      errorMessage:
-          clearErrorMessage ? null : (errorMessage ?? this.errorMessage),
+      errorMessage: clearErrorMessage
+          ? null
+          : (errorMessage ?? this.errorMessage),
     );
   }
 
@@ -46,8 +39,8 @@ class OtpVerificationCubit extends Cubit<OtpVerificationState> {
   OtpVerificationCubit({
     required AuthSessionService authSessionService,
     required this.email,
-  })  : _authSessionService = authSessionService,
-        super(OtpVerificationState.initial());
+  }) : _authSessionService = authSessionService,
+       super(OtpVerificationState.initial());
 
   final AuthSessionService _authSessionService;
   final String email;
@@ -57,17 +50,21 @@ class OtpVerificationCubit extends Cubit<OtpVerificationState> {
 
     final trimmed = token.trim();
     if (trimmed.length != 6 || int.tryParse(trimmed) == null) {
-      emit(state.copyWith(
-        status: OtpVerificationStatus.failure,
-        errorMessage: 'Enter the 6-digit code from your email.',
-      ));
+      emit(
+        state.copyWith(
+          status: OtpVerificationStatus.failure,
+          errorMessage: 'Enter the 6-digit code from your email.',
+        ),
+      );
       return;
     }
 
-    emit(state.copyWith(
-      status: OtpVerificationStatus.submitting,
-      clearErrorMessage: true,
-    ));
+    emit(
+      state.copyWith(
+        status: OtpVerificationStatus.submitting,
+        clearErrorMessage: true,
+      ),
+    );
 
     final result = await _authSessionService.verifyEmailOtp(
       email: email,
@@ -75,16 +72,20 @@ class OtpVerificationCubit extends Cubit<OtpVerificationState> {
     );
 
     if (result.isFailure) {
-      emit(state.copyWith(
-        status: OtpVerificationStatus.failure,
-        errorMessage: result.message,
-      ));
+      emit(
+        state.copyWith(
+          status: OtpVerificationStatus.failure,
+          errorMessage: result.message,
+        ),
+      );
       return;
     }
 
-    emit(state.copyWith(
-      status: OtpVerificationStatus.success,
-      clearErrorMessage: true,
-    ));
+    emit(
+      state.copyWith(
+        status: OtpVerificationStatus.success,
+        clearErrorMessage: true,
+      ),
+    );
   }
 }

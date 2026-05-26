@@ -15,12 +15,9 @@ class GetLogsForDate {
   });
 
   Future<Either<Failure, List<NutritionLog>>> call(DateTime date) async {
-    final sourcePreference =
-        await sourcePreferenceResolver.resolveReadPreference();
+    final sourcePreference = await sourcePreferenceResolver
+        .resolveReadPreference();
 
-    return repository.getLogsForDate(
-      date,
-      sourcePreference: sourcePreference,
-    );
+    return repository.getLogsForDate(date, sourcePreference: sourcePreference);
   }
 }

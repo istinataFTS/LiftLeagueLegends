@@ -209,10 +209,7 @@ class NutritionLogBloc extends Bloc<NutritionLogEvent, NutritionLogState>
     );
   }
 
-  Future<void> _loadDay(
-    DateTime date,
-    Emitter<NutritionLogState> emit,
-  ) async {
+  Future<void> _loadDay(DateTime date, Emitter<NutritionLogState> emit) async {
     final logsResult = await getLogsForDate(date);
 
     await logsResult.fold(
@@ -223,11 +220,7 @@ class NutritionLogBloc extends Bloc<NutritionLogEvent, NutritionLogState>
         macrosResult.fold(
           (failure) => emit(NutritionLogError(failure.message)),
           (macros) => emit(
-            DailyLogsLoaded(
-              date: date,
-              logs: logs,
-              dailyMacros: macros,
-            ),
+            DailyLogsLoaded(date: date, logs: logs, dailyMacros: macros),
           ),
         );
       },

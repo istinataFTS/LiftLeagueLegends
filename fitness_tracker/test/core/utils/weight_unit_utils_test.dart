@@ -6,20 +6,11 @@ void main() {
   group('WeightUnitUtils conversions', () {
     test('keeps kilograms unchanged when unit is kilograms', () {
       expect(
-        WeightUnitUtils.fromStoredKilograms(
-          100,
-          WeightUnit.kilograms,
-        ),
+        WeightUnitUtils.fromStoredKilograms(100, WeightUnit.kilograms),
         100,
       );
 
-      expect(
-        WeightUnitUtils.toStoredKilograms(
-          100,
-          WeightUnit.kilograms,
-        ),
-        100,
-      );
+      expect(WeightUnitUtils.toStoredKilograms(100, WeightUnit.kilograms), 100);
     });
 
     test('converts kilograms to pounds', () {
@@ -43,25 +34,13 @@ void main() {
 
   group('WeightUnitUtils labels', () {
     test('returns correct unit labels', () {
-      expect(
-        WeightUnitUtils.unitLabel(WeightUnit.kilograms),
-        'kg',
-      );
-      expect(
-        WeightUnitUtils.unitLabel(WeightUnit.pounds),
-        'lbs',
-      );
+      expect(WeightUnitUtils.unitLabel(WeightUnit.kilograms), 'kg');
+      expect(WeightUnitUtils.unitLabel(WeightUnit.pounds), 'lbs');
     });
 
     test('returns correct input labels', () {
-      expect(
-        WeightUnitUtils.inputLabel(WeightUnit.kilograms),
-        'Weight (kg)',
-      );
-      expect(
-        WeightUnitUtils.inputLabel(WeightUnit.pounds),
-        'Weight (lbs)',
-      );
+      expect(WeightUnitUtils.inputLabel(WeightUnit.kilograms), 'Weight (kg)');
+      expect(WeightUnitUtils.inputLabel(WeightUnit.pounds), 'Weight (lbs)');
     });
 
     test('returns correct input hints', () {
@@ -79,20 +58,14 @@ void main() {
   group('WeightUnitUtils formatting', () {
     test('formats kilograms for display', () {
       expect(
-        WeightUnitUtils.formatForDisplay(
-          100,
-          WeightUnit.kilograms,
-        ),
+        WeightUnitUtils.formatForDisplay(100, WeightUnit.kilograms),
         '100 kg',
       );
     });
 
     test('formats pounds for display', () {
       expect(
-        WeightUnitUtils.formatForDisplay(
-          100,
-          WeightUnit.pounds,
-        ),
+        WeightUnitUtils.formatForDisplay(100, WeightUnit.pounds),
         '220.5 lbs',
       );
     });

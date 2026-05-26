@@ -10,7 +10,7 @@ class AddWorkoutSet {
   final WorkoutSetRepository repository;
   final AppSessionRepository appSessionRepository;
   final RebuildMuscleStimulusFromWorkoutHistory
-      rebuildMuscleStimulusFromWorkoutHistory;
+  rebuildMuscleStimulusFromWorkoutHistory;
 
   const AddWorkoutSet(
     this.repository, {
@@ -26,15 +26,12 @@ class AddWorkoutSet {
       (session) => session.user?.id ?? '',
     );
 
-    final preparedSet = sessionResult.fold(
-      (_) => set,
-      (session) {
-        if (!session.isAuthenticated || session.user == null) {
-          return set;
-        }
-        return set.copyWith(ownerUserId: session.user!.id);
-      },
-    );
+    final preparedSet = sessionResult.fold((_) => set, (session) {
+      if (!session.isAuthenticated || session.user == null) {
+        return set;
+      }
+      return set.copyWith(ownerUserId: session.user!.id);
+    });
 
     final addResult = await repository.addSet(preparedSet);
 

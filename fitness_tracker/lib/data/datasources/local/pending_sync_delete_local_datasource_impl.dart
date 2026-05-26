@@ -12,9 +12,7 @@ class PendingSyncDeleteLocalDataSourceImpl
     implements PendingSyncDeleteLocalDataSource {
   final DatabaseHelper databaseHelper;
 
-  const PendingSyncDeleteLocalDataSourceImpl({
-    required this.databaseHelper,
-  });
+  const PendingSyncDeleteLocalDataSourceImpl({required this.databaseHelper});
 
   @override
   Future<void> enqueue(PendingSyncDelete operation) async {
@@ -28,9 +26,7 @@ class PendingSyncDeleteLocalDataSourceImpl
         conflictAlgorithm: ConflictAlgorithm.replace,
       );
     } catch (e) {
-      throw CacheDatabaseException(
-        'Failed to enqueue pending sync delete: $e',
-      );
+      throw CacheDatabaseException('Failed to enqueue pending sync delete: $e');
     }
   }
 
@@ -67,8 +63,8 @@ class PendingSyncDeleteLocalDataSourceImpl
       await db.update(
         DatabaseTables.pendingSyncDeletes,
         <String, Object?>{
-          DatabaseTables.pendingDeleteLastAttemptAt:
-              attemptedAt.toIso8601String(),
+          DatabaseTables.pendingDeleteLastAttemptAt: attemptedAt
+              .toIso8601String(),
           DatabaseTables.pendingDeleteErrorMessage: errorMessage,
         },
         where: '${DatabaseTables.pendingDeleteId} = ?',
@@ -91,9 +87,7 @@ class PendingSyncDeleteLocalDataSourceImpl
         whereArgs: [operationId],
       );
     } catch (e) {
-      throw CacheDatabaseException(
-        'Failed to remove pending sync delete: $e',
-      );
+      throw CacheDatabaseException('Failed to remove pending sync delete: $e');
     }
   }
 
@@ -103,9 +97,7 @@ class PendingSyncDeleteLocalDataSourceImpl
       final db = await databaseHelper.database;
       await db.delete(DatabaseTables.pendingSyncDeletes);
     } catch (e) {
-      throw CacheDatabaseException(
-        'Failed to clear pending sync deletes: $e',
-      );
+      throw CacheDatabaseException('Failed to clear pending sync deletes: $e');
     }
   }
 }

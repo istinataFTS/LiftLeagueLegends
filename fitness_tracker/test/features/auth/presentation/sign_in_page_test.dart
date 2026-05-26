@@ -38,13 +38,10 @@ void main() {
     }
   });
 
-  testWidgets('renders sign-in form and submits credentials',
-      (WidgetTester tester) async {
-    await tester.pumpWidget(
-      const MaterialApp(
-        home: SignInPage(),
-      ),
-    );
+  testWidgets('renders sign-in form and submits credentials', (
+    WidgetTester tester,
+  ) async {
+    await tester.pumpWidget(const MaterialApp(home: SignInPage()));
 
     await tester.enterText(
       find.byKey(SignInPage.emailFieldKey),
@@ -66,13 +63,10 @@ void main() {
     ).called(1);
   });
 
-  testWidgets('shows validation feedback without calling service',
-      (WidgetTester tester) async {
-    await tester.pumpWidget(
-      const MaterialApp(
-        home: SignInPage(),
-      ),
-    );
+  testWidgets('shows validation feedback without calling service', (
+    WidgetTester tester,
+  ) async {
+    await tester.pumpWidget(const MaterialApp(home: SignInPage()));
 
     await tester.tap(find.byKey(SignInPage.submitButtonKey));
     await tester.pump();

@@ -178,10 +178,7 @@ class PerformanceMonitor {
     return report;
   }
 
-  static void logSummary(
-    String operation, {
-    String category = 'performance',
-  }) {
+  static void logSummary(String operation, {String category = 'performance'}) {
     final summary = getSummary(operation);
     if (summary == null) {
       return;
@@ -216,9 +213,7 @@ class PerformanceMonitor {
     );
   }
 
-  static void logMetricsSnapshot({
-    String category = 'performance',
-  }) {
+  static void logMetricsSnapshot({String category = 'performance'}) {
     final report = getPerformanceReport();
     if (report.isEmpty) {
       AppLogger.debug(
@@ -228,10 +223,7 @@ class PerformanceMonitor {
       return;
     }
 
-    AppLogger.info(
-      'Performance metrics snapshot: $report',
-      category: category,
-    );
+    AppLogger.info('Performance metrics snapshot: $report', category: category);
   }
 
   static void clearMetrics() {

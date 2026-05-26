@@ -55,8 +55,9 @@ class OfflineVoiceCoordinator {
       ParsedQueryWeeklyVolume() => _queryCall('getWeeklyVolume', {}),
       ParsedQueryDailyMacros() => _queryCall('getDailyMacros', {}),
       ParsedQueryRecentSets() => _queryCall('getRecentSets', {}),
-      ParsedUnrecognized() =>
-        _errorResponse(AppStrings.voiceOfflineUnrecognized),
+      ParsedUnrecognized() => _errorResponse(
+        AppStrings.voiceOfflineUnrecognized,
+      ),
     };
   }
 

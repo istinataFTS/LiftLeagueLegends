@@ -38,12 +38,13 @@ class ExerciseModel extends Exercise {
       id: map[DatabaseTables.exerciseId] as String,
       ownerUserId: map[DatabaseTables.ownerUserId] as String?,
       name: map[DatabaseTables.exerciseName] as String,
-      muscleGroups: _normaliseMuscleGroups(_decodeMuscleGroups(
-        map[DatabaseTables.exerciseMuscleGroups] as String,
-      )),
+      muscleGroups: _normaliseMuscleGroups(
+        _decodeMuscleGroups(map[DatabaseTables.exerciseMuscleGroups] as String),
+      ),
       createdAt: createdAt,
-      updatedAt:
-          updatedAtRaw == null ? createdAt : DateTime.parse(updatedAtRaw),
+      updatedAt: updatedAtRaw == null
+          ? createdAt
+          : DateTime.parse(updatedAtRaw),
       syncMetadata: EntitySyncMetadata(
         serverId: map[DatabaseTables.exerciseServerId] as String?,
         status: _syncStatusFromStorage(
@@ -67,8 +68,8 @@ class ExerciseModel extends Exercise {
       DatabaseTables.exerciseUpdatedAt: updatedAt.toIso8601String(),
       DatabaseTables.exerciseServerId: syncMetadata.serverId,
       DatabaseTables.exerciseSyncStatus: syncMetadata.status.name,
-      DatabaseTables.exerciseLastSyncedAt:
-          syncMetadata.lastSyncedAt?.toIso8601String(),
+      DatabaseTables.exerciseLastSyncedAt: syncMetadata.lastSyncedAt
+          ?.toIso8601String(),
       DatabaseTables.exerciseLastSyncError: syncMetadata.lastSyncError,
     };
   }
@@ -81,11 +82,13 @@ class ExerciseModel extends Exercise {
       id: json['id'] as String,
       ownerUserId: json['ownerUserId'] as String?,
       name: json['name'] as String,
-      muscleGroups:
-          _normaliseMuscleGroups((json['muscleGroups'] as List).cast<String>()),
+      muscleGroups: _normaliseMuscleGroups(
+        (json['muscleGroups'] as List).cast<String>(),
+      ),
       createdAt: createdAt,
-      updatedAt:
-          updatedAtRaw == null ? createdAt : DateTime.parse(updatedAtRaw),
+      updatedAt: updatedAtRaw == null
+          ? createdAt
+          : DateTime.parse(updatedAtRaw),
       syncMetadata: EntitySyncMetadata(
         serverId: json['serverId'] as String?,
         status: _syncStatusFromStorage(json['syncStatus'] as String?),
@@ -121,9 +124,7 @@ class ExerciseModel extends Exercise {
   /// form.  Prevents case-mismatch drops in mappers like
   /// `HomeViewDataMapper._buildMuscleBreakdown`.
   static List<String> _normaliseMuscleGroups(List<String> raw) {
-    return raw
-        .map((m) => m.trim().toLowerCase())
-        .toList(growable: false);
+    return raw.map((m) => m.trim().toLowerCase()).toList(growable: false);
   }
 
   static List<String> _decodeMuscleGroups(String json) {

@@ -33,7 +33,8 @@ class PendingSyncDeleteModel extends PendingSyncDelete {
         orElse: () => SyncEntityType.workoutSet,
       ),
       localEntityId: map[DatabaseTables.pendingDeleteLocalEntityId] as String,
-      serverEntityId: map[DatabaseTables.pendingDeleteServerEntityId] as String?,
+      serverEntityId:
+          map[DatabaseTables.pendingDeleteServerEntityId] as String?,
       createdAt: DateTime.parse(
         map[DatabaseTables.pendingDeleteCreatedAt] as String,
       ),
@@ -51,8 +52,8 @@ class PendingSyncDeleteModel extends PendingSyncDelete {
       DatabaseTables.pendingDeleteLocalEntityId: localEntityId,
       DatabaseTables.pendingDeleteServerEntityId: serverEntityId,
       DatabaseTables.pendingDeleteCreatedAt: createdAt.toIso8601String(),
-      DatabaseTables.pendingDeleteLastAttemptAt:
-          lastAttemptAt?.toIso8601String(),
+      DatabaseTables.pendingDeleteLastAttemptAt: lastAttemptAt
+          ?.toIso8601String(),
       DatabaseTables.pendingDeleteErrorMessage: errorMessage,
     };
   }

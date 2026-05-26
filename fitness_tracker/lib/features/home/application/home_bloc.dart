@@ -35,9 +35,7 @@ class HomeLoading extends HomeState {
 }
 
 class HomeLoaded extends HomeState {
-  const HomeLoaded({
-    required this.data,
-  });
+  const HomeLoaded({required this.data});
 
   final HomeDashboardData data;
 
@@ -55,10 +53,9 @@ class HomeError extends HomeState {
 }
 
 class HomeBloc extends Bloc<HomeEvent, HomeState> {
-  HomeBloc({
-    required LoadHomeDashboardData loadHomeDashboardData,
-  })  : _loadHomeDashboardData = loadHomeDashboardData,
-        super(const HomeInitial()) {
+  HomeBloc({required LoadHomeDashboardData loadHomeDashboardData})
+    : _loadHomeDashboardData = loadHomeDashboardData,
+      super(const HomeInitial()) {
     on<LoadHomeDataEvent>(_onLoadHomeData);
     on<RefreshHomeDataEvent>(_onRefreshHomeData);
   }
@@ -77,10 +74,7 @@ class HomeBloc extends Bloc<HomeEvent, HomeState> {
     RefreshHomeDataEvent event,
     Emitter<HomeState> emit,
   ) async {
-    await _loadAndEmitHomeState(
-      emit,
-      preserveCurrentStateOnFailure: true,
-    );
+    await _loadAndEmitHomeState(emit, preserveCurrentStateOnFailure: true);
   }
 
   Future<void> _loadAndEmitHomeState(

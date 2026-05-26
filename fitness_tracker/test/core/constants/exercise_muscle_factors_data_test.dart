@@ -10,17 +10,19 @@ void main() {
   // must be tolerant of spelling drift.
   group('ExerciseMuscleFactorsData name-normalized lookup', () {
     test('canonical hyphenated name still resolves', () {
-      final factors = ExerciseMuscleFactorsData.getFactorsForExercise('Sit-ups');
+      final factors = ExerciseMuscleFactorsData.getFactorsForExercise(
+        'Sit-ups',
+      );
       expect(factors, isNotNull);
       expect(factors, isNotEmpty);
       expect(ExerciseMuscleFactorsData.hasFactors('Sit-ups'), isTrue);
     });
 
     test('space-separated variant resolves to same factors', () {
-      final hyphen =
-          ExerciseMuscleFactorsData.getFactorsForExercise('Sit-ups')!;
-      final spaced =
-          ExerciseMuscleFactorsData.getFactorsForExercise('Sit Ups');
+      final hyphen = ExerciseMuscleFactorsData.getFactorsForExercise(
+        'Sit-ups',
+      )!;
+      final spaced = ExerciseMuscleFactorsData.getFactorsForExercise('Sit Ups');
       expect(spaced, isNotNull);
       expect(spaced!.length, hyphen.length);
       expect(ExerciseMuscleFactorsData.hasFactors('Sit Ups'), isTrue);

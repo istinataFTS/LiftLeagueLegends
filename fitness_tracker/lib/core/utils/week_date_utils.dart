@@ -7,10 +7,7 @@ class WeekDateUtils {
     return DateTime(date.year, date.month, date.day);
   }
 
-  static DateTime startOfWeek(
-    DateTime date,
-    WeekStartDay weekStartDay,
-  ) {
+  static DateTime startOfWeek(DateTime date, WeekStartDay weekStartDay) {
     final normalized = normalizeDate(date);
 
     switch (weekStartDay) {
@@ -24,13 +21,11 @@ class WeekDateUtils {
     }
   }
 
-  static DateTime endOfWeek(
-    DateTime date,
-    WeekStartDay weekStartDay,
-  ) {
-    return startOfWeek(date, weekStartDay).add(
-      const Duration(days: DateTime.daysPerWeek - 1),
-    );
+  static DateTime endOfWeek(DateTime date, WeekStartDay weekStartDay) {
+    return startOfWeek(
+      date,
+      weekStartDay,
+    ).add(const Duration(days: DateTime.daysPerWeek - 1));
   }
 
   static int leadingEmptyCellCount(

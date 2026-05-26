@@ -12,16 +12,16 @@ class SignUpPage extends StatelessWidget {
   static const Key emailFieldKey = Key('sign_up_email_field');
   static const Key usernameFieldKey = Key('sign_up_username_field');
   static const Key passwordFieldKey = Key('sign_up_password_field');
-  static const Key confirmPasswordFieldKey =
-      Key('sign_up_confirm_password_field');
+  static const Key confirmPasswordFieldKey = Key(
+    'sign_up_confirm_password_field',
+  );
   static const Key submitButtonKey = Key('sign_up_submit_button');
 
   @override
   Widget build(BuildContext context) {
     return BlocProvider<SignUpCubit>(
-      create: (_) => SignUpCubit(
-        authSessionService: di.sl<AuthSessionService>(),
-      ),
+      create: (_) =>
+          SignUpCubit(authSessionService: di.sl<AuthSessionService>()),
       child: const _SignUpView(),
     );
   }
@@ -71,9 +71,9 @@ class _SignUpViewState extends State<_SignUpView> {
         if (state.isFailure &&
             state.errorMessage != null &&
             state.errorMessage!.isNotEmpty) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(content: Text(state.errorMessage!)),
-          );
+          ScaffoldMessenger.of(
+            context,
+          ).showSnackBar(SnackBar(content: Text(state.errorMessage!)));
           context.read<SignUpCubit>().clearError();
         }
 
@@ -160,14 +160,14 @@ class _SignUpViewState extends State<_SignUpView> {
                   const SizedBox(height: 24),
                   ElevatedButton(
                     key: SignUpPage.submitButtonKey,
-                    onPressed:
-                        state.isSubmitting ? null : () => _submit(context),
+                    onPressed: state.isSubmitting
+                        ? null
+                        : () => _submit(context),
                     child: state.isSubmitting
                         ? const SizedBox(
                             height: 18,
                             width: 18,
-                            child:
-                                CircularProgressIndicator(strokeWidth: 2),
+                            child: CircularProgressIndicator(strokeWidth: 2),
                           )
                         : const Text('Create account'),
                   ),
@@ -187,11 +187,11 @@ class _SignUpViewState extends State<_SignUpView> {
 
   void _submit(BuildContext context) {
     context.read<SignUpCubit>().submit(
-          email: _emailController.text,
-          password: _passwordController.text,
-          confirmPassword: _confirmPasswordController.text,
-          username: _usernameController.text,
-        );
+      email: _emailController.text,
+      password: _passwordController.text,
+      confirmPassword: _confirmPasswordController.text,
+      username: _usernameController.text,
+    );
   }
 
   Future<void> _navigateToOtpVerification(

@@ -17,11 +17,11 @@ class LoadHomeDashboardData {
     required MuscleLoadResolver muscleLoadResolver,
     required AppSessionRepository appSessionRepository,
     Clock clock = const SystemClock(),
-  })  : _getLogsForDate = getLogsForDate,
-        _getDailyMacros = getDailyMacros,
-        _muscleLoadResolver = muscleLoadResolver,
-        _appSessionRepository = appSessionRepository,
-        _clock = clock;
+  }) : _getLogsForDate = getLogsForDate,
+       _getDailyMacros = getDailyMacros,
+       _muscleLoadResolver = muscleLoadResolver,
+       _appSessionRepository = appSessionRepository,
+       _clock = clock;
 
   final GetLogsForDate _getLogsForDate;
   final GetDailyMacros _getDailyMacros;
@@ -48,17 +48,14 @@ class LoadHomeDashboardData {
     final DateTime today = _clock.now();
     final logsResult = await _getLogsForDate(today);
 
-    return logsResult.fold<List<NutritionLog>>(
-      (_) => <NutritionLog>[],
-      (logs) {
-        final List<NutritionLog> sortedLogs = <NutritionLog>[...logs]
-          ..sort(
-            (NutritionLog a, NutritionLog b) =>
-                b.createdAt.compareTo(a.createdAt),
-          );
-        return sortedLogs;
-      },
-    );
+    return logsResult.fold<List<NutritionLog>>((_) => <NutritionLog>[], (logs) {
+      final List<NutritionLog> sortedLogs = <NutritionLog>[...logs]
+        ..sort(
+          (NutritionLog a, NutritionLog b) =>
+              b.createdAt.compareTo(a.createdAt),
+        );
+      return sortedLogs;
+    });
   }
 
   Future<Map<String, double>> _loadDailyMacros() async {
@@ -113,8 +110,8 @@ class _WeeklyMuscleLoad {
   });
 
   const _WeeklyMuscleLoad.empty()
-      : countsByMuscle = const <String, int>{},
-        totalSetCount = 0;
+    : countsByMuscle = const <String, int>{},
+      totalSetCount = 0;
 
   final Map<String, int> countsByMuscle;
   final int totalSetCount;

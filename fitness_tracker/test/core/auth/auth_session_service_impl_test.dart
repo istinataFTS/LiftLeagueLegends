@@ -114,29 +114,32 @@ void main() {
       ).called(1);
     });
 
-    test('returns failure with auth message when credentials are wrong',
-        () async {
-      when(
-        () => authRemoteDataSource.signInWithEmail(
+    test(
+      'returns failure with auth message when credentials are wrong',
+      () async {
+        when(
+          () => authRemoteDataSource.signInWithEmail(
+            email: 'marin@test.com',
+            password: 'bad-password',
+          ),
+        ).thenAnswer(
+          (_) async =>
+              throw const AuthSyncException('invalid login credentials'),
+        );
+
+        final result = await service.signInWithEmail(
           email: 'marin@test.com',
           password: 'bad-password',
-        ),
-      ).thenAnswer(
-        (_) async => throw const AuthSyncException('invalid login credentials'),
-      );
+        );
 
-      final result = await service.signInWithEmail(
-        email: 'marin@test.com',
-        password: 'bad-password',
-      );
+        expect(result.isFailure, isTrue);
+        expect(result.message, 'sign-in failed: invalid login credentials');
 
-      expect(result.isFailure, isTrue);
-      expect(result.message, 'sign-in failed: invalid login credentials');
-
-      verifyNever(
-        () => sessionSyncService.establishAuthenticatedSession(any()),
-      );
-    });
+        verifyNever(
+          () => sessionSyncService.establishAuthenticatedSession(any()),
+        );
+      },
+    );
 
     test('returns network message when network is unavailable', () async {
       when(
@@ -160,32 +163,34 @@ void main() {
       );
     });
 
-    test('returns failure when session initialization fails after sign-in',
-        () async {
-      when(
-        () => authRemoteDataSource.signInWithEmail(
+    test(
+      'returns failure when session initialization fails after sign-in',
+      () async {
+        when(
+          () => authRemoteDataSource.signInWithEmail(
+            email: 'marin@test.com',
+            password: 'secret-password',
+          ),
+        ).thenAnswer((_) async => user);
+
+        when(
+          () => sessionSyncService.establishAuthenticatedSession(user),
+        ).thenAnswer((_) async => sessionFailed);
+
+        final result = await service.signInWithEmail(
           email: 'marin@test.com',
           password: 'secret-password',
-        ),
-      ).thenAnswer((_) async => user);
+        );
 
-      when(
-        () => sessionSyncService.establishAuthenticatedSession(user),
-      ).thenAnswer((_) async => sessionFailed);
-
-      final result = await service.signInWithEmail(
-        email: 'marin@test.com',
-        password: 'secret-password',
-      );
-
-      expect(result.isFailure, isTrue);
-      expect(
-        result.message,
-        'sign-in succeeded but session initialization failed: '
-        'initial sign-in sync failed: sync failed',
-      );
-      expect(result.user, user);
-    });
+        expect(result.isFailure, isTrue);
+        expect(
+          result.message,
+          'sign-in succeeded but session initialization failed: '
+          'initial sign-in sync failed: sync failed',
+        );
+        expect(result.user, user);
+      },
+    );
 
     test('returns failure when session initialization is skipped', () async {
       when(
@@ -229,42 +234,43 @@ void main() {
       requiresEmailConfirmation: true,
     );
 
-    test('registers and establishes session when no email confirmation needed',
-        () async {
-      when(
-        () => authRemoteDataSource.signUpWithEmail(
+    test(
+      'registers and establishes session when no email confirmation needed',
+      () async {
+        when(
+          () => authRemoteDataSource.signUpWithEmail(
+            email: 'marin@test.com',
+            password: 'secret-password',
+            username: 'marin',
+          ),
+        ).thenAnswer((_) async => signUpResult);
+
+        when(
+          () => sessionSyncService.establishAuthenticatedSession(user),
+        ).thenAnswer((_) async => sessionCompleted);
+
+        when(
+          () => userProfileRepository.upsertProfile(any()),
+        ).thenAnswer((_) async => Right(profileFixture));
+
+        final result = await service.signUpWithEmail(
           email: 'marin@test.com',
           password: 'secret-password',
           username: 'marin',
-        ),
-      ).thenAnswer((_) async => signUpResult);
+        );
 
-      when(
-        () => sessionSyncService.establishAuthenticatedSession(user),
-      ).thenAnswer((_) async => sessionCompleted);
+        expect(result.isSuccess, isTrue);
+        expect(result.message, 'sign-up completed successfully');
+        expect(result.requiresEmailConfirmation, isFalse);
+        expect(result.user, user);
 
-      when(
-        () => userProfileRepository.upsertProfile(any()),
-      ).thenAnswer((_) async => Right(profileFixture));
+        verify(
+          () => sessionSyncService.establishAuthenticatedSession(user),
+        ).called(1);
+      },
+    );
 
-      final result = await service.signUpWithEmail(
-        email: 'marin@test.com',
-        password: 'secret-password',
-        username: 'marin',
-      );
-
-      expect(result.isSuccess, isTrue);
-      expect(result.message, 'sign-up completed successfully');
-      expect(result.requiresEmailConfirmation, isFalse);
-      expect(result.user, user);
-
-      verify(
-        () => sessionSyncService.establishAuthenticatedSession(user),
-      ).called(1);
-    });
-
-    test(
-        'returns success with requiresEmailConfirmation when backend requires '
+    test('returns success with requiresEmailConfirmation when backend requires '
         'confirmation', () async {
       when(
         () => authRemoteDataSource.signUpWithEmail(
@@ -290,86 +296,91 @@ void main() {
       );
     });
 
-    test('returns failure with auth message when sign-up is rejected',
-        () async {
-      when(
-        () => authRemoteDataSource.signUpWithEmail(
+    test(
+      'returns failure with auth message when sign-up is rejected',
+      () async {
+        when(
+          () => authRemoteDataSource.signUpWithEmail(
+            email: 'marin@test.com',
+            password: 'secret-password',
+            username: 'marin',
+          ),
+        ).thenAnswer(
+          (_) async =>
+              throw const AuthSyncException('email already registered'),
+        );
+
+        final result = await service.signUpWithEmail(
           email: 'marin@test.com',
           password: 'secret-password',
           username: 'marin',
-        ),
-      ).thenAnswer(
-        (_) async =>
-            throw const AuthSyncException('email already registered'),
-      );
+        );
 
-      final result = await service.signUpWithEmail(
-        email: 'marin@test.com',
-        password: 'secret-password',
-        username: 'marin',
-      );
+        expect(result.isFailure, isTrue);
+        expect(result.message, 'sign-up failed: email already registered');
 
-      expect(result.isFailure, isTrue);
-      expect(result.message, 'sign-up failed: email already registered');
-
-      verifyNever(
-        () => sessionSyncService.establishAuthenticatedSession(any()),
-      );
-    });
-
-    test('returns network message when network is unavailable during sign-up',
-        () async {
-      when(
-        () => authRemoteDataSource.signUpWithEmail(
-          email: 'marin@test.com',
-          password: 'secret-password',
-          username: 'marin',
-        ),
-      ).thenAnswer(
-        (_) async => throw const NetworkSyncException('no route to host'),
-      );
-
-      final result = await service.signUpWithEmail(
-        email: 'marin@test.com',
-        password: 'secret-password',
-        username: 'marin',
-      );
-
-      expect(result.isFailure, isTrue);
-      expect(
-        result.message,
-        'Network unavailable. Please check your connection.',
-      );
-    });
+        verifyNever(
+          () => sessionSyncService.establishAuthenticatedSession(any()),
+        );
+      },
+    );
 
     test(
-        'returns failure when sign-up succeeds but session initialization fails',
-        () async {
-      when(
-        () => authRemoteDataSource.signUpWithEmail(
+      'returns network message when network is unavailable during sign-up',
+      () async {
+        when(
+          () => authRemoteDataSource.signUpWithEmail(
+            email: 'marin@test.com',
+            password: 'secret-password',
+            username: 'marin',
+          ),
+        ).thenAnswer(
+          (_) async => throw const NetworkSyncException('no route to host'),
+        );
+
+        final result = await service.signUpWithEmail(
           email: 'marin@test.com',
           password: 'secret-password',
           username: 'marin',
-        ),
-      ).thenAnswer((_) async => signUpResult);
+        );
 
-      when(
-        () => sessionSyncService.establishAuthenticatedSession(user),
-      ).thenAnswer((_) async => sessionFailed);
+        expect(result.isFailure, isTrue);
+        expect(
+          result.message,
+          'Network unavailable. Please check your connection.',
+        );
+      },
+    );
 
-      final result = await service.signUpWithEmail(
-        email: 'marin@test.com',
-        password: 'secret-password',
-        username: 'marin',
-      );
+    test(
+      'returns failure when sign-up succeeds but session initialization fails',
+      () async {
+        when(
+          () => authRemoteDataSource.signUpWithEmail(
+            email: 'marin@test.com',
+            password: 'secret-password',
+            username: 'marin',
+          ),
+        ).thenAnswer((_) async => signUpResult);
 
-      expect(result.isFailure, isTrue);
-      expect(
-        result.message,
-        contains('sign-up succeeded but session initialization failed'),
-      );
-      expect(result.user, user);
-    });
+        when(
+          () => sessionSyncService.establishAuthenticatedSession(user),
+        ).thenAnswer((_) async => sessionFailed);
+
+        final result = await service.signUpWithEmail(
+          email: 'marin@test.com',
+          password: 'secret-password',
+          username: 'marin',
+        );
+
+        expect(result.isFailure, isTrue);
+        expect(
+          result.message,
+          contains('sign-up succeeded but session initialization failed'),
+        );
+        expect(result.user, user);
+      },
+    );
   });
 
   // ---------------------------------------------------------------------------
@@ -378,75 +389,76 @@ void main() {
 
   group('verifyEmailOtp', () {
     test(
-        'verifies OTP remotely, establishes session, and creates initial profile',
-        () async {
-      when(
-        () => authRemoteDataSource.verifyEmailOtp(
-          email: 'marin@test.com',
+      'verifies OTP remotely, establishes session, and creates initial profile',
+      () async {
+        when(
+          () => authRemoteDataSource.verifyEmailOtp(
+            email: 'marin@test.com',
+            token: '123456',
+          ),
+        ).thenAnswer((_) async => user);
+
+        when(
+          () => sessionSyncService.establishAuthenticatedSession(user),
+        ).thenAnswer((_) async => sessionCompleted);
+
+        when(
+          () => userProfileRepository.upsertProfile(any()),
+        ).thenAnswer((_) async => Right(profileFixture));
+
+        final result = await service.verifyEmailOtp(
+          email: ' marin@test.com ',
           token: '123456',
-        ),
-      ).thenAnswer((_) async => user);
+        );
 
-      when(
-        () => sessionSyncService.establishAuthenticatedSession(user),
-      ).thenAnswer((_) async => sessionCompleted);
+        expect(result.isSuccess, isTrue);
+        expect(result.message, 'email verified successfully');
+        expect(result.user, user);
 
-      when(
-        () => userProfileRepository.upsertProfile(any()),
-      ).thenAnswer((_) async => Right(profileFixture));
+        verify(
+          () => authRemoteDataSource.verifyEmailOtp(
+            email: 'marin@test.com',
+            token: '123456',
+          ),
+        ).called(1);
 
-      final result = await service.verifyEmailOtp(
-        email: ' marin@test.com ',
-        token: '123456',
-      );
+        verify(
+          () => sessionSyncService.establishAuthenticatedSession(user),
+        ).called(1);
 
-      expect(result.isSuccess, isTrue);
-      expect(result.message, 'email verified successfully');
-      expect(result.user, user);
+        verify(() => userProfileRepository.upsertProfile(any())).called(1);
+      },
+    );
 
-      verify(
-        () => authRemoteDataSource.verifyEmailOtp(
-          email: 'marin@test.com',
-          token: '123456',
-        ),
-      ).called(1);
+    test(
+      'returns failure with auth message when OTP is invalid or expired',
+      () async {
+        when(
+          () => authRemoteDataSource.verifyEmailOtp(
+            email: 'marin@test.com',
+            token: '000000',
+          ),
+        ).thenAnswer(
+          (_) async =>
+              throw const AuthSyncException('token has expired or is invalid'),
+        );
 
-      verify(
-        () => sessionSyncService.establishAuthenticatedSession(user),
-      ).called(1);
-
-      verify(
-        () => userProfileRepository.upsertProfile(any()),
-      ).called(1);
-    });
-
-    test('returns failure with auth message when OTP is invalid or expired',
-        () async {
-      when(
-        () => authRemoteDataSource.verifyEmailOtp(
+        final result = await service.verifyEmailOtp(
           email: 'marin@test.com',
           token: '000000',
-        ),
-      ).thenAnswer(
-        (_) async =>
-            throw const AuthSyncException('token has expired or is invalid'),
-      );
+        );
 
-      final result = await service.verifyEmailOtp(
-        email: 'marin@test.com',
-        token: '000000',
-      );
+        expect(result.isFailure, isTrue);
+        expect(
+          result.message,
+          'otp-verification failed: token has expired or is invalid',
+        );
 
-      expect(result.isFailure, isTrue);
-      expect(
-        result.message,
-        'otp-verification failed: token has expired or is invalid',
-      );
-
-      verifyNever(
-        () => sessionSyncService.establishAuthenticatedSession(any()),
-      );
-    });
+        verifyNever(
+          () => sessionSyncService.establishAuthenticatedSession(any()),
+        );
+      },
+    );
 
     test('returns network message when network is unavailable', () async {
       when(
@@ -471,33 +483,36 @@ void main() {
     });
 
     test(
-        'returns failure when OTP is valid but session initialization fails',
-        () async {
-      when(
-        () => authRemoteDataSource.verifyEmailOtp(
+      'returns failure when OTP is valid but session initialization fails',
+      () async {
+        when(
+          () => authRemoteDataSource.verifyEmailOtp(
+            email: 'marin@test.com',
+            token: '123456',
+          ),
+        ).thenAnswer((_) async => user);
+
+        when(
+          () => sessionSyncService.establishAuthenticatedSession(user),
+        ).thenAnswer((_) async => sessionFailed);
+
+        final result = await service.verifyEmailOtp(
           email: 'marin@test.com',
           token: '123456',
-        ),
-      ).thenAnswer((_) async => user);
+        );
 
-      when(
-        () => sessionSyncService.establishAuthenticatedSession(user),
-      ).thenAnswer((_) async => sessionFailed);
+        expect(result.isFailure, isTrue);
+        expect(
+          result.message,
+          contains(
+            'otp-verification succeeded but session initialization failed',
+          ),
+        );
+        expect(result.user, user);
 
-      final result = await service.verifyEmailOtp(
-        email: 'marin@test.com',
-        token: '123456',
-      );
-
-      expect(result.isFailure, isTrue);
-      expect(
-        result.message,
-        contains('otp-verification succeeded but session initialization failed'),
-      );
-      expect(result.user, user);
-
-      // Profile must not be created when session fails.
-      verifyNever(() => userProfileRepository.upsertProfile(any()));
-    });
+        // Profile must not be created when session fails.
+        verifyNever(() => userProfileRepository.upsertProfile(any()));
+      },
+    );
   });
 }

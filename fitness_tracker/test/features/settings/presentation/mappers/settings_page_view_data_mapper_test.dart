@@ -21,51 +21,54 @@ void main() {
   }
 
   group('SettingsPageViewDataMapper', () {
-    test('maps settings previews and selection options from current settings', () {
-      final AppSettingsState state = buildState(
-        settings: const AppSettings(
-          notificationsEnabled: true,
-          weekStartDay: WeekStartDay.sunday,
-          weightUnit: WeightUnit.pounds,
-        ),
-      );
+    test(
+      'maps settings previews and selection options from current settings',
+      () {
+        final AppSettingsState state = buildState(
+          settings: const AppSettings(
+            notificationsEnabled: true,
+            weekStartDay: WeekStartDay.sunday,
+            weightUnit: WeightUnit.pounds,
+          ),
+        );
 
-      final viewData = SettingsPageViewDataMapper.map(state);
+        final viewData = SettingsPageViewDataMapper.map(state);
 
-      expect(viewData.notificationsEnabled, isTrue);
-      expect(viewData.weekStartSubtitle, 'Sunday');
-      expect(viewData.weekStartPreview, 'Week preview: Mar 15 - Mar 21');
-      expect(viewData.weightUnitSubtitle, 'Pounds (lb)');
-      expect(viewData.weightUnitPreview, 'Display preview: 181.9 lbs');
+        expect(viewData.notificationsEnabled, isTrue);
+        expect(viewData.weekStartSubtitle, 'Sunday');
+        expect(viewData.weekStartPreview, 'Week preview: Mar 15 - Mar 21');
+        expect(viewData.weightUnitSubtitle, 'Pounds (lb)');
+        expect(viewData.weightUnitPreview, 'Display preview: 181.9 lbs');
 
-      expect(viewData.weekStartOptions, hasLength(2));
-      expect(
-        viewData.weekStartOptions.singleWhere(
-          (option) => option.value == WeekStartDay.sunday,
-        ).selected,
-        isTrue,
-      );
-      expect(
-        viewData.weekStartOptions.singleWhere(
-          (option) => option.value == WeekStartDay.monday,
-        ).selected,
-        isFalse,
-      );
+        expect(viewData.weekStartOptions, hasLength(2));
+        expect(
+          viewData.weekStartOptions
+              .singleWhere((option) => option.value == WeekStartDay.sunday)
+              .selected,
+          isTrue,
+        );
+        expect(
+          viewData.weekStartOptions
+              .singleWhere((option) => option.value == WeekStartDay.monday)
+              .selected,
+          isFalse,
+        );
 
-      expect(viewData.weightUnitOptions, hasLength(2));
-      expect(
-        viewData.weightUnitOptions.singleWhere(
-          (option) => option.value == WeightUnit.pounds,
-        ).selected,
-        isTrue,
-      );
-      expect(
-        viewData.weightUnitOptions.singleWhere(
-          (option) => option.value == WeightUnit.kilograms,
-        ).selected,
-        isFalse,
-      );
-    });
+        expect(viewData.weightUnitOptions, hasLength(2));
+        expect(
+          viewData.weightUnitOptions
+              .singleWhere((option) => option.value == WeightUnit.pounds)
+              .selected,
+          isTrue,
+        );
+        expect(
+          viewData.weightUnitOptions
+              .singleWhere((option) => option.value == WeightUnit.kilograms)
+              .selected,
+          isFalse,
+        );
+      },
+    );
 
     test('keeps loading state gated behind hasLoaded', () {
       final AppSettingsState initialLoadingState = buildState(
@@ -78,10 +81,12 @@ void main() {
         hasLoaded: true,
       );
 
-      final initialViewData =
-          SettingsPageViewDataMapper.map(initialLoadingState);
-      final refreshViewData =
-          SettingsPageViewDataMapper.map(refreshLoadingState);
+      final initialViewData = SettingsPageViewDataMapper.map(
+        initialLoadingState,
+      );
+      final refreshViewData = SettingsPageViewDataMapper.map(
+        refreshLoadingState,
+      );
 
       expect(initialViewData.isLoading, isTrue);
       expect(refreshViewData.isLoading, isFalse);

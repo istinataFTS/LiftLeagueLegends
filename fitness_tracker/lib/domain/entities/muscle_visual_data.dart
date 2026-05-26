@@ -117,12 +117,12 @@ class MuscleVisualData extends Equatable {
     }
   }
 
-  bool get appearsOnFront => visibleSurfaces.contains(MuscleVisualSurface.front);
+  bool get appearsOnFront =>
+      visibleSurfaces.contains(MuscleVisualSurface.front);
 
   bool get appearsOnBack => visibleSurfaces.contains(MuscleVisualSurface.back);
 
-  bool get isOverflowing =>
-      coverageState == MuscleVisualCoverageState.overflow;
+  bool get isOverflowing => coverageState == MuscleVisualCoverageState.overflow;
 
   String get intensityLevel {
     switch (bucket) {
@@ -169,15 +169,15 @@ class MuscleVisualData extends Equatable {
 
   @override
   List<Object?> get props => [
-        muscleGroup,
-        totalStimulus,
-        threshold,
-        visualIntensity,
-        bucket,
-        coverageState,
-        aggregationMode,
-        visibleSurfaces,
-        overflowAmount,
-        hasTrained,
-      ];
+    muscleGroup,
+    totalStimulus,
+    threshold,
+    visualIntensity,
+    bucket,
+    coverageState,
+    aggregationMode,
+    visibleSurfaces,
+    overflowAmount,
+    hasTrained,
+  ];
 }

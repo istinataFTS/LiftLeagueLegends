@@ -89,7 +89,8 @@ class _VoiceOverlayViewState extends State<_VoiceOverlayView> {
       // Auto-start STT on first frame: the user has already spoken the wake
       // word and expects the assistant to be listening immediately.
       WidgetsBinding.instance.addPostFrameCallback((_) {
-        if (mounted) context.read<VoiceBloc>().add(const VoiceListenRequested());
+        if (mounted)
+          context.read<VoiceBloc>().add(const VoiceListenRequested());
       });
     }
   }

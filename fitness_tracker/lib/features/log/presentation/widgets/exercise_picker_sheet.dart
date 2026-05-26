@@ -71,9 +71,8 @@ class _ExercisePickerSheetState extends State<ExercisePickerSheet> {
       result = result.where((e) {
         return e.name.toLowerCase().contains(query) ||
             e.muscleGroups.any(
-              (mg) => MuscleGroups.getDisplayName(mg).toLowerCase().contains(
-                    query,
-                  ),
+              (mg) =>
+                  MuscleGroups.getDisplayName(mg).toLowerCase().contains(query),
             );
       }).toList();
     }
@@ -135,9 +134,9 @@ class _ExercisePickerSheetState extends State<ExercisePickerSheet> {
           Expanded(
             child: Text(
               AppStrings.selectExercise,
-              style: Theme.of(context).textTheme.titleLarge?.copyWith(
-                    fontWeight: FontWeight.w600,
-                  ),
+              style: Theme.of(
+                context,
+              ).textTheme.titleLarge?.copyWith(fontWeight: FontWeight.w600),
             ),
           ),
           IconButton(
@@ -211,9 +210,9 @@ class _ExercisePickerSheetState extends State<ExercisePickerSheet> {
       return Center(
         child: Text(
           AppStrings.noResultsFound,
-          style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                color: AppTheme.textMedium,
-              ),
+          style: Theme.of(
+            context,
+          ).textTheme.bodyMedium?.copyWith(color: AppTheme.textMedium),
         ),
       );
     }
@@ -224,10 +223,7 @@ class _ExercisePickerSheetState extends State<ExercisePickerSheet> {
     );
   }
 
-  Widget _buildSectionedList(
-    List<Exercise> recents,
-    List<Exercise> all,
-  ) {
+  Widget _buildSectionedList(List<Exercise> recents, List<Exercise> all) {
     return ListView(
       children: <Widget>[
         if (recents.isNotEmpty) ...<Widget>[
@@ -247,10 +243,10 @@ class _ExercisePickerSheetState extends State<ExercisePickerSheet> {
       child: Text(
         title,
         style: Theme.of(context).textTheme.labelLarge?.copyWith(
-              color: AppTheme.textDim,
-              fontWeight: FontWeight.w600,
-              letterSpacing: 0.5,
-            ),
+          color: AppTheme.textDim,
+          fontWeight: FontWeight.w600,
+          letterSpacing: 0.5,
+        ),
       ),
     );
   }
@@ -262,17 +258,14 @@ class _ExercisePickerSheetState extends State<ExercisePickerSheet> {
       title: Text(
         exercise.name,
         style: Theme.of(context).textTheme.bodyLarge?.copyWith(
-              fontWeight:
-                  isSelected ? FontWeight.w600 : FontWeight.normal,
-            ),
+          fontWeight: isSelected ? FontWeight.w600 : FontWeight.normal,
+        ),
       ),
       subtitle: Text(
-        exercise.muscleGroups
-            .map(MuscleGroups.getDisplayName)
-            .join(', '),
-        style: Theme.of(context).textTheme.bodySmall?.copyWith(
-              color: AppTheme.textMedium,
-            ),
+        exercise.muscleGroups.map(MuscleGroups.getDisplayName).join(', '),
+        style: Theme.of(
+          context,
+        ).textTheme.bodySmall?.copyWith(color: AppTheme.textMedium),
       ),
       trailing: isSelected
           ? const Icon(Icons.check_circle, color: AppTheme.primaryOrange)

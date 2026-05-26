@@ -13,9 +13,7 @@ class SupabaseNutritionLogRemoteDataSource
 
   final SupabaseClientProvider clientProvider;
 
-  const SupabaseNutritionLogRemoteDataSource({
-    required this.clientProvider,
-  });
+  const SupabaseNutritionLogRemoteDataSource({required this.clientProvider});
 
   @override
   bool get isConfigured => clientProvider.isConfigured;
@@ -120,10 +118,7 @@ class SupabaseNutritionLogRemoteDataSource
       final userId = _requireAuthenticatedUserId();
 
       final dto = SupabaseNutritionLogDto.fromEntity(log);
-      final payload = <String, dynamic>{
-        ...dto.toMap(),
-        _userIdColumn: userId,
-      };
+      final payload = <String, dynamic>{...dto.toMap(), _userIdColumn: userId};
 
       final dynamic data = await clientProvider.client
           .from(_tableName)
@@ -137,10 +132,7 @@ class SupabaseNutritionLogRemoteDataSource
   }
 
   @override
-  Future<void> deleteLog({
-    required String localId,
-    String? serverId,
-  }) {
+  Future<void> deleteLog({required String localId, String? serverId}) {
     return RemoteDatasourceGuard.run(() async {
       final userId = _requireAuthenticatedUserId();
       final remoteId = serverId ?? localId;
@@ -176,10 +168,7 @@ class SupabaseNutritionLogRemoteDataSource
 
   NutritionLog _mapRowToEntity(Map<String, dynamic> row) {
     final dto = SupabaseNutritionLogDto.fromMap(row);
-    return dto.toEntity(
-      localId: dto.id,
-      syncMetadata: dto.toSyncedMetadata(),
-    );
+    return dto.toEntity(localId: dto.id, syncMetadata: dto.toSyncedMetadata());
   }
 
   List<Map<String, dynamic>> _asMapList(dynamic data) {

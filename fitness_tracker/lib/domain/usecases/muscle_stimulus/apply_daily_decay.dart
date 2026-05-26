@@ -51,50 +51,47 @@ class ApplyDailyDecay {
 
       final dateStart = DateTime(date.year, date.month, date.day);
 
-      final recordsResult = await muscleStimulusRepository.getAllStimulusForDate(
-        userId,
-        dateStart,
-      );
+      final recordsResult = await muscleStimulusRepository
+          .getAllStimulusForDate(userId, dateStart);
 
-      return await recordsResult.fold(
-        (failure) async => Left(failure),
-        (records) async {
-          if (records.isEmpty) {
-            _logDebug('No records found for date, skipping decay');
-            return const Right(0);
-          }
+      return await recordsResult.fold((failure) async => Left(failure), (
+        records,
+      ) async {
+        if (records.isEmpty) {
+          _logDebug('No records found for date, skipping decay');
+          return const Right(0);
+        }
 
-          int updateCount = 0;
+        int updateCount = 0;
 
-          for (final record in records) {
-            final newWeeklyLoad =
-                record.rollingWeeklyLoad * MuscleStimulus.weeklyDecayFactor;
+        for (final record in records) {
+          final newWeeklyLoad =
+              record.rollingWeeklyLoad * MuscleStimulus.weeklyDecayFactor;
 
-            final updateResult =
-                await muscleStimulusRepository.updateStimulusValues(
-              id: record.id,
-              dailyStimulus: record.dailyStimulus,
-              rollingWeeklyLoad: newWeeklyLoad,
-              lastSetTimestamp: record.lastSetTimestamp,
-              lastSetStimulus: record.lastSetStimulus,
-            );
+          final updateResult = await muscleStimulusRepository
+              .updateStimulusValues(
+                id: record.id,
+                dailyStimulus: record.dailyStimulus,
+                rollingWeeklyLoad: newWeeklyLoad,
+                lastSetTimestamp: record.lastSetTimestamp,
+                lastSetStimulus: record.lastSetStimulus,
+              );
 
-            updateResult.fold(
-              (failure) {
-                _logError(
-                  'Failed to update record ${record.id}: ${failure.message}',
-                );
-              },
-              (_) {
-                updateCount++;
-              },
-            );
-          }
+          updateResult.fold(
+            (failure) {
+              _logError(
+                'Failed to update record ${record.id}: ${failure.message}',
+              );
+            },
+            (_) {
+              updateCount++;
+            },
+          );
+        }
 
-          _logDebug('Applied decay to $updateCount records');
-          return Right(updateCount);
-        },
-      );
+        _logDebug('Applied decay to $updateCount records');
+        return Right(updateCount);
+      });
     } catch (e) {
       _logError('Exception during date-specific decay: $e');
       return Left(UnexpectedFailure('Failed to apply decay for date: $e'));
@@ -107,23 +104,18 @@ class ApplyDailyDecay {
       final today = _clock.now();
       final todayStart = DateTime(today.year, today.month, today.day);
 
-      final recordsResult = await muscleStimulusRepository.getAllStimulusForDate(
-        userId,
-        todayStart,
-      );
+      final recordsResult = await muscleStimulusRepository
+          .getAllStimulusForDate(userId, todayStart);
 
-      return recordsResult.fold(
-        (failure) => Left(failure),
-        (records) {
-          final shouldApply = records.isEmpty;
+      return recordsResult.fold((failure) => Left(failure), (records) {
+        final shouldApply = records.isEmpty;
 
-          _logDebug(
-            'Should apply decay: $shouldApply (${records.length} records found)',
-          );
+        _logDebug(
+          'Should apply decay: $shouldApply (${records.length} records found)',
+        );
 
-          return Right(shouldApply);
-        },
-      );
+        return Right(shouldApply);
+      });
     } catch (e) {
       return Left(UnexpectedFailure('Failed to check decay status: $e'));
     }

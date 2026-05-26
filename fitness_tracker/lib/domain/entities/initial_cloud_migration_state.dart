@@ -44,8 +44,7 @@ class InitialCloudMigrationState extends Equatable {
   }) {
     return InitialCloudMigrationState(
       userId: userId ?? this.userId,
-      workoutSetsCompleted:
-          workoutSetsCompleted ?? this.workoutSetsCompleted,
+      workoutSetsCompleted: workoutSetsCompleted ?? this.workoutSetsCompleted,
       exercisesCompleted: exercisesCompleted ?? this.exercisesCompleted,
       mealsCompleted: mealsCompleted ?? this.mealsCompleted,
       nutritionLogsCompleted:
@@ -74,12 +73,10 @@ class InitialCloudMigrationState extends Equatable {
   factory InitialCloudMigrationState.fromJson(Map<String, dynamic> json) {
     return InitialCloudMigrationState(
       userId: json['userId'] as String,
-      workoutSetsCompleted:
-          json['workoutSetsCompleted'] as bool? ?? false,
+      workoutSetsCompleted: json['workoutSetsCompleted'] as bool? ?? false,
       exercisesCompleted: json['exercisesCompleted'] as bool? ?? false,
       mealsCompleted: json['mealsCompleted'] as bool? ?? false,
-      nutritionLogsCompleted:
-          json['nutritionLogsCompleted'] as bool? ?? false,
+      nutritionLogsCompleted: json['nutritionLogsCompleted'] as bool? ?? false,
       targetsCompleted: json['targetsCompleted'] as bool? ?? false,
       startedAt: DateTime.parse(json['startedAt'] as String),
       updatedAt: DateTime.parse(json['updatedAt'] as String),
@@ -98,14 +95,14 @@ class InitialCloudMigrationState extends Equatable {
 
   @override
   List<Object?> get props => <Object?>[
-        userId,
-        workoutSetsCompleted,
-        exercisesCompleted,
-        mealsCompleted,
-        nutritionLogsCompleted,
-        targetsCompleted,
-        startedAt,
-        updatedAt,
-        lastError,
-      ];
+    userId,
+    workoutSetsCompleted,
+    exercisesCompleted,
+    mealsCompleted,
+    nutritionLogsCompleted,
+    targetsCompleted,
+    startedAt,
+    updatedAt,
+    lastError,
+  ];
 }

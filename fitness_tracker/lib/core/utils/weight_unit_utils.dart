@@ -5,10 +5,7 @@ class WeightUnitUtils {
 
   static const double _kgToLb = 2.2046226218;
 
-  static double fromStoredKilograms(
-    double kilograms,
-    WeightUnit unit,
-  ) {
+  static double fromStoredKilograms(double kilograms, WeightUnit unit) {
     switch (unit) {
       case WeightUnit.kilograms:
         return kilograms;
@@ -17,10 +14,7 @@ class WeightUnitUtils {
     }
   }
 
-  static double toStoredKilograms(
-    double enteredWeight,
-    WeightUnit unit,
-  ) {
+  static double toStoredKilograms(double enteredWeight, WeightUnit unit) {
     switch (unit) {
       case WeightUnit.kilograms:
         return enteredWeight;
@@ -56,10 +50,7 @@ class WeightUnitUtils {
     }
   }
 
-  static String formatForDisplay(
-    double kilograms,
-    WeightUnit unit,
-  ) {
+  static String formatForDisplay(double kilograms, WeightUnit unit) {
     final converted = fromStoredKilograms(kilograms, unit);
     final formatted = formatNumber(converted);
 
@@ -70,9 +61,7 @@ class WeightUnitUtils {
     double kilograms,
     WeightUnit unit,
   ) {
-    return formatNumber(
-      fromStoredKilograms(kilograms, unit),
-    );
+    return formatNumber(fromStoredKilograms(kilograms, unit));
   }
 
   static String formatNumber(double value) {

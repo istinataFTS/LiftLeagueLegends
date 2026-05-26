@@ -6,22 +6,22 @@ class InputValidators {
     if (value == null || value.trim().isEmpty) {
       return 'Exercise name is required';
     }
-    
+
     final trimmed = value.trim();
-    
+
     if (trimmed.length < 2) {
       return 'Name must be at least 2 characters';
     }
-    
+
     if (trimmed.length > 50) {
       return 'Name must be less than 50 characters';
     }
-    
+
     // Check for valid characters (letters, numbers, spaces, hyphens, parentheses)
     if (!RegExp(r'^[a-zA-Z0-9\s\-()]+$').hasMatch(trimmed)) {
       return 'Name contains invalid characters';
     }
-    
+
     return null;
   }
 
@@ -30,21 +30,21 @@ class InputValidators {
     if (value == null || value.isEmpty) {
       return 'Reps is required';
     }
-    
+
     final reps = int.tryParse(value);
-    
+
     if (reps == null) {
       return 'Enter a valid number';
     }
-    
+
     if (reps < 1) {
       return 'Reps must be at least 1';
     }
-    
+
     if (reps > 1000) {
       return 'Reps must be less than 1000';
     }
-    
+
     return null;
   }
 
@@ -53,21 +53,21 @@ class InputValidators {
     if (value == null || value.isEmpty) {
       return 'Weight is required';
     }
-    
+
     final weight = double.tryParse(value);
-    
+
     if (weight == null) {
       return 'Enter a valid number';
     }
-    
+
     if (weight <= 0) {
       return 'Weight must be greater than 0';
     }
-    
+
     if (weight > 1000) {
       return 'Weight must be less than 1000kg';
     }
-    
+
     // Check decimal places (max 2)
     if (value.contains('.')) {
       final parts = value.split('.');
@@ -75,7 +75,7 @@ class InputValidators {
         return 'Maximum 2 decimal places';
       }
     }
-    
+
     return null;
   }
 
@@ -84,15 +84,15 @@ class InputValidators {
     if (value == null) {
       return 'Goal is required';
     }
-    
+
     if (value < 1) {
       return 'Goal must be at least 1';
     }
-    
+
     if (value > 100) {
       return 'Goal must be less than 100';
     }
-    
+
     return null;
   }
 
@@ -101,11 +101,11 @@ class InputValidators {
     if (muscles == null || muscles.isEmpty) {
       return 'Select at least one muscle group';
     }
-    
+
     if (muscles.length > 10) {
       return 'Maximum 10 muscle groups';
     }
-    
+
     return null;
   }
 
@@ -114,7 +114,10 @@ class InputValidators {
     return input
         .trim()
         .replaceAll(RegExp(r'\s+'), ' ') // Replace multiple spaces with single
-        .replaceAll(RegExp(r'[<>"`;]'), ''); // Remove potentially harmful characters
+        .replaceAll(
+          RegExp(r'[<>"`;]'),
+          '',
+        ); // Remove potentially harmful characters
   }
 
   /// Format weight for display
@@ -137,17 +140,17 @@ class InputValidators {
     if (date == null) {
       return 'Date is required';
     }
-    
+
     if (!isValidWorkoutDate(date)) {
       return 'Cannot log workouts for future dates';
     }
-    
+
     // Don't allow dates more than 1 year in the past
     final oneYearAgo = DateTime.now().subtract(const Duration(days: 365));
     if (date.isBefore(oneYearAgo)) {
       return 'Date is too far in the past';
     }
-    
+
     return null;
   }
 }

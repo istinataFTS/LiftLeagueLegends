@@ -165,18 +165,12 @@ class MuscleStimulus {
 
   /// Intensity level descriptions (full version for dialogs)
   static const Map<int, String> intensityDescriptions = {
-    0:
-        'No effort - Warm-up sets, technique practice, or mobility work. Minimal muscle activation.',
-    1:
-        'Very Light - Easy sets with high reps remaining. Low muscle engagement, recovery work.',
-    2:
-        'Light - Moderate effort with several reps in reserve. Building volume without strain.',
-    3:
-        'Moderate - Working sets with 2-3 reps in reserve (RIR). Solid muscle activation.',
-    4:
-        'Hard - Challenging sets with 1-2 RIR. High muscle activation, approaching failure.',
-    5:
-        'Maximum - All-out effort, 0 RIR or actual failure. Maximum muscle stimulus.',
+    0: 'No effort - Warm-up sets, technique practice, or mobility work. Minimal muscle activation.',
+    1: 'Very Light - Easy sets with high reps remaining. Low muscle engagement, recovery work.',
+    2: 'Light - Moderate effort with several reps in reserve. Building volume without strain.',
+    3: 'Moderate - Working sets with 2-3 reps in reserve (RIR). Solid muscle activation.',
+    4: 'Hard - Challenging sets with 1-2 RIR. High muscle activation, approaching failure.',
+    5: 'Maximum - All-out effort, 0 RIR or actual failure. Maximum muscle stimulus.',
   };
 
   /// Intensity level short labels (for UI sliders)

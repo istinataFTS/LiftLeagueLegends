@@ -9,9 +9,7 @@ import 'database_helper.dart';
 class MuscleFactorLocalDataSource {
   final DatabaseHelper databaseHelper;
 
-  const MuscleFactorLocalDataSource({
-    required this.databaseHelper,
-  });
+  const MuscleFactorLocalDataSource({required this.databaseHelper});
 
   /// Get a muscle factor by ID.
   Future<MuscleFactorModel?> getFactorById(String id) async {
@@ -38,12 +36,11 @@ class MuscleFactorLocalDataSource {
   Future<List<MuscleFactorModel>> getAllFactors() async {
     try {
       final db = await databaseHelper.database;
-      final List<Map<String, dynamic>> results =
-          await db.query(DatabaseTables.exerciseMuscleFactors);
+      final List<Map<String, dynamic>> results = await db.query(
+        DatabaseTables.exerciseMuscleFactors,
+      );
 
-      return results
-          .map(MuscleFactorModel.fromMap)
-          .toList(growable: false);
+      return results.map(MuscleFactorModel.fromMap).toList(growable: false);
     } catch (e) {
       throw CacheDatabaseException('Failed to get all factors: $e');
     }
@@ -61,9 +58,7 @@ class MuscleFactorLocalDataSource {
         whereArgs: [exerciseId],
       );
 
-      return results
-          .map(MuscleFactorModel.fromMap)
-          .toList(growable: false);
+      return results.map(MuscleFactorModel.fromMap).toList(growable: false);
     } catch (e) {
       throw CacheDatabaseException('Failed to get factors for exercise: $e');
     }
@@ -73,10 +68,7 @@ class MuscleFactorLocalDataSource {
   Future<void> addFactor(MuscleFactorModel factor) async {
     try {
       final db = await databaseHelper.database;
-      await db.insert(
-        DatabaseTables.exerciseMuscleFactors,
-        factor.toMap(),
-      );
+      await db.insert(DatabaseTables.exerciseMuscleFactors, factor.toMap());
     } catch (e) {
       throw CacheDatabaseException('Failed to add factor: $e');
     }
@@ -89,10 +81,7 @@ class MuscleFactorLocalDataSource {
       final batch = db.batch();
 
       for (final MuscleFactorModel factor in factors) {
-        batch.insert(
-          DatabaseTables.exerciseMuscleFactors,
-          factor.toMap(),
-        );
+        batch.insert(DatabaseTables.exerciseMuscleFactors, factor.toMap());
       }
 
       await batch.commit(noResult: true);
@@ -140,9 +129,7 @@ class MuscleFactorLocalDataSource {
         whereArgs: [exerciseId],
       );
     } catch (e) {
-      throw CacheDatabaseException(
-        'Failed to delete factors for exercise: $e',
-      );
+      throw CacheDatabaseException('Failed to delete factors for exercise: $e');
     }
   }
 

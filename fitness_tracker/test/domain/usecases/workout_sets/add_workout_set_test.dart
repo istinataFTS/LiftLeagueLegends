@@ -52,8 +52,9 @@ void main() {
     appSessionRepository = MockAppSessionRepository();
     mockRebuild = MockRebuildMuscleStimulusFromWorkoutHistory();
 
-    when(() => appSessionRepository.syncPolicy)
-        .thenReturn(AppSyncPolicy.productionDefault);
+    when(
+      () => appSessionRepository.syncPolicy,
+    ).thenReturn(AppSyncPolicy.productionDefault);
 
     usecase = AddWorkoutSet(
       workoutSetRepository,
@@ -61,13 +62,11 @@ void main() {
       rebuildMuscleStimulusFromWorkoutHistory: mockRebuild,
     );
 
-    when(() => workoutSetRepository.addSet(any())).thenAnswer(
-      (_) async => const Right(null),
-    );
+    when(
+      () => workoutSetRepository.addSet(any()),
+    ).thenAnswer((_) async => const Right(null));
 
-    when(() => mockRebuild(any())).thenAnswer(
-      (_) async => const Right(null),
-    );
+    when(() => mockRebuild(any())).thenAnswer((_) async => const Right(null));
   });
 
   test('attaches authenticated ownerUserId before repository add', () async {
@@ -82,37 +81,37 @@ void main() {
 
     await usecase(baseSet);
 
-    final captured = verify(
-      () => workoutSetRepository.addSet(captureAny()),
-    ).captured.single as WorkoutSet;
+    final captured =
+        verify(() => workoutSetRepository.addSet(captureAny())).captured.single
+            as WorkoutSet;
 
     expect(captured.ownerUserId, 'user-123');
   });
 
   test('keeps guest workout set owner unchanged', () async {
-    when(() => appSessionRepository.getCurrentSession()).thenAnswer(
-      (_) async => const Right(AppSession.guest()),
-    );
+    when(
+      () => appSessionRepository.getCurrentSession(),
+    ).thenAnswer((_) async => const Right(AppSession.guest()));
 
     await usecase(baseSet);
 
-    final captured = verify(
-      () => workoutSetRepository.addSet(captureAny()),
-    ).captured.single as WorkoutSet;
+    final captured =
+        verify(() => workoutSetRepository.addSet(captureAny())).captured.single
+            as WorkoutSet;
 
     expect(captured.ownerUserId, isNull);
   });
 
   test('falls back to original set when session lookup fails', () async {
-    when(() => appSessionRepository.getCurrentSession()).thenAnswer(
-      (_) async => Left(CacheFailure('session unavailable')),
-    );
+    when(
+      () => appSessionRepository.getCurrentSession(),
+    ).thenAnswer((_) async => Left(CacheFailure('session unavailable')));
 
     await usecase(baseSet);
 
-    final captured = verify(
-      () => workoutSetRepository.addSet(captureAny()),
-    ).captured.single as WorkoutSet;
+    final captured =
+        verify(() => workoutSetRepository.addSet(captureAny())).captured.single
+            as WorkoutSet;
 
     expect(captured.ownerUserId, isNull);
   });
@@ -133,12 +132,12 @@ void main() {
   });
 
   test('does not trigger rebuild when repository add fails', () async {
-    when(() => workoutSetRepository.addSet(any())).thenAnswer(
-      (_) async => const Left(DatabaseFailure('write failed')),
-    );
-    when(() => appSessionRepository.getCurrentSession()).thenAnswer(
-      (_) async => const Right(AppSession.guest()),
-    );
+    when(
+      () => workoutSetRepository.addSet(any()),
+    ).thenAnswer((_) async => const Left(DatabaseFailure('write failed')));
+    when(
+      () => appSessionRepository.getCurrentSession(),
+    ).thenAnswer((_) async => const Right(AppSession.guest()));
 
     await usecase(baseSet);
 

@@ -35,9 +35,9 @@ class HomeDashboardData extends Equatable {
 
   @override
   List<Object?> get props => <Object?>[
-        todaysLogs,
-        dailyMacros,
-        muscleSetCounts,
-        weeklySetCount,
-      ];
+    todaysLogs,
+    dailyMacros,
+    muscleSetCounts,
+    weeklySetCount,
+  ];
 }

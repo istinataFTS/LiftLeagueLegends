@@ -37,7 +37,9 @@ class MealModel extends Meal {
   }
 
   factory MealModel.fromMap(Map<String, dynamic> map) {
-    final createdAt = DateTime.parse(map[DatabaseTables.mealCreatedAt] as String);
+    final createdAt = DateTime.parse(
+      map[DatabaseTables.mealCreatedAt] as String,
+    );
     final updatedAtRaw = map[DatabaseTables.mealUpdatedAt] as String?;
 
     return MealModel(
@@ -46,14 +48,15 @@ class MealModel extends Meal {
       name: map[DatabaseTables.mealName] as String,
       servingSizeGrams: (map[DatabaseTables.mealServingSize] as num).toDouble(),
       carbsPer100g: (map[DatabaseTables.mealCarbsPer100g] as num).toDouble(),
-      proteinPer100g:
-          (map[DatabaseTables.mealProteinPer100g] as num).toDouble(),
+      proteinPer100g: (map[DatabaseTables.mealProteinPer100g] as num)
+          .toDouble(),
       fatPer100g: (map[DatabaseTables.mealFatPer100g] as num).toDouble(),
-      caloriesPer100g:
-          (map[DatabaseTables.mealCaloriesPer100g] as num).toDouble(),
+      caloriesPer100g: (map[DatabaseTables.mealCaloriesPer100g] as num)
+          .toDouble(),
       createdAt: createdAt,
-      updatedAt:
-          updatedAtRaw == null ? createdAt : DateTime.parse(updatedAtRaw),
+      updatedAt: updatedAtRaw == null
+          ? createdAt
+          : DateTime.parse(updatedAtRaw),
       syncMetadata: EntitySyncMetadata(
         serverId: map[DatabaseTables.mealServerId] as String?,
         status: _syncStatusFromStorage(
@@ -81,8 +84,8 @@ class MealModel extends Meal {
       DatabaseTables.mealUpdatedAt: updatedAt.toIso8601String(),
       DatabaseTables.mealServerId: syncMetadata.serverId,
       DatabaseTables.mealSyncStatus: syncMetadata.status.name,
-      DatabaseTables.mealLastSyncedAt:
-          syncMetadata.lastSyncedAt?.toIso8601String(),
+      DatabaseTables.mealLastSyncedAt: syncMetadata.lastSyncedAt
+          ?.toIso8601String(),
       DatabaseTables.mealLastSyncError: syncMetadata.lastSyncError,
     };
   }
@@ -227,7 +230,8 @@ class MealModel extends Meal {
       }
     }
 
-    final finalCalories = caloriesPer100g ??
+    final finalCalories =
+        caloriesPer100g ??
         MacroCalculator.calculateCalories(
           carbs: carbsPer100g ?? 0,
           protein: proteinPer100g ?? 0,

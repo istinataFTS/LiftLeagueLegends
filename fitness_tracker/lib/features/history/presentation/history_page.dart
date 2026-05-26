@@ -21,10 +21,7 @@ import 'widgets/history_calendar_widget.dart';
 import 'widgets/history_day_content.dart';
 
 class HistoryPage extends StatefulWidget {
-  const HistoryPage({
-    required this.settings,
-    super.key,
-  });
+  const HistoryPage({required this.settings, super.key});
 
   final AppSettings settings;
 
@@ -73,10 +70,7 @@ class _HistoryPageState extends State<HistoryPage> {
     final AppSettings settings = widget.settings;
 
     return Scaffold(
-      appBar: AppBar(
-        title: const Text(HistoryStrings.title),
-        elevation: 0,
-      ),
+      appBar: AppBar(title: const Text(HistoryStrings.title), elevation: 0),
       body: BlocConsumer<HistoryBloc, HistoryState>(
         listener: (BuildContext context, HistoryState state) {
           if (state is! HistoryLoaded) {
@@ -86,7 +80,7 @@ class _HistoryPageState extends State<HistoryPage> {
           final DateTime? selectedDate = state.selectedDate;
           final int selectedActivityCount =
               state.selectedDateSets.length +
-                  state.selectedDateNutritionLogs.length;
+              state.selectedDateNutritionLogs.length;
 
           if (selectedDate == null) {
             _lastSelectedDate = null;
@@ -94,7 +88,8 @@ class _HistoryPageState extends State<HistoryPage> {
             return;
           }
 
-          final bool selectedDateChanged = _lastSelectedDate == null ||
+          final bool selectedDateChanged =
+              _lastSelectedDate == null ||
               !WeekDateUtils.isSameDay(_lastSelectedDate!, selectedDate);
 
           final bool selectedActivityChanged =
@@ -161,24 +156,23 @@ class _HistoryPageState extends State<HistoryPage> {
             children: <Widget>[
               BlocBuilder<ExerciseBloc, ExerciseState>(
                 buildWhen: (ExerciseState previous, ExerciseState current) =>
-                    previous is! ExercisesLoaded ||
-                    current is ExercisesLoaded,
+                    previous is! ExercisesLoaded || current is ExercisesLoaded,
                 builder: (BuildContext context, ExerciseState exerciseState) {
                   final Set<String>? resolvableExerciseIds =
                       exerciseState is ExercisesLoaded
-                          ? <String>{
-                              for (final Exercise exercise
-                                  in exerciseState.exercises)
-                                exercise.id,
-                            }
-                          : null;
+                      ? <String>{
+                          for (final Exercise exercise
+                              in exerciseState.exercises)
+                            exercise.id,
+                        }
+                      : null;
 
                   final Map<DateTime, DayActivity> dayActivity =
                       HistoryActivityAggregator.buildActivityCounts(
-                    monthSets: state.monthSets,
-                    monthNutritionLogs: state.monthNutritionLogs,
-                    resolvableExerciseIds: resolvableExerciseIds,
-                  );
+                        monthSets: state.monthSets,
+                        monthNutritionLogs: state.monthNutritionLogs,
+                        resolvableExerciseIds: resolvableExerciseIds,
+                      );
 
                   return HistoryCalendarWidget(
                     displayedMonth: state.currentMonth,
@@ -197,8 +191,8 @@ class _HistoryPageState extends State<HistoryPage> {
                     },
                     onTodayTapped: () {
                       context.read<HistoryBloc>().add(
-                            NavigateToMonthEvent(DateTime.now()),
-                          );
+                        NavigateToMonthEvent(DateTime.now()),
+                      );
                     },
                   );
                 },
@@ -212,9 +206,9 @@ class _HistoryPageState extends State<HistoryPage> {
                   nutritionLogs: state.selectedDateNutritionLogs,
                   weightUnit: settings.weightUnit,
                   onClearSelection: () {
-                    context
-                        .read<HistoryBloc>()
-                        .add(const ClearDateSelectionEvent());
+                    context.read<HistoryBloc>().add(
+                      const ClearDateSelectionEvent(),
+                    );
                   },
                   highlightVersion: _contentHighlightVersion,
                 ),
@@ -231,17 +225,13 @@ class _HistoryPageState extends State<HistoryPage> {
       child: Column(
         mainAxisAlignment: MainAxisAlignment.center,
         children: <Widget>[
-          const Icon(
-            Icons.calendar_month,
-            size: 64,
-            color: AppTheme.textDim,
-          ),
+          const Icon(Icons.calendar_month, size: 64, color: AppTheme.textDim),
           const SizedBox(height: 16),
           Text(
             HistoryStrings.loading,
-            style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                  color: AppTheme.textMedium,
-                ),
+            style: Theme.of(
+              context,
+            ).textTheme.titleMedium?.copyWith(color: AppTheme.textMedium),
           ),
         ],
       ),
@@ -255,11 +245,7 @@ class _HistoryPageState extends State<HistoryPage> {
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: <Widget>[
-            const Icon(
-              Icons.error_outline,
-              size: 48,
-              color: AppTheme.errorRed,
-            ),
+            const Icon(Icons.error_outline, size: 48, color: AppTheme.errorRed),
             const SizedBox(height: 12),
             Text(
               state.message,
@@ -270,8 +256,8 @@ class _HistoryPageState extends State<HistoryPage> {
             FilledButton(
               onPressed: () {
                 context.read<HistoryBloc>().add(
-                      LoadMonthSetsEvent(DateTime.now()),
-                    );
+                  LoadMonthSetsEvent(DateTime.now()),
+                );
               },
               child: const Text(HistoryStrings.retry),
             ),
@@ -288,10 +274,7 @@ class _HistoryPageState extends State<HistoryPage> {
     );
 
     if (previousMonth.isBefore(CalendarConstants.minAllowedDate)) {
-      ErrorHandler.showInfo(
-        context,
-        HistoryStrings.cannotViewTooFarPast,
-      );
+      ErrorHandler.showInfo(context, HistoryStrings.cannotViewTooFarPast);
       return;
     }
 
@@ -309,10 +292,7 @@ class _HistoryPageState extends State<HistoryPage> {
     final DateTime nextMonthDate = DateTime(nextMonth.year, nextMonth.month, 1);
 
     if (nextMonthDate.isAfter(currentMonthDate)) {
-      ErrorHandler.showInfo(
-        context,
-        HistoryStrings.cannotViewFutureMonths,
-      );
+      ErrorHandler.showInfo(context, HistoryStrings.cannotViewFutureMonths);
       return;
     }
 

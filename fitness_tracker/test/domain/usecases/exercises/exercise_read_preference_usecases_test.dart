@@ -49,9 +49,9 @@ void main() {
   });
 
   test('GetAllExercises uses resolved source preference', () async {
-    when(() => resolver.resolveReadPreference()).thenAnswer(
-      (_) async => DataSourcePreference.remoteThenLocal,
-    );
+    when(
+      () => resolver.resolveReadPreference(),
+    ).thenAnswer((_) async => DataSourcePreference.remoteThenLocal);
     when(
       () => repository.getAllExercises(
         sourcePreference: DataSourcePreference.remoteThenLocal,
@@ -70,9 +70,9 @@ void main() {
   });
 
   test('GetExerciseById uses resolved source preference', () async {
-    when(() => resolver.resolveReadPreference()).thenAnswer(
-      (_) async => DataSourcePreference.remoteThenLocal,
-    );
+    when(
+      () => resolver.resolveReadPreference(),
+    ).thenAnswer((_) async => DataSourcePreference.remoteThenLocal);
     when(
       () => repository.getExerciseById(
         'exercise-1',
@@ -92,9 +92,9 @@ void main() {
   });
 
   test('GetExercisesForMuscle uses resolved source preference', () async {
-    when(() => resolver.resolveReadPreference()).thenAnswer(
-      (_) async => DataSourcePreference.remoteThenLocal,
-    );
+    when(
+      () => resolver.resolveReadPreference(),
+    ).thenAnswer((_) async => DataSourcePreference.remoteThenLocal);
     when(
       () => repository.getExercisesForMuscle(
         'chest',

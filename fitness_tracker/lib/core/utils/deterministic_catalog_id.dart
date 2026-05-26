@@ -71,6 +71,5 @@ class DeterministicCatalogId {
   /// the historical formula is on-disk for guest rows from older app
   /// versions; new call sites should prefer [forOwner] so the id is owner
   /// scoped and the per-user catalog model is honoured.
-  static String fromName(String name) =>
-      forOwner(name: name, ownerUserId: '');
+  static String fromName(String name) => forOwner(name: name, ownerUserId: '');
 }

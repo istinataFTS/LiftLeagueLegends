@@ -93,24 +93,27 @@ void main() {
       );
     });
 
-    test('hasValidCalories uses model tolerance around calculated calories', () {
-      final MealModel validMeal = buildMealModel(
-        carbsPer100g: 30,
-        proteinPer100g: 20,
-        fatPer100g: 10,
-        caloriesPer100g: 294,
-      );
-      final MealModel invalidMeal = buildMealModel(
-        carbsPer100g: 30,
-        proteinPer100g: 20,
-        fatPer100g: 10,
-        caloriesPer100g: 301,
-      );
+    test(
+      'hasValidCalories uses model tolerance around calculated calories',
+      () {
+        final MealModel validMeal = buildMealModel(
+          carbsPer100g: 30,
+          proteinPer100g: 20,
+          fatPer100g: 10,
+          caloriesPer100g: 294,
+        );
+        final MealModel invalidMeal = buildMealModel(
+          carbsPer100g: 30,
+          proteinPer100g: 20,
+          fatPer100g: 10,
+          caloriesPer100g: 301,
+        );
 
-      expect(validMeal.calculatedCalories, 290);
-      expect(validMeal.hasValidCalories, isTrue);
-      expect(invalidMeal.hasValidCalories, isFalse);
-    });
+        expect(validMeal.calculatedCalories, 290);
+        expect(validMeal.hasValidCalories, isTrue);
+        expect(invalidMeal.hasValidCalories, isFalse);
+      },
+    );
 
     test('withCalculatedMacros derives calories when calories are omitted', () {
       final MealModel meal = MealModel.withCalculatedMacros(

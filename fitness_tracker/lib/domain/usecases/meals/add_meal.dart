@@ -9,24 +9,18 @@ class AddMeal {
   final MealRepository repository;
   final AppSessionRepository appSessionRepository;
 
-  const AddMeal(
-    this.repository, {
-    required this.appSessionRepository,
-  });
+  const AddMeal(this.repository, {required this.appSessionRepository});
 
   Future<Either<Failure, void>> call(Meal meal) async {
     final sessionResult = await appSessionRepository.getCurrentSession();
 
-    final preparedMeal = sessionResult.fold(
-      (_) => meal,
-      (session) {
-        if (!session.isAuthenticated || session.user == null) {
-          return meal;
-        }
+    final preparedMeal = sessionResult.fold((_) => meal, (session) {
+      if (!session.isAuthenticated || session.user == null) {
+        return meal;
+      }
 
-        return meal.copyWith(ownerUserId: session.user!.id);
-      },
-    );
+      return meal.copyWith(ownerUserId: session.user!.id);
+    });
 
     return repository.addMeal(preparedMeal);
   }

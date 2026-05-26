@@ -447,6 +447,10 @@ class AppStrings {
   static const String voiceSettingsPageTitle = 'Voice Assistant';
   static const String voiceWakeWordSectionTitle = 'Wake Word';
   static const String voiceWakeWordPreviewTooltip = 'Preview pronunciation';
+  static const String voiceWakeWordMisconfiguredTitle = 'Wake word disabled';
+  static const String voiceWakeWordMisconfiguredBody =
+      'No Picovoice access key is configured. Paste your key into '
+      'dart_defines.json (see dart_defines.example.json) and rebuild.';
   static const String voiceBehaviorSectionTitle = 'Behavior';
   static const String voiceWakeWordArmedTitle = 'Armed while app is open';
   static const String voiceWakeWordArmedSubtitle =
@@ -501,8 +505,7 @@ class AppStrings {
   static const String voicePicovoiceKeyDialogHint = 'Access key';
   static const String voicePicovoiceKeyDialogSave = 'Save';
   static const String voicePicovoiceKeyDialogCancel = 'Cancel';
-  static const String voicePicovoiceKeyClearConfirmTitle =
-      'Remove voice key?';
+  static const String voicePicovoiceKeyClearConfirmTitle = 'Remove voice key?';
   static const String voicePicovoiceKeyClearConfirmBody =
       'The wake word will stop working until you set the key again.';
   static const String voicePicovoiceKeyClearConfirmAction = 'Remove';
@@ -619,6 +622,14 @@ class AppStrings {
       'Voice recognition needs an internet connection right now.';
   static const String voiceSttErrorUnknown =
       'Voice recognition failed. Please try again.';
+  static const String voiceSttErrorAuth =
+      'Your session has expired. Sign in again to use voice.';
+  static const String voiceSttErrorAudioTooLarge =
+      'That recording was too long. Try a shorter phrase.';
+  static const String voiceSttErrorBudgetExceeded =
+      "Today's voice budget is used up. Try again after midnight UTC.";
+  static const String voiceSttErrorServerUnavailable =
+      'The voice service is busy right now. Please try again in a moment.';
 
   // ── Voice query response templates ───────────────────────────────────────
   static const String voiceQueryWorkoutUnavailable =

@@ -5,9 +5,7 @@ import '../../../../domain/entities/nutrition_log.dart';
 class HistoryNutritionSummaryBuilder {
   const HistoryNutritionSummaryBuilder._();
 
-  static HistoryNutritionSummaryViewData buildSummary(
-    List<NutritionLog> logs,
-  ) {
+  static HistoryNutritionSummaryViewData buildSummary(List<NutritionLog> logs) {
     double protein = 0;
     double carbs = 0;
     double fats = 0;
@@ -64,9 +62,7 @@ class HistoryNutritionSummaryBuilder {
 class HistoryNutritionSummaryViewData extends Equatable {
   final List<HistoryNutritionMetricViewData> metrics;
 
-  const HistoryNutritionSummaryViewData({
-    required this.metrics,
-  });
+  const HistoryNutritionSummaryViewData({required this.metrics});
 
   @override
   List<Object?> get props => [metrics];
@@ -100,9 +96,9 @@ class HistoryNutritionLogMacrosViewData extends Equatable {
 
   @override
   List<Object?> get props => [
-        proteinLabel,
-        carbsLabel,
-        fatsLabel,
-        caloriesLabel,
-      ];
+    proteinLabel,
+    carbsLabel,
+    fatsLabel,
+    caloriesLabel,
+  ];
 }

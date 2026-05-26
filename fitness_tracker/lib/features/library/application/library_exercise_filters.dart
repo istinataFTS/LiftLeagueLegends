@@ -11,19 +11,23 @@ class LibraryExerciseFilters {
   }) {
     final String normalizedQuery = query.trim().toLowerCase();
 
-    return exercises.where((Exercise exercise) {
-      final bool matchesQuery = normalizedQuery.isEmpty ||
-          exercise.name.toLowerCase().contains(normalizedQuery) ||
-          exercise.muscleGroups.any(
-            (String muscle) => MuscleGroups.getDisplayName(muscle)
-                .toLowerCase()
-                .contains(normalizedQuery),
-          );
+    return exercises
+        .where((Exercise exercise) {
+          final bool matchesQuery =
+              normalizedQuery.isEmpty ||
+              exercise.name.toLowerCase().contains(normalizedQuery) ||
+              exercise.muscleGroups.any(
+                (String muscle) => MuscleGroups.getDisplayName(
+                  muscle,
+                ).toLowerCase().contains(normalizedQuery),
+              );
 
-      final bool matchesMuscle = selectedMuscle == null ||
-          exercise.muscleGroups.contains(selectedMuscle);
+          final bool matchesMuscle =
+              selectedMuscle == null ||
+              exercise.muscleGroups.contains(selectedMuscle);
 
-      return matchesQuery && matchesMuscle;
-    }).toList(growable: false);
+          return matchesQuery && matchesMuscle;
+        })
+        .toList(growable: false);
   }
 }

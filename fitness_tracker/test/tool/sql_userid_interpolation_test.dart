@@ -20,29 +20,35 @@ void main() {
       expect(violations, isEmpty);
     });
 
-    test('passes when parameterised whereArgs are used without interpolation', () async {
-      final repo = FakeRepoView({
-        'lib/data/datasources/local/foo_datasource.dart':
-            "final result = await db.query(\n"
-            "  tableName,\n"
-            "  where: 'owner_user_id = ?',\n"
-            "  whereArgs: [ownerId],\n"
-            ");\n",
-      });
-      final violations = await rule.check(repo);
-      expect(violations, isEmpty);
-    });
+    test(
+      'passes when parameterised whereArgs are used without interpolation',
+      () async {
+        final repo = FakeRepoView({
+          'lib/data/datasources/local/foo_datasource.dart':
+              "final result = await db.query(\n"
+              "  tableName,\n"
+              "  where: 'owner_user_id = ?',\n"
+              "  whereArgs: [ownerId],\n"
+              ");\n",
+        });
+        final violations = await rule.check(repo);
+        expect(violations, isEmpty);
+      },
+    );
 
-    test('reports a violation for userId interpolated in where: string', () async {
-      final repo = FakeRepoView({
-        'lib/data/datasources/local/foo_datasource.dart':
-            "final result = await db.query(tableName, where: 'owner = \$userId');\n",
-      });
-      final violations = await rule.check(repo);
-      expect(violations, hasLength(1));
-      expect(violations.first.ruleId, 'sql-userid-interpolation');
-      expect(violations.first.line, 1);
-    });
+    test(
+      'reports a violation for userId interpolated in where: string',
+      () async {
+        final repo = FakeRepoView({
+          'lib/data/datasources/local/foo_datasource.dart':
+              "final result = await db.query(tableName, where: 'owner = \$userId');\n",
+        });
+        final violations = await rule.check(repo);
+        expect(violations, hasLength(1));
+        expect(violations.first.ruleId, 'sql-userid-interpolation');
+        expect(violations.first.line, 1);
+      },
+    );
 
     test('reports a violation for ownerId interpolated in rawQuery', () async {
       final repo = FakeRepoView({

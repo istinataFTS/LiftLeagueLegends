@@ -34,7 +34,9 @@ class WorkoutSetModel extends WorkoutSet {
   }
 
   factory WorkoutSetModel.fromMap(Map<String, dynamic> map) {
-    final createdAt = DateTime.parse(map[DatabaseTables.setCreatedAt] as String);
+    final createdAt = DateTime.parse(
+      map[DatabaseTables.setCreatedAt] as String,
+    );
     final updatedAtRaw = map[DatabaseTables.setUpdatedAt] as String?;
 
     return WorkoutSetModel(
@@ -43,12 +45,14 @@ class WorkoutSetModel extends WorkoutSet {
       exerciseId: map[DatabaseTables.setExerciseId] as String,
       reps: map[DatabaseTables.setReps] as int,
       weight: (map[DatabaseTables.setWeight] as num).toDouble(),
-      intensity: (map[DatabaseTables.setIntensity] as int?) ??
+      intensity:
+          (map[DatabaseTables.setIntensity] as int?) ??
           MuscleStimulus.defaultIntensity,
       date: DateTime.parse(map[DatabaseTables.setDate] as String),
       createdAt: createdAt,
-      updatedAt:
-          updatedAtRaw == null ? createdAt : DateTime.parse(updatedAtRaw),
+      updatedAt: updatedAtRaw == null
+          ? createdAt
+          : DateTime.parse(updatedAtRaw),
       syncMetadata: EntitySyncMetadata(
         serverId: map[DatabaseTables.setServerId] as String?,
         status: _syncStatusFromStorage(
@@ -75,8 +79,8 @@ class WorkoutSetModel extends WorkoutSet {
       DatabaseTables.setUpdatedAt: updatedAt.toIso8601String(),
       DatabaseTables.setServerId: syncMetadata.serverId,
       DatabaseTables.setSyncStatus: syncMetadata.status.name,
-      DatabaseTables.setLastSyncedAt:
-          syncMetadata.lastSyncedAt?.toIso8601String(),
+      DatabaseTables.setLastSyncedAt: syncMetadata.lastSyncedAt
+          ?.toIso8601String(),
       DatabaseTables.setLastSyncError: syncMetadata.lastSyncError,
     };
   }
@@ -94,8 +98,9 @@ class WorkoutSetModel extends WorkoutSet {
       intensity: (json['intensity'] as int?) ?? MuscleStimulus.defaultIntensity,
       date: DateTime.parse(json['date'] as String),
       createdAt: createdAt,
-      updatedAt:
-          updatedAtRaw == null ? createdAt : DateTime.parse(updatedAtRaw),
+      updatedAt: updatedAtRaw == null
+          ? createdAt
+          : DateTime.parse(updatedAtRaw),
       syncMetadata: EntitySyncMetadata(
         serverId: json['serverId'] as String?,
         status: _syncStatusFromStorage(json['syncStatus'] as String?),

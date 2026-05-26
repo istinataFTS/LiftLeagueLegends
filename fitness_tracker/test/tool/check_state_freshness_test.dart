@@ -109,9 +109,7 @@ String _topFp(Map<String, String> featureFps) {
   // will derive from the FakeRepoView above.
 
   final authFp = _featureFp(
-    files: [
-      'lib/features/auth/application/sign_in_cubit.dart',
-    ],
+    files: ['lib/features/auth/application/sign_in_cubit.dart'],
     classes: ['OtpVerificationCubit', 'SignInCubit', 'SignUpCubit'],
     repositories: ['lib/domain/repositories/app_session_repository.dart'],
     useCases: [],
@@ -120,9 +118,7 @@ String _topFp(Map<String, String> featureFps) {
   );
 
   final historyFp = _featureFp(
-    files: [
-      'lib/features/history/presentation/bloc/history_bloc.dart',
-    ],
+    files: ['lib/features/history/presentation/bloc/history_bloc.dart'],
     classes: ['HistoryBloc'],
     repositories: [
       'lib/domain/repositories/nutrition_log_repository.dart',
@@ -134,9 +130,7 @@ String _topFp(Map<String, String> featureFps) {
   );
 
   final homeFp = _featureFp(
-    files: [
-      'lib/features/home/application/home_bloc.dart',
-    ],
+    files: ['lib/features/home/application/home_bloc.dart'],
     classes: ['HomeBloc', 'MuscleVisualBloc'],
     repositories: [
       'lib/domain/repositories/app_session_repository.dart',
@@ -155,9 +149,7 @@ String _topFp(Map<String, String> featureFps) {
   );
 
   final libraryFp = _featureFp(
-    files: [
-      'lib/features/library/application/exercise_bloc.dart',
-    ],
+    files: ['lib/features/library/application/exercise_bloc.dart'],
     classes: ['ExerciseBloc', 'MealBloc'],
     repositories: [
       'lib/domain/repositories/exercise_repository.dart',
@@ -172,9 +164,7 @@ String _topFp(Map<String, String> featureFps) {
   );
 
   final logFp = _featureFp(
-    files: [
-      'lib/features/log/application/workout_bloc.dart',
-    ],
+    files: ['lib/features/log/application/workout_bloc.dart'],
     classes: ['NutritionLogBloc', 'WorkoutBloc'],
     repositories: [
       'lib/domain/repositories/exercise_repository.dart',
@@ -194,9 +184,7 @@ String _topFp(Map<String, String> featureFps) {
   );
 
   final profileFp = _featureFp(
-    files: [
-      'lib/features/profile/application/profile_cubit.dart',
-    ],
+    files: ['lib/features/profile/application/profile_cubit.dart'],
     classes: ['ProfileCubit'],
     repositories: ['lib/domain/repositories/user_profile_repository.dart'],
     useCases: [],
@@ -205,9 +193,7 @@ String _topFp(Map<String, String> featureFps) {
   );
 
   final settingsFp = _featureFp(
-    files: [
-      'lib/features/settings/application/app_settings_cubit.dart',
-    ],
+    files: ['lib/features/settings/application/app_settings_cubit.dart'],
     classes: ['AppSettingsCubit'],
     repositories: ['lib/domain/repositories/app_settings_repository.dart'],
     useCases: [],
@@ -216,9 +202,7 @@ String _topFp(Map<String, String> featureFps) {
   );
 
   final voiceFp = _featureFp(
-    files: [
-      'lib/features/voice/application/voice_bloc.dart',
-    ],
+    files: ['lib/features/voice/application/voice_bloc.dart'],
     classes: ['VoiceBloc', 'VoiceSettingsCubit'],
     repositories: ['lib/domain/repositories/voice_repository.dart'],
     useCases: ['lib/domain/usecases/voice/send_voice_message.dart'],
@@ -264,8 +248,7 @@ String _topFp(Map<String, String> featureFps) {
           'lib/domain/repositories/nutrition_log_repository.dart',
         ],
         'useCases': [],
-        'injectionModule':
-            'lib/injection/modules/register_history_module.dart',
+        'injectionModule': 'lib/injection/modules/register_history_module.dart',
         'tables': ['workout_sets', 'nutrition_logs'],
         'notes': '',
         'fingerprint': historyFp,
@@ -338,8 +321,7 @@ String _topFp(Map<String, String> featureFps) {
           'lib/domain/repositories/user_profile_repository.dart',
         ],
         'useCases': [],
-        'injectionModule':
-            'lib/injection/modules/register_profile_module.dart',
+        'injectionModule': 'lib/injection/modules/register_profile_module.dart',
         'tables': [],
         'notes': '',
         'fingerprint': profileFp,
@@ -364,8 +346,7 @@ String _topFp(Map<String, String> featureFps) {
         'blocs': ['VoiceBloc', 'VoiceSettingsCubit'],
         'repositories': ['lib/domain/repositories/voice_repository.dart'],
         'useCases': ['lib/domain/usecases/voice/send_voice_message.dart'],
-        'injectionModule':
-            'lib/injection/modules/register_voice_module.dart',
+        'injectionModule': 'lib/injection/modules/register_voice_module.dart',
         'tables': [],
         'notes': '',
         'fingerprint': voiceFp,
@@ -384,15 +365,21 @@ String _topFp(Map<String, String> featureFps) {
 void main() {
   group('StateFreshnessChecker', () {
     // ── Pass ─────────────────────────────────────────────────────────────────
-    test('pass — all eight features consistent with source, fingerprints match',
-        () async {
-      final (repo, _) = _buildPassRepo();
-      final checker = StateFreshnessChecker(repo);
-      final violations = await checker.run();
-      expect(violations, isEmpty,
-          reason: 'Expected zero violations but got:\n'
-              '${violations.map((v) => v.toString()).join('\n')}');
-    });
+    test(
+      'pass — all eight features consistent with source, fingerprints match',
+      () async {
+        final (repo, _) = _buildPassRepo();
+        final checker = StateFreshnessChecker(repo);
+        final violations = await checker.run();
+        expect(
+          violations,
+          isEmpty,
+          reason:
+              'Expected zero violations but got:\n'
+              '${violations.map((v) => v.toString()).join('\n')}',
+        );
+      },
+    );
 
     // ── state.json missing ────────────────────────────────────────────────────
     test('fail — state.json is missing', () async {
@@ -424,9 +411,7 @@ void main() {
       final repo = FakeRepoView({'.claude/memory/state.json': json});
       final violations = await StateFreshnessChecker(repo).run();
       expect(
-        violations.any(
-          (v) => v.message.contains('schemaVersion must be 1'),
-        ),
+        violations.any((v) => v.message.contains('schemaVersion must be 1')),
         isTrue,
       );
     });
@@ -443,7 +428,9 @@ void main() {
       final violations = await StateFreshnessChecker(repo).run();
       expect(
         violations.any(
-          (v) => v.message.contains('Missing required top-level key: "fingerprint"'),
+          (v) => v.message.contains(
+            'Missing required top-level key: "fingerprint"',
+          ),
         ),
         isTrue,
       );
@@ -510,7 +497,8 @@ void main() {
       expect(
         violations.any(
           (v) => v.message.contains(
-                'Feature "home" is missing required field: "blocs"'),
+            'Feature "home" is missing required field: "blocs"',
+          ),
         ),
         isTrue,
       );
@@ -530,86 +518,89 @@ void main() {
       });
       final violations = await StateFreshnessChecker(repo).run();
       expect(
-        violations.any(
-          (v) => v.message.contains('"lib/features/ghost/"'),
-        ),
+        violations.any((v) => v.message.contains('"lib/features/ghost/"')),
         isTrue,
       );
     });
 
     // ── BLoC class not found ──────────────────────────────────────────────────
-    test('fail — "GhostBloc" listed in "log" blocs but not in source files',
-        () async {
-      final (fullRepo, _) = _buildPassRepo();
-      final raw = await fullRepo.readFile('.claude/memory/state.json');
-      final data = jsonDecode(raw!) as Map<String, dynamic>;
-      final logEntry = data['features']['log'] as Map<String, dynamic>;
-      logEntry['blocs'] = ['WorkoutBloc', 'NutritionLogBloc', 'GhostBloc'];
-      final repo = FakeRepoView({
-        ...fullRepo.files,
-        '.claude/memory/state.json': jsonEncode(data),
-      });
-      final violations = await StateFreshnessChecker(repo).run();
-      expect(
-        violations.any(
-          (v) => v.message.contains('"GhostBloc" not found'),
-        ),
-        isTrue,
-      );
-    });
+    test(
+      'fail — "GhostBloc" listed in "log" blocs but not in source files',
+      () async {
+        final (fullRepo, _) = _buildPassRepo();
+        final raw = await fullRepo.readFile('.claude/memory/state.json');
+        final data = jsonDecode(raw!) as Map<String, dynamic>;
+        final logEntry = data['features']['log'] as Map<String, dynamic>;
+        logEntry['blocs'] = ['WorkoutBloc', 'NutritionLogBloc', 'GhostBloc'];
+        final repo = FakeRepoView({
+          ...fullRepo.files,
+          '.claude/memory/state.json': jsonEncode(data),
+        });
+        final violations = await StateFreshnessChecker(repo).run();
+        expect(
+          violations.any((v) => v.message.contains('"GhostBloc" not found')),
+          isTrue,
+        );
+      },
+    );
 
     // ── Per-feature fingerprint stale ─────────────────────────────────────────
-    test('fail — "settings" fingerprint stale after class added to source file',
-        () async {
-      final (fullRepo, _) = _buildPassRepo();
-      // Simulate adding a new class to the settings feature
-      final repo = FakeRepoView({
-        ...fullRepo.files,
-        'lib/features/settings/application/app_settings_cubit.dart':
-            'class AppSettingsCubit extends Cubit<AppSettingsState> {}\n'
-            'class NewSettingsHelper {}\n', // new class
-      });
-      final violations = await StateFreshnessChecker(repo).run();
-      expect(
-        violations.any(
-          (v) =>
-              v.ruleId == 'state-freshness' &&
-              v.message.contains('Feature "settings" fingerprint stale'),
-        ),
-        isTrue,
-      );
-      // The violation message must include the expected fingerprint value
-      final fpViolation = violations.firstWhere(
-        (v) => v.message.contains('Feature "settings" fingerprint stale'),
-      );
-      expect(fpViolation.fixHint, contains('state.json'));
-    });
+    test(
+      'fail — "settings" fingerprint stale after class added to source file',
+      () async {
+        final (fullRepo, _) = _buildPassRepo();
+        // Simulate adding a new class to the settings feature
+        final repo = FakeRepoView({
+          ...fullRepo.files,
+          'lib/features/settings/application/app_settings_cubit.dart':
+              'class AppSettingsCubit extends Cubit<AppSettingsState> {}\n'
+              'class NewSettingsHelper {}\n', // new class
+        });
+        final violations = await StateFreshnessChecker(repo).run();
+        expect(
+          violations.any(
+            (v) =>
+                v.ruleId == 'state-freshness' &&
+                v.message.contains('Feature "settings" fingerprint stale'),
+          ),
+          isTrue,
+        );
+        // The violation message must include the expected fingerprint value
+        final fpViolation = violations.firstWhere(
+          (v) => v.message.contains('Feature "settings" fingerprint stale'),
+        );
+        expect(fpViolation.fixHint, contains('state.json'));
+      },
+    );
 
     // ── Top-level fingerprint stale, per-feature all match ────────────────────
     test(
-        'fail — top-level fingerprint wrong even though per-feature fingerprints match',
-        () async {
-      final (fullRepo, _) = _buildPassRepo();
-      final raw = await fullRepo.readFile('.claude/memory/state.json');
-      final data = jsonDecode(raw!) as Map<String, dynamic>;
-      data['fingerprint'] = 'badf00dbadf00d00'; // deliberately wrong
-      final repo = FakeRepoView({
-        ...fullRepo.files,
-        '.claude/memory/state.json': jsonEncode(data),
-      });
-      final violations = await StateFreshnessChecker(repo).run();
-      expect(
-        violations.any(
-          (v) => v.message.contains('Top-level fingerprint stale'),
-        ),
-        isTrue,
-      );
-      // The per-feature fingerprints must all pass
-      expect(
-        violations.any((v) => v.message.contains('Feature') && v.message.contains('stale')),
-        isFalse,
-      );
-    });
+      'fail — top-level fingerprint wrong even though per-feature fingerprints match',
+      () async {
+        final (fullRepo, _) = _buildPassRepo();
+        final raw = await fullRepo.readFile('.claude/memory/state.json');
+        final data = jsonDecode(raw!) as Map<String, dynamic>;
+        data['fingerprint'] = 'badf00dbadf00d00'; // deliberately wrong
+        final repo = FakeRepoView({
+          ...fullRepo.files,
+          '.claude/memory/state.json': jsonEncode(data),
+        });
+        final violations = await StateFreshnessChecker(repo).run();
+        expect(
+          violations.any(
+            (v) => v.message.contains('Top-level fingerprint stale'),
+          ),
+          isTrue,
+        );
+        // The per-feature fingerprints must all pass
+        expect(
+          violations.any(
+            (v) => v.message.contains('Feature') && v.message.contains('stale'),
+          ),
+          isFalse,
+        );
+      },
+    );
 
     // ── Unknown table name ────────────────────────────────────────────────────
     test('fail — "log" entry lists unknown table "ghost_table"', () async {
@@ -633,37 +624,39 @@ void main() {
 
     // ── CRLF normalisation ────────────────────────────────────────────────────
     test(
-        'CRLF — source file with CRLF line endings produces same fingerprint as LF',
-        () async {
-      // Build a LF repo and a CRLF repo with identical logical content.
-      const lfContent =
-          'class WorkoutBloc extends Bloc<WorkoutEvent, WorkoutState> {}\n'
-          'class NutritionLogBloc extends Bloc<NutritionLogEvent, NutritionLogState> {}\n';
-      final crlfContent = lfContent.replaceAll('\n', '\r\n');
+      'CRLF — source file with CRLF line endings produces same fingerprint as LF',
+      () async {
+        // Build a LF repo and a CRLF repo with identical logical content.
+        const lfContent =
+            'class WorkoutBloc extends Bloc<WorkoutEvent, WorkoutState> {}\n'
+            'class NutritionLogBloc extends Bloc<NutritionLogEvent, NutritionLogState> {}\n';
+        final crlfContent = lfContent.replaceAll('\n', '\r\n');
 
-      final (lfRepo, _) = _buildPassRepo();
+        final (lfRepo, _) = _buildPassRepo();
 
-      // CRLF variant: replace the log feature source file with CRLF version.
-      final crlfFiles = Map<String, String>.from(lfRepo.files);
-      crlfFiles['lib/features/log/application/workout_bloc.dart'] = crlfContent;
+        // CRLF variant: replace the log feature source file with CRLF version.
+        final crlfFiles = Map<String, String>.from(lfRepo.files);
+        crlfFiles['lib/features/log/application/workout_bloc.dart'] =
+            crlfContent;
 
-      final crlfRepo = FakeRepoView(crlfFiles);
+        final crlfRepo = FakeRepoView(crlfFiles);
 
-      final lfViolations = await StateFreshnessChecker(lfRepo).run();
-      final crlfViolations = await StateFreshnessChecker(crlfRepo).run();
+        final lfViolations = await StateFreshnessChecker(lfRepo).run();
+        final crlfViolations = await StateFreshnessChecker(crlfRepo).run();
 
-      // Both must produce zero violations (same fingerprint).
-      expect(
-        lfViolations.where((v) => v.message.contains('Feature "log"')),
-        isEmpty,
-        reason: 'LF repo should have zero log violations',
-      );
-      expect(
-        crlfViolations.where((v) => v.message.contains('Feature "log"')),
-        isEmpty,
-        reason: 'CRLF repo should produce identical fingerprint to LF repo',
-      );
-    });
+        // Both must produce zero violations (same fingerprint).
+        expect(
+          lfViolations.where((v) => v.message.contains('Feature "log"')),
+          isEmpty,
+          reason: 'LF repo should have zero log violations',
+        );
+        expect(
+          crlfViolations.where((v) => v.message.contains('Feature "log"')),
+          isEmpty,
+          reason: 'CRLF repo should produce identical fingerprint to LF repo',
+        );
+      },
+    );
 
     // ── Repository path does not exist ────────────────────────────────────────
     test('fail — "voice" repository path does not exist', () async {
@@ -679,9 +672,7 @@ void main() {
       });
       final violations = await StateFreshnessChecker(repo).run();
       expect(
-        violations.any(
-          (v) => v.message.contains('ghost_repository.dart'),
-        ),
+        violations.any((v) => v.message.contains('ghost_repository.dart')),
         isTrue,
       );
     });
@@ -699,9 +690,7 @@ void main() {
       });
       final violations = await StateFreshnessChecker(repo).run();
       expect(
-        violations.any(
-          (v) => v.message.contains('ghost_module.dart'),
-        ),
+        violations.any((v) => v.message.contains('ghost_module.dart')),
         isTrue,
       );
     });

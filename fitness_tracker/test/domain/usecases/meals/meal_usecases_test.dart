@@ -69,19 +69,16 @@ void main() {
     late AddMeal useCase;
 
     setUp(() {
-      useCase = AddMeal(
-        mockMealRepo,
-        appSessionRepository: mockSessionRepo,
-      );
+      useCase = AddMeal(mockMealRepo, appSessionRepository: mockSessionRepo);
     });
 
     test('does not set ownerUserId when session fails', () async {
-      when(() => mockSessionRepo.getCurrentSession()).thenAnswer(
-        (_) async => const Left(CacheFailure('no session')),
-      );
-      when(() => mockMealRepo.addMeal(_mealFixture)).thenAnswer(
-        (_) async => const Right(null),
-      );
+      when(
+        () => mockSessionRepo.getCurrentSession(),
+      ).thenAnswer((_) async => const Left(CacheFailure('no session')));
+      when(
+        () => mockMealRepo.addMeal(_mealFixture),
+      ).thenAnswer((_) async => const Right(null));
 
       final result = await useCase(_mealFixture);
 
@@ -92,12 +89,12 @@ void main() {
     test('sets ownerUserId when session is authenticated', () async {
       final mealWithOwner = _mealFixture.copyWith(ownerUserId: 'user-1');
 
-      when(() => mockSessionRepo.getCurrentSession()).thenAnswer(
-        (_) async => const Right(_authenticatedSession),
-      );
-      when(() => mockMealRepo.addMeal(mealWithOwner)).thenAnswer(
-        (_) async => const Right(null),
-      );
+      when(
+        () => mockSessionRepo.getCurrentSession(),
+      ).thenAnswer((_) async => const Right(_authenticatedSession));
+      when(
+        () => mockMealRepo.addMeal(mealWithOwner),
+      ).thenAnswer((_) async => const Right(null));
 
       final result = await useCase(_mealFixture);
 
@@ -105,27 +102,30 @@ void main() {
       verify(() => mockMealRepo.addMeal(mealWithOwner)).called(1);
     });
 
-    test('does not set ownerUserId for unauthenticated guest session', () async {
-      when(() => mockSessionRepo.getCurrentSession()).thenAnswer(
-        (_) async => const Right(AppSession.guest()),
-      );
-      when(() => mockMealRepo.addMeal(_mealFixture)).thenAnswer(
-        (_) async => const Right(null),
-      );
+    test(
+      'does not set ownerUserId for unauthenticated guest session',
+      () async {
+        when(
+          () => mockSessionRepo.getCurrentSession(),
+        ).thenAnswer((_) async => const Right(AppSession.guest()));
+        when(
+          () => mockMealRepo.addMeal(_mealFixture),
+        ).thenAnswer((_) async => const Right(null));
 
-      final result = await useCase(_mealFixture);
+        final result = await useCase(_mealFixture);
 
-      expect(result.isRight(), isTrue);
-      verify(() => mockMealRepo.addMeal(_mealFixture)).called(1);
-    });
+        expect(result.isRight(), isTrue);
+        verify(() => mockMealRepo.addMeal(_mealFixture)).called(1);
+      },
+    );
 
     test('propagates repository failure', () async {
-      when(() => mockSessionRepo.getCurrentSession()).thenAnswer(
-        (_) async => const Left(CacheFailure('no session')),
-      );
-      when(() => mockMealRepo.addMeal(_mealFixture)).thenAnswer(
-        (_) async => const Left(_dbFailure),
-      );
+      when(
+        () => mockSessionRepo.getCurrentSession(),
+      ).thenAnswer((_) async => const Left(CacheFailure('no session')));
+      when(
+        () => mockMealRepo.addMeal(_mealFixture),
+      ).thenAnswer((_) async => const Left(_dbFailure));
 
       final result = await useCase(_mealFixture);
 
@@ -143,9 +143,9 @@ void main() {
     setUp(() => useCase = DeleteMeal(mockMealRepo));
 
     test('delegates to repository on success', () async {
-      when(() => mockMealRepo.deleteMeal('meal-1')).thenAnswer(
-        (_) async => const Right(null),
-      );
+      when(
+        () => mockMealRepo.deleteMeal('meal-1'),
+      ).thenAnswer((_) async => const Right(null));
 
       final result = await useCase('meal-1');
 
@@ -153,9 +153,9 @@ void main() {
     });
 
     test('propagates repository failure', () async {
-      when(() => mockMealRepo.deleteMeal('meal-1')).thenAnswer(
-        (_) async => const Left(_dbFailure),
-      );
+      when(
+        () => mockMealRepo.deleteMeal('meal-1'),
+      ).thenAnswer((_) async => const Left(_dbFailure));
 
       final result = await useCase('meal-1');
 
@@ -171,10 +171,13 @@ void main() {
     late GetAllMeals useCase;
 
     setUp(() {
-      useCase = GetAllMeals(mockMealRepo, sourcePreferenceResolver: mockResolver);
-      when(() => mockResolver.resolveReadPreference()).thenAnswer(
-        (_) async => DataSourcePreference.localOnly,
+      useCase = GetAllMeals(
+        mockMealRepo,
+        sourcePreferenceResolver: mockResolver,
       );
+      when(
+        () => mockResolver.resolveReadPreference(),
+      ).thenAnswer((_) async => DataSourcePreference.localOnly);
     });
 
     test('returns list of meals from repository', () async {
@@ -211,11 +214,13 @@ void main() {
     late GetMealById useCase;
 
     setUp(() {
-      useCase =
-          GetMealById(mockMealRepo, sourcePreferenceResolver: mockResolver);
-      when(() => mockResolver.resolveReadPreference()).thenAnswer(
-        (_) async => DataSourcePreference.localOnly,
+      useCase = GetMealById(
+        mockMealRepo,
+        sourcePreferenceResolver: mockResolver,
       );
+      when(
+        () => mockResolver.resolveReadPreference(),
+      ).thenAnswer((_) async => DataSourcePreference.localOnly);
     });
 
     test('returns meal when found', () async {
@@ -266,11 +271,13 @@ void main() {
     late GetMealByName useCase;
 
     setUp(() {
-      useCase =
-          GetMealByName(mockMealRepo, sourcePreferenceResolver: mockResolver);
-      when(() => mockResolver.resolveReadPreference()).thenAnswer(
-        (_) async => DataSourcePreference.localOnly,
+      useCase = GetMealByName(
+        mockMealRepo,
+        sourcePreferenceResolver: mockResolver,
       );
+      when(
+        () => mockResolver.resolveReadPreference(),
+      ).thenAnswer((_) async => DataSourcePreference.localOnly);
     });
 
     test('returns meal when found by name', () async {
@@ -324,28 +331,30 @@ void main() {
       useCase = UpdateMeal(mockMealRepo, appSessionRepository: mockSessionRepo);
     });
 
-    test('updates meal without changing ownerUserId when session fails',
-        () async {
-      when(() => mockSessionRepo.getCurrentSession()).thenAnswer(
-        (_) async => const Left(CacheFailure('no session')),
-      );
-      when(() => mockMealRepo.updateMeal(_mealFixture)).thenAnswer(
-        (_) async => const Right(null),
-      );
+    test(
+      'updates meal without changing ownerUserId when session fails',
+      () async {
+        when(
+          () => mockSessionRepo.getCurrentSession(),
+        ).thenAnswer((_) async => const Left(CacheFailure('no session')));
+        when(
+          () => mockMealRepo.updateMeal(_mealFixture),
+        ).thenAnswer((_) async => const Right(null));
 
-      final result = await useCase(_mealFixture);
+        final result = await useCase(_mealFixture);
 
-      expect(result.isRight(), isTrue);
-      verify(() => mockMealRepo.updateMeal(_mealFixture)).called(1);
-    });
+        expect(result.isRight(), isTrue);
+        verify(() => mockMealRepo.updateMeal(_mealFixture)).called(1);
+      },
+    );
 
     test('propagates repository failure', () async {
-      when(() => mockSessionRepo.getCurrentSession()).thenAnswer(
-        (_) async => const Left(CacheFailure('no session')),
-      );
-      when(() => mockMealRepo.updateMeal(_mealFixture)).thenAnswer(
-        (_) async => const Left(_dbFailure),
-      );
+      when(
+        () => mockSessionRepo.getCurrentSession(),
+      ).thenAnswer((_) async => const Left(CacheFailure('no session')));
+      when(
+        () => mockMealRepo.updateMeal(_mealFixture),
+      ).thenAnswer((_) async => const Left(_dbFailure));
 
       final result = await useCase(_mealFixture);
 

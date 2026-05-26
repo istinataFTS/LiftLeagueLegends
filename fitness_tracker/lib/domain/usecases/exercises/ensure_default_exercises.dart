@@ -42,7 +42,7 @@ class EnsureDefaultExercises {
   /// factor healing so the body map reflects the newly seeded factors
   /// immediately — without waiting for the user to log another set.
   final RebuildMuscleStimulusFromWorkoutHistory?
-      rebuildMuscleStimulusFromWorkoutHistory;
+  rebuildMuscleStimulusFromWorkoutHistory;
 
   /// Ensures the current user has default exercises, seeding them if needed.
   ///
@@ -136,9 +136,7 @@ class EnsureDefaultExercises {
         },
       );
     } catch (e, stackTrace) {
-      debugPrint(
-        '[EnsureDefaultExercises] Unexpected error: $e\n$stackTrace',
-      );
+      debugPrint('[EnsureDefaultExercises] Unexpected error: $e\n$stackTrace');
       return Left(DatabaseFailure('EnsureDefaultExercises failed: $e'));
     }
   }

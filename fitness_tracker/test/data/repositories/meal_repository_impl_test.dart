@@ -124,9 +124,9 @@ void main() {
         buildMealModel(id: '1', name: 'Chicken Bowl'),
       ];
 
-      when(() => localDataSource.getAllMeals()).thenAnswer(
-        (_) async => localMeals,
-      );
+      when(
+        () => localDataSource.getAllMeals(),
+      ).thenAnswer((_) async => localMeals);
 
       final Either<Failure, List<Meal>> result = await repository.getAllMeals();
 
@@ -136,39 +136,43 @@ void main() {
       verifyNever(() => localDataSource.mergeRemoteMeals(any()));
     });
 
-    test('returns empty list for remoteOnly when remote is not configured',
-        () async {
-      when(() => remoteDataSource.isConfigured).thenReturn(false);
+    test(
+      'returns empty list for remoteOnly when remote is not configured',
+      () async {
+        when(() => remoteDataSource.isConfigured).thenReturn(false);
 
-      final Either<Failure, List<Meal>> result = await repository.getAllMeals(
-        sourcePreference: DataSourcePreference.remoteOnly,
-      );
+        final Either<Failure, List<Meal>> result = await repository.getAllMeals(
+          sourcePreference: DataSourcePreference.remoteOnly,
+        );
 
-      expect(result, const Right(<Meal>[]));
-      verifyNever(() => remoteDataSource.getAllMeals());
-      verifyNever(() => localDataSource.getAllMeals());
-    });
+        expect(result, const Right(<Meal>[]));
+        verifyNever(() => remoteDataSource.getAllMeals());
+        verifyNever(() => localDataSource.getAllMeals());
+      },
+    );
 
-    test('returns local data first for localThenRemote when local has items',
-        () async {
-      final List<MealModel> localMeals = <MealModel>[
-        buildMealModel(id: '1', name: 'Oats'),
-      ];
+    test(
+      'returns local data first for localThenRemote when local has items',
+      () async {
+        final List<MealModel> localMeals = <MealModel>[
+          buildMealModel(id: '1', name: 'Oats'),
+        ];
 
-      when(() => localDataSource.getAllMeals()).thenAnswer(
-        (_) async => localMeals,
-      );
-      when(() => remoteDataSource.isConfigured).thenReturn(true);
+        when(
+          () => localDataSource.getAllMeals(),
+        ).thenAnswer((_) async => localMeals);
+        when(() => remoteDataSource.isConfigured).thenReturn(true);
 
-      final Either<Failure, List<Meal>> result = await repository.getAllMeals(
-        sourcePreference: DataSourcePreference.localThenRemote,
-      );
+        final Either<Failure, List<Meal>> result = await repository.getAllMeals(
+          sourcePreference: DataSourcePreference.localThenRemote,
+        );
 
-      expect(result, Right<Failure, List<Meal>>(localMeals));
-      verify(() => localDataSource.getAllMeals()).called(1);
-      verifyNever(() => remoteDataSource.getAllMeals());
-      verifyNever(() => localDataSource.mergeRemoteMeals(any()));
-    });
+        expect(result, Right<Failure, List<Meal>>(localMeals));
+        verify(() => localDataSource.getAllMeals()).called(1);
+        verifyNever(() => remoteDataSource.getAllMeals());
+        verifyNever(() => localDataSource.mergeRemoteMeals(any()));
+      },
+    );
 
     test('remoteThenLocal merges cache instead of replaceAll and preserves '
         'pending local update', () async {
@@ -185,18 +189,14 @@ void main() {
         id: 'meal-1',
         name: 'Remote Bowl',
         updatedAt: createdAt.add(const Duration(hours: 3)),
-        syncMetadata: const EntitySyncMetadata(
-          status: SyncStatus.synced,
-        ),
+        syncMetadata: const EntitySyncMetadata(status: SyncStatus.synced),
       );
 
       final Meal remoteOnlyMeal = buildMealEntity(
         id: 'meal-2',
         name: 'Greek Yogurt',
         updatedAt: createdAt.add(const Duration(hours: 1)),
-        syncMetadata: const EntitySyncMetadata(
-          status: SyncStatus.synced,
-        ),
+        syncMetadata: const EntitySyncMetadata(status: SyncStatus.synced),
       );
 
       final List<MealModel> mergedMeals = <MealModel>[
@@ -205,18 +205,18 @@ void main() {
       ];
 
       when(() => remoteDataSource.isConfigured).thenReturn(true);
-      when(() => localDataSource.getAllMeals()).thenAnswer(
-        (_) async => <MealModel>[localPendingMeal],
-      );
-      when(() => remoteDataSource.getAllMeals()).thenAnswer(
-        (_) async => <Meal>[remoteMeal, remoteOnlyMeal],
-      );
-      when(() => localDataSource.mergeRemoteMeals(any())).thenAnswer(
-        (_) async {},
-      );
-      when(() => localDataSource.getAllMeals()).thenAnswer(
-        (_) async => mergedMeals,
-      );
+      when(
+        () => localDataSource.getAllMeals(),
+      ).thenAnswer((_) async => <MealModel>[localPendingMeal]);
+      when(
+        () => remoteDataSource.getAllMeals(),
+      ).thenAnswer((_) async => <Meal>[remoteMeal, remoteOnlyMeal]);
+      when(
+        () => localDataSource.mergeRemoteMeals(any()),
+      ).thenAnswer((_) async {});
+      when(
+        () => localDataSource.getAllMeals(),
+      ).thenAnswer((_) async => mergedMeals);
 
       final Either<Failure, List<Meal>> result = await repository.getAllMeals(
         sourcePreference: DataSourcePreference.remoteThenLocal,
@@ -230,35 +230,41 @@ void main() {
   });
 
   group('MealRepositoryImpl.getMealById', () {
-    test('falls back to local for remoteThenLocal when remote returns null',
-        () async {
-      final MealModel localMeal = buildMealModel(id: 'meal-1', name: 'Oats');
+    test(
+      'falls back to local for remoteThenLocal when remote returns null',
+      () async {
+        final MealModel localMeal = buildMealModel(id: 'meal-1', name: 'Oats');
 
-      when(() => remoteDataSource.isConfigured).thenReturn(true);
-      when(() => localDataSource.getMealById('meal-1')).thenAnswer(
-        (_) async => localMeal,
-      );
-      when(() => remoteDataSource.getMealById('meal-1')).thenAnswer(
-        (_) async => null,
-      );
+        when(() => remoteDataSource.isConfigured).thenReturn(true);
+        when(
+          () => localDataSource.getMealById('meal-1'),
+        ).thenAnswer((_) async => localMeal);
+        when(
+          () => remoteDataSource.getMealById('meal-1'),
+        ).thenAnswer((_) async => null);
 
-      final Either<Failure, Meal?> result = await repository.getMealById(
-        'meal-1',
-        sourcePreference: DataSourcePreference.remoteThenLocal,
-      );
+        final Either<Failure, Meal?> result = await repository.getMealById(
+          'meal-1',
+          sourcePreference: DataSourcePreference.remoteThenLocal,
+        );
 
-      expect(result, Right<Failure, Meal?>(localMeal));
-      verify(() => remoteDataSource.getMealById('meal-1')).called(1);
-      verify(() => localDataSource.getMealById('meal-1')).called(1);
-      verifyNever(() => localDataSource.upsertMeal(any()));
-    });
+        expect(result, Right<Failure, Meal?>(localMeal));
+        verify(() => remoteDataSource.getMealById('meal-1')).called(1);
+        verify(() => localDataSource.getMealById('meal-1')).called(1);
+        verifyNever(() => localDataSource.upsertMeal(any()));
+      },
+    );
 
     test('returns local cache snapshot after localThenRemote upsert', () async {
-      final Meal remoteMeal =
-          buildMealEntity(id: 'meal-1', name: 'Chicken Bowl');
+      final Meal remoteMeal = buildMealEntity(
+        id: 'meal-1',
+        name: 'Chicken Bowl',
+      );
 
-      final MealModel cachedMeal =
-          buildMealModel(id: 'meal-1', name: 'Chicken Bowl');
+      final MealModel cachedMeal = buildMealModel(
+        id: 'meal-1',
+        name: 'Chicken Bowl',
+      );
 
       int localReadCount = 0;
 
@@ -267,9 +273,9 @@ void main() {
         localReadCount += 1;
         return localReadCount == 1 ? null : cachedMeal;
       });
-      when(() => remoteDataSource.getMealById('meal-1')).thenAnswer(
-        (_) async => remoteMeal,
-      );
+      when(
+        () => remoteDataSource.getMealById('meal-1'),
+      ).thenAnswer((_) async => remoteMeal);
       when(() => localDataSource.upsertMeal(any())).thenAnswer((_) async {});
 
       final Either<Failure, Meal?> result = await repository.getMealById(
@@ -282,91 +288,99 @@ void main() {
       verify(() => localDataSource.upsertMeal(any())).called(1);
     });
 
-    test('preserves pending local update over remote during remoteThenLocal',
-        () async {
-      final MealModel localPendingMeal = buildMealModel(
-        id: 'meal-1',
-        name: 'Local Edited Bowl',
-        updatedAt: createdAt.add(const Duration(hours: 1)),
-        syncMetadata: const EntitySyncMetadata(
-          status: SyncStatus.pendingUpdate,
-        ),
-      );
+    test(
+      'preserves pending local update over remote during remoteThenLocal',
+      () async {
+        final MealModel localPendingMeal = buildMealModel(
+          id: 'meal-1',
+          name: 'Local Edited Bowl',
+          updatedAt: createdAt.add(const Duration(hours: 1)),
+          syncMetadata: const EntitySyncMetadata(
+            status: SyncStatus.pendingUpdate,
+          ),
+        );
 
-      final Meal remoteMeal = buildMealEntity(
-        id: 'meal-1',
-        name: 'Remote Updated Bowl',
-        updatedAt: createdAt.add(const Duration(hours: 2)),
-        syncMetadata: const EntitySyncMetadata(
-          status: SyncStatus.synced,
-        ),
-      );
+        final Meal remoteMeal = buildMealEntity(
+          id: 'meal-1',
+          name: 'Remote Updated Bowl',
+          updatedAt: createdAt.add(const Duration(hours: 2)),
+          syncMetadata: const EntitySyncMetadata(status: SyncStatus.synced),
+        );
 
-      when(() => remoteDataSource.isConfigured).thenReturn(true);
-      when(() => localDataSource.getMealById('meal-1')).thenAnswer(
-        (_) async => localPendingMeal,
-      );
-      when(() => remoteDataSource.getMealById('meal-1')).thenAnswer(
-        (_) async => remoteMeal,
-      );
-      when(() => localDataSource.upsertMeal(localPendingMeal)).thenAnswer(
-        (_) async {},
-      );
+        when(() => remoteDataSource.isConfigured).thenReturn(true);
+        when(
+          () => localDataSource.getMealById('meal-1'),
+        ).thenAnswer((_) async => localPendingMeal);
+        when(
+          () => remoteDataSource.getMealById('meal-1'),
+        ).thenAnswer((_) async => remoteMeal);
+        when(
+          () => localDataSource.upsertMeal(localPendingMeal),
+        ).thenAnswer((_) async {});
 
-      final Either<Failure, Meal?> result = await repository.getMealById(
-        'meal-1',
-        sourcePreference: DataSourcePreference.remoteThenLocal,
-      );
+        final Either<Failure, Meal?> result = await repository.getMealById(
+          'meal-1',
+          sourcePreference: DataSourcePreference.remoteThenLocal,
+        );
 
-      expect(result, Right<Failure, Meal?>(localPendingMeal));
-      verify(() => localDataSource.upsertMeal(localPendingMeal)).called(1);
-    });
+        expect(result, Right<Failure, Meal?>(localPendingMeal));
+        verify(() => localDataSource.upsertMeal(localPendingMeal)).called(1);
+      },
+    );
 
-    test('returns null when hidden pending delete remains after remote refresh',
-        () async {
-      final Meal remoteMeal =
-          buildMealEntity(id: 'meal-1', name: 'Chicken Bowl');
+    test(
+      'returns null when hidden pending delete remains after remote refresh',
+      () async {
+        final Meal remoteMeal = buildMealEntity(
+          id: 'meal-1',
+          name: 'Chicken Bowl',
+        );
 
-      when(() => remoteDataSource.isConfigured).thenReturn(true);
-      when(() => localDataSource.getMealById('meal-1')).thenAnswer(
-        (_) async => null,
-      );
-      when(() => remoteDataSource.getMealById('meal-1')).thenAnswer(
-        (_) async => remoteMeal,
-      );
-      when(() => localDataSource.upsertMeal(any())).thenAnswer((_) async {});
+        when(() => remoteDataSource.isConfigured).thenReturn(true);
+        when(
+          () => localDataSource.getMealById('meal-1'),
+        ).thenAnswer((_) async => null);
+        when(
+          () => remoteDataSource.getMealById('meal-1'),
+        ).thenAnswer((_) async => remoteMeal);
+        when(() => localDataSource.upsertMeal(any())).thenAnswer((_) async {});
 
-      final Either<Failure, Meal?> result = await repository.getMealById(
-        'meal-1',
-        sourcePreference: DataSourcePreference.remoteThenLocal,
-      );
+        final Either<Failure, Meal?> result = await repository.getMealById(
+          'meal-1',
+          sourcePreference: DataSourcePreference.remoteThenLocal,
+        );
 
-      expect(result, const Right<Failure, Meal?>(null));
-      verify(() => localDataSource.getMealById('meal-1')).called(2);
-      verify(() => localDataSource.upsertMeal(any())).called(1);
-    });
+        expect(result, const Right<Failure, Meal?>(null));
+        verify(() => localDataSource.getMealById('meal-1')).called(2);
+        verify(() => localDataSource.upsertMeal(any())).called(1);
+      },
+    );
   });
 
   group('MealRepositoryImpl.getMealByName', () {
     test('returns local cache snapshot after localThenRemote upsert', () async {
-      final Meal remoteMeal =
-          buildMealEntity(id: 'meal-1', name: 'Chicken Bowl');
+      final Meal remoteMeal = buildMealEntity(
+        id: 'meal-1',
+        name: 'Chicken Bowl',
+      );
 
-      final MealModel cachedMeal =
-          buildMealModel(id: 'meal-1', name: 'Chicken Bowl');
+      final MealModel cachedMeal = buildMealModel(
+        id: 'meal-1',
+        name: 'Chicken Bowl',
+      );
 
       int localReadCount = 0;
 
       when(() => remoteDataSource.isConfigured).thenReturn(true);
-      when(() => localDataSource.getMealByName('Chicken Bowl')).thenAnswer(
-        (_) async {
-          localReadCount += 1;
-          return localReadCount == 1 ? null : cachedMeal;
-        },
-      );
-      when(() => remoteDataSource.getMealByName('Chicken Bowl')).thenAnswer(
-        (_) async => remoteMeal,
-      );
+      when(() => localDataSource.getMealByName('Chicken Bowl')).thenAnswer((
+        _,
+      ) async {
+        localReadCount += 1;
+        return localReadCount == 1 ? null : cachedMeal;
+      });
+      when(
+        () => remoteDataSource.getMealByName('Chicken Bowl'),
+      ).thenAnswer((_) async => remoteMeal);
       when(() => localDataSource.upsertMeal(any())).thenAnswer((_) async {});
 
       final Either<Failure, Meal?> result = await repository.getMealByName(
@@ -384,9 +398,9 @@ void main() {
     test('addMeal delegates to sync coordinator', () async {
       final Meal meal = buildMealEntity(id: 'meal-1', name: 'Chicken Bowl');
 
-      when(() => syncCoordinator.persistAddedMeal(meal)).thenAnswer(
-        (_) async {},
-      );
+      when(
+        () => syncCoordinator.persistAddedMeal(meal),
+      ).thenAnswer((_) async {});
 
       final Either<Failure, void> result = await repository.addMeal(meal);
 
@@ -397,9 +411,9 @@ void main() {
     test('updateMeal delegates to sync coordinator', () async {
       final Meal meal = buildMealEntity(id: 'meal-1', name: 'Updated Bowl');
 
-      when(() => syncCoordinator.persistUpdatedMeal(meal)).thenAnswer(
-        (_) async {},
-      );
+      when(
+        () => syncCoordinator.persistUpdatedMeal(meal),
+      ).thenAnswer((_) async {});
 
       final Either<Failure, void> result = await repository.updateMeal(meal);
 
@@ -408,11 +422,13 @@ void main() {
     });
 
     test('deleteMeal delegates to sync coordinator', () async {
-      when(() => syncCoordinator.persistDeletedMeal('meal-1')).thenAnswer(
-        (_) async {},
-      );
+      when(
+        () => syncCoordinator.persistDeletedMeal('meal-1'),
+      ).thenAnswer((_) async {});
 
-      final Either<Failure, void> result = await repository.deleteMeal('meal-1');
+      final Either<Failure, void> result = await repository.deleteMeal(
+        'meal-1',
+      );
 
       expect(result.isRight(), isTrue);
       verify(() => syncCoordinator.persistDeletedMeal('meal-1')).called(1);

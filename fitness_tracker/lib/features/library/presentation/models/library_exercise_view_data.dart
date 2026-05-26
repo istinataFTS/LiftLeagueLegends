@@ -24,14 +24,14 @@ class LibraryExercisePageViewData extends Equatable {
 
   @override
   List<Object?> get props => <Object?>[
-        items,
-        resultCountLabel,
-        hasExercises,
-        hasResults,
-        hasActiveFilters,
-        searchQuery,
-        selectedMuscle,
-      ];
+    items,
+    resultCountLabel,
+    hasExercises,
+    hasResults,
+    hasActiveFilters,
+    searchQuery,
+    selectedMuscle,
+  ];
 }
 
 class LibraryExerciseItemViewData extends Equatable {
@@ -51,12 +51,12 @@ class LibraryExerciseItemViewData extends Equatable {
 
   @override
   List<Object?> get props => <Object?>[
-        id,
-        title,
-        muscleTags,
-        overflowLabel,
-        exercise,
-      ];
+    id,
+    title,
+    muscleTags,
+    overflowLabel,
+    exercise,
+  ];
 }
 
 class LibraryExerciseViewDataMapper {
@@ -89,8 +89,7 @@ class LibraryExerciseViewDataMapper {
           '${filteredExercises.length} of ${allExercises.length} exercises',
       hasExercises: allExercises.isNotEmpty,
       hasResults: filteredExercises.isNotEmpty,
-      hasActiveFilters:
-          searchQuery.trim().isNotEmpty || selectedMuscle != null,
+      hasActiveFilters: searchQuery.trim().isNotEmpty || selectedMuscle != null,
       searchQuery: searchQuery,
       selectedMuscle: selectedMuscle,
     );

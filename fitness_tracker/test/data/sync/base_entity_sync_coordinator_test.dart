@@ -12,15 +12,9 @@ class TestSyncEntity {
   final String id;
   final EntitySyncMetadata syncMetadata;
 
-  const TestSyncEntity({
-    required this.id,
-    required this.syncMetadata,
-  });
+  const TestSyncEntity({required this.id, required this.syncMetadata});
 
-  TestSyncEntity copyWith({
-    String? id,
-    EntitySyncMetadata? syncMetadata,
-  }) {
+  TestSyncEntity copyWith({String? id, EntitySyncMetadata? syncMetadata}) {
     return TestSyncEntity(
       id: id ?? this.id,
       syncMetadata: syncMetadata ?? this.syncMetadata,
@@ -71,7 +65,8 @@ class InMemoryPendingSyncDeleteLocalDataSource
   }
 }
 
-class TestEntitySyncCoordinator extends BaseEntitySyncCoordinator<TestSyncEntity> {
+class TestEntitySyncCoordinator
+    extends BaseEntitySyncCoordinator<TestSyncEntity> {
   static const EntitySyncDescriptor _descriptor = EntitySyncDescriptor(
     entityType: SyncEntityType.target,
     operationKey: 'test_entity',
@@ -104,7 +99,8 @@ class TestEntitySyncCoordinator extends BaseEntitySyncCoordinator<TestSyncEntity
   String getEntityId(TestSyncEntity entity) => entity.id;
 
   @override
-  EntitySyncMetadata getSyncMetadata(TestSyncEntity entity) => entity.syncMetadata;
+  EntitySyncMetadata getSyncMetadata(TestSyncEntity entity) =>
+      entity.syncMetadata;
 
   @override
   TestSyncEntity buildAddedLocalEntity(TestSyncEntity entity, DateTime now) {
@@ -274,15 +270,11 @@ void main() {
 
       coordinator.localStore['entity-1'] = const TestSyncEntity(
         id: 'entity-1',
-        syncMetadata: EntitySyncMetadata(
-          status: SyncStatus.pendingUpload,
-        ),
+        syncMetadata: EntitySyncMetadata(status: SyncStatus.pendingUpload),
       );
       coordinator.localStore['entity-2'] = const TestSyncEntity(
         id: 'entity-2',
-        syncMetadata: EntitySyncMetadata(
-          status: SyncStatus.pendingUpdate,
-        ),
+        syncMetadata: EntitySyncMetadata(status: SyncStatus.pendingUpdate),
       );
       coordinator.localStore['entity-3'] = const TestSyncEntity(
         id: 'entity-3',
@@ -333,42 +325,44 @@ void main() {
     },
   );
 
-  test('syncPendingChanges preserves pending update status on retry failure',
-      () async {
-    coordinator = TestEntitySyncCoordinator(
-      pendingSyncDeleteLocalDataSource: pendingDeleteDataSource,
-      remoteUpsertFailures: const <String>{'entity-1'},
-    );
+  test(
+    'syncPendingChanges preserves pending update status on retry failure',
+    () async {
+      coordinator = TestEntitySyncCoordinator(
+        pendingSyncDeleteLocalDataSource: pendingDeleteDataSource,
+        remoteUpsertFailures: const <String>{'entity-1'},
+      );
 
-    coordinator.localStore['entity-1'] = const TestSyncEntity(
-      id: 'entity-1',
-      syncMetadata: EntitySyncMetadata(
-        status: SyncStatus.pendingUpdate,
-        serverId: 'server-entity-1',
-      ),
-    );
-
-    await expectLater(
-      coordinator.syncPendingChanges(),
-      throwsA(
-        isA<EntitySyncBatchFailure>().having(
-          (error) => error.failedUpsertEntityIds,
-          'failedUpsertEntityIds',
-          <String>['entity-1'],
+      coordinator.localStore['entity-1'] = const TestSyncEntity(
+        id: 'entity-1',
+        syncMetadata: EntitySyncMetadata(
+          status: SyncStatus.pendingUpdate,
+          serverId: 'server-entity-1',
         ),
-      ),
-    );
+      );
 
-    expect(coordinator.pendingUpdateIds, <String>['entity-1']);
-    expect(
-      coordinator.localStore['entity-1']!.syncMetadata.status,
-      SyncStatus.pendingUpdate,
-    );
-    expect(
-      coordinator.localStore['entity-1']!.syncMetadata.lastSyncError,
-      contains('remote upsert failed for entity-1'),
-    );
-  });
+      await expectLater(
+        coordinator.syncPendingChanges(),
+        throwsA(
+          isA<EntitySyncBatchFailure>().having(
+            (error) => error.failedUpsertEntityIds,
+            'failedUpsertEntityIds',
+            <String>['entity-1'],
+          ),
+        ),
+      );
+
+      expect(coordinator.pendingUpdateIds, <String>['entity-1']);
+      expect(
+        coordinator.localStore['entity-1']!.syncMetadata.status,
+        SyncStatus.pendingUpdate,
+      );
+      expect(
+        coordinator.localStore['entity-1']!.syncMetadata.lastSyncError,
+        contains('remote upsert failed for entity-1'),
+      );
+    },
+  );
 
   test('syncPendingChanges throws when pending deletes fail', () async {
     coordinator = TestEntitySyncCoordinator(
@@ -470,27 +464,30 @@ void main() {
       expect(coordinator.syncedIds, <String>['normal-entity']);
     });
 
-    test('persistUpdated skips remote push when metadata is localOnly', () async {
-      final localOnlyCoordinator = _LocalOnlyUpdatedCoordinator(
-        pendingSyncDeleteLocalDataSource: pendingDeleteDataSource,
-      );
+    test(
+      'persistUpdated skips remote push when metadata is localOnly',
+      () async {
+        final localOnlyCoordinator = _LocalOnlyUpdatedCoordinator(
+          pendingSyncDeleteLocalDataSource: pendingDeleteDataSource,
+        );
 
-      localOnlyCoordinator.localStore['guest-entity'] = const TestSyncEntity(
-        id: 'guest-entity',
-        syncMetadata: EntitySyncMetadata(status: SyncStatus.localOnly),
-      );
-
-      await localOnlyCoordinator.persistUpdated(
-        const TestSyncEntity(
+        localOnlyCoordinator.localStore['guest-entity'] = const TestSyncEntity(
           id: 'guest-entity',
           syncMetadata: EntitySyncMetadata(status: SyncStatus.localOnly),
-        ),
-      );
+        );
 
-      expect(localOnlyCoordinator.remoteUpsertCalls, isEmpty);
-      expect(localOnlyCoordinator.pendingUpdateIds, isEmpty);
-      expect(localOnlyCoordinator.pendingUploadIds, isEmpty);
-    });
+        await localOnlyCoordinator.persistUpdated(
+          const TestSyncEntity(
+            id: 'guest-entity',
+            syncMetadata: EntitySyncMetadata(status: SyncStatus.localOnly),
+          ),
+        );
+
+        expect(localOnlyCoordinator.remoteUpsertCalls, isEmpty);
+        expect(localOnlyCoordinator.pendingUpdateIds, isEmpty);
+        expect(localOnlyCoordinator.pendingUploadIds, isEmpty);
+      },
+    );
   });
 }
 
@@ -499,9 +496,7 @@ void main() {
 /// guest-owned write). Used to exercise the localOnly skip branch
 /// without coupling the test to a specific entity type's helpers.
 class _LocalOnlyAddedCoordinator extends TestEntitySyncCoordinator {
-  _LocalOnlyAddedCoordinator({
-    required super.pendingSyncDeleteLocalDataSource,
-  });
+  _LocalOnlyAddedCoordinator({required super.pendingSyncDeleteLocalDataSource});
 
   @override
   TestSyncEntity buildAddedLocalEntity(TestSyncEntity entity, DateTime now) {

@@ -11,29 +11,26 @@ class AuthenticatedDataSourcePreferenceResolver {
   Future<DataSourcePreference> resolveReadPreference() async {
     final sessionResult = await appSessionRepository.getCurrentSession();
 
-    return sessionResult.fold(
-      (_) => DataSourcePreference.localOnly,
-      (session) {
-        // Remote is not yet usable until the initial cloud migration has
-        // completed — the user's local data has not been uploaded and RLS
-        // on Supabase will return an empty set (or fail). Serve local-only
-        // to avoid a doomed remote round-trip that surfaces as an error.
-        if (session.requiresInitialCloudMigration) {
-          return DataSourcePreference.localOnly;
-        }
-
-        final shouldPreferRemote =
-            session.isAuthenticated &&
-            appSessionRepository
-                .syncPolicy
-                .remoteIsSourceOfTruthWhenAuthenticated;
-
-        if (shouldPreferRemote) {
-          return DataSourcePreference.remoteThenLocal;
-        }
-
+    return sessionResult.fold((_) => DataSourcePreference.localOnly, (session) {
+      // Remote is not yet usable until the initial cloud migration has
+      // completed — the user's local data has not been uploaded and RLS
+      // on Supabase will return an empty set (or fail). Serve local-only
+      // to avoid a doomed remote round-trip that surfaces as an error.
+      if (session.requiresInitialCloudMigration) {
         return DataSourcePreference.localOnly;
-      },
-    );
+      }
+
+      final shouldPreferRemote =
+          session.isAuthenticated &&
+          appSessionRepository
+              .syncPolicy
+              .remoteIsSourceOfTruthWhenAuthenticated;
+
+      if (shouldPreferRemote) {
+        return DataSourcePreference.remoteThenLocal;
+      }
+
+      return DataSourcePreference.localOnly;
+    });
   }
 }

@@ -7,10 +7,7 @@ void main() {
     test('returns Monday for a Monday-first week', () {
       final date = DateTime(2026, 3, 18); // Wednesday
 
-      final result = WeekDateUtils.startOfWeek(
-        date,
-        WeekStartDay.monday,
-      );
+      final result = WeekDateUtils.startOfWeek(date, WeekStartDay.monday);
 
       expect(result, DateTime(2026, 3, 16));
     });
@@ -18,10 +15,7 @@ void main() {
     test('returns Sunday for a Sunday-first week', () {
       final date = DateTime(2026, 3, 18); // Wednesday
 
-      final result = WeekDateUtils.startOfWeek(
-        date,
-        WeekStartDay.sunday,
-      );
+      final result = WeekDateUtils.startOfWeek(date, WeekStartDay.sunday);
 
       expect(result, DateTime(2026, 3, 15));
     });
@@ -29,10 +23,7 @@ void main() {
     test('normalizes time when calculating week start', () {
       final date = DateTime(2026, 3, 18, 22, 45, 12);
 
-      final result = WeekDateUtils.startOfWeek(
-        date,
-        WeekStartDay.monday,
-      );
+      final result = WeekDateUtils.startOfWeek(date, WeekStartDay.monday);
 
       expect(result, DateTime(2026, 3, 16));
     });
@@ -42,10 +33,7 @@ void main() {
     test('returns Sunday for a Monday-first week', () {
       final date = DateTime(2026, 3, 18);
 
-      final result = WeekDateUtils.endOfWeek(
-        date,
-        WeekStartDay.monday,
-      );
+      final result = WeekDateUtils.endOfWeek(date, WeekStartDay.monday);
 
       expect(result, DateTime(2026, 3, 22));
     });
@@ -53,10 +41,7 @@ void main() {
     test('returns Saturday for a Sunday-first week', () {
       final date = DateTime(2026, 3, 18);
 
-      final result = WeekDateUtils.endOfWeek(
-        date,
-        WeekStartDay.sunday,
-      );
+      final result = WeekDateUtils.endOfWeek(date, WeekStartDay.sunday);
 
       expect(result, DateTime(2026, 3, 21));
     });
@@ -88,17 +73,27 @@ void main() {
 
   group('WeekDateUtils.weekdayHeaders', () {
     test('returns Monday-first headers', () {
-      expect(
-        WeekDateUtils.weekdayHeaders(WeekStartDay.monday),
-        const ['M', 'T', 'W', 'T', 'F', 'S', 'S'],
-      );
+      expect(WeekDateUtils.weekdayHeaders(WeekStartDay.monday), const [
+        'M',
+        'T',
+        'W',
+        'T',
+        'F',
+        'S',
+        'S',
+      ]);
     });
 
     test('returns Sunday-first headers', () {
-      expect(
-        WeekDateUtils.weekdayHeaders(WeekStartDay.sunday),
-        const ['S', 'M', 'T', 'W', 'T', 'F', 'S'],
-      );
+      expect(WeekDateUtils.weekdayHeaders(WeekStartDay.sunday), const [
+        'S',
+        'M',
+        'T',
+        'W',
+        'T',
+        'F',
+        'S',
+      ]);
     });
   });
 
@@ -122,10 +117,7 @@ void main() {
     test('normalizeDate strips time components', () {
       final date = DateTime(2026, 3, 17, 14, 22, 58);
 
-      expect(
-        WeekDateUtils.normalizeDate(date),
-        DateTime(2026, 3, 17),
-      );
+      expect(WeekDateUtils.normalizeDate(date), DateTime(2026, 3, 17));
     });
   });
 }

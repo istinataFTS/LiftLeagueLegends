@@ -9,14 +9,11 @@ class GetAllMeals {
   final MealRepository repository;
   final AuthenticatedDataSourcePreferenceResolver sourcePreferenceResolver;
 
-  const GetAllMeals(
-    this.repository, {
-    required this.sourcePreferenceResolver,
-  });
+  const GetAllMeals(this.repository, {required this.sourcePreferenceResolver});
 
   Future<Either<Failure, List<Meal>>> call() async {
-    final sourcePreference =
-        await sourcePreferenceResolver.resolveReadPreference();
+    final sourcePreference = await sourcePreferenceResolver
+        .resolveReadPreference();
 
     return repository.getAllMeals(sourcePreference: sourcePreference);
   }

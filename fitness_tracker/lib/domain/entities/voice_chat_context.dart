@@ -18,7 +18,14 @@ class RecentSetContext extends Equatable {
   final DateTime date;
 
   @override
-  List<Object?> get props => <Object?>[setId, exerciseName, weight, reps, intensity, date];
+  List<Object?> get props => <Object?>[
+    setId,
+    exerciseName,
+    weight,
+    reps,
+    intensity,
+    date,
+  ];
 }
 
 class RecentNutritionLogContext extends Equatable {

@@ -19,10 +19,7 @@ void main() {
     test('returns both surfaces for dual-visibility muscle', () {
       final result = MuscleVisualContract.visibleSurfacesFor('side-delts');
 
-      expect(
-        result,
-        {MuscleVisualSurface.front, MuscleVisualSurface.back},
-      );
+      expect(result, {MuscleVisualSurface.front, MuscleVisualSurface.back});
     });
   });
 
@@ -90,17 +87,20 @@ void main() {
       expect(result.overflowAmount, 0);
     });
 
-    test('returns overflow state above threshold while keeping intensity capped', () {
-      final result = MuscleVisualContract.classify(
-        muscleGroup: 'abs',
-        stimulus: 14,
-        threshold: 10,
-        aggregationMode: MuscleVisualAggregationMode.rollingWeeklyLoad,
-      );
+    test(
+      'returns overflow state above threshold while keeping intensity capped',
+      () {
+        final result = MuscleVisualContract.classify(
+          muscleGroup: 'abs',
+          stimulus: 14,
+          threshold: 10,
+          aggregationMode: MuscleVisualAggregationMode.rollingWeeklyLoad,
+        );
 
-      expect(result.coverageState, MuscleVisualCoverageState.overflow);
-      expect(result.normalizedIntensity, 1.0);
-      expect(result.overflowAmount, 4.0);
-    });
+        expect(result.coverageState, MuscleVisualCoverageState.overflow);
+        expect(result.normalizedIntensity, 1.0);
+        expect(result.overflowAmount, 4.0);
+      },
+    );
   });
 }

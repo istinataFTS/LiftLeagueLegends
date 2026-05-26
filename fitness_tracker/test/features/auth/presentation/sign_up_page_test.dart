@@ -32,11 +32,17 @@ const _otpResult = AuthSessionActionResult(
 Future<void> _fillValidForm(WidgetTester tester) async {
   await tester.enterText(find.byKey(SignUpPage.emailFieldKey), _validEmail);
   await tester.enterText(
-      find.byKey(SignUpPage.usernameFieldKey), _validUsername);
+    find.byKey(SignUpPage.usernameFieldKey),
+    _validUsername,
+  );
   await tester.enterText(
-      find.byKey(SignUpPage.passwordFieldKey), _validPassword);
+    find.byKey(SignUpPage.passwordFieldKey),
+    _validPassword,
+  );
   await tester.enterText(
-      find.byKey(SignUpPage.confirmPasswordFieldKey), _validPassword);
+    find.byKey(SignUpPage.confirmPasswordFieldKey),
+    _validPassword,
+  );
 }
 
 void main() {
@@ -50,11 +56,13 @@ void main() {
     }
     di.sl.registerLazySingleton<AuthSessionService>(() => mockAuth);
 
-    when(() => mockAuth.signUpWithEmail(
-          email: any(named: 'email'),
-          password: any(named: 'password'),
-          username: any(named: 'username'),
-        )).thenAnswer((_) async => _completedResult);
+    when(
+      () => mockAuth.signUpWithEmail(
+        email: any(named: 'email'),
+        password: any(named: 'password'),
+        username: any(named: 'username'),
+      ),
+    ).thenAnswer((_) async => _completedResult);
   });
 
   tearDown(() async {
@@ -65,8 +73,9 @@ void main() {
 
   group('SignUpPage', () {
     group('rendering', () {
-      testWidgets('renders all form fields and submit button',
-          (WidgetTester tester) async {
+      testWidgets('renders all form fields and submit button', (
+        WidgetTester tester,
+      ) async {
         await tester.pumpWidget(const MaterialApp(home: SignUpPage()));
 
         expect(find.byKey(SignUpPage.emailFieldKey), findsOneWidget);
@@ -77,8 +86,9 @@ void main() {
         expect(find.text('Create account'), findsWidgets);
       });
 
-      testWidgets('password fields are obscured by default',
-          (WidgetTester tester) async {
+      testWidgets('password fields are obscured by default', (
+        WidgetTester tester,
+      ) async {
         await tester.pumpWidget(const MaterialApp(home: SignUpPage()));
 
         final passwordEditable = tester.widget<EditableText>(
@@ -102,97 +112,135 @@ void main() {
         expect(confirmEditable.obscureText, isTrue);
       });
 
-      testWidgets('tapping visibility icon toggles password field obscureText',
-          (WidgetTester tester) async {
-        await tester.pumpWidget(const MaterialApp(home: SignUpPage()));
+      testWidgets(
+        'tapping visibility icon toggles password field obscureText',
+        (WidgetTester tester) async {
+          await tester.pumpWidget(const MaterialApp(home: SignUpPage()));
 
-        // First IconButton in the form is the password visibility toggle
-        final passwordIcon = find.byIcon(Icons.visibility_outlined).first;
-        await tester.tap(passwordIcon);
-        await tester.pump();
+          // First IconButton in the form is the password visibility toggle
+          final passwordIcon = find.byIcon(Icons.visibility_outlined).first;
+          await tester.tap(passwordIcon);
+          await tester.pump();
 
-        final passwordEditable = tester.widget<EditableText>(
-          find
-              .descendant(
-                of: find.byKey(SignUpPage.passwordFieldKey),
-                matching: find.byType(EditableText),
-              )
-              .first,
-        );
-        expect(passwordEditable.obscureText, isFalse);
-      });
+          final passwordEditable = tester.widget<EditableText>(
+            find
+                .descendant(
+                  of: find.byKey(SignUpPage.passwordFieldKey),
+                  matching: find.byType(EditableText),
+                )
+                .first,
+          );
+          expect(passwordEditable.obscureText, isFalse);
+        },
+      );
     });
 
     group('validation', () {
-      testWidgets('shows snackbar when all fields are empty',
-          (WidgetTester tester) async {
+      testWidgets('shows snackbar when all fields are empty', (
+        WidgetTester tester,
+      ) async {
         await tester.pumpWidget(const MaterialApp(home: SignUpPage()));
 
         await tester.tap(find.byKey(SignUpPage.submitButtonKey));
         await tester.pump();
 
         expect(find.text('All fields are required.'), findsOneWidget);
-        verifyNever(() => mockAuth.signUpWithEmail(
-              email: any(named: 'email'),
-              password: any(named: 'password'),
-              username: any(named: 'username'),
-            ));
+        verifyNever(
+          () => mockAuth.signUpWithEmail(
+            email: any(named: 'email'),
+            password: any(named: 'password'),
+            username: any(named: 'username'),
+          ),
+        );
       });
 
-      testWidgets('shows snackbar for invalid email (missing @)',
-          (WidgetTester tester) async {
+      testWidgets('shows snackbar for invalid email (missing @)', (
+        WidgetTester tester,
+      ) async {
         await tester.pumpWidget(const MaterialApp(home: SignUpPage()));
 
-        await tester.enterText(find.byKey(SignUpPage.emailFieldKey), 'notvalid');
         await tester.enterText(
-            find.byKey(SignUpPage.usernameFieldKey), _validUsername);
+          find.byKey(SignUpPage.emailFieldKey),
+          'notvalid',
+        );
         await tester.enterText(
-            find.byKey(SignUpPage.passwordFieldKey), _validPassword);
+          find.byKey(SignUpPage.usernameFieldKey),
+          _validUsername,
+        );
         await tester.enterText(
-            find.byKey(SignUpPage.confirmPasswordFieldKey), _validPassword);
+          find.byKey(SignUpPage.passwordFieldKey),
+          _validPassword,
+        );
+        await tester.enterText(
+          find.byKey(SignUpPage.confirmPasswordFieldKey),
+          _validPassword,
+        );
 
         await tester.tap(find.byKey(SignUpPage.submitButtonKey));
         await tester.pump();
 
         expect(find.text('Enter a valid email address.'), findsOneWidget);
-        verifyNever(() => mockAuth.signUpWithEmail(
-              email: any(named: 'email'),
-              password: any(named: 'password'),
-              username: any(named: 'username'),
-            ));
+        verifyNever(
+          () => mockAuth.signUpWithEmail(
+            email: any(named: 'email'),
+            password: any(named: 'password'),
+            username: any(named: 'username'),
+          ),
+        );
       });
 
-      testWidgets('shows snackbar when password is too short',
-          (WidgetTester tester) async {
+      testWidgets('shows snackbar when password is too short', (
+        WidgetTester tester,
+      ) async {
         await tester.pumpWidget(const MaterialApp(home: SignUpPage()));
 
         await tester.enterText(
-            find.byKey(SignUpPage.emailFieldKey), _validEmail);
+          find.byKey(SignUpPage.emailFieldKey),
+          _validEmail,
+        );
         await tester.enterText(
-            find.byKey(SignUpPage.usernameFieldKey), _validUsername);
-        await tester.enterText(find.byKey(SignUpPage.passwordFieldKey), 'short');
+          find.byKey(SignUpPage.usernameFieldKey),
+          _validUsername,
+        );
         await tester.enterText(
-            find.byKey(SignUpPage.confirmPasswordFieldKey), 'short');
+          find.byKey(SignUpPage.passwordFieldKey),
+          'short',
+        );
+        await tester.enterText(
+          find.byKey(SignUpPage.confirmPasswordFieldKey),
+          'short',
+        );
 
         await tester.tap(find.byKey(SignUpPage.submitButtonKey));
         await tester.pump();
 
-        expect(find.text('Password must be at least 8 characters.'),
-            findsOneWidget);
+        expect(
+          find.text('Password must be at least 8 characters.'),
+          findsOneWidget,
+        );
       });
 
-      testWidgets('shows snackbar when passwords do not match',
-          (WidgetTester tester) async {
+      testWidgets('shows snackbar when passwords do not match', (
+        WidgetTester tester,
+      ) async {
         await tester.pumpWidget(const MaterialApp(home: SignUpPage()));
 
         await tester.enterText(
-            find.byKey(SignUpPage.emailFieldKey), _validEmail);
+          find.byKey(SignUpPage.emailFieldKey),
+          _validEmail,
+        );
         await tester.enterText(
-            find.byKey(SignUpPage.usernameFieldKey), _validUsername);
+          find.byKey(SignUpPage.usernameFieldKey),
+          _validUsername,
+        );
         await tester.enterText(
-            find.byKey(SignUpPage.passwordFieldKey), _validPassword);
+          find.byKey(SignUpPage.passwordFieldKey),
+          _validPassword,
+        );
         await tester.enterText(
-            find.byKey(SignUpPage.confirmPasswordFieldKey), 'differentpass');
+          find.byKey(SignUpPage.confirmPasswordFieldKey),
+          'differentpass',
+        );
 
         await tester.tap(find.byKey(SignUpPage.submitButtonKey));
         await tester.pump();
@@ -200,54 +248,70 @@ void main() {
         expect(find.text('Passwords do not match.'), findsOneWidget);
       });
 
-      testWidgets('shows snackbar for invalid username characters',
-          (WidgetTester tester) async {
+      testWidgets('shows snackbar for invalid username characters', (
+        WidgetTester tester,
+      ) async {
         await tester.pumpWidget(const MaterialApp(home: SignUpPage()));
 
         await tester.enterText(
-            find.byKey(SignUpPage.emailFieldKey), _validEmail);
+          find.byKey(SignUpPage.emailFieldKey),
+          _validEmail,
+        );
         await tester.enterText(
-            find.byKey(SignUpPage.usernameFieldKey), 'bad user!');
+          find.byKey(SignUpPage.usernameFieldKey),
+          'bad user!',
+        );
         await tester.enterText(
-            find.byKey(SignUpPage.passwordFieldKey), _validPassword);
+          find.byKey(SignUpPage.passwordFieldKey),
+          _validPassword,
+        );
         await tester.enterText(
-            find.byKey(SignUpPage.confirmPasswordFieldKey), _validPassword);
+          find.byKey(SignUpPage.confirmPasswordFieldKey),
+          _validPassword,
+        );
 
         await tester.tap(find.byKey(SignUpPage.submitButtonKey));
         await tester.pump();
 
         expect(
           find.text(
-              'Username may only contain letters, numbers, and underscores.'),
+            'Username may only contain letters, numbers, and underscores.',
+          ),
           findsOneWidget,
         );
       });
     });
 
     group('submission', () {
-      testWidgets('calls service with trimmed credentials on valid input',
-          (WidgetTester tester) async {
+      testWidgets('calls service with trimmed credentials on valid input', (
+        WidgetTester tester,
+      ) async {
         await tester.pumpWidget(const MaterialApp(home: SignUpPage()));
         await _fillValidForm(tester);
 
         await tester.tap(find.byKey(SignUpPage.submitButtonKey));
         await tester.pump();
 
-        verify(() => mockAuth.signUpWithEmail(
-              email: _validEmail,
-              password: _validPassword,
-              username: _validUsername,
-            )).called(1);
+        verify(
+          () => mockAuth.signUpWithEmail(
+            email: _validEmail,
+            password: _validPassword,
+            username: _validUsername,
+          ),
+        ).called(1);
       });
 
-      testWidgets('disables submit button while the request is in-flight',
-          (WidgetTester tester) async {
+      testWidgets('disables submit button while the request is in-flight', (
+        WidgetTester tester,
+      ) async {
         final completer = Completer<AuthSessionActionResult>();
-        when(() => mockAuth.signUpWithEmail(
-              email: any(named: 'email'),
-              password: any(named: 'password'),
-              username: any(named: 'username'),
-            )).thenAnswer((_) => completer.future);
+        when(
+          () => mockAuth.signUpWithEmail(
+            email: any(named: 'email'),
+            password: any(named: 'password'),
+            username: any(named: 'username'),
+          ),
+        ).thenAnswer((_) => completer.future);
 
         await tester.pumpWidget(const MaterialApp(home: SignUpPage()));
         await _fillValidForm(tester);
@@ -264,16 +328,21 @@ void main() {
         await tester.pumpAndSettle();
       });
 
-      testWidgets('shows snackbar with service error message on failure',
-          (WidgetTester tester) async {
-        when(() => mockAuth.signUpWithEmail(
-              email: any(named: 'email'),
-              password: any(named: 'password'),
-              username: any(named: 'username'),
-            )).thenAnswer((_) async => const AuthSessionActionResult(
-              status: AuthSessionActionStatus.failed,
-              message: 'Email already in use',
-            ));
+      testWidgets('shows snackbar with service error message on failure', (
+        WidgetTester tester,
+      ) async {
+        when(
+          () => mockAuth.signUpWithEmail(
+            email: any(named: 'email'),
+            password: any(named: 'password'),
+            username: any(named: 'username'),
+          ),
+        ).thenAnswer(
+          (_) async => const AuthSessionActionResult(
+            status: AuthSessionActionStatus.failed,
+            message: 'Email already in use',
+          ),
+        );
 
         await tester.pumpWidget(const MaterialApp(home: SignUpPage()));
         await _fillValidForm(tester);
@@ -285,27 +354,32 @@ void main() {
       });
 
       testWidgets(
-          'navigates to OtpVerificationPage when email confirmation is required',
-          (WidgetTester tester) async {
-        when(() => mockAuth.signUpWithEmail(
+        'navigates to OtpVerificationPage when email confirmation is required',
+        (WidgetTester tester) async {
+          when(
+            () => mockAuth.signUpWithEmail(
               email: any(named: 'email'),
               password: any(named: 'password'),
               username: any(named: 'username'),
-            )).thenAnswer((_) async => _otpResult);
-        // Also stub verifyEmailOtp in case the OTP page is pushed
-        when(() => mockAuth.verifyEmailOtp(
+            ),
+          ).thenAnswer((_) async => _otpResult);
+          // Also stub verifyEmailOtp in case the OTP page is pushed
+          when(
+            () => mockAuth.verifyEmailOtp(
               email: any(named: 'email'),
               token: any(named: 'token'),
-            )).thenAnswer((_) async => _completedResult);
+            ),
+          ).thenAnswer((_) async => _completedResult);
 
-        await tester.pumpWidget(const MaterialApp(home: SignUpPage()));
-        await _fillValidForm(tester);
+          await tester.pumpWidget(const MaterialApp(home: SignUpPage()));
+          await _fillValidForm(tester);
 
-        await tester.tap(find.byKey(SignUpPage.submitButtonKey));
-        await tester.pumpAndSettle();
+          await tester.tap(find.byKey(SignUpPage.submitButtonKey));
+          await tester.pumpAndSettle();
 
-        expect(find.text('Check your email'), findsOneWidget);
-      });
+          expect(find.text('Check your email'), findsOneWidget);
+        },
+      );
     });
   });
 }

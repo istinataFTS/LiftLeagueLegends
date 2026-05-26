@@ -56,8 +56,8 @@ class _VoiceTranscriptListState extends State<VoiceTranscriptList> {
 
   @override
   Widget build(BuildContext context) {
-    final bool hasLive = widget.liveTranscript != null &&
-        widget.liveTranscript!.isNotEmpty;
+    final bool hasLive =
+        widget.liveTranscript != null && widget.liveTranscript!.isNotEmpty;
     final int itemCount = widget.messages.length + (hasLive ? 1 : 0);
 
     if (itemCount == 0) {
@@ -105,10 +105,10 @@ class _TranscriptBubble extends StatelessWidget {
     final Color bubbleColor = isUser
         ? AppTheme.primaryOrange.withAlpha(38)
         : AppTheme.surfaceMedium;
-    final Color textColor =
-        isPending ? AppTheme.textDim : AppTheme.textLight;
-    final CrossAxisAlignment alignment =
-        isUser ? CrossAxisAlignment.end : CrossAxisAlignment.start;
+    final Color textColor = isPending ? AppTheme.textDim : AppTheme.textLight;
+    final CrossAxisAlignment alignment = isUser
+        ? CrossAxisAlignment.end
+        : CrossAxisAlignment.start;
     final BorderRadius radius = isUser
         ? const BorderRadius.only(
             topLeft: Radius.circular(16),
@@ -132,15 +132,12 @@ class _TranscriptBubble extends StatelessWidget {
             constraints: BoxConstraints(
               maxWidth: MediaQuery.sizeOf(context).width * 0.78,
             ),
-            padding:
-                const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+            padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
             decoration: BoxDecoration(
               color: bubbleColor,
               borderRadius: radius,
               border: isUser
-                  ? Border.all(
-                      color: AppTheme.primaryOrange.withAlpha(76),
-                    )
+                  ? Border.all(color: AppTheme.primaryOrange.withAlpha(76))
                   : null,
             ),
             child: isPending
@@ -157,10 +154,7 @@ class _TranscriptBubble extends StatelessWidget {
                       const _PendingDots(),
                     ],
                   )
-                : Text(
-                    text,
-                    style: TextStyle(color: textColor, fontSize: 15),
-                  ),
+                : Text(text, style: TextStyle(color: textColor, fontSize: 15)),
           ),
         ],
       ),

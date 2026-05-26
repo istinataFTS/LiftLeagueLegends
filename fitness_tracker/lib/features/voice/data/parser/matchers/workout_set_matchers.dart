@@ -50,7 +50,8 @@ bool _isNumeric(String token) {
 /// Tries to extract a weight + optional unit + reps from a token sub-list.
 /// Returns null if both values cannot be found.
 ({double weight, int reps, String? unit})? _extractWeightReps(
-    List<String> tokens) {
+  List<String> tokens,
+) {
   double? weight;
   String? unit;
   int? reps;
@@ -121,7 +122,8 @@ ParsedIntent? matchDeleteWorkoutSet(String normed) {
   if (!hasDeleteVerb) return null;
 
   // Must reference "set" / "workout" / "last" / "that" / "it".
-  final hasRef = normed.contains('set') ||
+  final hasRef =
+      normed.contains('set') ||
       normed.contains('workout') ||
       normed.contains('that') ||
       normed.contains(' it') ||
@@ -151,7 +153,8 @@ ParsedIntent? matchEditWorkoutSet(String normed) {
   final hasEditVerb = tokens.any(VoiceVerbGrammar.editVerbs.contains);
 
   // Implicit edit triggers — user is correcting without using an edit verb.
-  final hasImplicitEdit = normed.contains('actually') ||
+  final hasImplicitEdit =
+      normed.contains('actually') ||
       normed.contains('i meant') ||
       normed.contains('i mean') ||
       normed.contains('wrong') ||
@@ -167,7 +170,8 @@ ParsedIntent? matchEditWorkoutSet(String normed) {
   // Implicit edits ("actually", "i meant", "mistake") carry enough context on
   // their own — a numeric value is sufficient.
   if (hasEditVerb && !hasImplicitEdit) {
-    final hasSetOrField = normed.contains('set') ||
+    final hasSetOrField =
+        normed.contains('set') ||
         normed.contains('workout') ||
         normed.contains('last') ||
         normed.contains('that') ||

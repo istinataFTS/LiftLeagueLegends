@@ -66,7 +66,8 @@ void main() {
     test('setTo() refuses to rewind', () {
       final FakeClock clock = FakeClock(TestEnv.referenceNow);
       expect(
-        () => clock.setTo(TestEnv.referenceNow.subtract(const Duration(days: 1))),
+        () =>
+            clock.setTo(TestEnv.referenceNow.subtract(const Duration(days: 1))),
         throwsArgumentError,
       );
     });
@@ -99,40 +100,42 @@ void main() {
   });
 
   group('RecordingSyncFeature / RecordingPostSyncHook', () {
-    test('shared callLog captures push, pull, and hook invocations in order',
-        () async {
-      final List<String> log = <String>[];
+    test(
+      'shared callLog captures push, pull, and hook invocations in order',
+      () async {
+        final List<String> log = <String>[];
 
-      final feature = RecordingSyncFeature(
-        name: 'exercises',
-        callLog: log,
-      ).toSyncFeature();
+        final feature = RecordingSyncFeature(
+          name: 'exercises',
+          callLog: log,
+        ).toSyncFeature();
 
-      final hook = RecordingPostSyncHook(
-        name: 'muscleFactorHeal',
-        triggeringFeatures: const <String>{'exercises'},
-        callLog: log,
-      );
+        final hook = RecordingPostSyncHook(
+          name: 'muscleFactorHeal',
+          triggeringFeatures: const <String>{'exercises'},
+          callLog: log,
+        );
 
-      await feature.pullRemoteChanges('user-a', null);
-      await feature.syncPendingChanges();
-      await hook.run(
-        const PostSyncContext(
-          userId: 'user-a',
-          pulledFeatures: <String>{'exercises'},
-          trigger: SyncTrigger.manualRefresh,
-        ),
-      );
+        await feature.pullRemoteChanges('user-a', null);
+        await feature.syncPendingChanges();
+        await hook.run(
+          const PostSyncContext(
+            userId: 'user-a',
+            pulledFeatures: <String>{'exercises'},
+            trigger: SyncTrigger.manualRefresh,
+          ),
+        );
 
-      expect(
-        log,
-        equals(<String>[
-          'exercises:pull',
-          'exercises:push',
-          'muscleFactorHeal:run',
-        ]),
-      );
-    });
+        expect(
+          log,
+          equals(<String>[
+            'exercises:pull',
+            'exercises:push',
+            'muscleFactorHeal:run',
+          ]),
+        );
+      },
+    );
   });
 
   group('RecordingSyncOrchestrator', () {
@@ -166,18 +169,13 @@ void main() {
   group('FakeAuthRemoteDataSource', () {
     test('signInWithEmail records the call and returns a user', () async {
       final auth = FakeAuthRemoteDataSource();
-      final user = await auth.signInWithEmail(
-        email: 'a@b.c',
-        password: 'pw',
-      );
+      final user = await auth.signInWithEmail(email: 'a@b.c', password: 'pw');
       expect(user.email, 'a@b.c');
       expect(auth.callLog, equals(<String>['signInWithEmail']));
     });
 
     test('signInError is thrown when configured', () async {
-      final auth = FakeAuthRemoteDataSource(
-        signInError: StateError('boom'),
-      );
+      final auth = FakeAuthRemoteDataSource(signInError: StateError('boom'));
       expect(
         () => auth.signInWithEmail(email: 'a@b.c', password: 'pw'),
         throwsA(isA<StateError>()),
@@ -186,15 +184,17 @@ void main() {
   });
 
   group('HomeIntegrationHarness', () {
-    test('create() wires the pieces together and dispose() cleans up',
-        () async {
-      final harness = await HomeIntegrationHarness.create();
-      expect(harness.clock.now(), equals(TestEnv.referenceNow));
-      expect(harness.auth.isConfigured, isTrue);
-      expect(harness.db.database.isOpen, isTrue);
+    test(
+      'create() wires the pieces together and dispose() cleans up',
+      () async {
+        final harness = await HomeIntegrationHarness.create();
+        expect(harness.clock.now(), equals(TestEnv.referenceNow));
+        expect(harness.auth.isConfigured, isTrue);
+        expect(harness.db.database.isOpen, isTrue);
 
-      await harness.dispose();
-      expect(harness.db.database.isOpen, isFalse);
-    });
+        await harness.dispose();
+        expect(harness.db.database.isOpen, isFalse);
+      },
+    );
   });
 }

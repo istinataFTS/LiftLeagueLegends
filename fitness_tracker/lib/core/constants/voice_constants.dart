@@ -1,4 +1,4 @@
-﻿/// Voice-bot tunables. Single source of truth for any number or duration
+/// Voice-bot tunables. Single source of truth for any number or duration
 /// referenced by the voice feature. **Never inline these constants** ΓÇö
 /// always import from here so a future tweak lives in one place.
 ///
@@ -32,10 +32,11 @@ abstract final class VoiceConstants {
   static const double defaultTtsVolume = 1.0;
 
   /// STT recognition timeout — closes the session after this much silence
-  /// post-speech. 3 s gives the user time to pause mid-utterance without
-  /// triggering a premature finalisation, while staying tight enough to
-  /// feel responsive after the user stops talking.
-  static const Duration sttSilenceTimeout = Duration(seconds: 3);
+  /// post-speech. 2 s matches the Whisper-backend silence window and keeps
+  /// the on-device path snappy after the user stops talking. Tight enough
+  /// to feel responsive; loose enough that a brief mid-utterance pause
+  /// doesn't truncate the user.
+  static const Duration sttSilenceTimeout = Duration(seconds: 2);
 
   /// HTTP timeout for the `voice-chat` Edge Function call. Generous
   /// enough for GPT-4o-mini (typically 1–3 s) plus network latency,
@@ -45,10 +46,10 @@ abstract final class VoiceConstants {
   /// Hard upper bound for a single STT session — even if the user keeps
   /// talking, force a stop at this duration to bound audio cost and UX.
   ///
-  /// 20 s accommodates multi-field edit utterances ("change carbs to 60,
+  /// 15 s accommodates multi-field edit utterances ("change carbs to 60,
   /// fat to 15") plus the Samsung warm-up restarts without ever hanging
-  /// indefinitely.
-  static const Duration sttListenTimeout = Duration(seconds: 20);
+  /// indefinitely. Matches the master spec in CLAUDE.md.
+  static const Duration sttListenTimeout = Duration(seconds: 15);
 
   /// Maximum number of times the STT session may silently restart the
   /// recogniser after an `error_no_match` with no partial transcript yet.
@@ -71,12 +72,12 @@ abstract final class VoiceConstants {
   /// Hard upper bound for a Whisper-backed recording session. Audio beyond
   /// this point is dropped. Matches [sttListenTimeout] so the UX envelope
   /// is identical between the two STT backends.
-  static const Duration whisperMaxAudioDuration = Duration(seconds: 20);
+  static const Duration whisperMaxAudioDuration = Duration(seconds: 15);
 
-  /// Silence window that auto-stops the recorder. Tighter than the
-  /// on-device 3s timeout because Whisper has no incremental partials —
-  /// the user can't watch a transcript fill in, so we end the turn faster
-  /// to keep perceived latency low.
+  /// Silence window that auto-stops the recorder. Matches [sttSilenceTimeout]
+  /// so both backends end the turn at the same moment of silence — Whisper
+  /// has no incremental partials, so this is the only signal the user has
+  /// that recording has ended.
   static const Duration whisperSilenceTimeout = Duration(milliseconds: 2000);
 
   /// Amplitude (dBFS) below which the recorder is considered to be picking
@@ -87,8 +88,9 @@ abstract final class VoiceConstants {
 
   /// Polling interval for the recorder's amplitude monitor. 200 ms gives a
   /// responsive auto-stop without burning CPU on every frame.
-  static const Duration whisperAmplitudePollInterval =
-      Duration(milliseconds: 200);
+  static const Duration whisperAmplitudePollInterval = Duration(
+    milliseconds: 200,
+  );
 
   /// AAC bitrate for the m4a file uploaded to Whisper. 32 kbps mono is
   /// sufficient for speech and keeps the upload under 100 KB for a 20s

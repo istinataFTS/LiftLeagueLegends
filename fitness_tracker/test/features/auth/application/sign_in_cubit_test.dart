@@ -46,10 +46,7 @@ void main() {
       ),
     );
 
-    await cubit.submit(
-      email: ' marin@test.com ',
-      password: 'secret-password',
-    );
+    await cubit.submit(email: ' marin@test.com ', password: 'secret-password');
 
     expect(cubit.state.isSubmitting, isFalse);
     expect(cubit.state.isSuccess, isTrue);
@@ -76,10 +73,7 @@ void main() {
       ),
     );
 
-    await cubit.submit(
-      email: 'marin@test.com',
-      password: 'wrong-password',
-    );
+    await cubit.submit(email: 'marin@test.com', password: 'wrong-password');
 
     expect(cubit.state.isSubmitting, isFalse);
     expect(cubit.state.isSuccess, isFalse);

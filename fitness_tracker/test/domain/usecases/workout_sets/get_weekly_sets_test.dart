@@ -21,16 +21,13 @@ void main() {
   setUp(() {
     repository = MockWorkoutSetRepository();
     resolver = MockAuthenticatedDataSourcePreferenceResolver();
-    usecase = GetWeeklySets(
-      repository,
-      sourcePreferenceResolver: resolver,
-    );
+    usecase = GetWeeklySets(repository, sourcePreferenceResolver: resolver);
   });
 
   test('uses resolved source preference for weekly reads', () async {
-    when(() => resolver.resolveReadPreference()).thenAnswer(
-      (_) async => DataSourcePreference.remoteThenLocal,
-    );
+    when(
+      () => resolver.resolveReadPreference(),
+    ).thenAnswer((_) async => DataSourcePreference.remoteThenLocal);
     when(
       () => repository.getSetsByDateRange(
         any(),

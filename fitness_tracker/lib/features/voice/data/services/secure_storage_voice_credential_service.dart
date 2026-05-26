@@ -46,5 +46,19 @@ class SecureStorageVoiceCredentialService implements VoiceCredentialService {
   }
 
   @override
+  Future<bool> isWakeWordConfigured() async {
+    final key = await getPicovoiceAccessKey();
+    return key != null && key.isNotEmpty && !_looksLikePlaceholder(key);
+  }
+
+  /// A pasted placeholder from `dart_defines.example.json` starts with `<`
+  /// and ends with `>`. Real Picovoice keys are base64-ish ASCII without
+  /// angle brackets, so this is a safe heuristic.
+  static bool _looksLikePlaceholder(String value) {
+    final trimmed = value.trim();
+    return trimmed.startsWith('<') && trimmed.endsWith('>');
+  }
+
+  @override
   Future<void> dispose() => _keyChangedController.close();
 }

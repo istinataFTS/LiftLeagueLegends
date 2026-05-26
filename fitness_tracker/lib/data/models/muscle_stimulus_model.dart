@@ -37,17 +37,24 @@ class MuscleStimulusModel extends MuscleStimulus {
       ownerUserId: map[DatabaseTables.ownerUserId] as String? ?? '',
       muscleGroup: map[DatabaseTables.stimulusMuscleGroup] as String,
       date: DateTime.parse(map[DatabaseTables.stimulusDate] as String),
-      dailyStimulus: (map[DatabaseTables.stimulusDailyStimulus] as num).toDouble(),
-      rollingWeeklyLoad: (map[DatabaseTables.stimulusRollingWeeklyLoad] as num).toDouble(),
+      dailyStimulus: (map[DatabaseTables.stimulusDailyStimulus] as num)
+          .toDouble(),
+      rollingWeeklyLoad: (map[DatabaseTables.stimulusRollingWeeklyLoad] as num)
+          .toDouble(),
       lastSetTimestamp: map[DatabaseTables.stimulusLastSetTimestamp] as int?,
-      lastSetStimulus: (map[DatabaseTables.stimulusLastSetStimulus] as num?)?.toDouble(),
-      createdAt: DateTime.parse(map[DatabaseTables.stimulusCreatedAt] as String),
-      updatedAt: DateTime.parse(map[DatabaseTables.stimulusUpdatedAt] as String),
+      lastSetStimulus: (map[DatabaseTables.stimulusLastSetStimulus] as num?)
+          ?.toDouble(),
+      createdAt: DateTime.parse(
+        map[DatabaseTables.stimulusCreatedAt] as String,
+      ),
+      updatedAt: DateTime.parse(
+        map[DatabaseTables.stimulusUpdatedAt] as String,
+      ),
     );
   }
 
   /// Convert model to database map
-  /// 
+  ///
   /// Stores date in YYYY-MM-DD format for efficient querying
   /// Stores timestamps as Unix milliseconds (INTEGER) for precise time tracking
   Map<String, dynamic> toMap() {

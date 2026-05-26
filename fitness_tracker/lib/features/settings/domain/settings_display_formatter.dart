@@ -8,10 +8,7 @@ class SettingsDisplayFormatter {
   static final DateTime _defaultSampleDate = DateTime(2026, 3, 19);
   static const double _defaultSampleWeightKg = 82.5;
 
-  static String weekPreview(
-    WeekStartDay weekStartDay, {
-    DateTime? sampleDate,
-  }) {
+  static String weekPreview(WeekStartDay weekStartDay, {DateTime? sampleDate}) {
     final String range = WeekRangeLabelFormatter.formatForDate(
       sampleDate ?? _defaultSampleDate,
       weekStartDay: weekStartDay,

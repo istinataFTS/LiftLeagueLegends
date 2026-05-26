@@ -1,5 +1,1 @@
-enum ConflictResolutionStrategy {
-  serverWins,
-  clientWins,
-  manualReview,
-}
+enum ConflictResolutionStrategy { serverWins, clientWins, manualReview }

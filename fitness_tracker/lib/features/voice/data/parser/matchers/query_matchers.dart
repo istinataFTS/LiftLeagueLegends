@@ -121,7 +121,9 @@ ParsedIntent? matchQueryRecentSets(String normed) {
   }
 
   // Fallback: "what" + "exercise" / "set" / "workout" + time reference.
-  if ((normed.contains('what') || normed.contains('show') || normed.contains('tell')) &&
+  if ((normed.contains('what') ||
+          normed.contains('show') ||
+          normed.contains('tell')) &&
       (normed.contains('exercise') ||
           normed.contains('set') ||
           normed.contains('workout') ||

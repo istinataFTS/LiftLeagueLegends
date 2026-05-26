@@ -31,55 +31,51 @@ void main() {
   final DateTime createdAt = DateTime(2026, 1, 1);
 
   ExercisesLoaded buildExercisesLoaded() {
-    return ExercisesLoaded(
-      <Exercise>[
-        Exercise(
-          id: '1',
-          name: 'Bench Press',
-          muscleGroups: const <String>['chest'],
-          createdAt: createdAt,
-        ),
-        Exercise(
-          id: '2',
-          name: 'Pull Up',
-          muscleGroups: const <String>['back'],
-          createdAt: createdAt,
-        ),
-        Exercise(
-          id: '3',
-          name: 'Overhead Press',
-          muscleGroups: const <String>['shoulders'],
-          createdAt: createdAt,
-        ),
-      ],
-    );
+    return ExercisesLoaded(<Exercise>[
+      Exercise(
+        id: '1',
+        name: 'Bench Press',
+        muscleGroups: const <String>['chest'],
+        createdAt: createdAt,
+      ),
+      Exercise(
+        id: '2',
+        name: 'Pull Up',
+        muscleGroups: const <String>['back'],
+        createdAt: createdAt,
+      ),
+      Exercise(
+        id: '3',
+        name: 'Overhead Press',
+        muscleGroups: const <String>['shoulders'],
+        createdAt: createdAt,
+      ),
+    ]);
   }
 
   MealsLoaded buildMealsLoaded() {
-    return MealsLoaded(
-      <Meal>[
-        Meal(
-          id: 'm1',
-          name: 'Chicken Bowl',
-          servingSizeGrams: 100,
-          proteinPer100g: 30,
-          carbsPer100g: 20,
-          fatPer100g: 10,
-          caloriesPer100g: 290,
-          createdAt: createdAt,
-        ),
-        Meal(
-          id: 'm2',
-          name: 'Oats',
-          servingSizeGrams: 100,
-          proteinPer100g: 12,
-          carbsPer100g: 60,
-          fatPer100g: 7,
-          caloriesPer100g: 347,
-          createdAt: createdAt,
-        ),
-      ],
-    );
+    return MealsLoaded(<Meal>[
+      Meal(
+        id: 'm1',
+        name: 'Chicken Bowl',
+        servingSizeGrams: 100,
+        proteinPer100g: 30,
+        carbsPer100g: 20,
+        fatPer100g: 10,
+        caloriesPer100g: 290,
+        createdAt: createdAt,
+      ),
+      Meal(
+        id: 'm2',
+        name: 'Oats',
+        servingSizeGrams: 100,
+        proteinPer100g: 12,
+        carbsPer100g: 60,
+        fatPer100g: 7,
+        caloriesPer100g: 347,
+        createdAt: createdAt,
+      ),
+    ]);
   }
 
   setUpAll(() {
@@ -117,9 +113,7 @@ void main() {
         BlocProvider<ExerciseBloc>.value(value: exerciseBloc),
         BlocProvider<MealBloc>.value(value: mealBloc),
       ],
-      child: const MaterialApp(
-        home: LibraryPage(),
-      ),
+      child: const MaterialApp(home: LibraryPage()),
     );
   }
 
@@ -140,15 +134,10 @@ void main() {
     expect(find.text('3 of 3 exercises'), findsOneWidget);
   });
 
-  testWidgets('filters exercises by search query', (
-    WidgetTester tester,
-  ) async {
+  testWidgets('filters exercises by search query', (WidgetTester tester) async {
     await tester.pumpWidget(buildSubject());
 
-    await tester.enterText(
-      find.byKey(ExercisesTab.searchFieldKey),
-      'bench',
-    );
+    await tester.enterText(find.byKey(ExercisesTab.searchFieldKey), 'bench');
     await tester.pump();
 
     expect(find.text('Bench Press'), findsOneWidget);
@@ -157,9 +146,7 @@ void main() {
     expect(find.text('1 of 3 exercises'), findsOneWidget);
   });
 
-  testWidgets('filters exercises by muscle chip', (
-    WidgetTester tester,
-  ) async {
+  testWidgets('filters exercises by muscle chip', (WidgetTester tester) async {
     await tester.pumpWidget(buildSubject());
 
     await tester.tap(find.byKey(ExercisesTab.muscleChipKey('chest')));
@@ -180,10 +167,7 @@ void main() {
     addTearDown(tester.view.resetDevicePixelRatio);
     await tester.pumpWidget(buildSubject());
 
-    await tester.enterText(
-      find.byKey(ExercisesTab.searchFieldKey),
-      'legs',
-    );
+    await tester.enterText(find.byKey(ExercisesTab.searchFieldKey), 'legs');
     await tester.pump();
 
     expect(
@@ -203,9 +187,9 @@ void main() {
   testWidgets('exercise retry dispatches load event from error state', (
     WidgetTester tester,
   ) async {
-    when(() => exerciseBloc.state).thenReturn(
-      const ExerciseError('exercise load failed'),
-    );
+    when(
+      () => exerciseBloc.state,
+    ).thenReturn(const ExerciseError('exercise load failed'));
     whenListen<ExerciseState>(
       exerciseBloc,
       const Stream<ExerciseState>.empty(),
@@ -229,10 +213,7 @@ void main() {
     await tester.pumpWidget(buildSubject());
     await openMealsTab(tester);
 
-    await tester.enterText(
-      find.byKey(MealsTab.searchFieldKey),
-      'chicken',
-    );
+    await tester.enterText(find.byKey(MealsTab.searchFieldKey), 'chicken');
     await tester.pump();
 
     expect(find.text('Chicken Bowl'), findsOneWidget);
@@ -251,10 +232,7 @@ void main() {
     await tester.pumpWidget(buildSubject());
     await openMealsTab(tester);
 
-    await tester.enterText(
-      find.byKey(MealsTab.searchFieldKey),
-      'salmon',
-    );
+    await tester.enterText(find.byKey(MealsTab.searchFieldKey), 'salmon');
     await tester.pump();
 
     expect(find.text('No meals match the current search.'), findsOneWidget);
@@ -270,9 +248,7 @@ void main() {
   testWidgets('meal retry dispatches load event from error state', (
     WidgetTester tester,
   ) async {
-    when(() => mealBloc.state).thenReturn(
-      const MealError('meal load failed'),
-    );
+    when(() => mealBloc.state).thenReturn(const MealError('meal load failed'));
     whenListen<MealState>(
       mealBloc,
       const Stream<MealState>.empty(),

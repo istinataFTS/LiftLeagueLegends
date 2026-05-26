@@ -44,7 +44,6 @@ class ExerciseMuscleFactorsData {
   static Map<String, List<MuscleFactorData>> getAllFactors() {
     return _cachedFactors ??= {
       // ==================== CHEST EXERCISES ====================
-
       'Bench Press': [
         const MuscleFactorData(MuscleStimulus.midChest, 1.0),
         const MuscleFactorData(MuscleStimulus.upperChest, 0.4),
@@ -91,7 +90,6 @@ class ExerciseMuscleFactorsData {
       ],
 
       // ==================== BACK EXERCISES ====================
-
       'Pull-ups': [
         const MuscleFactorData(MuscleStimulus.lats, 1.0),
         const MuscleFactorData(MuscleStimulus.middleTraps, 0.4),
@@ -168,7 +166,6 @@ class ExerciseMuscleFactorsData {
       ],
 
       // ==================== SHOULDER EXERCISES ====================
-
       'Overhead Press': [
         const MuscleFactorData(MuscleStimulus.frontDelts, 1.0),
         const MuscleFactorData(MuscleStimulus.sideDelts, 0.5),
@@ -202,7 +199,6 @@ class ExerciseMuscleFactorsData {
       ],
 
       // ==================== ARM EXERCISES ====================
-
       'Barbell Curl': [
         const MuscleFactorData(MuscleStimulus.biceps, 1.0),
         const MuscleFactorData(MuscleStimulus.forearms, 0.3),
@@ -229,9 +225,7 @@ class ExerciseMuscleFactorsData {
         const MuscleFactorData(MuscleStimulus.frontDelts, 0.3),
       ],
 
-      'Tricep Pushdown': [
-        const MuscleFactorData(MuscleStimulus.triceps, 1.0),
-      ],
+      'Tricep Pushdown': [const MuscleFactorData(MuscleStimulus.triceps, 1.0)],
 
       'Skull Crushers': [
         const MuscleFactorData(MuscleStimulus.triceps, 1.0),
@@ -254,16 +248,13 @@ class ExerciseMuscleFactorsData {
         const MuscleFactorData(MuscleStimulus.forearms, 0.2),
       ],
 
-      'Wrist Curl': [
-        const MuscleFactorData(MuscleStimulus.forearms, 1.0),
-      ],
+      'Wrist Curl': [const MuscleFactorData(MuscleStimulus.forearms, 1.0)],
 
       'Reverse Wrist Curl': [
         const MuscleFactorData(MuscleStimulus.forearms, 1.0),
       ],
 
       // ==================== LEG EXERCISES ====================
-
       'Squat': [
         const MuscleFactorData(MuscleStimulus.quads, 1.0),
         const MuscleFactorData(MuscleStimulus.glutes, 0.7),
@@ -278,17 +269,11 @@ class ExerciseMuscleFactorsData {
         const MuscleFactorData(MuscleStimulus.hamstrings, 0.3),
       ],
 
-      'Leg Curl': [
-        const MuscleFactorData(MuscleStimulus.hamstrings, 1.0),
-      ],
+      'Leg Curl': [const MuscleFactorData(MuscleStimulus.hamstrings, 1.0)],
 
-      'Leg Extension': [
-        const MuscleFactorData(MuscleStimulus.quads, 1.0),
-      ],
+      'Leg Extension': [const MuscleFactorData(MuscleStimulus.quads, 1.0)],
 
-      'Calf Raises': [
-        const MuscleFactorData(MuscleStimulus.calves, 1.0),
-      ],
+      'Calf Raises': [const MuscleFactorData(MuscleStimulus.calves, 1.0)],
 
       'Romanian Deadlift': [
         const MuscleFactorData(MuscleStimulus.hamstrings, 1.0),
@@ -337,10 +322,7 @@ class ExerciseMuscleFactorsData {
       ],
 
       // ==================== CORE EXERCISES ====================
-
-      'Crunches': [
-        const MuscleFactorData(MuscleStimulus.abs, 1.0),
-      ],
+      'Crunches': [const MuscleFactorData(MuscleStimulus.abs, 1.0)],
 
       'Sit-ups': [
         const MuscleFactorData(MuscleStimulus.abs, 1.0),
@@ -381,7 +363,6 @@ class ExerciseMuscleFactorsData {
       ],
 
       // ==================== TRAP EXERCISES ====================
-
       'Shrugs': [
         const MuscleFactorData(MuscleStimulus.upperTraps, 1.0),
         const MuscleFactorData(MuscleStimulus.middleTraps, 0.4),
@@ -465,10 +446,7 @@ class MuscleFactorData {
   final double factor;
 
   /// Convert to MuscleFactor entity with generated ID
-  MuscleFactor toEntity({
-    required String id,
-    required String exerciseId,
-  }) {
+  MuscleFactor toEntity({required String id, required String exerciseId}) {
     return MuscleFactor(
       id: id,
       exerciseId: exerciseId,

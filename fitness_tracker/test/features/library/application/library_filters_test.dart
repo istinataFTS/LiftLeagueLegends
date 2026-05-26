@@ -20,10 +20,7 @@ void main() {
     );
   }
 
-  Meal buildMeal({
-    required String id,
-    required String name,
-  }) {
+  Meal buildMeal({required String id, required String name}) {
     return Meal(
       id: id,
       name: name,

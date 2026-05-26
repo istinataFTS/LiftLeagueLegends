@@ -6,11 +6,7 @@ void main() {
   testWidgets('AppShell renders provided home widget', (tester) async {
     await tester.pumpWidget(
       const AppShell(
-        home: Scaffold(
-          body: Center(
-            child: Text('Smoke Test'),
-          ),
-        ),
+        home: Scaffold(body: Center(child: Text('Smoke Test'))),
       ),
     );
 

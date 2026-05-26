@@ -19,8 +19,8 @@ class GetWeeklySets {
     final weekStart = now.subtract(Duration(days: now.weekday - 1));
     final startDate = DateTime(weekStart.year, weekStart.month, weekStart.day);
     final endDate = DateTime.now();
-    final sourcePreference =
-        await sourcePreferenceResolver.resolveReadPreference();
+    final sourcePreference = await sourcePreferenceResolver
+        .resolveReadPreference();
 
     return repository.getSetsByDateRange(
       startDate,

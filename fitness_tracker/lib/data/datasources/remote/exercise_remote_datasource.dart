@@ -13,15 +13,9 @@ abstract class ExerciseRemoteDataSource {
 
   Future<Exercise> upsertExercise(Exercise exercise);
 
-  Future<void> deleteExercise({
-    required String localId,
-    String? serverId,
-  });
+  Future<void> deleteExercise({required String localId, String? serverId});
 
   /// Returns all user-owned exercises whose `updated_at` is after [since].
   /// Pass [since] = null to fetch all exercises (e.g. on initial re-login).
-  Future<List<Exercise>> fetchSince({
-    required String userId,
-    DateTime? since,
-  });
+  Future<List<Exercise>> fetchSince({required String userId, DateTime? since});
 }

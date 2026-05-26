@@ -4,7 +4,7 @@ class MuscleFactor extends Equatable {
   final String id;
   final String exerciseId;
   final String muscleGroup;
-  
+
   /// Factor value indicating muscle engagement level
   /// Must be between 0.0 and 1.0
   /// Higher value = more muscle engagement
@@ -15,7 +15,10 @@ class MuscleFactor extends Equatable {
     required this.exerciseId,
     required this.muscleGroup,
     required this.factor,
-  }) : assert(factor >= 0.0 && factor <= 1.0, 'Factor must be between 0.0 and 1.0');
+  }) : assert(
+         factor >= 0.0 && factor <= 1.0,
+         'Factor must be between 0.0 and 1.0',
+       );
 
   /// Check if this is a primary muscle (factor >= 0.8)
   bool get isPrimaryMuscle => factor >= 0.8;

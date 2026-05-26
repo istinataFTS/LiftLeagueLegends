@@ -55,7 +55,10 @@ void main() {
     });
 
     test('fitness command with no matchers → ParsedUnrecognized', () {
-      expect(parser.parse('log bench press 80 kg 10 reps'), isA<ParsedUnrecognized>());
+      expect(
+        parser.parse('log bench press 80 kg 10 reps'),
+        isA<ParsedUnrecognized>(),
+      );
     });
   });
 
@@ -80,27 +83,33 @@ void main() {
       expect(parser.parse('log bench press'), isA<ParsedUnrecognized>());
     });
 
-    test('first matcher null, second matcher matches → second result returned', () {
-      final intent = ParsedDeleteWorkoutSet();
-      final parser = IntentParser([(norm) => null, (norm) => intent]);
+    test(
+      'first matcher null, second matcher matches → second result returned',
+      () {
+        final intent = ParsedDeleteWorkoutSet();
+        final parser = IntentParser([(norm) => null, (norm) => intent]);
 
-      expect(parser.parse('delete my last set'), same(intent));
-    });
+        expect(parser.parse('delete my last set'), same(intent));
+      },
+    );
 
-    test('first matcher matches → first result returned, second never called', () {
-      var secondCalled = false;
-      final intent = ParsedDeleteWorkoutSet();
-      final parser = IntentParser([
-        (norm) => intent,
-        (norm) {
-          secondCalled = true;
-          return null;
-        },
-      ]);
+    test(
+      'first matcher matches → first result returned, second never called',
+      () {
+        var secondCalled = false;
+        final intent = ParsedDeleteWorkoutSet();
+        final parser = IntentParser([
+          (norm) => intent,
+          (norm) {
+            secondCalled = true;
+            return null;
+          },
+        ]);
 
-      parser.parse('delete my last set');
-      expect(secondCalled, isFalse);
-    });
+        parser.parse('delete my last set');
+        expect(secondCalled, isFalse);
+      },
+    );
 
     test('input is normalised before being passed to matchers', () {
       String? captured;

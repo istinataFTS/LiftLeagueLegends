@@ -32,7 +32,7 @@ double? _scanForNumber(List<String> tokens) {
 /// Tries to extract macro fields from [normed] text.
 /// Scans for patterns like "200 calories", "30 grams protein", "10g fat".
 ({double? calories, double? protein, double? carbs, double? fat})
-    _extractMacros(String normed) {
+_extractMacros(String normed) {
   double? calories;
   double? protein;
   double? carbs;
@@ -87,7 +87,8 @@ ParsedIntent? matchDeleteNutrition(String normed) {
   if (!hasDeleteVerb) return null;
 
   // Must reference a nutrition-related concept.
-  final hasNutritionRef = normed.contains('meal') ||
+  final hasNutritionRef =
+      normed.contains('meal') ||
       normed.contains('nutrition') ||
       normed.contains('calorie') ||
       normed.contains('food') ||
@@ -136,7 +137,7 @@ const _nutritionRefWords = {
 /// the number positionally closest to the keyword; ties resolve to the
 /// earlier number so "200 calories 20 protein" maps correctly.
 ({double? calories, double? protein, double? carbs, double? fat})
-    _extractEditMacros(List<String> tokens) {
+_extractEditMacros(List<String> tokens) {
   final numbers = <({int index, double value})>[];
   for (int i = 0; i < tokens.length; i++) {
     if (tokens[i] == 'a') continue;
@@ -191,12 +192,14 @@ ParsedIntent? matchEditNutrition(String normed) {
   }
 
   // Must reference the nutrition domain to avoid stealing workout-set edits.
-  final hasNutritionRef =
-      _nutritionRefWords.any((kw) => RegExp(r'\b' + kw + r'\b').hasMatch(normed));
+  final hasNutritionRef = _nutritionRefWords.any(
+    (kw) => RegExp(r'\b' + kw + r'\b').hasMatch(normed),
+  );
   if (!hasNutritionRef) return null;
 
   final hasEditVerb = tokens.any(VoiceVerbGrammar.editVerbs.contains);
-  final hasImplicitEdit = normed.contains('actually') ||
+  final hasImplicitEdit =
+      normed.contains('actually') ||
       normed.contains('i meant') ||
       normed.contains('i mean') ||
       normed.contains('wrong') ||

@@ -24,16 +24,17 @@ class VoiceRepositoryImpl implements VoiceRepository {
     required WeightUnit weightUnit,
     List<RecentSetContext>? recentSets,
     List<RecentNutritionLogContext>? recentNutritionLogs,
-  }) =>
-      _guard(() => remoteDataSource.chat(
-            userMessage: userMessage,
-            sessionId: sessionId,
-            history: history,
-            settings: settings,
-            weightUnit: weightUnit,
-            recentSets: recentSets,
-            recentNutritionLogs: recentNutritionLogs,
-          ));
+  }) => _guard(
+    () => remoteDataSource.chat(
+      userMessage: userMessage,
+      sessionId: sessionId,
+      history: history,
+      settings: settings,
+      weightUnit: weightUnit,
+      recentSets: recentSets,
+      recentNutritionLogs: recentNutritionLogs,
+    ),
+  );
 
   @override
   Future<Either<Failure, VoiceBudget>> getBudget() =>

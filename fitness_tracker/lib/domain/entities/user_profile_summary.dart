@@ -16,8 +16,9 @@ class UserProfileSummary extends Equatable {
   final String? avatarUrl;
 
   /// The name to display in UI — prefers displayName, falls back to username.
-  String get effectiveName =>
-      (displayName != null && displayName!.isNotEmpty) ? displayName! : username;
+  String get effectiveName => (displayName != null && displayName!.isNotEmpty)
+      ? displayName!
+      : username;
 
   @override
   List<Object?> get props => <Object?>[id, username, displayName, avatarUrl];

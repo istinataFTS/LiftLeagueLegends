@@ -5,16 +5,13 @@ import 'remote_datasource_guard.dart';
 import 'supabase_client_provider.dart';
 import 'workout_set_remote_datasource.dart';
 
-class SupabaseWorkoutSetRemoteDataSource
-    implements WorkoutSetRemoteDataSource {
+class SupabaseWorkoutSetRemoteDataSource implements WorkoutSetRemoteDataSource {
   static const String _tableName = 'workout_sets';
   static const String _userIdColumn = 'user_id';
 
   final SupabaseClientProvider clientProvider;
 
-  const SupabaseWorkoutSetRemoteDataSource({
-    required this.clientProvider,
-  });
+  const SupabaseWorkoutSetRemoteDataSource({required this.clientProvider});
 
   @override
   bool get isConfigured => clientProvider.isConfigured;
@@ -67,10 +64,7 @@ class SupabaseWorkoutSetRemoteDataSource
       final userId = _requireAuthenticatedUserId();
 
       final dto = SupabaseWorkoutSetDto.fromEntity(set);
-      final payload = <String, dynamic>{
-        ...dto.toMap(),
-        _userIdColumn: userId,
-      };
+      final payload = <String, dynamic>{...dto.toMap(), _userIdColumn: userId};
 
       final dynamic data = await clientProvider.client
           .from(_tableName)
@@ -84,10 +78,7 @@ class SupabaseWorkoutSetRemoteDataSource
   }
 
   @override
-  Future<void> deleteSet({
-    required String localId,
-    String? serverId,
-  }) {
+  Future<void> deleteSet({required String localId, String? serverId}) {
     return RemoteDatasourceGuard.run(() async {
       final userId = _requireAuthenticatedUserId();
       final remoteId = serverId ?? localId;
@@ -123,10 +114,7 @@ class SupabaseWorkoutSetRemoteDataSource
 
   WorkoutSet _mapRowToEntity(Map<String, dynamic> row) {
     final dto = SupabaseWorkoutSetDto.fromMap(row);
-    return dto.toEntity(
-      localId: dto.id,
-      syncMetadata: dto.toSyncedMetadata(),
-    );
+    return dto.toEntity(localId: dto.id, syncMetadata: dto.toSyncedMetadata());
   }
 
   List<Map<String, dynamic>> _asMapList(dynamic data) {

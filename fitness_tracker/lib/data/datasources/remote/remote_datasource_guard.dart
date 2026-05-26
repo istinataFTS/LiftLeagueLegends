@@ -5,7 +5,6 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 
 import '../../../core/errors/sync_exceptions.dart';
 
-
 class RemoteDatasourceGuard {
   const RemoteDatasourceGuard._();
 

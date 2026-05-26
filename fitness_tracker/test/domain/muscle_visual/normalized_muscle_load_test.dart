@@ -28,8 +28,10 @@ void main() {
 
   group('isRecovered', () {
     test('zero load at day zero is recovered', () {
-      const load =
-          NormalizedMuscleLoad(raw: 0.0, threshold: MuscleStimulus.weeklyThreshold);
+      const load = NormalizedMuscleLoad(
+        raw: 0.0,
+        threshold: MuscleStimulus.weeklyThreshold,
+      );
       expect(load.isRecovered, isTrue);
     });
 
@@ -42,31 +44,32 @@ void main() {
     });
 
     test(
-        'a moderate stored load that decays for a week is classified as '
-        'recovered — regression guard for the Lats-are-always-fatigued bug',
-        () {
-      // Use a load that clearly exceeds the recovery cutoff at day 0 so the
-      // test only passes once decay + normalization are both applied.
-      const original = NormalizedMuscleLoad(
-        raw: 20.0,
-        threshold: MuscleStimulus.weeklyThreshold,
-      );
-      expect(
-        original.isRecovered,
-        isFalse,
-        reason: 'sanity: fresh load above threshold is not recovered',
-      );
+      'a moderate stored load that decays for a week is classified as '
+      'recovered — regression guard for the Lats-are-always-fatigued bug',
+      () {
+        // Use a load that clearly exceeds the recovery cutoff at day 0 so the
+        // test only passes once decay + normalization are both applied.
+        const original = NormalizedMuscleLoad(
+          raw: 20.0,
+          threshold: MuscleStimulus.weeklyThreshold,
+        );
+        expect(
+          original.isRecovered,
+          isFalse,
+          reason: 'sanity: fresh load above threshold is not recovered',
+        );
 
-      final afterWeek = original.decayed(7);
-      expect(
-        afterWeek.isRecovered,
-        isTrue,
-        reason:
-            'A one-week gap must decay a moderate load below the recovery '
-            'cutoff; a raw-vs-normalized unit mismatch would leave it '
-            '"fatigued" indefinitely.',
-      );
-    });
+        final afterWeek = original.decayed(7);
+        expect(
+          afterWeek.isRecovered,
+          isTrue,
+          reason:
+              'A one-week gap must decay a moderate load below the recovery '
+              'cutoff; a raw-vs-normalized unit mismatch would leave it '
+              '"fatigued" indefinitely.',
+        );
+      },
+    );
 
     test('a very heavy load still visible one day later is not recovered', () {
       const load = NormalizedMuscleLoad(
@@ -89,16 +92,16 @@ void main() {
       const load = NormalizedMuscleLoad(raw: 10.0, threshold: 25.0);
       final decayed = load.decayed(3);
       const expected =
-          10.0 * MuscleStimulus.weeklyDecayFactor *
-              MuscleStimulus.weeklyDecayFactor *
-              MuscleStimulus.weeklyDecayFactor;
+          10.0 *
+          MuscleStimulus.weeklyDecayFactor *
+          MuscleStimulus.weeklyDecayFactor *
+          MuscleStimulus.weeklyDecayFactor;
       expect(decayed.raw, closeTo(expected, 1e-9));
       // Threshold is preserved across decay.
       expect(decayed.threshold, load.threshold);
     });
 
-    test('is pure — returns a new instance and does not mutate the source',
-        () {
+    test('is pure — returns a new instance and does not mutate the source', () {
       const load = NormalizedMuscleLoad(raw: 10.0, threshold: 25.0);
       final decayed = load.decayed(5);
       expect(load.raw, 10.0);
@@ -119,26 +122,20 @@ void main() {
       },
     );
 
-    test(
-      'stays zero past the fatigue-day cap',
-      () {
-        const load = NormalizedMuscleLoad(
-          raw: 1e9,
-          threshold: MuscleStimulus.weeklyThreshold,
-        );
-        final capped = load.decayed(MuscleStimulus.maxFatigueDays + 5);
-        expect(capped.raw, 0.0);
-        expect(capped.isRecovered, isTrue);
-      },
-    );
+    test('stays zero past the fatigue-day cap', () {
+      const load = NormalizedMuscleLoad(
+        raw: 1e9,
+        threshold: MuscleStimulus.weeklyThreshold,
+      );
+      final capped = load.decayed(MuscleStimulus.maxFatigueDays + 5);
+      expect(capped.raw, 0.0);
+      expect(capped.isRecovered, isTrue);
+    });
 
-    test(
-      'still applies normal decay one day before the cap',
-      () {
-        const load = NormalizedMuscleLoad(raw: 10.0, threshold: 25.0);
-        final beforeCap = load.decayed(MuscleStimulus.maxFatigueDays - 1);
-        expect(beforeCap.raw, greaterThan(0.0));
-      },
-    );
+    test('still applies normal decay one day before the cap', () {
+      const load = NormalizedMuscleLoad(raw: 10.0, threshold: 25.0);
+      final beforeCap = load.decayed(MuscleStimulus.maxFatigueDays - 1);
+      expect(beforeCap.raw, greaterThan(0.0));
+    });
   });
 }

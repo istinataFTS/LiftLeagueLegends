@@ -5,17 +5,9 @@ class AppUser extends Equatable {
   final String email;
   final String? displayName;
 
-  const AppUser({
-    required this.id,
-    required this.email,
-    this.displayName,
-  });
+  const AppUser({required this.id, required this.email, this.displayName});
 
-  AppUser copyWith({
-    String? id,
-    String? email,
-    String? displayName,
-  }) {
+  AppUser copyWith({String? id, String? email, String? displayName}) {
     return AppUser(
       id: id ?? this.id,
       email: email ?? this.email,
@@ -24,9 +16,5 @@ class AppUser extends Equatable {
   }
 
   @override
-  List<Object?> get props => [
-        id,
-        email,
-        displayName,
-      ];
+  List<Object?> get props => [id, email, displayName];
 }

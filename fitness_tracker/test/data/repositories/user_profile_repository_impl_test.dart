@@ -31,8 +31,9 @@ void main() {
   // ---------------------------------------------------------------------------
   group('getProfile', () {
     test('returns Right(profile) when datasource returns a profile', () async {
-      when(() => mockRemote.getProfile('user-1'))
-          .thenAnswer((_) async => profile);
+      when(
+        () => mockRemote.getProfile('user-1'),
+      ).thenAnswer((_) async => profile);
 
       final result = await sut.getProfile('user-1');
 
@@ -40,42 +41,48 @@ void main() {
     });
 
     test('returns Right(null) when datasource returns null', () async {
-      when(() => mockRemote.getProfile('user-1'))
-          .thenAnswer((_) async => null);
+      when(() => mockRemote.getProfile('user-1')).thenAnswer((_) async => null);
 
       final result = await sut.getProfile('user-1');
 
       expect(result, const Right<dynamic, UserProfile?>(null));
     });
 
-    test('returns Left(failure) when datasource throws a sync exception',
-        () async {
-      when(() => mockRemote.getProfile('user-1'))
-          .thenThrow(const NetworkSyncException('offline'));
+    test(
+      'returns Left(failure) when datasource throws a sync exception',
+      () async {
+        when(
+          () => mockRemote.getProfile('user-1'),
+        ).thenThrow(const NetworkSyncException('offline'));
 
-      final result = await sut.getProfile('user-1');
+        final result = await sut.getProfile('user-1');
 
-      expect(result.isLeft(), isTrue);
-    });
+        expect(result.isLeft(), isTrue);
+      },
+    );
   });
 
   // ---------------------------------------------------------------------------
   // upsertProfile
   // ---------------------------------------------------------------------------
   group('upsertProfile', () {
-    test('returns Right(profile) when datasource upserts successfully',
-        () async {
-      when(() => mockRemote.upsertProfile(profile))
-          .thenAnswer((_) async => profile);
+    test(
+      'returns Right(profile) when datasource upserts successfully',
+      () async {
+        when(
+          () => mockRemote.upsertProfile(profile),
+        ).thenAnswer((_) async => profile);
 
-      final result = await sut.upsertProfile(profile);
+        final result = await sut.upsertProfile(profile);
 
-      expect(result, Right<dynamic, UserProfile>(profile));
-    });
+        expect(result, Right<dynamic, UserProfile>(profile));
+      },
+    );
 
     test('returns Left(failure) on AuthSyncException', () async {
-      when(() => mockRemote.upsertProfile(profile))
-          .thenThrow(const AuthSyncException('unauthenticated'));
+      when(
+        () => mockRemote.upsertProfile(profile),
+      ).thenThrow(const AuthSyncException('unauthenticated'));
 
       final result = await sut.upsertProfile(profile);
 
@@ -83,8 +90,9 @@ void main() {
     });
 
     test('returns Left(failure) on RemoteSyncException', () async {
-      when(() => mockRemote.upsertProfile(profile))
-          .thenThrow(const RemoteSyncException('server error'));
+      when(
+        () => mockRemote.upsertProfile(profile),
+      ).thenThrow(const RemoteSyncException('server error'));
 
       final result = await sut.upsertProfile(profile);
 

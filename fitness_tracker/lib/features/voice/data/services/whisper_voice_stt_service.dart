@@ -2,6 +2,7 @@ import 'dart:async';
 import 'dart:io';
 import 'dart:typed_data';
 
+import 'package:flutter/foundation.dart' show visibleForTesting;
 import 'package:path/path.dart' as p;
 import 'package:path_provider/path_provider.dart';
 import 'package:record/record.dart';
@@ -42,6 +43,12 @@ class WhisperVoiceSttService implements VoiceSttService {
   bool _isInitialized = false;
   bool _isListeningInternal = false;
   bool _cancelled = false;
+  bool _firstAmplitudeLogged = false;
+
+  /// Log category for all events from this service. Tagged so a developer
+  /// running `adb logcat | grep voice/stt/whisper` sees the entire recording
+  /// + upload lifecycle of one utterance.
+  static const String _logCategory = 'voice/stt/whisper';
 
   @override
   Future<void> initialize() async {
@@ -89,8 +96,14 @@ class WhisperVoiceSttService implements VoiceSttService {
     final controller = _controller;
     if (controller == null) return;
 
+    _firstAmplitudeLogged = false;
+
     try {
       if (!await _recorder.hasPermission()) {
+        AppLogger.warning(
+          'WhisperVoiceSttService: recorder reported no microphone permission',
+          category: _logCategory,
+        );
         _emitError(
           controller,
           const VoiceSttException(VoiceSttErrorKind.permissionDenied),
@@ -103,6 +116,14 @@ class WhisperVoiceSttService implements VoiceSttService {
       final filename = 'voice_${DateTime.now().millisecondsSinceEpoch}.m4a';
       final path = p.join(tmpDir.path, filename);
       _activePath = path;
+
+      AppLogger.info(
+        'WhisperVoiceSttService: starting recorder '
+        '(sampleRate=${VoiceConstants.whisperAudioSampleRate}Hz, '
+        'bitRate=${VoiceConstants.whisperAudioBitrate}bps, '
+        'language=${language ?? 'en'})',
+        category: _logCategory,
+      );
 
       await _recorder.start(
         const RecordConfig(
@@ -117,28 +138,44 @@ class WhisperVoiceSttService implements VoiceSttService {
 
       _hardCapTimer = Timer(VoiceConstants.whisperMaxAudioDuration, () {
         if (_isListeningInternal) {
-          unawaited(_stopAndTranscribe(language: language));
+          unawaited(
+            _stopAndTranscribe(language: language, stopReason: 'hard-cap'),
+          );
         }
       });
 
       _amplitudeSub = _recorder
           .onAmplitudeChanged(VoiceConstants.whisperAmplitudePollInterval)
           .listen((amp) {
-        if (!_isListeningInternal) return;
-        final now = DateTime.now();
-        if (amp.current > VoiceConstants.whisperSilenceAmplitudeDbfs) {
-          _lastVoiceAt = now;
-        } else if (_lastVoiceAt != null) {
-          final silenceFor = now.difference(_lastVoiceAt!);
-          if (silenceFor >= VoiceConstants.whisperSilenceTimeout) {
-            unawaited(_stopAndTranscribe(language: language));
-          }
-        }
-      });
+            if (!_isListeningInternal) return;
+            if (!_firstAmplitudeLogged) {
+              _firstAmplitudeLogged = true;
+              // Diagnostic: confirms the mic is actually delivering signal.
+              // If the user's "tap → nothing" symptom is mic-side, this line
+              // will be absent or stuck at -inf / very low dBFS.
+              AppLogger.info(
+                'WhisperVoiceSttService: first amplitude '
+                '${amp.current.toStringAsFixed(1)} dBFS '
+                '(silence threshold ${VoiceConstants.whisperSilenceAmplitudeDbfs} dBFS)',
+                category: _logCategory,
+              );
+            }
+            final now = DateTime.now();
+            if (amp.current > VoiceConstants.whisperSilenceAmplitudeDbfs) {
+              _lastVoiceAt = now;
+            } else if (_lastVoiceAt != null) {
+              final silenceFor = now.difference(_lastVoiceAt!);
+              if (silenceFor >= VoiceConstants.whisperSilenceTimeout) {
+                unawaited(
+                  _stopAndTranscribe(language: language, stopReason: 'silence'),
+                );
+              }
+            }
+          });
     } catch (error, stackTrace) {
       AppLogger.warning(
         'WhisperVoiceSttService: recording failed to start',
-        category: 'voice',
+        category: _logCategory,
         error: error,
         stackTrace: stackTrace,
       );
@@ -153,15 +190,24 @@ class WhisperVoiceSttService implements VoiceSttService {
   @override
   Future<void> stop() async {
     if (!_isListeningInternal) return;
-    await _stopAndTranscribe(language: null);
+    await _stopAndTranscribe(language: null, stopReason: 'manual');
   }
 
   /// Stops recording, reads the file, uploads it, and emits the transcript.
   /// Internal because both the public `stop()` and the auto-stop timers
-  /// drive the same flow.
-  Future<void> _stopAndTranscribe({String? language}) async {
+  /// drive the same flow. [stopReason] is logged so a developer can tell
+  /// from the trace whether the user, the silence detector, or the hard-cap
+  /// timer ended the session.
+  Future<void> _stopAndTranscribe({
+    String? language,
+    required String stopReason,
+  }) async {
     if (!_isListeningInternal) return;
     _isListeningInternal = false;
+    AppLogger.info(
+      'WhisperVoiceSttService: stopping recorder (reason=$stopReason)',
+      category: _logCategory,
+    );
     final controller = _controller;
     final path = _activePath;
     await _teardownTimersAndSubscription();
@@ -172,7 +218,7 @@ class WhisperVoiceSttService implements VoiceSttService {
     } catch (error, stackTrace) {
       AppLogger.warning(
         'WhisperVoiceSttService: recorder.stop() failed',
-        category: 'voice',
+        category: _logCategory,
         error: error,
         stackTrace: stackTrace,
       );
@@ -195,7 +241,7 @@ class WhisperVoiceSttService implements VoiceSttService {
       } catch (error, stackTrace) {
         AppLogger.warning(
           'WhisperVoiceSttService: failed to read recorded audio',
-          category: 'voice',
+          category: _logCategory,
           error: error,
           stackTrace: stackTrace,
         );
@@ -204,6 +250,11 @@ class WhisperVoiceSttService implements VoiceSttService {
     await _deleteFile(finalPath);
 
     if (bytes == null || bytes.isEmpty) {
+      AppLogger.warning(
+        'WhisperVoiceSttService: recorded file was empty — '
+        'mic probably did not capture any audio',
+        category: _logCategory,
+      );
       _emitError(
         controller,
         const VoiceSttException(VoiceSttErrorKind.noSpeech),
@@ -212,6 +263,12 @@ class WhisperVoiceSttService implements VoiceSttService {
       return;
     }
 
+    final uploadKb = (bytes.length / 1024).toStringAsFixed(1);
+    AppLogger.info(
+      'WhisperVoiceSttService: uploading $uploadKb KB to voice-transcribe',
+      category: _logCategory,
+    );
+
     try {
       final transcript = await _remote.transcribe(
         audioBytes: bytes,
@@ -219,11 +276,20 @@ class WhisperVoiceSttService implements VoiceSttService {
         language: language ?? 'en',
       );
       if (transcript.trim().isEmpty) {
+        AppLogger.info(
+          'WhisperVoiceSttService: server returned an empty transcript',
+          category: _logCategory,
+        );
         _emitError(
           controller,
           const VoiceSttException(VoiceSttErrorKind.noSpeech),
         );
       } else {
+        AppLogger.info(
+          'WhisperVoiceSttService: transcription received '
+          '(${transcript.trim().length} chars)',
+          category: _logCategory,
+        );
         _emit(
           controller,
           VoiceSttResult(transcript: transcript.trim(), isFinal: true),
@@ -232,15 +298,12 @@ class WhisperVoiceSttService implements VoiceSttService {
     } catch (error, stackTrace) {
       AppLogger.warning(
         'WhisperVoiceSttService: transcription request failed',
-        category: 'voice',
+        category: _logCategory,
         error: error,
         stackTrace: stackTrace,
       );
       final kind = _classifyTranscribeError(error);
-      _emitError(
-        controller,
-        VoiceSttException(kind, error.toString()),
-      );
+      _emitError(controller, VoiceSttException(kind, error.toString()));
     }
 
     await _closeController();
@@ -254,13 +317,17 @@ class WhisperVoiceSttService implements VoiceSttService {
       return;
     }
     _isListeningInternal = false;
+    AppLogger.info(
+      'WhisperVoiceSttService: cancelling recorder (user cancel)',
+      category: _logCategory,
+    );
     await _teardownTimersAndSubscription();
     try {
       await _recorder.cancel();
     } catch (error, stackTrace) {
       AppLogger.warning(
         'WhisperVoiceSttService: recorder.cancel() failed',
-        category: 'voice',
+        category: _logCategory,
         error: error,
         stackTrace: stackTrace,
       );
@@ -282,12 +349,48 @@ class WhisperVoiceSttService implements VoiceSttService {
   // ── Helpers ───────────────────────────────────────────────────────────────
 
   /// Classifies an error from `_remote.transcribe(...)` into the closest
-  /// [VoiceSttErrorKind]. Network-class failures (timeouts, transport
-  /// errors) get mapped to `network` so the bloc reads back the
-  /// `voiceSpokenNetworkDown` line; everything else collapses to `unknown`.
-  VoiceSttErrorKind _classifyTranscribeError(Object error) {
+  /// [VoiceSttErrorKind]. The remote layer encodes Edge Function failures as
+  /// `ServerFailure('CODE|status|message')` (see [
+  /// SupabaseVoiceRemoteDataSource._throwFromErrorBody]); we decode the
+  /// prefix here. Transport-layer failures (no JSON body, dropped socket)
+  /// collapse to [VoiceSttErrorKind.network]; anything we can't recognise
+  /// becomes [VoiceSttErrorKind.unknown] with the original message attached.
+  ///
+  /// Exposed (in spirit) via a tested helper so this mapping is the single
+  /// source of truth for converting upstream codes to user-visible kinds.
+  @visibleForTesting
+  static VoiceSttErrorKind classifyTranscribeError(Object error) {
     if (error is ServerFailure) {
-      final upper = error.message.toUpperCase();
+      final encoded = error.message;
+      // Try the structured "CODE|status|message" form first.
+      final firstPipe = encoded.indexOf('|');
+      if (firstPipe > 0) {
+        final code = encoded.substring(0, firstPipe).toUpperCase();
+        switch (code) {
+          case 'UNAUTHORIZED':
+          case 'GUEST_FORBIDDEN':
+            return VoiceSttErrorKind.auth;
+          case 'BUDGET_EXCEEDED':
+            return VoiceSttErrorKind.budgetExceeded;
+          case 'INVALID_REQUEST':
+            // 413 = audio exceeded MAX_AUDIO_BYTES; other 400s are
+            // genuinely unexpected and stay as `unknown`.
+            final parts = encoded.split('|');
+            if (parts.length >= 2 && parts[1] == '413') {
+              return VoiceSttErrorKind.audioTooLarge;
+            }
+            return VoiceSttErrorKind.unknown;
+          case 'OPENAI_UNAVAILABLE':
+          case 'RATE_LIMITED':
+            return VoiceSttErrorKind.serverUnavailable;
+          case 'TIMEOUT':
+            return VoiceSttErrorKind.network;
+          case 'INTERNAL':
+            return VoiceSttErrorKind.serverUnavailable;
+        }
+      }
+      // Legacy / unencoded ServerFailure — fall back to keyword sniffing.
+      final upper = encoded.toUpperCase();
       if (upper.contains('TIMEOUT') || upper.contains('NETWORK')) {
         return VoiceSttErrorKind.network;
       }
@@ -297,6 +400,9 @@ class WhisperVoiceSttService implements VoiceSttService {
     }
     return VoiceSttErrorKind.unknown;
   }
+
+  VoiceSttErrorKind _classifyTranscribeError(Object error) =>
+      classifyTranscribeError(error);
 
   void _emit(
     StreamController<VoiceSttResult> controller,

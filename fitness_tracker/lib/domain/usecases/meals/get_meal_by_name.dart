@@ -15,12 +15,9 @@ class GetMealByName {
   });
 
   Future<Either<Failure, Meal?>> call(String name) async {
-    final sourcePreference =
-        await sourcePreferenceResolver.resolveReadPreference();
+    final sourcePreference = await sourcePreferenceResolver
+        .resolveReadPreference();
 
-    return repository.getMealByName(
-      name,
-      sourcePreference: sourcePreference,
-    );
+    return repository.getMealByName(name, sourcePreference: sourcePreference);
   }
 }

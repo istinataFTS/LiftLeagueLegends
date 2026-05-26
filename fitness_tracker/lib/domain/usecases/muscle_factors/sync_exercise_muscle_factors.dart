@@ -71,6 +71,5 @@ class SyncExerciseMuscleFactors {
   /// and simple taxonomy keys (e.g. `'chest'` from user-created exercises) so
   /// that both exercise sources store muscle factors correctly.
   static bool _isKnownMuscle(String muscle) =>
-      MuscleStimulus.isValidMuscleGroup(muscle) ||
-      MuscleGroups.isValid(muscle);
+      MuscleStimulus.isValidMuscleGroup(muscle) || MuscleGroups.isValid(muscle);
 }

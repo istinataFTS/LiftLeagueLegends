@@ -33,10 +33,7 @@ class NoopMealRemoteDataSource implements MealRemoteDataSource {
   }
 
   @override
-  Future<void> deleteMeal({
-    required String localId,
-    String? serverId,
-  }) async {}
+  Future<void> deleteMeal({required String localId, String? serverId}) async {}
 
   @override
   Future<List<Meal>> fetchSince({

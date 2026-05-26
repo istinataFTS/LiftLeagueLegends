@@ -9,11 +9,11 @@ import 'package:mocktail/mocktail.dart';
 class MockGetAllExercises extends Mock implements GetAllExercises {}
 
 Exercise _ex(String id, String name) => Exercise(
-      id: id,
-      name: name,
-      muscleGroups: const [],
-      createdAt: DateTime(2026),
-    );
+  id: id,
+  name: name,
+  muscleGroups: const [],
+  createdAt: DateTime(2026),
+);
 
 void main() {
   late MockGetAllExercises mockUseCase;
@@ -30,8 +30,9 @@ void main() {
 
   group('refreshIfEmpty', () {
     test('fetches exercises when cache is empty', () async {
-      when(mockUseCase.call)
-          .thenAnswer((_) async => Right([benchPress, squat]));
+      when(
+        mockUseCase.call,
+      ).thenAnswer((_) async => Right([benchPress, squat]));
 
       await lookup.refreshIfEmpty();
 
@@ -40,8 +41,7 @@ void main() {
     });
 
     test('does not fetch again when cache is already populated', () async {
-      when(mockUseCase.call)
-          .thenAnswer((_) async => Right([benchPress]));
+      when(mockUseCase.call).thenAnswer((_) async => Right([benchPress]));
 
       await lookup.refreshIfEmpty();
       await lookup.refreshIfEmpty(); // second call should be no-op
@@ -50,8 +50,9 @@ void main() {
     });
 
     test('handles use case failure gracefully — cache stays empty', () async {
-      when(mockUseCase.call)
-          .thenAnswer((_) async => Left(ServerFailure('error')));
+      when(
+        mockUseCase.call,
+      ).thenAnswer((_) async => Left(ServerFailure('error')));
 
       await lookup.refreshIfEmpty();
 
@@ -61,8 +62,9 @@ void main() {
 
   group('byName — exact match', () {
     setUp(() async {
-      when(mockUseCase.call).thenAnswer(
-          (_) async => Right([benchPress, squat, inclineBench]));
+      when(
+        mockUseCase.call,
+      ).thenAnswer((_) async => Right([benchPress, squat, inclineBench]));
       await lookup.refreshIfEmpty();
     });
 
@@ -79,8 +81,9 @@ void main() {
 
   group('byName — prefix/fuzzy match', () {
     setUp(() async {
-      when(mockUseCase.call).thenAnswer(
-          (_) async => Right([benchPress, squat, inclineBench]));
+      when(
+        mockUseCase.call,
+      ).thenAnswer((_) async => Right([benchPress, squat, inclineBench]));
       await lookup.refreshIfEmpty();
     });
 
@@ -99,8 +102,9 @@ void main() {
 
   group('resolveId', () {
     setUp(() async {
-      when(mockUseCase.call)
-          .thenAnswer((_) async => Right([benchPress, squat]));
+      when(
+        mockUseCase.call,
+      ).thenAnswer((_) async => Right([benchPress, squat]));
       await lookup.refreshIfEmpty();
     });
 
@@ -115,8 +119,9 @@ void main() {
 
   group('nameForId', () {
     setUp(() async {
-      when(mockUseCase.call)
-          .thenAnswer((_) async => Right([benchPress, squat]));
+      when(
+        mockUseCase.call,
+      ).thenAnswer((_) async => Right([benchPress, squat]));
       await lookup.refreshIfEmpty();
     });
 
@@ -132,16 +137,18 @@ void main() {
 
   group('findByName (async)', () {
     test('warms cache and resolves in one call', () async {
-      when(mockUseCase.call)
-          .thenAnswer((_) async => Right([benchPress, squat]));
+      when(
+        mockUseCase.call,
+      ).thenAnswer((_) async => Right([benchPress, squat]));
 
       final result = await lookup.findByName('squat');
       expect(result, squat);
     });
 
     test('returns null when no match after cache warm', () async {
-      when(mockUseCase.call)
-          .thenAnswer((_) async => Right([benchPress, squat]));
+      when(
+        mockUseCase.call,
+      ).thenAnswer((_) async => Right([benchPress, squat]));
 
       final result = await lookup.findByName('deadlift');
       expect(result, isNull);

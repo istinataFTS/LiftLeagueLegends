@@ -14,7 +14,11 @@ void main() {
         'right now',
         'just now',
       ]) {
-        expect(VoiceTimePhraseGrammar.isToday(phrase), isTrue, reason: '"$phrase" should be today');
+        expect(
+          VoiceTimePhraseGrammar.isToday(phrase),
+          isTrue,
+          reason: '"$phrase" should be today',
+        );
       }
     });
 
@@ -42,7 +46,11 @@ void main() {
         'past 7 days',
         'past seven days',
       ]) {
-        expect(VoiceTimePhraseGrammar.isThisWeek(phrase), isTrue, reason: '"$phrase" should be this week');
+        expect(
+          VoiceTimePhraseGrammar.isThisWeek(phrase),
+          isTrue,
+          reason: '"$phrase" should be this week',
+        );
       }
     });
 
