@@ -73,6 +73,38 @@ The script errors if `dart_defines.json` is missing. Equivalent raw command: `fl
 | `PICOVOICE_ACCESS_KEY` | Picovoice Console access key (voice wake word) |
 
 The `PICOVOICE_ACCESS_KEY` is written into `flutter_secure_storage` by `AppBootstrapper` on every launch. The wake-word engine starts automatically after the write via `VoiceCredentialService.onPicovoiceKeyChanged`. See KNOWN_ISSUES `#voice-picovoice-key-must-ship-via-dart-define`.
+<<<<<<< HEAD
+
+## Platform support
+
+**Android: shipping.** Full Gradle/Kotlin/AndroidManifest setup under `android/`. CI builds and tests Android on `ubuntu-latest`.
+
+**iOS: not buildable yet — half-scaffolded.** Only `ios/Runner/Info.plist` (privacy strings: mic, speech recognition, tracking) and the auto-generated `GeneratedPluginRegistrant.{h,m}` exist. The following are intentionally **absent** and must be generated before iOS can build:
+
+- `ios/Runner.xcodeproj/` and `ios/Runner.xcworkspace/`
+- `ios/Podfile` and `ios/Podfile.lock`
+- `ios/Runner/AppDelegate.swift` (or `.h`/`.m`)
+- `ios/Runner/Assets.xcassets/AppIcon.appiconset/`
+- `ios/Runner/Base.lproj/{Main,LaunchScreen}.storyboard`
+
+**To fully scaffold iOS** (when ready, in its own PR — do **not** bundle with feature work):
+
+1. From `fitness_tracker/`, run `flutter create --platforms=ios .` — generates ~30 files including the Xcode project, Podfile, AppDelegate, asset catalog, and storyboards. Do **not** overwrite the existing `ios/Runner/Info.plist` (it has hand-written voice privacy strings).
+2. Flip `ios: true` in `pubspec.yaml` under `flutter_launcher_icons`, then run `dart run flutter_launcher_icons` to generate the iOS icon set from `assets/branding/app_icon.png`.
+3. Add a `macos-latest` job to `.github/workflows/flutter-ci.yml` running `flutter build ios --no-codesign` so iOS regressions surface in CI.
+4. Document any iOS-specific quirks in `KNOWN_ISSUES.md` under a new `### iOS` section.
+
+**Cross-platform code in this repo is already written to be iOS-ready** — every voice plugin (`record`, `speech_to_text`, `flutter_tts`, `permission_handler`, `flutter_secure_storage`, `porcupine_flutter`) supports iOS, and all platform-specific behaviour goes through domain-layer abstractions (`VoiceSttService`, `VoiceTtsService`, `VoicePermissionService`, etc.). When iOS scaffolding lands, the voice feature should work without further Dart changes.
+
+**Platform-specific source files** live under `android/` only. Anything platform-specific belongs in:
+- `android/app/src/main/res/...` — Android resources (icons, themes, strings)
+- `android/app/src/main/AndroidManifest.xml` — Android permissions and intent filters
+- `ios/Runner/Info.plist` — iOS permissions and bundle config (already present)
+- `ios/Runner/Assets.xcassets/` — iOS icons (does not exist yet)
+
+Do not introduce platform-specific Dart code via `Platform.isAndroid` / `Platform.isIOS` checks unless the platform abstraction layer (a `VoiceXxxService` interface in `lib/domain/services/`) cannot reasonably express the difference. Prefer one interface, two implementations registered per platform in DI.
+=======
+>>>>>>> origin/main
 
 ## Known issues and the 15-minute rule
 
