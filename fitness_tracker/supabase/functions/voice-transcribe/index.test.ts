@@ -193,6 +193,41 @@ Deno.test("voice-transcribe: happy path → transcript + correct cost row", asyn
   }
 });
 
+Deno.test(
+  "voice-transcribe: logUsage writes function_name='voice-transcribe' on success",
+  async () => {
+    mockWhisperResponse("bench press 100 kilograms 5 reps", 3.0);
+    const { inserted, client } = makeTranscribeClient();
+    const { logUsage } = await import("../_shared/usage.ts");
+
+    try {
+      const result = await transcribeAudio({
+        audio: makeAudioBlob(),
+        filename: "test.m4a",
+      });
+
+      const cost = costForWhisper("whisper-1", result.durationSeconds);
+      await logUsage(client, {
+        userId: "u",
+        functionName: "voice-transcribe",
+        model: "whisper-1",
+        inputTokens: result.durationSeconds,
+        latencyMs: 150,
+        status: "OK",
+      }, cost);
+
+      // The insert must succeed (no constraint violation) and carry the correct
+      // function_name so the row is attributed to voice-transcribe, not voice-chat.
+      assertEquals(inserted.length, 1);
+      const row = inserted[0] as { function_name: string; status: string };
+      assertEquals(row.function_name, "voice-transcribe");
+      assertEquals(row.status, "OK");
+    } finally {
+      _setFetch(REAL_FETCH);
+    }
+  },
+);
+
 Deno.test("costForWhisper: bills audio at $0.006/minute", () => {
   // 60 seconds = $0.006
   assertEquals(costForWhisper("whisper-1", 60), 0.006);
