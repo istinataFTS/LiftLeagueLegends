@@ -1,13 +1,13 @@
-import type { SupabaseClient } from 'https://esm.sh/@supabase/supabase-js@2';
-import { PRICING_VERSION } from './cost.ts';
-import type { UsageLogInput } from './types.ts';
+import type { SupabaseClient } from "https://esm.sh/@supabase/supabase-js@2";
+import { PRICING_VERSION } from "./cost.ts";
+import type { UsageLogInput } from "./types.ts";
 
 export async function logUsage(
   serviceClient: SupabaseClient,
   input: UsageLogInput,
   costUsd: number,
 ): Promise<void> {
-  const { error } = await serviceClient.from('voice_usage_log').insert({
+  const { error } = await serviceClient.from("voice_usage_log").insert({
     user_id: input.userId,
     function_name: input.functionName,
     model: input.model,
@@ -22,6 +22,6 @@ export async function logUsage(
 
   if (error) {
     // Swallow — failing to write an audit row should never block the user's request.
-    console.error('[voice] logUsage insert failed:', error);
+    console.error("[voice] logUsage insert failed:", error);
   }
 }

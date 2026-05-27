@@ -1,11 +1,11 @@
-import { assertEquals } from 'https://deno.land/std@0.224.0/assert/mod.ts';
-import { ErrorCodes, VoiceError, errorResponse } from './errors.ts';
+import { assertEquals } from "https://deno.land/std@0.224.0/assert/mod.ts";
+import { ErrorCodes, errorResponse, VoiceError } from "./errors.ts";
 
-Deno.test('VoiceError carries code and httpStatus', () => {
-  const e = new VoiceError(ErrorCodes.UNAUTHORIZED, 'No auth', 401);
+Deno.test("VoiceError carries code and httpStatus", () => {
+  const e = new VoiceError(ErrorCodes.UNAUTHORIZED, "No auth", 401);
   assertEquals(e.code, ErrorCodes.UNAUTHORIZED);
   assertEquals(e.httpStatus, 401);
-  assertEquals(e.message, 'No auth');
+  assertEquals(e.message, "No auth");
 });
 
 const STATUS_MAP: Array<[string, number]> = [
@@ -21,7 +21,7 @@ const STATUS_MAP: Array<[string, number]> = [
 
 for (const [code, status] of STATUS_MAP) {
   Deno.test(`errorResponse maps VoiceError(${code}) → ${status}`, async () => {
-    const err = new VoiceError(code as never, 'test', status);
+    const err = new VoiceError(code as never, "test", status);
     const res = errorResponse(err);
     assertEquals(res.status, status);
     const body = await res.json();
@@ -29,13 +29,13 @@ for (const [code, status] of STATUS_MAP) {
   });
 }
 
-Deno.test('errorResponse maps unknown error → 500 and returns INTERNAL code', async () => {
+Deno.test("errorResponse maps unknown error → 500 and returns INTERNAL code", async () => {
   const consoleSpy: unknown[] = [];
   const originalError = console.error;
   console.error = (...args: unknown[]) => consoleSpy.push(args);
 
   try {
-    const res = errorResponse(new Error('boom'));
+    const res = errorResponse(new Error("boom"));
     assertEquals(res.status, 500);
     const body = await res.json();
     assertEquals(body.code, ErrorCodes.INTERNAL);
@@ -45,8 +45,8 @@ Deno.test('errorResponse maps unknown error → 500 and returns INTERNAL code', 
   }
 });
 
-Deno.test('errorResponse includes CORS headers', () => {
-  const err = new VoiceError(ErrorCodes.INTERNAL, 'x', 500);
+Deno.test("errorResponse includes CORS headers", () => {
+  const err = new VoiceError(ErrorCodes.INTERNAL, "x", 500);
   const res = errorResponse(err);
-  assertEquals(res.headers.get('Access-Control-Allow-Origin'), '*');
+  assertEquals(res.headers.get("Access-Control-Allow-Origin"), "*");
 });

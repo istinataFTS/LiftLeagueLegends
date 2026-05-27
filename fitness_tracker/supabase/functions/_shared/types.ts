@@ -1,7 +1,7 @@
-export type FunctionName = 'voice-chat' | 'voice-transcribe';
+export type FunctionName = "voice-chat" | "voice-transcribe";
 
 export interface AuthedUser {
-  readonly id: string;  // auth.users.id (uuid)
+  readonly id: string; // auth.users.id (uuid)
   readonly jwt: string; // raw JWT, used for user-scoped DB reads
 }
 
@@ -20,9 +20,9 @@ export interface UsageLogInput extends UsageMetrics {
 }
 
 export type Turn =
-  | { role: 'user'; content: string }
-  | { role: 'assistant'; content: string; toolCall?: ToolCall }
-  | { role: 'tool'; content: string; toolCallId: string };
+  | { role: "user"; content: string }
+  | { role: "assistant"; content: string; toolCall?: ToolCall }
+  | { role: "tool"; content: string; toolCallId: string };
 
 export interface ToolCall {
   readonly id: string;
@@ -47,8 +47,8 @@ export interface RecentNutritionLogContext {
 }
 
 export interface VoiceContext {
-  readonly currentDate: string;                                          // ISO yyyy-MM-dd
-  readonly weightUnit: 'kg' | 'lb';
+  readonly currentDate: string; // ISO yyyy-MM-dd
+  readonly weightUnit: "kg" | "lb";
   readonly recentExerciseIds?: readonly string[];
   readonly recentSets?: readonly RecentSetContext[];
   readonly recentNutritionLogs?: readonly RecentNutritionLogContext[];

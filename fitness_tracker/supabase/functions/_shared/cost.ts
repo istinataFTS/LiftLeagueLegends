@@ -1,20 +1,20 @@
-export const PRICING_VERSION = '2026-05-26';
+export const PRICING_VERSION = "2026-05-26";
 
 // USD per unit. Verify against https://openai.com/api/pricing before each release.
 // TTS is device-native (free). STT was device-native until the Whisper
 // migration — Whisper is billed per second of audio.
 const PRICES = {
-  'gpt-4o-mini-2024-07-18': {
-    perInputToken:  0.150 / 1_000_000,
+  "gpt-4o-mini-2024-07-18": {
+    perInputToken: 0.150 / 1_000_000,
     perOutputToken: 0.600 / 1_000_000,
   },
-  'whisper-1': {
+  "whisper-1": {
     perAudioSecond: 0.006 / 60, // $0.006/minute → $0.0001/second
   },
 } as const;
 
-type ChatPricingModel = 'gpt-4o-mini-2024-07-18';
-type WhisperPricingModel = 'whisper-1';
+type ChatPricingModel = "gpt-4o-mini-2024-07-18";
+type WhisperPricingModel = "whisper-1";
 
 export function costForChat(
   model: ChatPricingModel,

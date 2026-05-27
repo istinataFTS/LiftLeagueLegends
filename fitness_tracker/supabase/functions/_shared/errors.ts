@@ -1,14 +1,14 @@
-import { CORS_HEADERS } from './cors.ts';
+import { CORS_HEADERS } from "./cors.ts";
 
 export const ErrorCodes = {
-  UNAUTHORIZED: 'UNAUTHORIZED',
-  GUEST_FORBIDDEN: 'GUEST_FORBIDDEN',
-  BUDGET_EXCEEDED: 'BUDGET_EXCEEDED',
-  INVALID_REQUEST: 'INVALID_REQUEST',
-  OPENAI_UNAVAILABLE: 'OPENAI_UNAVAILABLE',
-  RATE_LIMITED: 'RATE_LIMITED',
-  TIMEOUT: 'TIMEOUT',
-  INTERNAL: 'INTERNAL',
+  UNAUTHORIZED: "UNAUTHORIZED",
+  GUEST_FORBIDDEN: "GUEST_FORBIDDEN",
+  BUDGET_EXCEEDED: "BUDGET_EXCEEDED",
+  INVALID_REQUEST: "INVALID_REQUEST",
+  OPENAI_UNAVAILABLE: "OPENAI_UNAVAILABLE",
+  RATE_LIMITED: "RATE_LIMITED",
+  TIMEOUT: "TIMEOUT",
+  INTERNAL: "INTERNAL",
 } as const;
 
 export type ErrorCode = (typeof ErrorCodes)[keyof typeof ErrorCodes];
@@ -20,7 +20,7 @@ export class VoiceError extends Error {
     public readonly httpStatus: number,
   ) {
     super(message);
-    this.name = 'VoiceError';
+    this.name = "VoiceError";
   }
 }
 
@@ -29,10 +29,13 @@ export class VoiceError extends Error {
  * callers may pass `extraHeaders` for function-specific additions
  * (typically none — function handlers send extra headers only on success).
  */
-export function errorResponse(err: unknown, extraHeaders?: Record<string, string>): Response {
+export function errorResponse(
+  err: unknown,
+  extraHeaders?: Record<string, string>,
+): Response {
   const headers = {
     ...CORS_HEADERS,
-    'Content-Type': 'application/json',
+    "Content-Type": "application/json",
     ...(extraHeaders ?? {}),
   };
 
@@ -43,9 +46,12 @@ export function errorResponse(err: unknown, extraHeaders?: Record<string, string
     );
   }
 
-  console.error('[voice] unhandled error:', err);
+  console.error("[voice] unhandled error:", err);
   return new Response(
-    JSON.stringify({ code: ErrorCodes.INTERNAL, message: 'Internal server error' }),
+    JSON.stringify({
+      code: ErrorCodes.INTERNAL,
+      message: "Internal server error",
+    }),
     { status: 500, headers },
   );
 }
