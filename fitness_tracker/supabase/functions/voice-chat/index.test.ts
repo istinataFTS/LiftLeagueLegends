@@ -476,3 +476,89 @@ Deno.test("buildSystemPrompt: empty recent data shows fallback text, no raw plac
   assertEquals(prompt.includes("None logged yet."), true);
   assertEquals(prompt.includes("{{"), false);
 });
+
+Deno.test("buildSystemPrompt: contains TOOL CALL CONTRACT section", () => {
+  const prompt = buildSystemPrompt({
+    currentDate: "2026-05-13",
+    weightUnit: "kg",
+    recentSets: [],
+    recentNutritionLogs: [],
+  });
+  assertEquals(prompt.includes("TOOL CALL CONTRACT"), true);
+  assertEquals(prompt.includes("NON-NEGOTIABLE"), true);
+});
+
+// ---------------------------------------------------------------------------
+// applyAssistantGuard — server-side guard against success-claiming prose
+// ---------------------------------------------------------------------------
+
+const { applyAssistantGuard, GUARD_CORRECTIVE_MESSAGE } = await import(
+  "./index.ts"
+);
+
+Deno.test("applyAssistantGuard: trips when user says 'yes' and LLM returns 'Set logged.'", () => {
+  const result = applyAssistantGuard("yes", { message: "Set logged." });
+  assertEquals(result.tripped, true);
+  assertEquals(result.responseContent, GUARD_CORRECTIVE_MESSAGE);
+});
+
+Deno.test("applyAssistantGuard: trips on 'yeah' + 'workout logged'", () => {
+  const result = applyAssistantGuard("yeah", {
+    message: "Great, workout logged!",
+  });
+  assertEquals(result.tripped, true);
+  assertEquals(result.responseContent, GUARD_CORRECTIVE_MESSAGE);
+});
+
+Deno.test("applyAssistantGuard: trips on short-form success claims ('Done.', 'Logged.')", () => {
+  for (const msg of ["Done.", "Logged.", "Saved.", "Noted."]) {
+    const result = applyAssistantGuard("yes", { message: msg });
+    assertEquals(result.tripped, true, `should trip on: ${msg}`);
+  }
+});
+
+Deno.test("applyAssistantGuard: does NOT trip when LLM returns a question (not a success claim)", () => {
+  const result = applyAssistantGuard("yes", {
+    message: "What weight did you use?",
+  });
+  assertEquals(result.tripped, false);
+  assertEquals(result.responseContent, "What weight did you use?");
+});
+
+Deno.test("applyAssistantGuard: does NOT trip when a tool_call is present even if message contains 'logged'", () => {
+  const result = applyAssistantGuard("yes", {
+    toolCall: { id: "call_1", name: "logWorkoutSet", arguments: {} },
+    message: "Set logged!",
+  });
+  assertEquals(result.tripped, false);
+});
+
+Deno.test("applyAssistantGuard: does NOT trip when user message is NOT affirmative", () => {
+  const result = applyAssistantGuard("actually wait", {
+    message: "Set logged.",
+  });
+  assertEquals(result.tripped, false);
+  assertEquals(result.responseContent, "Set logged.");
+});
+
+Deno.test("applyAssistantGuard: does NOT trip on 'no' even with success-claim response", () => {
+  const result = applyAssistantGuard("no never mind", {
+    message: "Entry saved.",
+  });
+  assertEquals(result.tripped, false);
+});
+
+Deno.test("applyAssistantGuard: passes through undefined message when no tool_call and non-affirmative", () => {
+  const result = applyAssistantGuard("what was my last set?", {
+    message: undefined,
+  });
+  assertEquals(result.tripped, false);
+  assertEquals(result.responseContent, undefined);
+});
+
+Deno.test("ErrorCodes includes GUARD_FAILED_TOOL_OMITTED", () => {
+  assertEquals(
+    ErrorCodes.GUARD_FAILED_TOOL_OMITTED,
+    "GUARD_FAILED_TOOL_OMITTED",
+  );
+});

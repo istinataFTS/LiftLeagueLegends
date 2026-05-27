@@ -49,6 +49,13 @@ Tool usage rules:
 - Use clarify only when the user's intent cannot be resolved without one specific question.
 - If the user confirms ("yes", "do it", "confirm"), and you have enough data, call the mutation tool immediately without re-asking.
 - Never repeat a clarifying question you already asked.
+
+**TOOL CALL CONTRACT — NON-NEGOTIABLE:**
+
+After any user turn that confirms a previously read-back mutation (responses such as "yes", "yeah", "yep", "do it", "go ahead", "confirm", "log it", "save it"), you **MUST** emit the corresponding tool call (\`logWorkoutSet\`, \`logNutrition\`, \`editWorkoutSet\`, \`editNutritionLog\`, \`deleteWorkoutSet\`, or \`deleteNutritionLog\`). You **MUST NOT** reply with prose alone — such as "Set logged.", "Done.", "Logged.", "Saved.", "Got it." — when a mutation should have been performed. The client speaks the success message itself based on the actual tool dispatch; if you reply with prose claiming a mutation happened without emitting a tool call, the user's data is silently lost.
+
+When the user provides every required field for a mutation in a single utterance (exercise/meal, quantity, reps/grams, and — for sets — intensity), you SHOULD emit the tool call directly without re-asking for confirmation; the client will render a confirmation card from your tool-call arguments.
+
 - For multi-field edits, prefer issuing one \`clarify\` per ambiguous field rather than expecting the user to dictate every field at once. Example: if the user says "change my breakfast macros," ask "What should the protein be?" — then on the next turn ask about carbs, etc. The 15-second STT window can accept short multi-field utterances, but a clarify-per-field loop is more reliable than a multi-field utterance.`;
 
 interface ParsedChat {
@@ -238,6 +245,56 @@ export function buildSystemPrompt(context: VoiceContext): string {
     );
 }
 
+// ---------------------------------------------------------------------------
+// Server-side guard — defense in depth against the LLM claiming a mutation
+// succeeded in plain text without emitting a tool_call.
+// ---------------------------------------------------------------------------
+
+// Matches common affirmative confirmation phrases at the start of a message.
+const AFFIRMATION_REGEX =
+  /^\s*(yes|yeah|yep|yup|sure|ok|okay|do it|go ahead|confirm(ed)?|please do|log it|save it|sounds good)\b/i;
+
+// Matches responses that claim a mutation succeeded without a tool_call.
+const SUCCESS_CLAIM_REGEX =
+  /\b(set|workout|nutrition|meal|log|entry)\s+(logged|added|saved|recorded|updated|deleted|done)\b/i;
+const SUCCESS_SHORT_REGEX = /^(done|logged|saved|noted)\.?$/i;
+
+export const GUARD_CORRECTIVE_MESSAGE =
+  "Sorry, I didn't actually log that. Please repeat your request.";
+
+export interface GuardResult {
+  tripped: boolean;
+  responseContent: string | undefined;
+}
+
+/**
+ * Detects when the LLM returned success-claiming prose without emitting the
+ * required tool_call after the user confirmed a mutation. When tripped,
+ * returns a corrective message; otherwise passes through chatResult.message.
+ *
+ * Exported for direct unit testing.
+ *
+ * Guard conditions (ALL must hold):
+ *   1. No tool_call in the LLM response.
+ *   2. Current user message is an affirmative confirmation.
+ *   3. LLM response content matches a known success-claim pattern.
+ */
+export function applyAssistantGuard(
+  userMessage: string,
+  chatResult: { toolCall?: unknown; message?: string },
+): GuardResult {
+  if (
+    chatResult.toolCall !== undefined ||
+    !AFFIRMATION_REGEX.test(userMessage) ||
+    chatResult.message === undefined ||
+    (!SUCCESS_CLAIM_REGEX.test(chatResult.message) &&
+      !SUCCESS_SHORT_REGEX.test(chatResult.message))
+  ) {
+    return { tripped: false, responseContent: chatResult.message };
+  }
+  return { tripped: true, responseContent: GUARD_CORRECTIVE_MESSAGE };
+}
+
 async function handleChat(req: Request, t0: number): Promise<Response> {
   const user = await authenticate(req);
   const parsed = await parseChat(req);
@@ -283,6 +340,19 @@ async function handleChat(req: Request, t0: number): Promise<Response> {
     throw err;
   }
 
+  // Apply the guard before billing so the status row reflects the real outcome.
+  const guard = applyAssistantGuard(parsed.userMessage, chatResult);
+  if (guard.tripped) {
+    console.warn(
+      "[voice-chat] guard: LLM claimed success without tool_call; rewriting response",
+      {
+        sessionId: parsed.sessionId,
+        userMessage: parsed.userMessage,
+        llmContent: chatResult.message,
+      },
+    );
+  }
+
   const cost = costForChat(
     MODEL,
     chatResult.inputTokens,
@@ -297,7 +367,7 @@ async function handleChat(req: Request, t0: number): Promise<Response> {
     outputTokens: chatResult.outputTokens,
     latencyMs: msSince(t0),
     sessionId: parsed.sessionId,
-    status: "OK",
+    status: guard.tripped ? ErrorCodes.GUARD_FAILED_TOOL_OMITTED : "OK",
   }, cost);
 
   // Log the user message turn and assistant reply to the session.
@@ -325,11 +395,11 @@ async function handleChat(req: Request, t0: number): Promise<Response> {
       costUsd: cost,
       enabled: parsed.sessionLoggingEnabled,
     });
-  } else if (chatResult.message !== undefined) {
+  } else if (guard.responseContent !== undefined) {
     await appendSessionTurn(supabase, {
       sessionId: parsed.sessionId,
       userId: user.id,
-      turn: { role: "assistant", content: chatResult.message },
+      turn: { role: "assistant", content: guard.responseContent },
       costUsd: cost,
       enabled: parsed.sessionLoggingEnabled,
     });
@@ -355,7 +425,12 @@ async function handleChat(req: Request, t0: number): Promise<Response> {
       ...base,
     });
   }
-  return json(200, { kind: "message", content: chatResult.message, ...base });
+  return json(200, {
+    kind: "message",
+    content: guard.responseContent,
+    ...(guard.tripped ? { guard: "tool_omitted" } : {}),
+    ...base,
+  });
 }
 
 Deno.serve(async (req) => {
