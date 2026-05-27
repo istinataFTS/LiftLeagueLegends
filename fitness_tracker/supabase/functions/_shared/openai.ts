@@ -1,9 +1,9 @@
-import { ErrorCodes, VoiceError } from './errors.ts';
-import type { ToolCall } from './types.ts';
+import { ErrorCodes, VoiceError } from "./errors.ts";
+import type { ToolCall } from "./types.ts";
 
-const OPENAI_BASE = 'https://api.openai.com/v1';
+const OPENAI_BASE = "https://api.openai.com/v1";
 const TIMEOUT_MS = 30_000;
-const USER_AGENT = 'fitness-tracker-voice/c1';
+const USER_AGENT = "fitness-tracker-voice/c1";
 
 // Injectable fetch for testing.
 let _fetch: typeof fetch = globalThis.fetch;
@@ -18,12 +18,14 @@ export function _setFetch(f: typeof fetch): void {
  * error. Server misconfig must surface as such, not as a per-request issue.
  */
 function getApiKey(): string {
-  const key = Deno.env.get('OPENAI_API_KEY');
+  const key = Deno.env.get("OPENAI_API_KEY");
   if (!key) {
-    console.error('[voice] OPENAI_API_KEY is not set — set via `supabase secrets set OPENAI_API_KEY=...`');
+    console.error(
+      "[voice] OPENAI_API_KEY is not set — set via `supabase secrets set OPENAI_API_KEY=...`",
+    );
     throw new VoiceError(
       ErrorCodes.OPENAI_UNAVAILABLE,
-      'Voice service is misconfigured',
+      "Voice service is misconfigured",
       502,
     );
   }
@@ -33,7 +35,7 @@ function getApiKey(): string {
 function makeHeaders(extra?: Record<string, string>): Headers {
   return new Headers({
     Authorization: `Bearer ${getApiKey()}`,
-    'User-Agent': USER_AGENT,
+    "User-Agent": USER_AGENT,
     ...extra,
   });
 }
@@ -45,14 +47,16 @@ function makeHeaders(extra?: Record<string, string>): Headers {
  * signal in aborted state. Without this fix, real-world OpenAI hangs would
  * never be canceled by the timer.
  */
-async function withTimeout<T>(fn: (signal: AbortSignal) => Promise<T>): Promise<T> {
+async function withTimeout<T>(
+  fn: (signal: AbortSignal) => Promise<T>,
+): Promise<T> {
   const controller = new AbortController();
   const timer = setTimeout(() => controller.abort(), TIMEOUT_MS);
   try {
     return await fn(controller.signal);
   } catch (err) {
-    if ((err as Error).name === 'AbortError') {
-      throw new VoiceError(ErrorCodes.TIMEOUT, 'OpenAI request timed out', 504);
+    if ((err as Error).name === "AbortError") {
+      throw new VoiceError(ErrorCodes.TIMEOUT, "OpenAI request timed out", 504);
     }
     throw err;
   } finally {
@@ -70,12 +74,28 @@ async function withTimeout<T>(fn: (signal: AbortSignal) => Promise<T>): Promise<
  * misconfig is observable.
  */
 function mapOpenAiStatus(status: number): never {
-  if (status === 429) throw new VoiceError(ErrorCodes.RATE_LIMITED, 'OpenAI rate limit exceeded', 429);
-  if (status === 401 || status === 403) {
-    console.error('[voice] OpenAI rejected our API key — check OPENAI_API_KEY secret');
-    throw new VoiceError(ErrorCodes.OPENAI_UNAVAILABLE, 'OpenAI authentication failed', 502);
+  if (status === 429) {
+    throw new VoiceError(
+      ErrorCodes.RATE_LIMITED,
+      "OpenAI rate limit exceeded",
+      429,
+    );
   }
-  throw new VoiceError(ErrorCodes.OPENAI_UNAVAILABLE, `OpenAI returned HTTP ${status}`, 502);
+  if (status === 401 || status === 403) {
+    console.error(
+      "[voice] OpenAI rejected our API key — check OPENAI_API_KEY secret",
+    );
+    throw new VoiceError(
+      ErrorCodes.OPENAI_UNAVAILABLE,
+      "OpenAI authentication failed",
+      502,
+    );
+  }
+  throw new VoiceError(
+    ErrorCodes.OPENAI_UNAVAILABLE,
+    `OpenAI returned HTTP ${status}`,
+    502,
+  );
 }
 
 // ---------------------------------------------------------------------------
@@ -84,12 +104,12 @@ function mapOpenAiStatus(status: number): never {
 
 export interface ChatRequest {
   history: ReadonlyArray<{
-    role: 'system' | 'user' | 'assistant' | 'tool';
+    role: "system" | "user" | "assistant" | "tool";
     content: string;
     tool_call_id?: string;
   }>;
   tools: ReadonlyArray<{
-    type: 'function';
+    type: "function";
     function: { name: string; description: string; parameters: object };
   }>;
 }
@@ -105,13 +125,13 @@ export interface ChatResponse {
 export async function completeChat(req: ChatRequest): Promise<ChatResponse> {
   const res = await withTimeout((signal) =>
     _fetch(`${OPENAI_BASE}/chat/completions`, {
-      method: 'POST',
-      headers: makeHeaders({ 'Content-Type': 'application/json' }),
+      method: "POST",
+      headers: makeHeaders({ "Content-Type": "application/json" }),
       body: JSON.stringify({
-        model: 'gpt-4o-mini-2024-07-18',
+        model: "gpt-4o-mini-2024-07-18",
         messages: req.history,
         tools: req.tools.length > 0 ? req.tools : undefined,
-        tool_choice: req.tools.length > 0 ? 'auto' : undefined,
+        tool_choice: req.tools.length > 0 ? "auto" : undefined,
       }),
       signal,
     })
@@ -133,7 +153,7 @@ export async function completeChat(req: ChatRequest): Promise<ChatResponse> {
     const tc = msg.tool_calls[0];
     let parsedArgs: Record<string, unknown> = {};
     try {
-      parsedArgs = JSON.parse(tc.function.arguments ?? '{}');
+      parsedArgs = JSON.parse(tc.function.arguments ?? "{}");
     } catch {
       console.warn(
         `[voice] malformed tool-call arguments from model: ${tc.function.arguments}`,
@@ -145,9 +165,8 @@ export async function completeChat(req: ChatRequest): Promise<ChatResponse> {
       arguments: parsedArgs,
     };
   } else {
-    result.message = msg?.content ?? '';
+    result.message = msg?.content ?? "";
   }
 
   return result;
 }
-

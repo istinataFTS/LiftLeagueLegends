@@ -1,12 +1,15 @@
-import { createClient, SupabaseClient } from 'https://esm.sh/@supabase/supabase-js@2';
-import { CORS_HEADERS } from './cors.ts';
+import {
+  createClient,
+  SupabaseClient,
+} from "https://esm.sh/@supabase/supabase-js@2";
+import { CORS_HEADERS } from "./cors.ts";
 
 export function serviceClient(): SupabaseClient {
-  const url = Deno.env.get('SUPABASE_URL');
-  const key = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY');
+  const url = Deno.env.get("SUPABASE_URL");
+  const key = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY");
   if (!url || !key) {
     throw new Error(
-      'Service client misconfigured: SUPABASE_URL and SUPABASE_SERVICE_ROLE_KEY must be set',
+      "Service client misconfigured: SUPABASE_URL and SUPABASE_SERVICE_ROLE_KEY must be set",
     );
   }
   return createClient(url, key);
@@ -25,7 +28,7 @@ export function json(
     status,
     headers: {
       ...CORS_HEADERS,
-      'Content-Type': 'application/json',
+      "Content-Type": "application/json",
       ...(extraHeaders ?? {}),
     },
   });

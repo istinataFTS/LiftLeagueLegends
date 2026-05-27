@@ -1,5 +1,5 @@
-import type { SupabaseClient } from 'https://esm.sh/@supabase/supabase-js@2';
-import { ErrorCodes, VoiceError } from './errors.ts';
+import type { SupabaseClient } from "https://esm.sh/@supabase/supabase-js@2";
+import { ErrorCodes, VoiceError } from "./errors.ts";
 
 export interface BudgetState {
   readonly usedUsd: number;
@@ -26,17 +26,18 @@ export async function getBudgetState(
   today.setUTCHours(0, 0, 0, 0);
 
   const { data, error } = await supabase
-    .from('voice_usage_log')
-    .select('cost_usd')
-    .eq('user_id', userId)
-    .gte('created_at', today.toISOString());
+    .from("voice_usage_log")
+    .select("cost_usd")
+    .eq("user_id", userId)
+    .gte("created_at", today.toISOString());
 
   if (error) {
-    throw new VoiceError(ErrorCodes.INTERNAL, 'Budget check failed', 500);
+    throw new VoiceError(ErrorCodes.INTERNAL, "Budget check failed", 500);
   }
 
   const usedUsd = (data ?? []).reduce(
-    (sum: number, row: { cost_usd: number | string }) => sum + Number(row.cost_usd),
+    (sum: number, row: { cost_usd: number | string }) =>
+      sum + Number(row.cost_usd),
     0,
   );
   const remainingUsd = Math.max(0, dailyCapUsd - usedUsd);

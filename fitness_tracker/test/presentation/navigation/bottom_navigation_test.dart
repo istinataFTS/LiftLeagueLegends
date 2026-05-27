@@ -126,8 +126,9 @@ class _FakeVoiceWakeWordService implements VoiceWakeWordService {
 // ---------------------------------------------------------------------------
 
 class _FakeVoiceCredentialService implements VoiceCredentialService {
-  final StreamController<void> _changedCtrl =
-      StreamController<void>.broadcast(sync: true);
+  final StreamController<void> _changedCtrl = StreamController<void>.broadcast(
+    sync: true,
+  );
 
   @override
   Stream<void> get onPicovoiceKeyChanged => _changedCtrl.stream;

@@ -1,5 +1,5 @@
-import type { SupabaseClient } from 'https://esm.sh/@supabase/supabase-js@2';
-import type { Turn } from './types.ts';
+import type { SupabaseClient } from "https://esm.sh/@supabase/supabase-js@2";
+import type { Turn } from "./types.ts";
 
 /**
  * Appends one turn to a `voice_sessions` row. No-op when `enabled` is false.
@@ -28,7 +28,7 @@ export async function appendSessionTurn(
 ): Promise<void> {
   if (!args.enabled) return;
 
-  const { error } = await serviceClient.rpc('voice_session_append_turn', {
+  const { error } = await serviceClient.rpc("voice_session_append_turn", {
     p_session_id: args.sessionId,
     p_user_id: args.userId,
     p_turn: args.turn,
@@ -37,6 +37,6 @@ export async function appendSessionTurn(
 
   if (error) {
     // Swallow — session logging failure must never block the user's request.
-    console.error('[voice] appendSessionTurn failed:', error);
+    console.error("[voice] appendSessionTurn failed:", error);
   }
 }

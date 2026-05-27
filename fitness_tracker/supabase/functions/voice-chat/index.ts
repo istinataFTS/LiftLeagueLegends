@@ -1,22 +1,29 @@
-import { authenticate } from '../_shared/auth.ts';
-import { assertWithinBudget, getBudgetState } from '../_shared/budget.ts';
-import { costForChat } from '../_shared/cost.ts';
-import { preflight } from '../_shared/cors.ts';
-import { ErrorCodes, VoiceError, errorResponse } from '../_shared/errors.ts';
-import { completeChat } from '../_shared/openai.ts';
-import { appendSessionTurn } from '../_shared/session.ts';
-import { TOOL_REGISTRY } from '../_shared/tools.ts';
-import type { FunctionName, RecentNutritionLogContext, RecentSetContext, Turn, VoiceContext } from '../_shared/types.ts';
-import { logUsage } from '../_shared/usage.ts';
-import { json, msSince, serviceClient } from '../_shared/utils.ts';
+import { authenticate } from "../_shared/auth.ts";
+import { assertWithinBudget, getBudgetState } from "../_shared/budget.ts";
+import { costForChat } from "../_shared/cost.ts";
+import { preflight } from "../_shared/cors.ts";
+import { ErrorCodes, errorResponse, VoiceError } from "../_shared/errors.ts";
+import { completeChat } from "../_shared/openai.ts";
+import { appendSessionTurn } from "../_shared/session.ts";
+import { TOOL_REGISTRY } from "../_shared/tools.ts";
+import type {
+  FunctionName,
+  RecentNutritionLogContext,
+  RecentSetContext,
+  Turn,
+  VoiceContext,
+} from "../_shared/types.ts";
+import { logUsage } from "../_shared/usage.ts";
+import { json, msSince, serviceClient } from "../_shared/utils.ts";
 
-const FUNCTION_NAME: FunctionName = 'voice-chat';
-const MODEL = 'gpt-4o-mini-2024-07-18';
+const FUNCTION_NAME: FunctionName = "voice-chat";
+const MODEL = "gpt-4o-mini-2024-07-18";
 const MAX_HISTORY_TURNS = 3;
 
 // System prompt template. Placeholders: {{current_date}}, {{weight_unit}},
 // {{recent_sets}}, {{recent_nutrition_logs}}.
-const SYSTEM_PROMPT_TEMPLATE = `You are Julio Velazquez, the voice assistant for a personal fitness-tracking app. Your ONLY responsibilities are:
+const SYSTEM_PROMPT_TEMPLATE =
+  `You are Julio Velazquez, the voice assistant for a personal fitness-tracking app. Your ONLY responsibilities are:
 1. Logging, editing, and deleting workout sets and nutrition entries.
 2. Answering factual questions about the user's own logged data.
 
@@ -59,7 +66,11 @@ interface ParsedChat {
  * an attacker inject "ignore prior instructions" prompts and bypass the
  * bot's scope-refusal.
  */
-const ALLOWED_HISTORY_ROLES: ReadonlySet<string> = new Set(['user', 'assistant', 'tool']);
+const ALLOWED_HISTORY_ROLES: ReadonlySet<string> = new Set([
+  "user",
+  "assistant",
+  "tool",
+]);
 
 /**
  * Defensively converts an unknown raw-history payload into a typed `Turn[]`.
@@ -73,27 +84,29 @@ const ALLOWED_HISTORY_ROLES: ReadonlySet<string> = new Set(['user', 'assistant',
 export function sanitizeHistory(raw: unknown[]): Turn[] {
   const out: Turn[] = [];
   for (const entry of raw) {
-    if (typeof entry !== 'object' || entry === null) continue;
+    if (typeof entry !== "object" || entry === null) continue;
     const t = entry as Record<string, unknown>;
     const role = t.role;
     const content = t.content;
 
-    if (typeof role !== 'string' || typeof content !== 'string') continue;
+    if (typeof role !== "string" || typeof content !== "string") continue;
 
-    if (role === 'system') {
-      console.warn('[voice-chat] dropped client-supplied system turn — possible prompt-injection attempt');
+    if (role === "system") {
+      console.warn(
+        "[voice-chat] dropped client-supplied system turn — possible prompt-injection attempt",
+      );
       continue;
     }
     if (!ALLOWED_HISTORY_ROLES.has(role)) continue;
 
-    if (role === 'tool') {
+    if (role === "tool") {
       const toolCallId = t.toolCallId;
-      if (typeof toolCallId !== 'string') continue;
-      out.push({ role: 'tool', content, toolCallId });
-    } else if (role === 'assistant') {
-      out.push({ role: 'assistant', content });
+      if (typeof toolCallId !== "string") continue;
+      out.push({ role: "tool", content, toolCallId });
+    } else if (role === "assistant") {
+      out.push({ role: "assistant", content });
     } else {
-      out.push({ role: 'user', content });
+      out.push({ role: "user", content });
     }
   }
   return out;
@@ -105,23 +118,23 @@ export function sanitizeHistory(raw: unknown[]): Turn[] {
 // ---------------------------------------------------------------------------
 
 function isRecentSet(v: unknown): v is RecentSetContext {
-  if (typeof v !== 'object' || v === null) return false;
+  if (typeof v !== "object" || v === null) return false;
   const o = v as Record<string, unknown>;
-  return typeof o.setId === 'string'
-    && typeof o.exerciseName === 'string'
-    && typeof o.weight === 'number'
-    && typeof o.reps === 'number'
-    && typeof o.intensity === 'number'
-    && typeof o.date === 'string';
+  return typeof o.setId === "string" &&
+    typeof o.exerciseName === "string" &&
+    typeof o.weight === "number" &&
+    typeof o.reps === "number" &&
+    typeof o.intensity === "number" &&
+    typeof o.date === "string";
 }
 
 function isRecentNutritionLog(v: unknown): v is RecentNutritionLogContext {
-  if (typeof v !== 'object' || v === null) return false;
+  if (typeof v !== "object" || v === null) return false;
   const o = v as Record<string, unknown>;
-  return typeof o.logId === 'string'
-    && typeof o.mealName === 'string'
-    && typeof o.calories === 'number'
-    && typeof o.date === 'string';
+  return typeof o.logId === "string" &&
+    typeof o.mealName === "string" &&
+    typeof o.calories === "number" &&
+    typeof o.date === "string";
 }
 
 async function parseChat(req: Request): Promise<ParsedChat> {
@@ -129,17 +142,29 @@ async function parseChat(req: Request): Promise<ParsedChat> {
   try {
     body = await req.json();
   } catch {
-    throw new VoiceError(ErrorCodes.INVALID_REQUEST, 'Request body must be valid JSON', 400);
+    throw new VoiceError(
+      ErrorCodes.INVALID_REQUEST,
+      "Request body must be valid JSON",
+      400,
+    );
   }
 
   const sessionId = body.session_id;
-  if (!sessionId || typeof sessionId !== 'string') {
-    throw new VoiceError(ErrorCodes.INVALID_REQUEST, 'Missing required field: session_id', 400);
+  if (!sessionId || typeof sessionId !== "string") {
+    throw new VoiceError(
+      ErrorCodes.INVALID_REQUEST,
+      "Missing required field: session_id",
+      400,
+    );
   }
 
   const userMessage = body.user_message;
-  if (!userMessage || typeof userMessage !== 'string') {
-    throw new VoiceError(ErrorCodes.INVALID_REQUEST, 'Missing required field: user_message', 400);
+  if (!userMessage || typeof userMessage !== "string") {
+    throw new VoiceError(
+      ErrorCodes.INVALID_REQUEST,
+      "Missing required field: user_message",
+      400,
+    );
   }
 
   const rawHistory = Array.isArray(body.history) ? body.history : [];
@@ -154,9 +179,13 @@ async function parseChat(req: Request): Promise<ParsedChat> {
 
   const ctx = (body.context ?? {}) as Partial<VoiceContext>;
   const context: VoiceContext = {
-    currentDate: typeof ctx.currentDate === 'string' ? ctx.currentDate : new Date().toISOString().slice(0, 10),
-    weightUnit: ctx.weightUnit === 'lb' ? 'lb' : 'kg',
-    recentExerciseIds: Array.isArray(ctx.recentExerciseIds) ? ctx.recentExerciseIds : [],
+    currentDate: typeof ctx.currentDate === "string"
+      ? ctx.currentDate
+      : new Date().toISOString().slice(0, 10),
+    weightUnit: ctx.weightUnit === "lb" ? "lb" : "kg",
+    recentExerciseIds: Array.isArray(ctx.recentExerciseIds)
+      ? ctx.recentExerciseIds
+      : [],
     recentSets: Array.isArray(ctx.recentSets)
       ? ctx.recentSets.filter(isRecentSet)
       : [],
@@ -174,31 +203,39 @@ function formatRecentSets(
   sets: readonly RecentSetContext[] | undefined,
   weightUnit: string,
 ): string {
-  if (!sets || sets.length === 0) return 'None logged yet.';
+  if (!sets || sets.length === 0) return "None logged yet.";
   return sets
     .map(
       (s) =>
         `${s.date}: ${s.exerciseName} — ${s.weight} ${weightUnit} × ${s.reps} reps ` +
         `(intensity ${s.intensity}) [id: ${s.setId}]`,
     )
-    .join('\n');
+    .join("\n");
 }
 
 function formatRecentNutritionLogs(
   logs: readonly RecentNutritionLogContext[] | undefined,
 ): string {
-  if (!logs || logs.length === 0) return 'None logged yet.';
+  if (!logs || logs.length === 0) return "None logged yet.";
   return logs
-    .map((l) => `${l.date}: ${l.mealName} — ${l.calories} kcal [id: ${l.logId}]`)
-    .join('\n');
+    .map((l) =>
+      `${l.date}: ${l.mealName} — ${l.calories} kcal [id: ${l.logId}]`
+    )
+    .join("\n");
 }
 
 export function buildSystemPrompt(context: VoiceContext): string {
   return SYSTEM_PROMPT_TEMPLATE
-    .replace('{{current_date}}', context.currentDate)
-    .replace('{{weight_unit}}', context.weightUnit)
-    .replace('{{recent_sets}}', formatRecentSets(context.recentSets, context.weightUnit))
-    .replace('{{recent_nutrition_logs}}', formatRecentNutritionLogs(context.recentNutritionLogs));
+    .replace("{{current_date}}", context.currentDate)
+    .replace("{{weight_unit}}", context.weightUnit)
+    .replace(
+      "{{recent_sets}}",
+      formatRecentSets(context.recentSets, context.weightUnit),
+    )
+    .replace(
+      "{{recent_nutrition_logs}}",
+      formatRecentNutritionLogs(context.recentNutritionLogs),
+    );
 }
 
 async function handleChat(req: Request, t0: number): Promise<Response> {
@@ -210,18 +247,24 @@ async function handleChat(req: Request, t0: number): Promise<Response> {
 
   const systemPrompt = buildSystemPrompt(parsed.context);
   const messages = [
-    { role: 'system' as const, content: systemPrompt },
+    { role: "system" as const, content: systemPrompt },
     ...parsed.history.map((t) => ({
-      role: t.role as 'user' | 'assistant' | 'tool',
+      role: t.role as "user" | "assistant" | "tool",
       content: t.content,
-      ...(t.role === 'tool' ? { tool_call_id: (t as Extract<Turn, { role: 'tool' }>).toolCallId } : {}),
+      ...(t.role === "tool"
+        ? { tool_call_id: (t as Extract<Turn, { role: "tool" }>).toolCallId }
+        : {}),
     })),
-    { role: 'user' as const, content: parsed.userMessage },
+    { role: "user" as const, content: parsed.userMessage },
   ];
 
   const tools = TOOL_REGISTRY.map((td) => ({
-    type: 'function' as const,
-    function: { name: td.name, description: td.description, parameters: td.parameters },
+    type: "function" as const,
+    function: {
+      name: td.name,
+      description: td.description,
+      parameters: td.parameters,
+    },
   }));
 
   let chatResult: Awaited<ReturnType<typeof completeChat>>;
@@ -230,25 +273,40 @@ async function handleChat(req: Request, t0: number): Promise<Response> {
   } catch (err) {
     const code = err instanceof VoiceError ? err.code : ErrorCodes.INTERNAL;
     await logUsage(supabase, {
-      userId: user.id, functionName: FUNCTION_NAME, model: MODEL,
-      latencyMs: msSince(t0), sessionId: parsed.sessionId, status: code,
+      userId: user.id,
+      functionName: FUNCTION_NAME,
+      model: MODEL,
+      latencyMs: msSince(t0),
+      sessionId: parsed.sessionId,
+      status: code,
     }, 0);
     throw err;
   }
 
-  const cost = costForChat(MODEL, chatResult.inputTokens, chatResult.outputTokens);
+  const cost = costForChat(
+    MODEL,
+    chatResult.inputTokens,
+    chatResult.outputTokens,
+  );
 
   await logUsage(supabase, {
-    userId: user.id, functionName: FUNCTION_NAME, model: chatResult.model,
-    inputTokens: chatResult.inputTokens, outputTokens: chatResult.outputTokens,
-    latencyMs: msSince(t0), sessionId: parsed.sessionId, status: 'OK',
+    userId: user.id,
+    functionName: FUNCTION_NAME,
+    model: chatResult.model,
+    inputTokens: chatResult.inputTokens,
+    outputTokens: chatResult.outputTokens,
+    latencyMs: msSince(t0),
+    sessionId: parsed.sessionId,
+    status: "OK",
   }, cost);
 
   // Log the user message turn and assistant reply to the session.
   await appendSessionTurn(supabase, {
-    sessionId: parsed.sessionId, userId: user.id,
-    turn: { role: 'user', content: parsed.userMessage },
-    costUsd: 0, enabled: parsed.sessionLoggingEnabled,
+    sessionId: parsed.sessionId,
+    userId: user.id,
+    turn: { role: "user", content: parsed.userMessage },
+    costUsd: 0,
+    enabled: parsed.sessionLoggingEnabled,
   });
 
   if (chatResult.toolCall) {
@@ -257,19 +315,23 @@ async function handleChat(req: Request, t0: number): Promise<Response> {
     // string here would render as a blank assistant bubble in any
     // future transcript viewer.
     await appendSessionTurn(supabase, {
-      sessionId: parsed.sessionId, userId: user.id,
+      sessionId: parsed.sessionId,
+      userId: user.id,
       turn: {
-        role: 'assistant',
+        role: "assistant",
         content: `[tool_call: ${chatResult.toolCall.name}]`,
         toolCall: chatResult.toolCall,
       },
-      costUsd: cost, enabled: parsed.sessionLoggingEnabled,
+      costUsd: cost,
+      enabled: parsed.sessionLoggingEnabled,
     });
   } else if (chatResult.message !== undefined) {
     await appendSessionTurn(supabase, {
-      sessionId: parsed.sessionId, userId: user.id,
-      turn: { role: 'assistant', content: chatResult.message },
-      costUsd: cost, enabled: parsed.sessionLoggingEnabled,
+      sessionId: parsed.sessionId,
+      userId: user.id,
+      turn: { role: "assistant", content: chatResult.message },
+      costUsd: cost,
+      enabled: parsed.sessionLoggingEnabled,
     });
   }
 
@@ -287,9 +349,13 @@ async function handleChat(req: Request, t0: number): Promise<Response> {
   };
 
   if (chatResult.toolCall) {
-    return json(200, { kind: 'tool_call', tool_call: chatResult.toolCall, ...base });
+    return json(200, {
+      kind: "tool_call",
+      tool_call: chatResult.toolCall,
+      ...base,
+    });
   }
-  return json(200, { kind: 'message', content: chatResult.message, ...base });
+  return json(200, { kind: "message", content: chatResult.message, ...base });
 }
 
 Deno.serve(async (req) => {
@@ -297,8 +363,11 @@ Deno.serve(async (req) => {
   const corsResp = preflight(req);
   if (corsResp) return corsResp;
 
-  if (req.method !== 'POST') {
-    return json(405, { code: 'METHOD_NOT_ALLOWED', message: 'Only POST is accepted' });
+  if (req.method !== "POST") {
+    return json(405, {
+      code: "METHOD_NOT_ALLOWED",
+      message: "Only POST is accepted",
+    });
   }
 
   try {
