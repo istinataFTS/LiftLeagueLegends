@@ -3,23 +3,34 @@ import '../../../../domain/usecases/exercises/get_all_exercises.dart';
 
 /// Caches and resolves exercises by name for voice commands.
 ///
-/// Injected as a lazy singleton so the cache persists across voice sessions
-/// (the exercise library is static between sessions). The VoiceBloc and the
-/// offline parser share this single instance so resolution logic never drifts.
+/// Injected as a lazy singleton so the cache persists across voice sessions.
+/// The VoiceBloc and the offline parser share this single instance so
+/// resolution logic never drifts.
+///
+/// Call [invalidate] whenever the exercise library is mutated (add / update /
+/// delete) so the next lookup sees the fresh catalog.
 class ExerciseLookup {
   ExerciseLookup(this._getAllExercises);
 
   final GetAllExercises _getAllExercises;
   List<Exercise> _cache = const [];
+  // Starts dirty so the very first lookup always loads from the repository.
+  bool _isDirty = true;
 
   bool get hasCached => _cache.isNotEmpty;
 
-  /// Populate the cache from the repository if it is empty.
-  /// No-op if already populated — safe to call before every lookup.
-  Future<void> refreshIfEmpty() async {
-    if (_cache.isNotEmpty) return;
+  /// Marks the cache dirty so the next [refreshIfStale] call reloads it.
+  void invalidate() => _isDirty = true;
+
+  /// Populate the cache from the repository if the cache is dirty.
+  /// No-op when the cache is fresh. Safe to call before every lookup.
+  Future<void> refreshIfStale() async {
+    if (!_isDirty) return;
     final result = await _getAllExercises();
-    result.fold((_) {}, (list) => _cache = list);
+    result.fold((_) {}, (list) {
+      _cache = list;
+      _isDirty = false;
+    });
   }
 
   /// Sync lookup against the current cache.
@@ -27,9 +38,9 @@ class ExerciseLookup {
   /// Resolution order: exact name → starts-with prefix.
   Exercise? byName(String spoken) => _matchName(spoken, _cache);
 
-  /// Async version — refreshes the cache if empty, then resolves.
+  /// Async version — refreshes the cache if stale, then resolves.
   Future<Exercise?> findByName(String spoken) async {
-    await refreshIfEmpty();
+    await refreshIfStale();
     return byName(spoken);
   }
 

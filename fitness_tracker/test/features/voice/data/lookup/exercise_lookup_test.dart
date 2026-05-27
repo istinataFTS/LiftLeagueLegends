@@ -28,35 +28,88 @@ void main() {
     lookup = ExerciseLookup(mockUseCase);
   });
 
-  group('refreshIfEmpty', () {
-    test('fetches exercises when cache is empty', () async {
+  group('refreshIfStale', () {
+    test('fetches exercises on first call (cache starts dirty)', () async {
       when(
         mockUseCase.call,
       ).thenAnswer((_) async => Right([benchPress, squat]));
 
-      await lookup.refreshIfEmpty();
+      await lookup.refreshIfStale();
 
       expect(lookup.hasCached, isTrue);
       verify(mockUseCase.call).called(1);
     });
 
-    test('does not fetch again when cache is already populated', () async {
+    test('is a no-op when cache is already fresh', () async {
       when(mockUseCase.call).thenAnswer((_) async => Right([benchPress]));
 
-      await lookup.refreshIfEmpty();
-      await lookup.refreshIfEmpty(); // second call should be no-op
+      await lookup.refreshIfStale();
+      await lookup.refreshIfStale(); // second call — cache is still fresh
 
       verify(mockUseCase.call).called(1);
     });
 
-    test('handles use case failure gracefully — cache stays empty', () async {
+    test(
+      'handles use case failure gracefully — cache stays empty, stays dirty',
+      () async {
+        when(
+          mockUseCase.call,
+        ).thenAnswer((_) async => Left(ServerFailure('error')));
+
+        await lookup.refreshIfStale();
+
+        expect(lookup.hasCached, isFalse);
+      },
+    );
+  });
+
+  group('invalidate + refreshIfStale', () {
+    test('invalidate makes refreshIfStale reload on next call', () async {
+      when(mockUseCase.call).thenAnswer((_) async => Right([benchPress]));
+      await lookup.refreshIfStale(); // first load
+
+      // Simulate library mutation: change what the repo returns
+      final arnoldPress = _ex('ex-99', 'Arnold Press');
       when(
         mockUseCase.call,
-      ).thenAnswer((_) async => Left(ServerFailure('error')));
+      ).thenAnswer((_) async => Right([benchPress, arnoldPress]));
 
-      await lookup.refreshIfEmpty();
+      lookup.invalidate();
+      await lookup.refreshIfStale(); // should reload
 
-      expect(lookup.hasCached, isFalse);
+      expect(lookup.byName('Arnold Press'), arnoldPress);
+      verify(mockUseCase.call).called(2);
+    });
+
+    test(
+      'refreshIfStale is a no-op when not dirty after invalidate+reload',
+      () async {
+        when(mockUseCase.call).thenAnswer((_) async => Right([benchPress]));
+        await lookup.refreshIfStale();
+        lookup.invalidate();
+        await lookup.refreshIfStale(); // reloads
+        await lookup.refreshIfStale(); // no-op — cache is fresh again
+
+        verify(mockUseCase.call).called(2);
+      },
+    );
+
+    test('invalidate followed by failed reload keeps cache dirty', () async {
+      when(mockUseCase.call).thenAnswer((_) async => Right([benchPress]));
+      await lookup.refreshIfStale(); // initial successful load
+
+      when(
+        mockUseCase.call,
+      ).thenAnswer((_) async => Left(ServerFailure('network error')));
+
+      lookup.invalidate();
+      await lookup.refreshIfStale(); // fails — _isDirty stays true
+
+      // Next call should try again (still dirty)
+      when(mockUseCase.call).thenAnswer((_) async => Right([squat]));
+      await lookup.refreshIfStale();
+
+      expect(lookup.byName('squat'), squat);
     });
   });
 
@@ -65,7 +118,7 @@ void main() {
       when(
         mockUseCase.call,
       ).thenAnswer((_) async => Right([benchPress, squat, inclineBench]));
-      await lookup.refreshIfEmpty();
+      await lookup.refreshIfStale();
     });
 
     test('finds exact name (case-insensitive)', () {
@@ -84,7 +137,7 @@ void main() {
       when(
         mockUseCase.call,
       ).thenAnswer((_) async => Right([benchPress, squat, inclineBench]));
-      await lookup.refreshIfEmpty();
+      await lookup.refreshIfStale();
     });
 
     test('resolves "bench" to "Bench Press" via starts-with', () {
@@ -105,7 +158,7 @@ void main() {
       when(
         mockUseCase.call,
       ).thenAnswer((_) async => Right([benchPress, squat]));
-      await lookup.refreshIfEmpty();
+      await lookup.refreshIfStale();
     });
 
     test('returns exercise id for known name', () {
@@ -122,7 +175,7 @@ void main() {
       when(
         mockUseCase.call,
       ).thenAnswer((_) async => Right([benchPress, squat]));
-      await lookup.refreshIfEmpty();
+      await lookup.refreshIfStale();
     });
 
     test('returns name for known id', () {
@@ -152,6 +205,20 @@ void main() {
 
       final result = await lookup.findByName('deadlift');
       expect(result, isNull);
+    });
+
+    test('reloads after invalidate via findByName', () async {
+      when(mockUseCase.call).thenAnswer((_) async => Right([benchPress]));
+      await lookup.findByName('bench press');
+
+      final arnoldPress = _ex('ex-99', 'Arnold Press');
+      when(
+        mockUseCase.call,
+      ).thenAnswer((_) async => Right([benchPress, arnoldPress]));
+
+      lookup.invalidate();
+      final result = await lookup.findByName('Arnold Press');
+      expect(result, arnoldPress);
     });
   });
 }

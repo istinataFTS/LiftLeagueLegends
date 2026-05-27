@@ -12,6 +12,7 @@ import '../../../domain/usecases/exercises/get_exercise_by_id.dart';
 import '../../../domain/usecases/exercises/get_exercises_for_muscle.dart';
 import '../../../domain/usecases/exercises/update_exercise.dart';
 import '../../../domain/usecases/muscle_factors/get_muscle_factors_for_exercise.dart';
+import '../../voice/data/lookup/exercise_lookup.dart';
 
 // ---------------------------------------------------------------------------
 // Events
@@ -180,6 +181,7 @@ class ExerciseBloc extends Bloc<ExerciseEvent, ExerciseState> {
     required this.deleteExercise,
     required this.ensureDefaultExercises,
     required this.getMuscleFactorsForExercise,
+    required this.exerciseLookup,
   }) : super(ExerciseInitial()) {
     on<LoadExercisesEvent>(_onLoadExercises);
     on<LoadExerciseByIdEvent>(_onLoadExerciseById);
@@ -198,6 +200,7 @@ class ExerciseBloc extends Bloc<ExerciseEvent, ExerciseState> {
   final DeleteExercise deleteExercise;
   final EnsureDefaultExercises ensureDefaultExercises;
   final GetMuscleFactorsForExercise getMuscleFactorsForExercise;
+  final ExerciseLookup exerciseLookup;
 
   /// Guards against running the default-exercise seeding more than once per
   /// bloc instance (= per user session, since [AuthSessionShell] recreates
@@ -321,6 +324,7 @@ class ExerciseBloc extends Bloc<ExerciseEvent, ExerciseState> {
         emit(ExerciseError(failure.message));
       },
       (_) async {
+        exerciseLookup.invalidate();
         emit(const ExerciseOperationSuccess('Exercise added successfully'));
         add(LoadExercisesEvent());
       },
@@ -341,6 +345,7 @@ class ExerciseBloc extends Bloc<ExerciseEvent, ExerciseState> {
         emit(ExerciseError(failure.message));
       },
       (_) async {
+        exerciseLookup.invalidate();
         emit(const ExerciseOperationSuccess('Exercise updated successfully'));
         add(LoadExercisesEvent());
       },
@@ -358,6 +363,7 @@ class ExerciseBloc extends Bloc<ExerciseEvent, ExerciseState> {
         emit(ExerciseError(failure.message));
       },
       (_) async {
+        exerciseLookup.invalidate();
         emit(const ExerciseOperationSuccess('Exercise deleted successfully'));
         add(LoadExercisesEvent());
       },

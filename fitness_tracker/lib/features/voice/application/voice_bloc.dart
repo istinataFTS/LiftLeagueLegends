@@ -862,7 +862,7 @@ class VoiceBloc extends Bloc<VoiceEvent, VoiceState>
   Future<void> _warmRecentCaches() async {
     try {
       // Warm the exercise lookup cache lazily (no-op if already populated).
-      await _exerciseLookup.refreshIfEmpty();
+      await _exerciseLookup.refreshIfStale();
 
       // Datasource orders sets newest-first; take(5) = 5 most recent.
       final setsResult = await _getSetsByDateRange(
@@ -973,7 +973,7 @@ class VoiceBloc extends Bloc<VoiceEvent, VoiceState>
     try {
       switch (tc.toolName) {
         case 'logWorkoutSet':
-          final set = _buildWorkoutSet(tc.args, now);
+          final set = await _buildWorkoutSet(tc.args, now);
           if (set == null) return AppStrings.voiceSpokenExerciseNotFound;
           emitEffect(VoiceAddWorkoutSetCommand(set));
           _cachedWorkoutSets = <WorkoutSet>[
@@ -1190,7 +1190,10 @@ class VoiceBloc extends Bloc<VoiceEvent, VoiceState>
   // C-5: Entity builders
   // ---------------------------------------------------------------------------
 
-  WorkoutSet? _buildWorkoutSet(Map<String, dynamic> args, DateTime now) {
+  Future<WorkoutSet?> _buildWorkoutSet(
+    Map<String, dynamic> args,
+    DateTime now,
+  ) async {
     final exerciseName = args['exerciseName'] as String?;
     final exerciseId = args['exerciseId'] as String?;
     final reps = (args['reps'] as num?)?.toInt();
@@ -1202,7 +1205,7 @@ class VoiceBloc extends Bloc<VoiceEvent, VoiceState>
     }
 
     final resolvedExerciseId =
-        exerciseId ?? _resolveExerciseIdFromCache(exerciseName);
+        exerciseId ?? await _resolveExerciseIdFromCache(exerciseName);
     if (resolvedExerciseId == null) {
       AppLogger.warning(
         'VoiceBloc: cannot resolve exerciseId for "$exerciseName"',
@@ -1315,9 +1318,11 @@ class VoiceBloc extends Bloc<VoiceEvent, VoiceState>
   }
 
   /// Resolves an exercise name to its ID via the shared [ExerciseLookup] cache.
-  /// Returns null if no match is found (exact or starts-with prefix).
-  String? _resolveExerciseIdFromCache(String exerciseName) =>
-      _exerciseLookup.resolveId(exerciseName);
+  /// Refreshes the cache first so user-created exercises are always visible.
+  Future<String?> _resolveExerciseIdFromCache(String exerciseName) async {
+    await _exerciseLookup.refreshIfStale();
+    return _exerciseLookup.resolveId(exerciseName);
+  }
 
   // ---------------------------------------------------------------------------
   // C-5: Query tool runner

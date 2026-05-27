@@ -20,6 +20,7 @@ import '../../domain/usecases/exercises/update_exercise.dart';
 import '../../domain/usecases/muscle_factors/get_muscle_factors_for_exercise.dart';
 import '../../domain/usecases/muscle_factors/sync_exercise_muscle_factors.dart';
 import '../../features/library/application/exercise_bloc.dart';
+import '../../features/voice/data/lookup/exercise_lookup.dart';
 
 void registerExercisesModule(GetIt sl) {
   sl.registerFactory(
@@ -32,6 +33,7 @@ void registerExercisesModule(GetIt sl) {
       deleteExercise: sl(),
       ensureDefaultExercises: sl(),
       getMuscleFactorsForExercise: sl(),
+      exerciseLookup: sl<ExerciseLookup>(),
     ),
   );
 
