@@ -9,6 +9,9 @@ export const ErrorCodes = {
   RATE_LIMITED: "RATE_LIMITED",
   TIMEOUT: "TIMEOUT",
   INTERNAL: "INTERNAL",
+  // LLM returned success-claiming prose without emitting the required tool_call.
+  // The response is rewritten to a corrective message; billing still records this turn.
+  GUARD_FAILED_TOOL_OMITTED: "GUARD_FAILED_TOOL_OMITTED",
 } as const;
 
 export type ErrorCode = (typeof ErrorCodes)[keyof typeof ErrorCodes];
