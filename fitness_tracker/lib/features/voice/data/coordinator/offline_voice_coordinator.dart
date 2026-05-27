@@ -69,7 +69,7 @@ class OfflineVoiceCoordinator {
     ParsedLogWorkoutSet intent,
     WeightUnit weightUnit,
   ) async {
-    await _exerciseLookup.refreshIfEmpty();
+    await _exerciseLookup.refreshIfStale();
     final exercise = await _exerciseLookup.findByName(intent.exerciseName);
     if (exercise == null) {
       return _errorResponse(AppStrings.voiceOfflineExerciseNotFound);

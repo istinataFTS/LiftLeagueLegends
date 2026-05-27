@@ -226,7 +226,7 @@ class FakeVoiceWakeWordService implements VoiceWakeWordService {
 
 MockExerciseLookup _defaultExerciseLookup() {
   final m = MockExerciseLookup();
-  when(() => m.refreshIfEmpty()).thenAnswer((_) async {});
+  when(() => m.refreshIfStale()).thenAnswer((_) async {});
   when(() => m.byName(any())).thenReturn(null);
   when(() => m.resolveId(any())).thenReturn(null);
   when(

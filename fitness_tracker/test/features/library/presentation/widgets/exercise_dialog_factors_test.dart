@@ -12,6 +12,7 @@ import 'package:fitness_tracker/domain/usecases/exercises/update_exercise.dart';
 import 'package:fitness_tracker/domain/usecases/muscle_factors/get_muscle_factors_for_exercise.dart';
 import 'package:fitness_tracker/features/library/application/exercise_bloc.dart';
 import 'package:fitness_tracker/features/library/presentation/widgets/exercises_tab.dart';
+import 'package:fitness_tracker/features/voice/data/lookup/exercise_lookup.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -38,6 +39,8 @@ class MockEnsureDefaultExercises extends Mock
 
 class MockGetMuscleFactorsForExercise extends Mock
     implements GetMuscleFactorsForExercise {}
+
+class MockExerciseLookup extends Mock implements ExerciseLookup {}
 
 // ---------------------------------------------------------------------------
 // Fixtures
@@ -71,16 +74,21 @@ ExerciseBloc _makeBloc({
   required MockUpdateExercise mockUpdate,
   required MockDeleteExercise mockDelete,
   required MockGetMuscleFactorsForExercise mockGetFactors,
-}) => ExerciseBloc(
-  getAllExercises: mockGetAll,
-  getExerciseById: MockGetExerciseById(),
-  getExercisesForMuscle: MockGetExercisesForMuscle(),
-  addExercise: mockAdd,
-  updateExercise: mockUpdate,
-  deleteExercise: mockDelete,
-  ensureDefaultExercises: MockEnsureDefaultExercises(),
-  getMuscleFactorsForExercise: mockGetFactors,
-);
+}) {
+  final mockLookup = MockExerciseLookup();
+  when(() => mockLookup.invalidate()).thenReturn(null);
+  return ExerciseBloc(
+    getAllExercises: mockGetAll,
+    getExerciseById: MockGetExerciseById(),
+    getExercisesForMuscle: MockGetExercisesForMuscle(),
+    addExercise: mockAdd,
+    updateExercise: mockUpdate,
+    deleteExercise: mockDelete,
+    ensureDefaultExercises: MockEnsureDefaultExercises(),
+    getMuscleFactorsForExercise: mockGetFactors,
+    exerciseLookup: mockLookup,
+  );
+}
 
 // Opens the "Add exercise" dialog and settles the UI.
 Future<void> _openAddDialog(WidgetTester tester, ExerciseBloc bloc) async {

@@ -105,7 +105,7 @@ void main() {
     );
 
     // Default: lookups return nothing.
-    when(() => exerciseLookup.refreshIfEmpty()).thenAnswer((_) async {});
+    when(() => exerciseLookup.refreshIfStale()).thenAnswer((_) async {});
     when(() => exerciseLookup.findByName(any())).thenAnswer((_) async => null);
     when(() => mealLookup.findByName(any())).thenAnswer((_) async => null);
     when(
