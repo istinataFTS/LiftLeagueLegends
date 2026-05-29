@@ -15,6 +15,7 @@ import '../features/settings/application/app_settings_cubit.dart';
 import '../features/settings/presentation/settings_scope.dart';
 import '../injection/injection_container.dart' as di;
 import '../presentation/navigation/bottom_navigation.dart';
+import 'auth_gate.dart';
 import 'auth_session_shell.dart';
 import 'listeners/app_domain_effects_listener.dart';
 import 'listeners/sync_completion_listener.dart';
@@ -78,15 +79,23 @@ class FitnessTrackerApp extends StatelessWidget {
             locale: useDevicePreviewAdapters
                 ? DevicePreview.locale(context)
                 : null,
+            // AuthGate sits above the startup listeners so the initial-load
+            // dispatch (LoadWeeklySetsEvent, LoadHomeDataEvent, etc.) only
+            // mounts when a real authenticated user is present. Unauthenticated
+            // launches go straight to SignInPage and skip the listeners
+            // entirely.
+            //
             // AppStartupListener and AppDomainEffectsListener are intentionally
             // inside the AppShell (MaterialApp) so they re-subscribe to streams
             // and re-dispatch initial loads for every new session. They sit
             // *inside* the navigator, which means they are descendants of the
             // user-scoped MultiBlocProvider inside AuthSessionShell — as are
             // all routes pushed onto the navigator and every modal sheet.
-            home: const AppStartupListener(
-              child: AppDomainEffectsListener(
-                child: SyncCompletionListener(child: BottomNavigation()),
+            home: const AuthGate(
+              authenticatedChild: AppStartupListener(
+                child: AppDomainEffectsListener(
+                  child: SyncCompletionListener(child: BottomNavigation()),
+                ),
               ),
             ),
           ),
