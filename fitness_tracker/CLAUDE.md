@@ -149,7 +149,7 @@ dart run tool/check_state_freshness.dart
 
 ## Convention checker
 
-`tool/check_conventions.dart` runs as a CI step (between `flutter analyze` and `flutter test`). A sibling step `tool/check_state_freshness.dart` runs immediately after it to validate the codebase map. Together they enforce seven invariants that the Dart analyzer cannot express:
+`tool/check_conventions.dart` runs as a CI step (between `flutter analyze` and `flutter test`). A sibling step `tool/check_state_freshness.dart` runs immediately after it to validate the codebase map. Together they enforce these invariants that the Dart analyzer cannot express:
 
 1. **`user-scoped-datasource`** — Every concrete local datasource under `lib/data/datasources/local/` must extend `UserScopedLocalDatasource`, or be on the documented exemption list in `tool/convention_rules/user_scoped_datasource.dart`.
 2. **`presentation-layer-data-import`** — No file under `lib/features/*/presentation/` may import from `lib/data/`. Use domain repository interfaces or use cases instead.
@@ -157,7 +157,13 @@ dart run tool/check_state_freshness.dart
 4. **`sql-userid-interpolation`** — SQL queries must not interpolate owner-id variables into the string literal. Use parameterised `whereArgs` or `whereOwned(...)`.
 5. **`known-issues-schema`** — Every entry in `KNOWN_ISSUES.md` must have the nine mandatory fields (Severity, Status, First observed, Last verified, Area, Symptom, Root cause, Workaround / fix, References) with valid controlled-vocabulary values and ISO-8601 dates.
 6. **`playbook-canonical-link`** — Every file in `.claude/skills/` must declare the locked metadata schema, have `Estimated steps:` match the actual step count, and resolve every `[[canonical]]` reference, KNOWN_ISSUES.md anchor, and backtick-wrapped source-file path it cites.
-7. **`state-freshness`** *(sibling script)* — `.claude/memory/state.json` must have per-feature fingerprints that match the live source tree. Enforced by `tool/check_state_freshness.dart` (not part of `check_conventions.dart`). Run `dart run tool/check_state_freshness.dart` to see expected values when stale.
+7. **`widget-state-bloc-field`** — Widget `State<…>` subclasses must not field-capture a BLoC/Cubit. Read it via `context.read`/`context.watch` in `build`/`didChangeDependencies`. (See KNOWN_ISSUES.md `#widget-state-must-not-field-capture-factory-blocs-or-cubits`.)
+8. **`cross-feature-presentation-import`** — A file under `lib/features/<F1>/presentation/` may not import from another feature's `presentation/`, `application/`, or `data/`. Use the named-route registry in `lib/app/routes/`. (See KNOWN_ISSUES.md `#cross-feature-presentation-imports-are-architectural-cycles`.)
+9. **`migration-test-coverage`** — Every `if (oldVersion < N)` branch in `lib/data/datasources/local/database_helper.dart` (for `N >= 21`, the version that introduced the pattern) must have a corresponding `test/data/datasources/local/database_helper_vN_migration_test.dart`. Older migrations (v3–v20) are exempt by design — they shipped before the dedicated-test convention.
+10. **`no-skipped-tests`** — Test files under `test/` may not contain `@Skip(...)`, `skip: <truthy>`, or `solo: <truthy>`. `skip: false` / `skip: null` are explicitly accepted as "not skipped." Genuine temporary skips need an inline waiver tied to a tracked issue or KNOWN_ISSUES anchor. `test/tool/` is exempt because rule-test files legitimately reference these patterns in fixtures and descriptions.
+11. **`forbid-print`** — Production code under `lib/` may not call the top-level `print(...)` function. Use `AppLogger.debug/info/warning/error` instead so the message participates in level gating and categorisation. `debugPrint`, methods named `print` on objects (e.g. PDF printers), and `dart:developer` `log()` are allowed.
+12. **`forbid-todo-without-anchor`** — `// TODO` / `// FIXME` / `// XXX` / `// HACK` comments under `lib/` and `test/` must reference a tracked anchor — either a `KNOWN_ISSUES.md` slug (`#kebab-slug`) or a GitHub issue/PR number (`#NNN`). Untracked TODOs decay into noise. `test/tool/` is exempt for the same reason as `no-skipped-tests`.
+13. **`state-freshness`** *(sibling script)* — `.claude/memory/state.json` must have per-feature fingerprints that match the live source tree. Enforced by `tool/check_state_freshness.dart` (not part of `check_conventions.dart`). Run `dart run tool/check_state_freshness.dart` to see expected values when stale.
 
 Run locally: `dart run tool/check_conventions.dart` from `fitness_tracker/`.
 
@@ -249,5 +255,7 @@ The voice feature is split across Flutter (on-device I/O) and a single Supabase 
 ### CI
 
 Two GitHub Actions jobs on push/PR to `main`, `develop`, `feature/**`, `fix/**`, `refactor/**`:
-- **Flutter**: format check → `flutter analyze` → `check_conventions` → `check_state_freshness` → `flutter test`
-- **Backend**: `deno fmt --check` → `deno lint` → `deno test --allow-all`
+- **Flutter**: format check → `flutter analyze --no-fatal-infos` → `check_conventions` → `check_state_freshness` → `flutter test --coverage` → `check_coverage` (per-directory thresholds in `tool/check_coverage.dart`) → `flutter build apk --debug --dart-define-from-file=dart_defines.json`
+- **Backend**: `deno fmt --check` → `deno lint` → `deno check` (type-check every `.ts`) → `deno test --allow-all`
+
+The debug APK build runs end-to-end to catch manifest, Gradle, Kotlin-side, and plugin-registration regressions that the analyzer and unit tests cannot see. It uses the dart-defines file (built earlier in the job from repository secrets) so the Supabase-enabled production code path is compiled, not the defaults-only fallback. Release builds are not run in CI because the repo does not ship a CI signing configuration yet.

@@ -2,7 +2,11 @@ import 'dart:io';
 
 import 'convention_rules/bloc_factory_registration.dart';
 import 'convention_rules/cross_feature_presentation_import.dart';
+import 'convention_rules/forbid_print.dart';
+import 'convention_rules/forbid_todo_without_anchor.dart';
 import 'convention_rules/known_issues_schema.dart';
+import 'convention_rules/migration_test_coverage.dart';
+import 'convention_rules/no_skipped_tests.dart';
 import 'convention_rules/playbook_canonical_link.dart';
 import 'convention_rules/presentation_layer_imports.dart';
 import 'convention_rules/shared.dart';
@@ -23,6 +27,10 @@ Future<void> main() async {
     SqlUseridInterpolationRule(),
     KnownIssuesSchemaRule(),
     PlaybookCanonicalLinkRule(),
+    MigrationTestCoverageRule(),
+    NoSkippedTestsRule(),
+    ForbidPrintRule(),
+    ForbidTodoWithoutAnchorRule(),
   ];
 
   final allViolations = <Violation>[];
