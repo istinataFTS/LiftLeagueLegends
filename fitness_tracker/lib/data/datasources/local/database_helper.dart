@@ -1,4 +1,4 @@
-import 'package:flutter/foundation.dart' show kIsWeb;
+import 'package:flutter/foundation.dart' show kIsWeb, visibleForTesting;
 import 'package:path/path.dart';
 import 'package:sqflite/sqflite.dart';
 
@@ -201,6 +201,18 @@ class DatabaseHelper {
     await _createIndexes(db);
   }
 
+  /// Triggers the full `_onUpgrade` cascade against [db] from [oldVersion] to
+  /// [newVersion]. Exposed exclusively for the migration-replay test
+  /// (`test/data/datasources/local/database_helper_migration_replay_test.dart`)
+  /// — production paths reach `_onUpgrade` through `openDatabase(...)`'s
+  /// `onUpgrade:` parameter and never call this method.
+  @visibleForTesting
+  static Future<void> runOnUpgradeForTesting(
+    Database db,
+    int oldVersion,
+    int newVersion,
+  ) => DatabaseHelper()._onUpgrade(db, oldVersion, newVersion);
+
   Future<void> _onUpgrade(Database db, int oldVersion, int newVersion) async {
     _ensureSupportedUpgradePath(oldVersion, newVersion);
 
@@ -338,17 +350,28 @@ class DatabaseHelper {
     }
 
     if (oldVersion < 6) {
-      await db.execute('''
-        ALTER TABLE ${DatabaseTables.nutritionLogs}
-        ADD COLUMN ${DatabaseTables.nutritionLogMealName} TEXT NOT NULL DEFAULT ''
-      ''');
+      // The v4 CREATE TABLE for nutrition_logs already includes meal_name
+      // (it was retrofitted to keep fresh installs out of the v6 ADD COLUMN
+      // path). A chained v2 -> v6+ replay therefore hits "duplicate column
+      // name" on this ALTER without the existence guard. The migration is
+      // a no-op for fresh installs and existing v6+ users alike.
+      await _addColumnIfMissing(
+        db,
+        tableName: DatabaseTables.nutritionLogs,
+        columnName: DatabaseTables.nutritionLogMealName,
+        columnSpec: "TEXT NOT NULL DEFAULT ''",
+      );
     }
 
     if (oldVersion < 7) {
-      await db.execute('''
-        ALTER TABLE ${DatabaseTables.meals}
-        ADD COLUMN ${DatabaseTables.mealServingSize} REAL NOT NULL DEFAULT 100.0
-      ''');
+      // Same retrofit-vs-ALTER duplication as v6 above: the v4 meals CREATE
+      // already declares serving_size_grams.
+      await _addColumnIfMissing(
+        db,
+        tableName: DatabaseTables.meals,
+        columnName: DatabaseTables.mealServingSize,
+        columnSpec: 'REAL NOT NULL DEFAULT 100.0',
+      );
     }
 
     if (oldVersion < 8) {
@@ -1065,6 +1088,30 @@ class DatabaseHelper {
     }
 
     await db.execute('ALTER TABLE $tableName ADD COLUMN $columnName TEXT');
+  }
+
+  /// Adds [columnName] to [tableName] with [columnSpec] only when the column
+  /// is not already present. Use this for any `ALTER TABLE ... ADD COLUMN`
+  /// migration whose target column also appears in an earlier-version
+  /// `CREATE TABLE` block (i.e. retrofitted into fresh installs) — without
+  /// the guard, a chained replay from a pre-CREATE version through to a
+  /// version that has both the CREATE and the ALTER will fail with
+  /// `duplicate column name`.
+  ///
+  /// [columnSpec] is the full type+constraints string after `ADD COLUMN
+  /// <name>` — e.g. `"TEXT NOT NULL DEFAULT ''"` or `"REAL NOT NULL DEFAULT
+  /// 100.0"`. See KNOWN_ISSUES.md#migration-add-column-must-be-idempotent.
+  Future<void> _addColumnIfMissing(
+    Database db, {
+    required String tableName,
+    required String columnName,
+    required String columnSpec,
+  }) async {
+    final columns = await db.rawQuery('PRAGMA table_info($tableName)');
+    if (columns.any((row) => row['name'] == columnName)) return;
+    await db.execute(
+      'ALTER TABLE $tableName ADD COLUMN $columnName $columnSpec',
+    );
   }
 
   /// Migrates [exercises] to use per-owner uniqueness.

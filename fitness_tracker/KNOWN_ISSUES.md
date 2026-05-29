@@ -89,6 +89,7 @@ Numbered steps or a short paragraph. State what to do and what *not* to do.
 13. [pull-before-push-for-sign-in-sync](#pull-before-push-for-sign-in-sync)
 14. [default-catalog-ids-must-be-owner-scoped](#default-catalog-ids-must-be-owner-scoped)
 15. [guest-catalog-pk-collision-blocks-initial-sign-in](#guest-catalog-pk-collision-blocks-initial-sign-in)
+16. [migration-add-column-must-be-idempotent](#migration-add-column-must-be-idempotent)
 
 ### Dependency Injection
 15. [blocs-must-be-factories-repositories-singletons](#blocs-must-be-factories-repositories-singletons)
@@ -819,6 +820,34 @@ Diagnostic-only manual workaround (local DB, never push remotely): delete the tw
 - `lib/core/sync/hooks/account_catalog_provision_hook.dart` — post-sign-in provisioning bypassed when `catalog_init_<entity>_<uid>` is absent but `hasExistingData` short-circuits
 - [`guest-removal-and-migration-unstick-plan.md`](C:\Users\User\Desktop\ForLiftLeaguLegends\guest-removal-and-migration-unstick-plan.md) — full implementation plan
 - Related: [`default-catalog-ids-must-be-owner-scoped`](#default-catalog-ids-must-be-owner-scoped) — the earlier owner-scoping fix that introduced the empty-owner back-compat branch this entry's root cause depends on
+
+---
+
+### migration-add-column-must-be-idempotent
+
+- **Severity:** High
+- **Status:** Resolved-but-monitor
+- **First observed:** 2026-05-29
+- **Last verified:** 2026-05-29
+- **Area:** db
+
+**Symptom**
+
+Chained `_onUpgrade` from an early version (e.g. v2) through a later one (e.g. v6 or v7) throws `SqliteException: duplicate column name: <name>` partway through the cascade. Per-version migration tests don't surface this because each only exercises one branch in isolation — the bug only shows when several branches run consecutively on the same database.
+
+**Root cause**
+
+When a column was added to a table in migration `v<N>` via `ALTER TABLE ... ADD COLUMN`, later versions often retrofitted the column into the earlier `CREATE TABLE IF NOT EXISTS` block (so fresh installs at the latest version don't need to run the ALTER). The retrofit makes sense for fresh installs but introduces a hidden invariant: any chained upgrade that runs both the (now-fat) CREATE and the (still-present) ALTER hits the column twice. Specific instances in this repo: v4 `CREATE TABLE nutrition_logs` declared `meal_name`, but v6 ALTER also tried to add it; v4 `CREATE TABLE meals` declared `serving_size_grams`, but v7 ALTER also tried to add it.
+
+**Workaround / fix**
+
+Every `ALTER TABLE ... ADD COLUMN` in `_onUpgrade` must be wrapped in an existence check. Use the shared `_addColumnIfMissing` helper (`lib/data/datasources/local/database_helper.dart`) or the nullable-text-only `_addNullableTextColumnIfMissing`. Do NOT issue a raw `db.execute('ALTER TABLE ... ADD COLUMN ...')` for any column that also appears in any earlier `CREATE TABLE` block. The `database_helper_migration_replay_test.dart` runs the full v2 → current cascade on a single in-memory DB and will catch any new instance of this trap.
+
+**References**
+
+- `lib/data/datasources/local/database_helper.dart` — `_addColumnIfMissing` helper, v6/v7 idempotent branches
+- `test/data/datasources/local/database_helper_migration_replay_test.dart` — end-to-end cascade test
+- Found by: the very first run of the replay test on 2026-05-29
 
 ---
 
