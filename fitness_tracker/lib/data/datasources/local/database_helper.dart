@@ -503,6 +503,20 @@ class DatabaseHelper {
       await rewriteDefaultCatalogIdsToDeterministic(db);
     }
 
+    if (oldVersion < 22) {
+      // Destructive data cleanup tied to the removal of guest mode. The
+      // empty-owner branch of `DeterministicCatalogId.forOwner` collapses
+      // to the same name-only UUIDv5 that older Supabase rows still carry,
+      // so a guest-seeded `exercises` row at id X collides with the
+      // server-side row at id X on the very first initial-cloud-migration
+      // pull, leaving `session.requires_initial_cloud_migration = true`
+      // forever. Wiping every guest-owned row removes the collision
+      // entirely; subsequent commits delete the code paths that could
+      // ever recreate one. See KNOWN_ISSUES.md anchor
+      // #guest-catalog-pk-collision-blocks-initial-sign-in.
+      await purgeGuestOwnedRowsAndCatalogFlags(db);
+    }
+
     await _createIndexes(db);
   }
 
@@ -699,6 +713,93 @@ class DatabaseHelper {
     AppLogger.info(
       'v20 migration: collapsed $exercisesUpdated exercise and '
       '$mealsUpdated meal row(s) from NULL owner to guest sentinel',
+      category: 'db_migration',
+    );
+  }
+
+  /// Destructively purges every row whose `owner_user_id` is the empty-string
+  /// guest sentinel (or NULL) across all user-scoped tables and removes the
+  /// guest-bucket catalog-init flags from `app_metadata` (db v22).
+  ///
+  /// Exposed as a static entry point — like [createSchema] and
+  /// [rewriteDefaultCatalogIdsToDeterministic] — so the data migration can
+  /// be exercised directly in tests without reaching into the private
+  /// upgrade path.
+  ///
+  /// Scope:
+  /// - `exercises`, `meals`, `workout_sets`, `nutrition_logs`,
+  ///   `muscle_stimulus` — every row where `owner_user_id IS NULL` or
+  ///   `owner_user_id = ''`.
+  /// - `exercise_muscle_factors` — rows that reference a soon-to-be-deleted
+  ///   guest exercise are explicitly purged first. The FK declares
+  ///   `ON DELETE CASCADE`, but the exercises table was recreated by the
+  ///   v18 migration (and `muscle_stimulus` by v17); doing the child delete
+  ///   explicitly removes the dependency on the cascade surviving those
+  ///   recreations on any given device.
+  /// - `app_metadata` — the two empty-owner-suffix keys
+  ///   `catalog_init_exercises_` and `catalog_init_meals_` (the guest
+  ///   catalog-init flags). Authenticated-user flags
+  ///   `catalog_init_<entity>_<uid>` are NOT touched.
+  ///
+  /// This migration deletes data permanently. It is safe because the only
+  /// supported entry point to be a guest user is removed in subsequent
+  /// commits, so the deleted rows would otherwise be inaccessible going
+  /// forward. See the implementation plan and the KNOWN_ISSUES anchor
+  /// `#guest-catalog-pk-collision-blocks-initial-sign-in` for the full
+  /// rationale.
+  static Future<void> purgeGuestOwnedRowsAndCatalogFlags(Database db) async {
+    const guestPredicate =
+        '${DatabaseTables.ownerUserId} IS NULL OR ${DatabaseTables.ownerUserId} = ?';
+
+    final factorsDeleted = await db.rawDelete(
+      'DELETE FROM ${DatabaseTables.exerciseMuscleFactors} '
+      'WHERE ${DatabaseTables.factorExerciseId} IN ('
+      '  SELECT ${DatabaseTables.exerciseId} '
+      '  FROM ${DatabaseTables.exercises} '
+      '  WHERE ${DatabaseTables.ownerUserId} IS NULL '
+      "     OR ${DatabaseTables.ownerUserId} = ''"
+      ')',
+    );
+
+    final exercisesDeleted = await db.delete(
+      DatabaseTables.exercises,
+      where: guestPredicate,
+      whereArgs: const [''],
+    );
+    final mealsDeleted = await db.delete(
+      DatabaseTables.meals,
+      where: guestPredicate,
+      whereArgs: const [''],
+    );
+    final setsDeleted = await db.delete(
+      DatabaseTables.workoutSets,
+      where: guestPredicate,
+      whereArgs: const [''],
+    );
+    final logsDeleted = await db.delete(
+      DatabaseTables.nutritionLogs,
+      where: guestPredicate,
+      whereArgs: const [''],
+    );
+    final stimulusDeleted = await db.delete(
+      DatabaseTables.muscleStimulus,
+      where: guestPredicate,
+      whereArgs: const [''],
+    );
+
+    final flagsDeleted = await db.delete(
+      DatabaseTables.appMetadata,
+      where: '${DatabaseTables.metadataKey} IN (?, ?)',
+      whereArgs: const ['catalog_init_exercises_', 'catalog_init_meals_'],
+    );
+
+    AppLogger.info(
+      'v22 migration: purged guest-owned rows '
+      '(exercises=$exercisesDeleted, meals=$mealsDeleted, '
+      'workout_sets=$setsDeleted, nutrition_logs=$logsDeleted, '
+      'muscle_stimulus=$stimulusDeleted, '
+      'exercise_muscle_factors=$factorsDeleted) and guest catalog-init '
+      'flags (count=$flagsDeleted)',
       category: 'db_migration',
     );
   }

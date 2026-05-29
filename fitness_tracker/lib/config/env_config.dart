@@ -80,9 +80,13 @@ class EnvConfig {
   /// Version 21: Rewrote default exercise/meal rows to deterministic name-derived
   ///             UUIDv5 ids and repointed workout_sets / exercise_muscle_factors /
   ///             nutrition_logs so identity is stable across reseed/device/account.
+  /// Version 22: Purged every guest-owned row (owner_user_id IS NULL or '') from
+  ///             user-scoped tables and removed the guest catalog-init flags from
+  ///             app_metadata. Pre-condition to removing guest mode entirely. See
+  ///             KNOWN_ISSUES.md#guest-catalog-pk-collision-blocks-initial-sign-in.
   static const int databaseVersion = int.fromEnvironment(
     'DATABASE_VERSION',
-    defaultValue: 21,
+    defaultValue: 22,
   );
 
   static const bool seedDefaultData = bool.fromEnvironment(
