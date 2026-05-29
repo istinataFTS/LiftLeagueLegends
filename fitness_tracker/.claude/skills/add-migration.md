@@ -45,8 +45,9 @@
 
 ### 5. Add a migration test
 
-- [ ] Add or extend the migration test file (look for `test/data/datasources/local/database_helper_migration_test.dart` or equivalent).
-- [ ] Write a test that: opens a database at version N-1, runs the upgrade to version N, then asserts the new table/column exists with `db.rawQuery("PRAGMA table_info(<table>)")` or equivalent.
+- [ ] Create `test/data/datasources/local/database_helper_v<N>_migration_test.dart`. The `v<N>_migration` filename is required — the **`migration-test-coverage`** convention rule enforces it for every `if (oldVersion < N)` branch where `N >= 21`. Older v3–v20 migrations are exempt by design.
+- [ ] Mirror the structure of `database_helper_v21_migration_test.dart` (or `v22`): open an in-memory `sqflite_common_ffi` database with `DatabaseHelper.createSchema`, exercise the static migration entry point directly (e.g. `DatabaseHelper.purgeGuestOwnedRowsAndCatalogFlags`), and assert the post-state with `db.query(...)`.
+- [ ] Cover at minimum: (a) fresh-install no-op, (b) upgrade from v<N-1> with a representative pre-state, (c) the idempotent / no-op case where nothing needs migrating.
 - [ ] Run `flutter test test/data/datasources/local/` before moving on.
 
 ### 6. Apply the 15-minute rule
@@ -62,8 +63,10 @@ Run the following from `fitness_tracker/` and confirm each passes before opening
 ```sh
 dart format --output=none --set-exit-if-changed $(git diff --name-only origin/main -- '*.dart')
 flutter analyze
-dart run tool/check_conventions.dart
-flutter test
+dart run tool/check_conventions.dart      # includes migration-test-coverage
+dart run tool/check_state_freshness.dart
+flutter test --coverage
+dart run tool/check_coverage.dart
 ```
 
 ---

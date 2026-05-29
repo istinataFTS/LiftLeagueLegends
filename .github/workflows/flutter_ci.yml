@@ -2,9 +2,16 @@ name: Flutter CI
 
 on:
   push:
+    # Keep in sync with the documented branch-naming convention in
+    # CLAUDE.md (chore/, ci/, docs/, feat/, fix/, refactor/). `feature/**`
+    # is retained for backward compatibility with older branches.
     branches:
       - main
       - develop
+      - chore/**
+      - ci/**
+      - docs/**
+      - feat/**
       - feature/**
       - fix/**
       - refactor/**

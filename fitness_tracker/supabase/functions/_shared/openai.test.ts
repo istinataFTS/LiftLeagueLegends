@@ -89,7 +89,12 @@ Deno.test("completeChat: tool_call response is parsed correctly", async () => {
 Deno.test("completeChat: Authorization header is present", async () => {
   let capturedHeaders: Headers = new Headers();
   _setFetch((_, opts) => {
-    capturedHeaders = new Headers(opts?.headers as HeadersInit);
+    // Cast `opts` itself before property access — `typeof fetch` synthesises
+    // a union (global.RequestInit | Deno RequestInit | extended variant) and
+    // `headers` is not a common property of every member, so a direct
+    // `opts?.headers` fails `deno check` with TS2339 even though it works at
+    // runtime. The cast picks the standard RequestInit shape.
+    capturedHeaders = new Headers((opts as RequestInit | undefined)?.headers);
     return Promise.resolve(
       new Response(
         JSON.stringify({

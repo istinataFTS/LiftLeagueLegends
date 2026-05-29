@@ -46,7 +46,12 @@ async function parseTranscription(req: Request): Promise<ParsedTranscription> {
   }
 
   const file = form.get("file");
-  if (!(file instanceof File) && !(file instanceof Blob)) {
+  // `FormData.get()` returns `FormDataEntryValue | null` (= `File | string |
+  // null`). Narrow null/string out first so the remaining branch's File use
+  // (file.size, etc.) type-checks under `deno check`. The previous
+  // `instanceof File && instanceof Blob` form failed TS2358 because instanceof
+  // is rejected when the LHS includes primitive types.
+  if (file === null || typeof file === "string") {
     throw new VoiceError(
       ErrorCodes.INVALID_REQUEST,
       "Missing required field: file",
