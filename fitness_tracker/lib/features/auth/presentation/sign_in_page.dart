@@ -65,7 +65,14 @@ class _SignInViewState extends State<_SignInView> {
         }
 
         if (state.isSuccess) {
-          Navigator.of(context).pop(true);
+          // Pop when SignInPage was pushed (the legacy entry from Profile);
+          // skip when it's the root route under AuthGate — the gate's
+          // BlocSelector observes the new authenticated session and swaps to
+          // the authenticated tree declaratively.
+          final navigator = Navigator.of(context);
+          if (navigator.canPop()) {
+            navigator.pop(true);
+          }
         }
       },
       builder: (context, state) {
