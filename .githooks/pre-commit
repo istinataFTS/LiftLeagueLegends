@@ -1,0 +1,60 @@
+#!/usr/bin/env bash
+# Pre-commit hook: fast local gates that catch the most common CI failures
+# before they leave your machine.
+#
+# Install once per clone:
+#   git config core.hooksPath .githooks
+#
+# What runs (fast — total budget ~5 seconds):
+#   1. `dart format --set-exit-if-changed` on staged Dart files only.
+#   2. `dart run tool/check_conventions.dart` (whole repo, ~3-5 s).
+#
+# Intentionally NOT here:
+#   - flutter analyze / flutter test — too slow for every commit. CI catches them.
+#   - flutter build apk — way too slow.
+#   - check_state_freshness / check_coverage — situationally noisy; CI catches them.
+#
+# Bypass in a genuine emergency: `git commit --no-verify`.
+# Do not make a habit of it — every bypass is a CI failure waiting to happen.
+
+set -e
+
+RED=$'\033[0;31m'
+YELLOW=$'\033[0;33m'
+RESET=$'\033[0m'
+
+# All commands assume the repo root as $PWD (git invokes hooks from there).
+PROJECT_DIR="fitness_tracker"
+
+if [ ! -d "${PROJECT_DIR}" ]; then
+  echo "${YELLOW}pre-commit: '${PROJECT_DIR}' not found from $(pwd); skipping hook.${RESET}"
+  exit 0
+fi
+
+# --- Step 1: format check on staged Dart files -------------------------------
+
+STAGED_DART=$(git diff --cached --name-only --diff-filter=ACM \
+  | grep "^${PROJECT_DIR}/.*\.dart$" || true)
+
+if [ -n "${STAGED_DART}" ]; then
+  # Strip the fitness_tracker/ prefix so dart format gets paths relative to
+  # its CWD (the project dir).
+  RELATIVE_DART=$(echo "${STAGED_DART}" | sed "s|^${PROJECT_DIR}/||")
+
+  if ! (cd "${PROJECT_DIR}" && dart format --output=none --set-exit-if-changed ${RELATIVE_DART}); then
+    echo ""
+    echo "${RED}pre-commit: dart format check failed.${RESET}"
+    echo "Run:   cd ${PROJECT_DIR} && dart format ${RELATIVE_DART}"
+    echo "Then:  git add <paths> && git commit"
+    exit 1
+  fi
+fi
+
+# --- Step 2: convention checker ----------------------------------------------
+
+if ! (cd "${PROJECT_DIR}" && dart run tool/check_conventions.dart); then
+  echo ""
+  echo "${RED}pre-commit: convention checker failed.${RESET}"
+  echo "See messages above for the violated rule and fix hint."
+  exit 1
+fi

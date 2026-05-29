@@ -186,6 +186,20 @@ The `reason=` clause is mandatory (minimum 10 characters). Waivers are reviewed 
 3. Add a test file at `test/tool/<rule-id>_test.dart` covering at least one pass case and one fail case.
 4. Document it in this section.
 
+### Local pre-commit hook
+
+A version-controlled hook at `.githooks/pre-commit` (in the repo root, alongside `.github/`) runs `dart format --set-exit-if-changed` on staged Dart files and `dart run tool/check_conventions.dart` before every commit. It catches the two most common CI failure causes — formatting drift and rule violations — locally, so they never reach a push.
+
+Install once per clone:
+
+```sh
+git config core.hooksPath .githooks
+```
+
+The hook deliberately does NOT run `flutter analyze`, `flutter test`, `check_state_freshness`, `check_coverage`, or the APK build. Those are slow enough to be disruptive on every commit and CI catches them anyway. The hook's whole budget is ~5 seconds.
+
+In a genuine emergency, bypass with `git commit --no-verify`. Don't make a habit of it — every bypass is a CI failure that will surface ~5 minutes after push instead of immediately.
+
 ## Architecture
 
 ### Flutter app — Clean Architecture
