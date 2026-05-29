@@ -255,5 +255,7 @@ The voice feature is split across Flutter (on-device I/O) and a single Supabase 
 ### CI
 
 Two GitHub Actions jobs on push/PR to `main`, `develop`, `feature/**`, `fix/**`, `refactor/**`:
-- **Flutter**: format check → `flutter analyze` → `check_conventions` → `check_state_freshness` → `flutter test`
-- **Backend**: `deno fmt --check` → `deno lint` → `deno test --allow-all`
+- **Flutter**: format check → `flutter analyze --no-fatal-infos` → `check_conventions` → `check_state_freshness` → `flutter test --coverage` → `check_coverage` (per-directory thresholds in `tool/check_coverage.dart`) → `flutter build apk --debug --dart-define-from-file=dart_defines.json`
+- **Backend**: `deno fmt --check` → `deno lint` → `deno check` (type-check every `.ts`) → `deno test --allow-all`
+
+The debug APK build runs end-to-end to catch manifest, Gradle, Kotlin-side, and plugin-registration regressions that the analyzer and unit tests cannot see. It uses the dart-defines file (built earlier in the job from repository secrets) so the Supabase-enabled production code path is compiled, not the defaults-only fallback. Release builds are not run in CI because the repo does not ship a CI signing configuration yet.

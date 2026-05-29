@@ -70,8 +70,30 @@ jobs:
       - name: Check state freshness
         run: dart run tool/check_state_freshness.dart
 
-      - name: Run tests
-        run: flutter test
+      - name: Run tests with coverage
+        # --coverage writes coverage/lcov.info, consumed by the next step.
+        # The instrumented run is meaningfully slower than a bare
+        # `flutter test`; if CI minutes become a concern, split this into
+        # a separate parallel job.
+        run: flutter test --coverage
+
+      - name: Check coverage thresholds
+        # Per-directory minimums declared in tool/check_coverage.dart.
+        # Only ratchet thresholds upward — never lower them to make CI
+        # green; add tests instead.
+        run: dart run tool/check_coverage.dart
+
+      - name: Build debug APK
+        # Compiles the Android binary end-to-end. Analyzer + unit tests
+        # cover almost everything but cannot catch manifest, Gradle,
+        # Kotlin-side, or plugin-registration regressions — those only
+        # surface at build time. Debug build (not release) because release
+        # needs a CI signing setup the repo does not yet ship.
+        #
+        # Uses --dart-define-from-file=dart_defines.json so the build
+        # exercises the Supabase-enabled production code path that real
+        # users run, not the defaults-only no-Supabase fallback.
+        run: flutter build apk --debug --dart-define-from-file=dart_defines.json
 
   backend:
     name: Backend (Deno)
@@ -91,6 +113,13 @@ jobs:
 
       - name: Lint
         run: deno lint
+
+      - name: Type-check
+        # `deno test` already type-checks the files transitively reachable
+        # from test files. This explicit pass catches type errors in
+        # orphan/unimported .ts files and fails faster than waiting for
+        # the test runner to load them.
+        run: deno check $(find . -name '*.ts' -not -path '*/node_modules/*')
 
       - name: Run tests
         run: deno test --allow-all
