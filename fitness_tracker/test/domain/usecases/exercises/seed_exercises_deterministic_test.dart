@@ -157,6 +157,168 @@ void main() {
     });
   });
 
+  // ---------------------------------------------------------------------------
+  // Self-heal pass
+  // ---------------------------------------------------------------------------
+
+  group('self-heal', () {
+    test(
+      'seeds only the missing defaults and sets flag when catalog is partial',
+      () async {
+        // Pre-populate with all defaults except the first two (simulates the
+        // post-v22-migration state where "Bench Press" and "Bulgarian Split
+        // Squat" never made it into the user-owned catalog).
+        final repo = _InMemoryExerciseRepository()..currentOwner = 'user-1';
+        final defaults = DefaultExercisesData.getDefaultExercises();
+        final toSkip = {defaults[0].name, defaults[1].name};
+        final now = DateTime(2026);
+        for (final d in defaults.skip(2)) {
+          await repo.addExercise(
+            d.toEntity(
+              DeterministicCatalogId.forOwner(
+                ownerUserId: 'user-1',
+                name: d.name,
+              ),
+              now,
+              ownerUserId: 'user-1',
+            ),
+          );
+        }
+
+        final flags = _InMemoryInitFlags();
+        final seed = SeedExercises(repo, catalogInitFlags: flags);
+        final result = await seed(ownerUserId: 'user-1');
+
+        expect(result, const Right<Failure, int>(2));
+        expect(repo.store.length, defaults.length);
+        for (final name in toSkip) {
+          expect(
+            repo.store.values.any((e) => e.name == name),
+            isTrue,
+            reason: '"$name" must have been self-healed',
+          );
+        }
+        expect(await flags.isInitialized('user-1', 'exercises'), isTrue);
+      },
+    );
+
+    test(
+      'marks flag and returns 0 when all defaults already present by name',
+      () async {
+        // All defaults present, flag absent — self-heal finds nothing missing,
+        // sets the flag so delete-stickiness kicks in going forward.
+        final repo = _InMemoryExerciseRepository()..currentOwner = 'user-1';
+        final now = DateTime(2026);
+        for (final d in DefaultExercisesData.getDefaultExercises()) {
+          await repo.addExercise(
+            d.toEntity(
+              DeterministicCatalogId.forOwner(
+                ownerUserId: 'user-1',
+                name: d.name,
+              ),
+              now,
+              ownerUserId: 'user-1',
+            ),
+          );
+        }
+
+        final flags = _InMemoryInitFlags();
+        final seed = SeedExercises(repo, catalogInitFlags: flags);
+        final result = await seed(ownerUserId: 'user-1');
+
+        expect(result, const Right<Failure, int>(0));
+        expect(
+          repo.store.length,
+          DefaultExercisesData.getDefaultExercises().length,
+        );
+        expect(await flags.isInitialized('user-1', 'exercises'), isTrue);
+      },
+    );
+
+    test(
+      'delete-stickiness: flag set with partial catalog skips re-seeding',
+      () async {
+        // Flag already set — user deliberately deleted a default exercise.
+        // Must not re-seed even though the catalog is incomplete.
+        final repo = _InMemoryExerciseRepository()..currentOwner = 'user-1';
+        final defaults = DefaultExercisesData.getDefaultExercises();
+        final now = DateTime(2026);
+        for (final d in defaults.skip(1)) {
+          await repo.addExercise(
+            d.toEntity(
+              DeterministicCatalogId.forOwner(
+                ownerUserId: 'user-1',
+                name: d.name,
+              ),
+              now,
+              ownerUserId: 'user-1',
+            ),
+          );
+        }
+        final flags = _InMemoryInitFlags();
+        await flags.markInitialized('user-1', 'exercises');
+
+        final seed = SeedExercises(repo, catalogInitFlags: flags);
+        final result = await seed(ownerUserId: 'user-1');
+
+        expect(result, const Right<Failure, int>(0));
+        expect(
+          repo.store.length,
+          defaults.length - 1,
+          reason: 'no new rows may be added when the flag is already set',
+        );
+      },
+    );
+
+    test(
+      'does not insert duplicate when default name exists under a legacy id',
+      () async {
+        // Simulates the real-device scenario: "Bench Press" was pulled from
+        // Supabase under its legacy name-only id (not the new forOwner id).
+        // The self-heal must detect the name match and not create a duplicate.
+        final repo = _InMemoryExerciseRepository()..currentOwner = 'user-1';
+        final defaults = DefaultExercisesData.getDefaultExercises();
+        final legacyTarget = defaults[0]; // 'Bench Press'
+        final now = DateTime(2026);
+
+        // Insert all defaults except legacyTarget under their correct ids.
+        for (final d in defaults.skip(1)) {
+          await repo.addExercise(
+            d.toEntity(
+              DeterministicCatalogId.forOwner(
+                ownerUserId: 'user-1',
+                name: d.name,
+              ),
+              now,
+              ownerUserId: 'user-1',
+            ),
+          );
+        }
+        // Insert legacyTarget under a different (legacy) id.
+        await repo.addExercise(
+          legacyTarget.toEntity(
+            'legacy-id-bench-press',
+            now,
+            ownerUserId: 'user-1',
+          ),
+        );
+
+        final flags = _InMemoryInitFlags();
+        final seed = SeedExercises(repo, catalogInitFlags: flags);
+        final result = await seed(ownerUserId: 'user-1');
+
+        // All names present → self-heal inserts 0, flag is set.
+        expect(result, const Right<Failure, int>(0));
+        expect(
+          repo.store.length,
+          defaults.length,
+          reason: 'no duplicate must be added for "${legacyTarget.name}"',
+        );
+        expect(await flags.isInitialized('user-1', 'exercises'), isTrue);
+      },
+    );
+  });
+
   test('reseeding is idempotent — ids are stable, no duplicates', () async {
     final repo = _InMemoryExerciseRepository()..currentOwner = 'user-1';
     final seed = SeedExercises(repo);
