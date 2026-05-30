@@ -16,14 +16,14 @@ class HomeDashboardData extends Equatable {
   /// Weekly set counts per muscle group, resolved via [MuscleLoadResolver].
   ///
   /// Keyed by normalised muscle-group slug (lowercase, trimmed).  Empty when
-  /// the user is a guest or when the resolver is unavailable.
+  /// the resolver is unavailable (e.g. no data yet for this account).
   final Map<String, int> muscleSetCounts;
 
   /// Count of distinct weekly sets whose exercise resolves to ≥1 positive
   /// muscle factor — i.e. sets that actually contribute to the body map.
   /// Routed through [MuscleLoadResolver] so the "Sets" stat card and the
-  /// map share a single source of truth and cannot disagree. Zero for
-  /// guest sessions or when the resolver is unavailable.
+  /// map share a single source of truth and cannot disagree. Zero when
+  /// the resolver is unavailable.
   final int weeklySetCount;
 
   static const Map<String, double> emptyDailyMacros = <String, double>{

@@ -9,8 +9,8 @@ import '../post_sync_hook.dart';
 /// Ensures the just-synced account owns the full default exercise and meal
 /// catalogs.
 ///
-/// Under the per-user catalog model every account (guest `''` or a real
-/// `uid`) has its own owned catalog — there is no shared NULL-owner bucket.
+/// Under the per-user catalog model every authenticated account has its own
+/// owned catalog — there is no shared NULL-owner bucket.
 /// A brand-new user therefore signs in with zero owned exercises (and,
 /// before sign-in adoption runs, none pulled either). Without this hook the
 /// library and the workout logger would be empty for them.

@@ -60,7 +60,7 @@ abstract class MuscleStimulusLocalDataSource {
   /// Remove all stimulus records belonging to [userId].
   /// Called on sign-out to prevent data leaking to the next session.
   /// Accepts an explicit [userId] because this runs after the session has
-  /// already been cleared — the resolver would return the guest sentinel.
+  /// already been cleared — the resolver would throw without an active session.
   Future<void> clearStimulusForUser(String userId);
 }
 

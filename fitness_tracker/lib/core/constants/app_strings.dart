@@ -404,8 +404,6 @@ class AppStrings {
       'Permanently remove all saved voice transcripts';
 
   // Voice error messages
-  static const String voiceErrorGuestForbidden =
-      'Sign in to use the voice assistant.';
   static const String voiceErrorBudgetExceeded =
       'Daily voice budget reached. Resets at midnight UTC.';
   static const String voiceErrorUnavailable =
@@ -477,7 +475,6 @@ class AppStrings {
 
   // ── Voice FAB ──────────────────────────────────────────────────────────────
   static const String voiceFabTooltipOpen = 'Open Voice Assistant';
-  static const String voiceFabTooltipGuest = 'Sign in to use Voice Assistant';
   static const String voiceFabWakeWordNeedsSetup =
       'Wake word needs setup. Open Voice settings to add your key.';
   static const String voiceFabWakeWordNeedsSetupAction = 'Set up';

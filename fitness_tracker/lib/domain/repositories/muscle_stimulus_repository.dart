@@ -5,7 +5,7 @@ import '../entities/muscle_stimulus.dart';
 /// Repository interface for MuscleStimulus operations.
 ///
 /// All read/write methods that operate on user-specific data require a
-/// [userId] parameter.  Pass an empty string for the guest state.
+/// [userId] parameter — always the authenticated user's uid.
 abstract class MuscleStimulusRepository {
   /// Get stimulus for a specific muscle on a specific date.
   Future<Either<Failure, MuscleStimulus?>> getStimulusByMuscleAndDate({

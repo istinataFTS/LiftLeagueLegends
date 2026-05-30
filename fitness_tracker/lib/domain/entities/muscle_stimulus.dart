@@ -5,7 +5,7 @@ import '../../core/constants/muscle_stimulus_constants.dart' as constants;
 class MuscleStimulus extends Equatable {
   final String id;
 
-  /// The user who owns this record. Empty string for guest/unauthenticated.
+  /// The authenticated user who owns this record.
   final String ownerUserId;
 
   final String muscleGroup;
