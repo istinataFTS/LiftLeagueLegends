@@ -50,22 +50,24 @@ class EnsureDefaultExercises {
   /// already had exercises and no action was taken).
   Future<Either<Failure, int>> call() async {
     try {
-      // Resolve the current user id (null for guest sessions).
       final sessionResult = await appSessionRepository.getCurrentSession();
       final String? userId = sessionResult.fold(
         (_) => null,
-        (session) => session.user?.id,
+        (session) => session.user.id,
       );
 
+      if (userId == null) {
+        // No authenticated user in context. Defer seeding to the post sign-in
+        // hook; nothing to do here.
+        return const Right(0);
+      }
+
       debugPrint(
-        '[EnsureDefaultExercises] Checking exercises for '
-        '${userId != null ? 'user $userId' : 'guest session'}',
+        '[EnsureDefaultExercises] Checking exercises for user $userId',
       );
 
       // Delegate to SeedExercises — it checks internally whether exercises
-      // already exist (user-scoped: NULL-owner + user-owned) and skips if
-      // there are any. We pass the userId so new exercises are owned by this
-      // user rather than being shared NULL-owner exercises.
+      // already exist and skips if there are any.
       final seedResult = await seedExercises(ownerUserId: userId);
 
       return await seedResult.fold(
@@ -109,11 +111,10 @@ class EnsureDefaultExercises {
             },
           );
 
-          // If factors were just healed and we have an authenticated user,
-          // rebuild muscle_stimulus so the body map reflects the new factors
-          // immediately without requiring the user to log another set.
+          // If factors were just healed, rebuild muscle_stimulus so the body
+          // map reflects the new factors immediately without requiring the
+          // user to log another set.
           if (factorCount > 0 &&
-              userId != null &&
               rebuildMuscleStimulusFromWorkoutHistory != null) {
             debugPrint(
               '[EnsureDefaultExercises] Rebuilding muscle stimulus after '

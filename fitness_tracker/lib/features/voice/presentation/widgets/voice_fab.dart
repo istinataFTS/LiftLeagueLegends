@@ -23,8 +23,8 @@ import '../voice_overlay_page.dart';
 /// when the app goes to the background (foreground-only mic policy) and
 /// restarted on resume.
 ///
-/// Guest users see the button disabled with a tooltip. Authenticated users
-/// tap to open [VoiceOverlayPage].
+/// Only reachable above the auth gate — every visible instance has an
+/// authenticated session.
 class VoiceFab extends StatefulWidget {
   const VoiceFab({required this.session, super.key});
 
@@ -114,7 +114,7 @@ class _VoiceFabState extends State<VoiceFab>
   void _startWakeWordIfArmed() {
     if (!mounted) return;
     final settings = context.read<VoiceSettingsCubit>().state;
-    if (!settings.wakeWordArmedInForeground || widget.session.isGuest) return;
+    if (!settings.wakeWordArmedInForeground) return;
     _wakeWordService
         .start(settings.wakeWordPreset)
         .then((_) {
@@ -281,59 +281,48 @@ class _VoiceFabState extends State<VoiceFab>
   }
 
   Widget _buildFab() {
-    final bool isGuest = widget.session.isGuest;
     final bool isArmed = _wakeWordService.isRunning;
-    final String tooltip = isGuest
-        ? AppStrings.voiceFabTooltipGuest
-        : AppStrings.voiceFabTooltipOpen;
 
-    return Tooltip(
-      message: isGuest ? tooltip : '',
-      child: Stack(
-        alignment: Alignment.center,
-        children: <Widget>[
-          // Pulse ring — visible when wake-word engine is running
-          if (isArmed)
-            AnimatedBuilder(
-              animation: _pulseController,
-              builder: (context, _) {
-                return Transform.scale(
-                  scale: _scaleAnimation.value,
-                  child: Opacity(
-                    opacity: _opacityAnimation.value,
-                    child: Container(
-                      width: 56,
-                      height: 56,
-                      decoration: const BoxDecoration(
-                        color: AppTheme.primaryOrange,
-                        shape: BoxShape.circle,
-                      ),
+    return Stack(
+      alignment: Alignment.center,
+      children: <Widget>[
+        // Pulse ring — visible when wake-word engine is running
+        if (isArmed)
+          AnimatedBuilder(
+            animation: _pulseController,
+            builder: (context, _) {
+              return Transform.scale(
+                scale: _scaleAnimation.value,
+                child: Opacity(
+                  opacity: _opacityAnimation.value,
+                  child: Container(
+                    width: 56,
+                    height: 56,
+                    decoration: const BoxDecoration(
+                      color: AppTheme.primaryOrange,
+                      shape: BoxShape.circle,
                     ),
                   ),
-                );
-              },
-            ),
-          FloatingActionButton(
-            key: VoiceOverlayKeys.fabKey,
-            onPressed: isGuest ? null : _openOverlay,
-            tooltip: tooltip,
-            backgroundColor: isGuest
-                ? AppTheme.surfaceMedium
-                : AppTheme.primaryOrange,
-            foregroundColor: isGuest
-                ? AppTheme.textDisabled
-                : AppTheme.textLight,
-            elevation: 4,
-            child: AnimatedSwitcher(
-              duration: const Duration(milliseconds: 200),
-              child: Icon(
-                isArmed ? Icons.mic : Icons.mic_none_rounded,
-                key: ValueKey<bool>(isArmed),
-              ),
+                ),
+              );
+            },
+          ),
+        FloatingActionButton(
+          key: VoiceOverlayKeys.fabKey,
+          onPressed: _openOverlay,
+          tooltip: AppStrings.voiceFabTooltipOpen,
+          backgroundColor: AppTheme.primaryOrange,
+          foregroundColor: AppTheme.textLight,
+          elevation: 4,
+          child: AnimatedSwitcher(
+            duration: const Duration(milliseconds: 200),
+            child: Icon(
+              isArmed ? Icons.mic : Icons.mic_none_rounded,
+              key: ValueKey<bool>(isArmed),
             ),
           ),
-        ],
-      ),
+        ),
+      ],
     );
   }
 }

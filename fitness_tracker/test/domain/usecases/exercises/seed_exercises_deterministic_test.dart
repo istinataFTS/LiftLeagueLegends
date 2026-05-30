@@ -86,37 +86,7 @@ void main() {
     }
   });
 
-  test('guest-seeded catalog coexists with a post-sign-in user catalog '
-      '(no primary-key collision on adoption)', () async {
-    // Regression for empty-Library-after-sign-in: with a name-only id
-    // the guest seed at boot reserved every id and the post-sign-in
-    // provision step aborted, leaving the new user with no exercises.
-    final repo = _InMemoryExerciseRepository();
-
-    repo.currentOwner = '';
-    final guestResult = await SeedExercises(repo)(ownerUserId: '');
-    expect(guestResult.isRight(), isTrue);
-    final guestCount = repo.store.length;
-
-    repo.currentOwner = 'user-1';
-    final userResult = await SeedExercises(repo)(ownerUserId: 'user-1');
-    expect(userResult.isRight(), isTrue);
-
-    final defaults = DefaultExercisesData.getDefaultExercises();
-    expect(repo.store.length, guestCount + defaults.length);
-    for (final d in defaults) {
-      final guestId = DeterministicCatalogId.forOwner(
-        ownerUserId: '',
-        name: d.name,
-      );
-      final userId = DeterministicCatalogId.forOwner(
-        ownerUserId: 'user-1',
-        name: d.name,
-      );
-      expect(repo.store[guestId]?.ownerUserId, '');
-      expect(repo.store[userId]?.ownerUserId, 'user-1');
-    }
-  });
+  // Guest-vs-user-coexistence test removed: guest catalogs no longer exist.
 
   // ---------------------------------------------------------------------------
   // Delete-stickiness invariant (catalog-init flag)

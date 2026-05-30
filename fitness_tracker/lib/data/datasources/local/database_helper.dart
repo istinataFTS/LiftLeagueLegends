@@ -1,6 +1,7 @@
 import 'package:flutter/foundation.dart' show kIsWeb, visibleForTesting;
 import 'package:path/path.dart';
 import 'package:sqflite/sqflite.dart';
+import 'package:uuid/uuid.dart';
 
 import '../../../config/env_config.dart';
 import '../../../core/constants/database_tables.dart';
@@ -625,7 +626,14 @@ class DatabaseHelper {
     var rewritten = 0;
 
     for (final name in defaultNames) {
-      final detId = DeterministicCatalogId.fromName(name);
+      // Legacy name-only UUIDv5 derivation, preserved verbatim for the v21
+      // historical upgrade path. New code must use
+      // [DeterministicCatalogId.forOwner] with a non-empty authenticated
+      // owner — see `KNOWN_ISSUES.md#guest-catalog-pk-collision-blocks-initial-sign-in`.
+      final detId = const Uuid().v5(
+        DeterministicCatalogId.namespace,
+        DeterministicCatalogId.canonicalName(name),
+      );
 
       // Copy out of the read-only QueryResultSet so the survivor sort below
       // can reorder in place.

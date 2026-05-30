@@ -1,4 +1,4 @@
-import 'package:sqflite/sqflite.dart';
+﻿import 'package:sqflite/sqflite.dart';
 
 import '../../../core/constants/database_tables.dart';
 import '../../../core/errors/exceptions.dart';
@@ -43,7 +43,7 @@ class NutritionLogLocalDataSourceImpl extends UserScopedLocalDatasource
   @override
   Future<List<NutritionLogModel>> getLogsByDate(DateTime date) async {
     try {
-      final ownerId = await resolveOwnerId();
+      final ownerId = await this.ownerId();
       final db = await databaseHelper.database;
       final startOfDay = DateTime(date.year, date.month, date.day);
       final endOfDay = DateTime(date.year, date.month, date.day, 23, 59, 59);
@@ -79,7 +79,7 @@ class NutritionLogLocalDataSourceImpl extends UserScopedLocalDatasource
     DateTime endDate,
   ) async {
     try {
-      final ownerId = await resolveOwnerId();
+      final ownerId = await this.ownerId();
       final db = await databaseHelper.database;
       final start = DateTime(startDate.year, startDate.month, startDate.day);
       final end = DateTime(
@@ -119,7 +119,7 @@ class NutritionLogLocalDataSourceImpl extends UserScopedLocalDatasource
   @override
   Future<List<NutritionLogModel>> getLogsByMealId(String mealId) async {
     try {
-      final ownerId = await resolveOwnerId();
+      final ownerId = await this.ownerId();
       final db = await databaseHelper.database;
       final f = whereOwned(
         ownerId: ownerId,
@@ -170,7 +170,7 @@ class NutritionLogLocalDataSourceImpl extends UserScopedLocalDatasource
   @override
   Future<List<NutritionLogModel>> getMealLogs() async {
     try {
-      final ownerId = await resolveOwnerId();
+      final ownerId = await this.ownerId();
       final db = await databaseHelper.database;
       final f = whereOwned(
         ownerId: ownerId,
@@ -194,7 +194,7 @@ class NutritionLogLocalDataSourceImpl extends UserScopedLocalDatasource
   @override
   Future<List<NutritionLogModel>> getDirectMacroLogs() async {
     try {
-      final ownerId = await resolveOwnerId();
+      final ownerId = await this.ownerId();
       final db = await databaseHelper.database;
       final f = whereOwned(
         ownerId: ownerId,
@@ -218,7 +218,7 @@ class NutritionLogLocalDataSourceImpl extends UserScopedLocalDatasource
   @override
   Future<List<NutritionLogModel>> getPendingSyncLogs() async {
     try {
-      final ownerId = await resolveOwnerId();
+      final ownerId = await this.ownerId();
       if (ownerId.isEmpty) return <NutritionLogModel>[];
       final db = await databaseHelper.database;
       final f = whereOwned(
@@ -289,9 +289,7 @@ class NutritionLogLocalDataSourceImpl extends UserScopedLocalDatasource
 
   @override
   Future<void> prepareForInitialCloudMigration({required String userId}) async {
-    await requireAuthenticatedOwnerId(
-      operation: 'prepareForInitialCloudMigration',
-    );
+    await ownerId();
     try {
       final storedLogs = await _getStoredLogs();
       final preparedLogs = storedLogs
@@ -509,7 +507,7 @@ class NutritionLogLocalDataSourceImpl extends UserScopedLocalDatasource
   @override
   Future<Map<String, double>> getDailyMacros(DateTime date) async {
     try {
-      final ownerId = await resolveOwnerId();
+      final ownerId = await this.ownerId();
       final db = await databaseHelper.database;
       final startOfDay = DateTime(date.year, date.month, date.day);
       final endOfDay = DateTime(date.year, date.month, date.day, 23, 59, 59);
@@ -560,7 +558,7 @@ class NutritionLogLocalDataSourceImpl extends UserScopedLocalDatasource
   }
 
   Future<List<NutritionLogModel>> _getVisibleLogs() async {
-    final ownerId = await resolveOwnerId();
+    final ownerId = await this.ownerId();
     final db = await databaseHelper.database;
     final f = whereOwned(
       ownerId: ownerId,
@@ -578,7 +576,7 @@ class NutritionLogLocalDataSourceImpl extends UserScopedLocalDatasource
   }
 
   Future<NutritionLogModel?> _getVisibleLogById(String id) async {
-    final ownerId = await resolveOwnerId();
+    final ownerId = await this.ownerId();
     final db = await databaseHelper.database;
     final f = whereOwned(
       ownerId: ownerId,
@@ -649,9 +647,6 @@ class NutritionLogLocalDataSourceImpl extends UserScopedLocalDatasource
     String userId,
   ) {
     final ownerUserId = log.ownerUserId;
-    if (ownerUserId == null || ownerUserId.isEmpty) {
-      return log;
-    }
     if (ownerUserId != userId) {
       return log;
     }

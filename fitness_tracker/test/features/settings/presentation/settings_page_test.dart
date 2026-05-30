@@ -1,5 +1,4 @@
 import 'package:bloc_test/bloc_test.dart';
-import 'package:fitness_tracker/core/enums/auth_mode.dart';
 import 'package:fitness_tracker/domain/entities/app_session.dart';
 import 'package:fitness_tracker/domain/entities/app_settings.dart';
 import 'package:fitness_tracker/domain/entities/app_user.dart';
@@ -24,14 +23,15 @@ class MockProfileCubit extends MockCubit<ProfileState>
     implements ProfileCubit {}
 
 ProfileState _guestProfileState() => const ProfileState(
-  session: AppSession.guest(),
+  session: AppSession(
+    user: AppUser(id: '__test_guest__', email: 'guest@test.local'),
+  ),
   isLoading: false,
   hasLoaded: true,
 );
 
 ProfileState _authedProfileState({String username = 'alice'}) => ProfileState(
   session: AppSession(
-    authMode: AuthMode.authenticated,
     user: const AppUser(id: 'user-1', email: 'a@b.com', displayName: 'A'),
     requiresInitialCloudMigration: false,
     lastCloudSyncAt: null,

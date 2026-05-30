@@ -1,7 +1,6 @@
 import 'package:dartz/dartz.dart';
 import 'package:fitness_tracker/core/auth/auth_session_service.dart';
 import 'package:fitness_tracker/core/config/app_sync_policy.dart';
-import 'package:fitness_tracker/core/enums/auth_mode.dart';
 import 'package:fitness_tracker/core/errors/failures.dart';
 import 'package:fitness_tracker/core/session/session_sync_service.dart';
 import 'package:fitness_tracker/domain/entities/app_session.dart';
@@ -73,7 +72,11 @@ void main() {
   ) async {
     when(() => repository.getCurrentSession()).thenAnswer((_) async {
       await Future<void>.delayed(const Duration(milliseconds: 50));
-      return const Right(AppSession.guest());
+      return const Right(
+        AppSession(
+          user: AppUser(id: '__test_guest__', email: 'guest@test.local'),
+        ),
+      );
     });
 
     await tester.pumpWidget(buildSubject());
@@ -86,30 +89,8 @@ void main() {
     expect(find.byKey(ProfilePage.titleKey), findsOneWidget);
   });
 
-  testWidgets('renders guest profile shell through stable keys', (
-    WidgetTester tester,
-  ) async {
-    tester.view.physicalSize = const Size(800, 2000);
-    tester.view.devicePixelRatio = 1.0;
-    addTearDown(tester.view.resetPhysicalSize);
-    addTearDown(tester.view.resetDevicePixelRatio);
-
-    when(
-      () => repository.getCurrentSession(),
-    ).thenAnswer((_) async => const Right(AppSession.guest()));
-
-    await tester.pumpWidget(buildSubject());
-    await tester.pumpAndSettle();
-
-    expect(find.byKey(ProfilePage.titleKey), findsOneWidget);
-    expect(find.byKey(ProfilePage.subtitleKey), findsOneWidget);
-    expect(find.byKey(ProfilePage.sessionBannerKey), findsOneWidget);
-    expect(find.byKey(ProfilePage.accountModeBannerKey), findsOneWidget);
-    expect(find.byKey(ProfilePage.settingsTileKey), findsOneWidget);
-
-    expect(find.text('Guest'), findsOneWidget);
-    expect(find.text('Guest account'), findsWidgets);
-  });
+  // "renders guest profile shell through stable keys" removed: the page
+  // only renders above the auth gate.
 
   testWidgets('renders authenticated profile shell through stable keys', (
     WidgetTester tester,
@@ -122,7 +103,6 @@ void main() {
     when(() => repository.getCurrentSession()).thenAnswer(
       (_) async => Right(
         AppSession(
-          authMode: AuthMode.authenticated,
           user: const AppUser(
             id: 'user-1',
             email: 'marin@test.com',
@@ -150,7 +130,6 @@ void main() {
       when(() => repository.getCurrentSession()).thenAnswer(
         (_) async => Right(
           AppSession(
-            authMode: AuthMode.authenticated,
             user: const AppUser(
               id: 'user-1',
               email: 'marin@test.com',
@@ -177,7 +156,6 @@ void main() {
     when(() => repository.getCurrentSession()).thenAnswer(
       (_) async => Right(
         AppSession(
-          authMode: AuthMode.authenticated,
           user: const AppUser(
             id: 'user-1',
             email: '',
@@ -196,7 +174,7 @@ void main() {
     expect(find.text('Authenticated session'), findsOneWidget);
   });
 
-  testWidgets('failure falls back to guest shell and shows snackbar', (
+  testWidgets('session failure surfaces the error message', (
     WidgetTester tester,
   ) async {
     when(
@@ -207,17 +185,19 @@ void main() {
     await tester.pump();
     await tester.pump(const Duration(milliseconds: 300));
 
-    expect(find.byKey(ProfilePage.titleKey), findsOneWidget);
-    expect(find.text('Guest'), findsOneWidget);
     expect(find.text('session unavailable'), findsOneWidget);
   });
 
   testWidgets('pull to refresh runs manual refresh and reloads session', (
     WidgetTester tester,
   ) async {
-    when(
-      () => repository.getCurrentSession(),
-    ).thenAnswer((_) async => const Right(AppSession.guest()));
+    when(() => repository.getCurrentSession()).thenAnswer(
+      (_) async => const Right(
+        AppSession(
+          user: AppUser(id: '__test_guest__', email: 'guest@test.local'),
+        ),
+      ),
+    );
 
     await tester.pumpWidget(buildSubject());
     await tester.pumpAndSettle();
@@ -238,9 +218,13 @@ void main() {
   testWidgets('manual refresh failure is shown in snackbar', (
     WidgetTester tester,
   ) async {
-    when(
-      () => repository.getCurrentSession(),
-    ).thenAnswer((_) async => const Right(AppSession.guest()));
+    when(() => repository.getCurrentSession()).thenAnswer(
+      (_) async => const Right(
+        AppSession(
+          user: AppUser(id: '__test_guest__', email: 'guest@test.local'),
+        ),
+      ),
+    );
 
     when(() => sessionSyncService.runManualRefresh()).thenAnswer(
       (_) async => const SessionSyncActionResult(

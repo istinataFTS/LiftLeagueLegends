@@ -20,15 +20,11 @@ class SeedExercises {
 
   const SeedExercises(this.repository, {this.catalogInitFlags});
 
-  /// Seeds default exercises if none exist yet.
-  ///
-  /// [ownerUserId] — when provided the seeded exercises are owned by that
-  /// user (per-user seeding). When omitted the exercises are created as
-  /// system/shared exercises (owner_user_id IS NULL), visible to all users.
+  /// Seeds default exercises if none exist yet, owned by [ownerUserId].
   ///
   /// Returns the number of exercises actually inserted, or 0 if seeding was
   /// skipped because exercises already existed.
-  Future<Either<Failure, int>> call({String? ownerUserId}) async {
+  Future<Either<Failure, int>> call({required String ownerUserId}) async {
     try {
       // Step 1: Check if seeding is enabled
       if (!EnvConfig.seedDefaultData) {
@@ -38,9 +34,7 @@ class SeedExercises {
 
       _log('Starting database seeding process...');
       _log('Seed data version: ${EnvConfig.seedDataVersion}');
-      if (ownerUserId != null) {
-        _log('Seeding as user-owned exercises (userId: $ownerUserId)');
-      }
+      _log('Seeding as user-owned exercises (userId: $ownerUserId)');
 
       // Step 2a: Check catalog-init flag (delete-stickiness guard).
       // If the flag is already set the account previously received its default
@@ -48,13 +42,11 @@ class SeedExercises {
       // the catalog is currently empty.  forceReseed bypasses this guard.
       if (catalogInitFlags != null && !EnvConfig.forceReseed) {
         final initialized = await catalogInitFlags!.isInitialized(
-          ownerUserId ?? '',
+          ownerUserId,
           'exercises',
         );
         if (initialized) {
-          _log(
-            'Catalog already initialized for ${ownerUserId ?? 'guest'} — skipping',
-          );
+          _log('Catalog already initialized for $ownerUserId — skipping');
           return const Right(0);
         }
       }
@@ -108,13 +100,9 @@ class SeedExercises {
     }
   }
 
-  /// Seed all default exercises.
-  ///
-  /// [ownerUserId] is forwarded to [ExerciseData.toEntity] so each inserted
-  /// exercise can be owned by a specific user or kept as a shared system
-  /// exercise (null).
+  /// Seed all default exercises, owned by [ownerUserId].
   Future<Either<Failure, int>> _seedDefaultExercises({
-    String? ownerUserId,
+    required String ownerUserId,
   }) async {
     _log('Seeding default exercises...');
 
@@ -174,7 +162,7 @@ class SeedExercises {
 
     // Return success if at least some exercises were seeded
     if (successCount > 0) {
-      await catalogInitFlags?.markInitialized(ownerUserId ?? '', 'exercises');
+      await catalogInitFlags?.markInitialized(ownerUserId, 'exercises');
       return Right(successCount);
     } else {
       return const Left(DatabaseFailure('Failed to seed any exercises'));

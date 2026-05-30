@@ -18,7 +18,10 @@ class ProfileState extends Equatable {
     this.errorMessage,
   });
 
-  final AppSession session;
+  /// Null when the cubit has not yet resolved a session, or when session
+  /// lookup failed (the auth gate normally prevents this from being null
+  /// in a steady state).
+  final AppSession? session;
   final bool isLoading;
   final bool hasLoaded;
   final UserProfile? userProfile;
@@ -26,7 +29,7 @@ class ProfileState extends Equatable {
 
   factory ProfileState.initial() {
     return const ProfileState(
-      session: AppSession.guest(),
+      session: null,
       isLoading: false,
       hasLoaded: false,
       userProfile: null,
@@ -36,6 +39,7 @@ class ProfileState extends Equatable {
 
   ProfileState copyWith({
     AppSession? session,
+    bool clearSession = false,
     bool? isLoading,
     bool? hasLoaded,
     UserProfile? userProfile,
@@ -44,7 +48,7 @@ class ProfileState extends Equatable {
     bool clearErrorMessage = false,
   }) {
     return ProfileState(
-      session: session ?? this.session,
+      session: clearSession ? null : (session ?? this.session),
       isLoading: isLoading ?? this.isLoading,
       hasLoaded: hasLoaded ?? this.hasLoaded,
       userProfile: clearUserProfile ? null : (userProfile ?? this.userProfile),
@@ -103,7 +107,7 @@ class ProfileCubit extends Cubit<ProfileState> {
       (failure) async {
         emit(
           state.copyWith(
-            session: const AppSession.guest(),
+            clearSession: true,
             isLoading: false,
             hasLoaded: true,
             clearUserProfile: true,
@@ -143,7 +147,7 @@ class ProfileCubit extends Cubit<ProfileState> {
       (failure) {
         emit(
           state.copyWith(
-            session: const AppSession.guest(),
+            clearSession: true,
             isLoading: false,
             hasLoaded: true,
             clearUserProfile: true,
@@ -268,7 +272,7 @@ class ProfileCubit extends Cubit<ProfileState> {
       (failure) async {
         emit(
           state.copyWith(
-            session: const AppSession.guest(),
+            clearSession: true,
             isLoading: false,
             hasLoaded: true,
             clearUserProfile: true,
@@ -292,15 +296,8 @@ class ProfileCubit extends Cubit<ProfileState> {
     );
   }
 
-  /// Loads the [UserProfile] when the session is authenticated; returns null
-  /// for guests or when the remote is unavailable.
   Future<UserProfile?> _fetchUserProfile(AppSession session) async {
-    if (!session.isAuthenticated || session.user == null) {
-      return null;
-    }
-
-    final result = await _userProfileRepository.getProfile(session.user!.id);
-
+    final result = await _userProfileRepository.getProfile(session.user.id);
     return result.fold((_) => null, (profile) => profile);
   }
 

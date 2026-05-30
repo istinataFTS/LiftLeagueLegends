@@ -1,4 +1,3 @@
-import 'package:fitness_tracker/core/enums/auth_mode.dart';
 import 'package:fitness_tracker/core/enums/sync_trigger.dart';
 import 'package:fitness_tracker/core/network/network_status_service.dart';
 import 'package:fitness_tracker/core/sync/remote_sync_availability.dart';
@@ -17,7 +16,6 @@ void main() {
     bool requiresInitialCloudMigration = false,
   }) {
     return AppSession(
-      authMode: AuthMode.authenticated,
       user: const AppUser(id: 'user-1', email: 'user@test.com'),
       requiresInitialCloudMigration: requiresInitialCloudMigration,
     );
@@ -73,24 +71,8 @@ void main() {
     expect(result.reason, 'network unavailable');
   });
 
-  test('denies when session is not authenticated', () async {
-    final availability = RemoteSyncAvailability(
-      runtimePolicy: const RemoteSyncRuntimePolicy(
-        isSupabaseEnabled: true,
-        supabaseUrl: 'https://example.supabase.co',
-        supabaseAnonKey: 'anon-key',
-      ),
-      networkStatusService: networkStatusService,
-    );
-
-    final result = await availability.evaluate(
-      session: const AppSession.guest(),
-      trigger: SyncTrigger.appLaunch,
-    );
-
-    expect(result.isAllowed, isFalse);
-    expect(result.reason, 'session is not authenticated');
-  });
+  // "denies when session is not authenticated" test removed: every session
+  // reaching this evaluator is authenticated by construction post guest-removal.
 
   test(
     'denies non-initial-sign-in triggers while migration is pending',

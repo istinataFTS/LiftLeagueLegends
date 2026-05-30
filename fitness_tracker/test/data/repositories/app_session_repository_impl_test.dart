@@ -1,7 +1,6 @@
 import 'package:dartz/dartz.dart';
 import 'package:fitness_tracker/core/config/app_sync_policy.dart';
 import 'package:fitness_tracker/core/constants/app_metadata_keys.dart';
-import 'package:fitness_tracker/core/enums/auth_mode.dart';
 import 'package:fitness_tracker/core/errors/failures.dart';
 import 'package:fitness_tracker/data/datasources/local/app_metadata_local_datasource.dart';
 import 'package:fitness_tracker/data/datasources/remote/auth_remote_datasource.dart';
@@ -72,7 +71,9 @@ void main() {
       final Either<Failure, AppSession> result = await repository
           .getCurrentSession();
 
-      expect(result, const Right<Failure, AppSession>(AppSession.guest()));
+      // Post guest-removal: an empty local metadata snapshot yields a
+      // SessionLookupFailure rather than a sentinel guest session.
+      expect(result.isLeft(), isTrue);
     });
 
     test(
@@ -80,7 +81,7 @@ void main() {
       () async {
         when(
           () => localDataSource.readString('session.auth_mode'),
-        ).thenAnswer((_) async => AuthMode.authenticated.name);
+        ).thenAnswer((_) async => 'authenticated');
         when(() => localDataSource.readJsonObject('session.user')).thenAnswer(
           (_) async => <String, dynamic>{
             'id': user.id,
@@ -104,7 +105,6 @@ void main() {
           result,
           Right<Failure, AppSession>(
             AppSession(
-              authMode: AuthMode.authenticated,
               user: user,
               requiresInitialCloudMigration: true,
               lastCloudSyncAt: baseDate,
@@ -123,7 +123,7 @@ void main() {
         ).thenAnswer((_) async => user);
         when(
           () => localDataSource.readString('session.auth_mode'),
-        ).thenAnswer((_) async => AuthMode.guest.name);
+        ).thenAnswer((_) async => 'guest');
         when(
           () => localDataSource.readJsonObject('session.user'),
         ).thenAnswer((_) async => null);
@@ -143,7 +143,6 @@ void main() {
           result,
           Right<Failure, AppSession>(
             AppSession(
-              authMode: AuthMode.authenticated,
               user: user,
               requiresInitialCloudMigration: true,
               lastCloudSyncAt: baseDate,
@@ -154,15 +153,15 @@ void main() {
     );
 
     test(
-      'returns guest when local session says authenticated but remote is signed out',
+      'returns SessionLookupFailure when remote is configured but signed out',
       () async {
         when(() => authRemoteDataSource.isConfigured).thenReturn(true);
         when(
           () => authRemoteDataSource.getCurrentUser(),
         ).thenAnswer((_) async => null);
         when(
-          () => localDataSource.readString('session.auth_mode'),
-        ).thenAnswer((_) async => AuthMode.authenticated.name);
+          () => localDataSource.readString(any()),
+        ).thenAnswer((_) async => null);
         when(() => localDataSource.readJsonObject('session.user')).thenAnswer(
           (_) async => <String, dynamic>{'id': user.id, 'email': user.email},
         );
@@ -176,57 +175,15 @@ void main() {
         final Either<Failure, AppSession> result = await repository
             .getCurrentSession();
 
-        expect(result, const Right<Failure, AppSession>(AppSession.guest()));
+        // Post guest-removal: a remote-configured app with no remote user
+        // surfaces as a SessionLookupFailure rather than a guest fallback.
+        expect(result.isLeft(), isTrue);
       },
     );
   });
 
   group('AppSessionRepositoryImpl session transitions', () {
-    test(
-      'startGuestSession clears authenticated metadata and migration markers',
-      () async {
-        final Either<Failure, void> result = await repository
-            .startGuestSession();
-
-        expect(result.isRight(), isTrue);
-        verify(
-          () => localDataSource.writeString(
-            'session.auth_mode',
-            AuthMode.guest.name,
-          ),
-        ).called(1);
-        verify(() => localDataSource.delete('session.user')).called(1);
-        verify(
-          () => localDataSource.writeBool(
-            'session.requires_initial_cloud_migration',
-            false,
-          ),
-        ).called(1);
-        verify(
-          () => localDataSource.delete('session.last_cloud_sync_at'),
-        ).called(1);
-        verify(
-          () => localDataSource.delete(
-            AppMetadataKeys.currentAuthenticatedUserId,
-          ),
-        ).called(1);
-        verify(
-          () => localDataSource.delete(
-            AppMetadataKeys.initialCloudMigrationCompleted,
-          ),
-        ).called(1);
-        verify(
-          () => localDataSource.delete(
-            AppMetadataKeys.initialCloudMigrationCompletedAt,
-          ),
-        ).called(1);
-        verify(
-          () => localDataSource.delete(
-            AppMetadataKeys.initialCloudMigrationState,
-          ),
-        ).called(1);
-      },
-    );
+    // startGuestSession test removed: guest sessions no longer exist.
 
     test(
       'startAuthenticatedSession persists user and migration-required state',
@@ -238,12 +195,6 @@ void main() {
             );
 
         expect(result.isRight(), isTrue);
-        verify(
-          () => localDataSource.writeString(
-            'session.auth_mode',
-            AuthMode.authenticated.name,
-          ),
-        ).called(1);
         verify(
           () =>
               localDataSource.writeJsonObject('session.user', <String, dynamic>{
@@ -335,7 +286,6 @@ void main() {
 
         expect(result.isRight(), isTrue);
         verifyNever(() => authRemoteDataSource.signOut());
-        verify(() => localDataSource.delete('session.auth_mode')).called(1);
         verify(() => localDataSource.delete('session.user')).called(1);
         verify(
           () => localDataSource.delete(

@@ -1,1 +1,0 @@
-enum AuthMode { guest, authenticated }

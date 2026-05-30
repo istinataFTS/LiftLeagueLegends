@@ -21,27 +21,20 @@ class AddWorkoutSet {
   Future<Either<Failure, void>> call(WorkoutSet set) async {
     final sessionResult = await appSessionRepository.getCurrentSession();
 
-    final userId = sessionResult.fold(
-      (_) => '',
-      (session) => session.user?.id ?? '',
-    );
+    return await sessionResult.fold((failure) async => Left(failure), (
+      session,
+    ) async {
+      final preparedSet = set.copyWith(ownerUserId: session.user.id);
+      final addResult = await repository.addSet(preparedSet);
 
-    final preparedSet = sessionResult.fold((_) => set, (session) {
-      if (!session.isAuthenticated || session.user == null) {
-        return set;
-      }
-      return set.copyWith(ownerUserId: session.user!.id);
+      return addResult.fold(
+        (failure) async => Left(failure),
+        // Full rebuild ensures every subsequent date's rolling weekly load
+        // reflects the newly-added set, regardless of which date it was
+        // logged to. This mirrors the pattern used by DeleteWorkoutSet and
+        // UpdateWorkoutSet so that all write paths stay consistent.
+        (_) async => rebuildMuscleStimulusFromWorkoutHistory(session.user.id),
+      );
     });
-
-    final addResult = await repository.addSet(preparedSet);
-
-    return addResult.fold(
-      (failure) async => Left(failure),
-      // Full rebuild ensures every subsequent date's rolling weekly load
-      // reflects the newly-added set, regardless of which date it was
-      // logged to. This mirrors the pattern used by DeleteWorkoutSet and
-      // UpdateWorkoutSet so that all write paths stay consistent.
-      (_) async => rebuildMuscleStimulusFromWorkoutHistory(userId),
-    );
   }
 }

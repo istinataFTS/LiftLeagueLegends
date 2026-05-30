@@ -168,8 +168,10 @@ class MuscleVisualBloc extends Bloc<MuscleVisualEvent, MuscleVisualState> {
   MuscleMapMode _currentMode = MuscleMapMode.volume;
 
   /// Resolves the current user id via the shared [CurrentUserIdResolver], so
-  /// readers always see the same identifier that writers used.  Returns
-  /// [kGuestUserId] for guest / unauthenticated sessions.
+  /// readers always see the same identifier that writers used. Throws
+  /// `MissingUserContextException` when the bloc is constructed above the
+  /// auth gate without a resolvable session — that path should be
+  /// unreachable in practice.
   Future<String> _resolveUserId() => _userIdResolver.resolve();
 
   Future<void> _onLoadMuscleVisuals(

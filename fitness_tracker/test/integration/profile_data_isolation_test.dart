@@ -1,4 +1,4 @@
-/// Integration regression test: profile data isolation.
+﻿/// Integration regression test: profile data isolation.
 ///
 /// Reproduces the exact multi-profile scenario that exposed the three
 /// data-isolation bugs (Phases 1–5):
@@ -39,7 +39,7 @@ class MockCurrentUserIdResolver extends Mock implements CurrentUserIdResolver {}
 
 // ─── Fixtures ────────────────────────────────────────────────────────────────
 
-const String _guestId = kGuestUserId; // ''
+const String _guestId = ''; // ''
 const String _userAId = 'user-a';
 const String _userBId = 'user-b';
 
@@ -126,7 +126,7 @@ void main() {
 
   /// Configures the resolver mock to the given identity.
   ///
-  /// Pass [kGuestUserId] (`''`) to simulate a guest session.
+  /// Pass [''] (`''`) to simulate a guest session.
   void switchIdentity(String userId) {
     when(() => resolver.resolve()).thenAnswer((_) async => userId);
   }

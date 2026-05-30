@@ -1,7 +1,6 @@
 import 'package:bloc_test/bloc_test.dart';
 import 'package:fitness_tracker/app/auth_gate.dart';
 import 'package:fitness_tracker/core/auth/auth_session_service.dart';
-import 'package:fitness_tracker/core/enums/auth_mode.dart';
 import 'package:fitness_tracker/domain/entities/app_session.dart';
 import 'package:fitness_tracker/domain/entities/app_user.dart';
 import 'package:fitness_tracker/features/auth/presentation/sign_in_page.dart';
@@ -19,15 +18,11 @@ class _MockAuthSessionService extends Mock implements AuthSessionService {}
 
 const _authenticatedChildKey = ValueKey<String>('authenticated-child');
 
-ProfileState _unauthenticatedState() => const ProfileState(
-  session: AppSession.guest(),
-  isLoading: false,
-  hasLoaded: true,
-);
+ProfileState _unauthenticatedState() =>
+    const ProfileState(session: null, isLoading: false, hasLoaded: true);
 
 ProfileState _authenticatedState() => const ProfileState(
   session: AppSession(
-    authMode: AuthMode.authenticated,
     user: AppUser(id: 'user-1', email: 'user-1@test.com'),
   ),
   isLoading: false,

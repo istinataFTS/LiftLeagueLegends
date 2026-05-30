@@ -429,7 +429,9 @@ void main() {
       test(
         'throws MissingUserContextException when called in guest mode',
         () async {
-          when(() => mockResolver.resolve()).thenAnswer((_) async => '');
+          when(() => mockResolver.resolve()).thenThrow(
+            const MissingUserContextException(operation: 'session lookup'),
+          );
 
           await expectLater(
             dataSource.prepareForInitialCloudMigration(userId: 'user-1'),

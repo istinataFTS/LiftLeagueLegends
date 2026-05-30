@@ -1,9 +1,9 @@
-import 'dart:async';
+﻿import 'dart:async';
 
 import 'package:bloc_test/bloc_test.dart';
 import 'package:fitness_tracker/core/constants/app_strings.dart';
-import 'package:fitness_tracker/core/enums/auth_mode.dart';
 import 'package:fitness_tracker/domain/entities/app_session.dart';
+import 'package:fitness_tracker/domain/entities/app_user.dart';
 import 'package:fitness_tracker/domain/entities/voice_settings.dart';
 import 'package:fitness_tracker/domain/services/voice_credential_service.dart';
 import 'package:fitness_tracker/domain/services/voice_wake_word_service.dart';
@@ -87,9 +87,9 @@ class FakeVoiceCredentialService implements VoiceCredentialService {
 // Helpers
 // ---------------------------------------------------------------------------
 
-const _authSession = AppSession(user: null, authMode: AuthMode.authenticated);
-
-const _guestSession = AppSession.guest();
+const _authSession = AppSession(
+  user: AppUser(id: 'test-user', email: 'user@test.local'),
+);
 
 Widget _wrap({
   required AppSession session,
@@ -196,61 +196,7 @@ void main() {
     );
   });
 
-  group('VoiceFab — guest user', () {
-    testWidgets('renders FAB widget', (tester) async {
-      await tester.pumpWidget(
-        _wrap(session: _guestSession, settingsCubit: settingsCubit),
-      );
-      expect(find.byType(VoiceFab), findsOneWidget);
-    });
-
-    testWidgets('FAB is disabled for guests (onPressed is null)', (
-      tester,
-    ) async {
-      await tester.pumpWidget(
-        _wrap(session: _guestSession, settingsCubit: settingsCubit),
-      );
-
-      final fab = tester.widget<FloatingActionButton>(
-        find.byType(FloatingActionButton),
-      );
-      expect(fab.onPressed, isNull);
-    });
-
-    testWidgets('guest tooltip text is present in widget tree', (tester) async {
-      await tester.pumpWidget(
-        _wrap(session: _guestSession, settingsCubit: settingsCubit),
-      );
-
-      // Long-press to reveal tooltip.
-      final gesture = await tester.startGesture(
-        tester.getCenter(find.byType(FloatingActionButton)),
-      );
-      await tester.pump(const Duration(seconds: 1));
-      expect(find.text(AppStrings.voiceFabTooltipGuest), findsOneWidget);
-      await gesture.up();
-    });
-
-    testWidgets('wake-word service is NOT started for guests', (tester) async {
-      await tester.pumpWidget(
-        _wrap(session: _guestSession, settingsCubit: settingsCubit),
-      );
-      await tester.pump();
-      expect(wakeWordService.isRunning, isFalse);
-    });
-
-    testWidgets('credential change event does NOT start wake word for guests', (
-      tester,
-    ) async {
-      await tester.pumpWidget(
-        _wrap(session: _guestSession, settingsCubit: settingsCubit),
-      );
-
-      credentialService.emitKeyChange();
-      await tester.pump();
-
-      // Guests bypass _startWakeWordIfArmed regardless of key presence.
-      expect(wakeWordService.isRunning, isFalse);
-    });
-  });
+  // Guest-mode coverage removed: the FAB is only reachable above the auth
+  // gate, so there is no "disabled for guests" branch left in the widget.
+  // See `KNOWN_ISSUES.md#guest-catalog-pk-collision-blocks-initial-sign-in`.
 }

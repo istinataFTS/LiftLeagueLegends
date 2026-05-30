@@ -35,36 +35,27 @@ class UpdateExercise {
     );
 
     final sessionResult = await appSessionRepository.getCurrentSession();
-    final userId = sessionResult.fold(
-      (_) => '',
-      (session) => session.user?.id ?? '',
-    );
 
-    final preparedExercise = sessionResult.fold((_) => normalizedExercise, (
+    return await sessionResult.fold((failure) async => Left(failure), (
       session,
-    ) {
-      if (!session.isAuthenticated || session.user == null) {
-        return normalizedExercise;
-      }
+    ) async {
+      final userId = session.user.id;
+      final preparedExercise = normalizedExercise.ownerUserId == userId
+          ? normalizedExercise
+          : normalizedExercise.copyWith(ownerUserId: userId);
 
-      if (normalizedExercise.ownerUserId == session.user!.id) {
-        return normalizedExercise;
-      }
+      final updateResult = await repository.updateExercise(preparedExercise);
 
-      return normalizedExercise.copyWith(ownerUserId: session.user!.id);
-    });
-
-    final updateResult = await repository.updateExercise(preparedExercise);
-
-    return updateResult.fold((failure) async => Left(failure), (_) async {
-      final syncResult = await syncExerciseMuscleFactors(
-        preparedExercise,
-        muscleFactors: muscleFactors,
-      );
-      return syncResult.fold(
-        (failure) async => Left(failure),
-        (_) async => rebuildMuscleStimulusFromWorkoutHistory(userId),
-      );
+      return updateResult.fold((failure) async => Left(failure), (_) async {
+        final syncResult = await syncExerciseMuscleFactors(
+          preparedExercise,
+          muscleFactors: muscleFactors,
+        );
+        return syncResult.fold(
+          (failure) async => Left(failure),
+          (_) async => rebuildMuscleStimulusFromWorkoutHistory(userId),
+        );
+      });
     });
   }
 }

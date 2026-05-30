@@ -7,7 +7,6 @@ import 'package:uuid/uuid.dart';
 
 import '../core/auth/auth_session_service.dart';
 import '../core/config/app_sync_policy.dart';
-import '../core/enums/auth_mode.dart';
 import '../core/enums/data_source_preference.dart';
 import '../core/enums/sync_trigger.dart';
 import '../core/errors/failures.dart';
@@ -100,7 +99,7 @@ Future<void> _replaceRegistration<T extends Object>(
 
 class WebDemoStore {
   WebDemoStore({
-    required this.session,
+    this.session,
     required this.settings,
     required this.workoutSets,
     required this.exercises,
@@ -111,7 +110,7 @@ class WebDemoStore {
     this.migrationState,
   });
 
-  AppSession session;
+  AppSession? session;
   AppSettings settings;
   InitialCloudMigrationState? migrationState;
 
@@ -398,7 +397,6 @@ class WebDemoStore {
     );
 
     return WebDemoStore(
-      session: const AppSession(authMode: AuthMode.guest),
       settings: const AppSettings.defaults(),
       workoutSets: workoutSets,
       exercises: exercises,
@@ -409,7 +407,7 @@ class WebDemoStore {
     );
   }
 
-  void claimGuestData(String userId) {
+  void claimUnownedDemoData(String userId) {
     workoutSets = workoutSets
         .map(
           (set) =>
@@ -449,14 +447,13 @@ class WebDemoAppSessionRepository implements AppSessionRepository {
 
   @override
   Future<Either<Failure, AppSession>> getCurrentSession() async {
-    return Right(_store.session);
-  }
-
-  @override
-  Future<Either<Failure, void>> startGuestSession() async {
-    _store.session = const AppSession.guest();
-    _store.migrationState = null;
-    return const Right(null);
+    final session = _store.session;
+    if (session == null) {
+      return const Left(
+        SessionLookupFailure(message: 'no authenticated demo session'),
+      );
+    }
+    return Right(session);
   }
 
   @override
@@ -465,7 +462,6 @@ class WebDemoAppSessionRepository implements AppSessionRepository {
     bool requiresInitialCloudMigration = true,
   }) async {
     _store.session = AppSession(
-      authMode: AuthMode.authenticated,
       user: user,
       requiresInitialCloudMigration: requiresInitialCloudMigration,
     );
@@ -474,9 +470,10 @@ class WebDemoAppSessionRepository implements AppSessionRepository {
 
   @override
   Future<Either<Failure, void>> completeInitialCloudMigration() async {
-    _store.session = _store.session.copyWith(
-      requiresInitialCloudMigration: false,
-    );
+    final existing = _store.session;
+    if (existing != null) {
+      _store.session = existing.copyWith(requiresInitialCloudMigration: false);
+    }
     _store.migrationState = null;
     return const Right(null);
   }
@@ -505,13 +502,16 @@ class WebDemoAppSessionRepository implements AppSessionRepository {
   Future<Either<Failure, void>> recordSuccessfulCloudSync(
     DateTime syncedAt,
   ) async {
-    _store.session = _store.session.copyWith(lastCloudSyncAt: syncedAt);
+    final existing = _store.session;
+    if (existing != null) {
+      _store.session = existing.copyWith(lastCloudSyncAt: syncedAt);
+    }
     return const Right(null);
   }
 
   @override
   Future<Either<Failure, void>> clearSession() async {
-    _store.session = const AppSession.guest();
+    _store.session = null;
     _store.migrationState = null;
     return const Right(null);
   }
@@ -1393,9 +1393,8 @@ class WebDemoSessionSyncService implements SessionSyncService {
   Future<SessionSyncActionResult> establishAuthenticatedSession(
     AppUser user,
   ) async {
-    _store.claimGuestData(user.id);
+    _store.claimUnownedDemoData(user.id);
     _store.session = AppSession(
-      authMode: AuthMode.authenticated,
       user: user,
       requiresInitialCloudMigration: false,
       lastCloudSyncAt: DateTime.now(),
@@ -1410,8 +1409,9 @@ class WebDemoSessionSyncService implements SessionSyncService {
 
   @override
   Future<SessionSyncActionResult> runManualRefresh() async {
-    if (_store.session.isAuthenticated) {
-      _store.session = _store.session.copyWith(lastCloudSyncAt: DateTime.now());
+    final existing = _store.session;
+    if (existing != null) {
+      _store.session = existing.copyWith(lastCloudSyncAt: DateTime.now());
     }
 
     return const SessionSyncActionResult(
@@ -1422,7 +1422,7 @@ class WebDemoSessionSyncService implements SessionSyncService {
 
   @override
   Future<SessionSyncActionResult> signOut() async {
-    _store.session = const AppSession.guest();
+    _store.session = null;
     _store.migrationState = null;
 
     return const SessionSyncActionResult(
@@ -1459,9 +1459,8 @@ class WebDemoAuthSessionService implements AuthSessionService {
       displayName: localPart.isEmpty ? 'Demo User' : localPart,
     );
 
-    _store.claimGuestData(user.id);
+    _store.claimUnownedDemoData(user.id);
     _store.session = AppSession(
-      authMode: AuthMode.authenticated,
       user: user,
       requiresInitialCloudMigration: false,
       lastCloudSyncAt: DateTime.now(),
@@ -1494,7 +1493,7 @@ class WebDemoAuthSessionService implements AuthSessionService {
 
   @override
   Future<SessionSyncActionResult> signOut() async {
-    _store.session = const AppSession.guest();
+    _store.session = null;
     _store.migrationState = null;
 
     return const SessionSyncActionResult(

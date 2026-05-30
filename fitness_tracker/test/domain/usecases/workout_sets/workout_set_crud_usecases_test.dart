@@ -1,5 +1,4 @@
-import 'package:dartz/dartz.dart';
-import 'package:fitness_tracker/core/enums/auth_mode.dart';
+﻿import 'package:dartz/dartz.dart';
 import 'package:fitness_tracker/core/enums/data_source_preference.dart';
 import 'package:fitness_tracker/core/errors/failures.dart';
 import 'package:fitness_tracker/domain/entities/app_session.dart';
@@ -53,7 +52,6 @@ final _exerciseFixture = Exercise(
 );
 
 const _authenticatedSession = AppSession(
-  authMode: AuthMode.authenticated,
   user: AppUser(id: 'user-1', email: 'test@example.com'),
 );
 
@@ -313,18 +311,21 @@ void main() {
     });
 
     test('updates set and rebuilds stimulus on success', () async {
+      final setWithOwner = _workoutSetFixture.copyWith(ownerUserId: 'user-1');
       when(
         () => mockSessionRepo.getCurrentSession(),
-      ).thenAnswer((_) async => const Left(CacheFailure('no session')));
+      ).thenAnswer((_) async => const Right(_authenticatedSession));
       when(
-        () => mockSetRepo.updateSet(_workoutSetFixture),
+        () => mockSetRepo.updateSet(setWithOwner),
       ).thenAnswer((_) async => const Right(null));
-      when(() => mockRebuild('')).thenAnswer((_) async => const Right(null));
+      when(
+        () => mockRebuild('user-1'),
+      ).thenAnswer((_) async => const Right(null));
 
       final result = await useCase(_workoutSetFixture);
 
       expect(result.isRight(), isTrue);
-      verify(() => mockRebuild('')).called(1);
+      verify(() => mockRebuild('user-1')).called(1);
     });
 
     test('sets ownerUserId when session is authenticated', () async {
@@ -347,11 +348,12 @@ void main() {
     });
 
     test('propagates repository failure without rebuilding', () async {
+      final setWithOwner = _workoutSetFixture.copyWith(ownerUserId: 'user-1');
       when(
         () => mockSessionRepo.getCurrentSession(),
-      ).thenAnswer((_) async => const Left(CacheFailure('no session')));
+      ).thenAnswer((_) async => const Right(_authenticatedSession));
       when(
-        () => mockSetRepo.updateSet(_workoutSetFixture),
+        () => mockSetRepo.updateSet(setWithOwner),
       ).thenAnswer((_) async => const Left(_dbFailure));
 
       final result = await useCase(_workoutSetFixture);

@@ -28,8 +28,12 @@ class EnsureDefaultMeals {
       final sessionResult = await appSessionRepository.getCurrentSession();
       final String? userId = sessionResult.fold(
         (_) => null,
-        (session) => session.user?.id,
+        (session) => session.user.id,
       );
+
+      if (userId == null) {
+        return const Right(0);
+      }
 
       return await seedMeals(ownerUserId: userId);
     } catch (e, stackTrace) {

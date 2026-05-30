@@ -33,8 +33,9 @@ class ValidationException implements Exception {
   String toString() => 'ValidationException: $message';
 }
 
-/// Thrown by [UserScopedLocalDatasource.requireAuthenticatedOwnerId] when
-/// an auth-only datasource operation is invoked during a guest session.
+/// Thrown when a datasource or resolver is invoked without an authenticated
+/// user in context. Surfaces a session-lookup or sign-out race rather than
+/// silently returning empty data.
 class MissingUserContextException implements Exception {
   const MissingUserContextException({required this.operation});
 
@@ -42,5 +43,5 @@ class MissingUserContextException implements Exception {
 
   @override
   String toString() =>
-      'MissingUserContextException(operation: $operation): cannot run in guest mode';
+      'MissingUserContextException(operation: $operation): no authenticated user in context';
 }

@@ -92,60 +92,13 @@ abstract class BaseEntitySyncCoordinator<T> {
     );
   }
 
-  // ---------------------------------------------------------------------------
-  // Guest-owner guard (shared across all entity coordinators)
-  // ---------------------------------------------------------------------------
-
-  /// True when [ownerUserId] identifies a guest: null (legacy) or the guest
-  /// sentinel ''.  Guest rows must never be queued for a remote upsert — the
-  /// Supabase DTO requires a non-empty owner and RLS requires
-  /// `user_id = auth.uid()`.  They become syncable only after sign-in
-  /// adoption rewrites their owner to the real uid.
-  bool isGuestOwned(String? ownerUserId) =>
-      ownerUserId == null || ownerUserId.isEmpty;
-
-  /// [buildAddedSyncMetadata] variant that forces [SyncStatus.localOnly] for
-  /// guest-owned entities regardless of whether remote sync is configured.
-  EntitySyncMetadata guestAwareAddedSyncMetadata(
-    EntitySyncMetadata currentMetadata,
-    String? ownerUserId,
-  ) {
-    if (isGuestOwned(ownerUserId)) {
-      return currentMetadata.copyWith(
-        status: SyncStatus.localOnly,
-        clearLastSyncError: true,
-      );
-    }
-    return buildAddedSyncMetadata(currentMetadata);
-  }
-
-  /// [buildUpdatedSyncMetadata] variant that forces [SyncStatus.localOnly] for
-  /// guest-owned entities.
-  EntitySyncMetadata guestAwareUpdatedSyncMetadata({
-    required EntitySyncMetadata incomingMetadata,
-    required EntitySyncMetadata? existingLocalMetadata,
-    required String? ownerUserId,
-  }) {
-    if (isGuestOwned(ownerUserId)) {
-      return (existingLocalMetadata ?? incomingMetadata).copyWith(
-        status: SyncStatus.localOnly,
-        clearLastSyncError: true,
-      );
-    }
-    return buildUpdatedSyncMetadata(
-      incomingMetadata: incomingMetadata,
-      existingLocalMetadata: existingLocalMetadata,
-    );
-  }
-
-  /// Write-through entities whose metadata is `localOnly` (e.g. guest-owned
-  /// rows, or any write that intentionally opts out of remote sync) are
-  /// already in their terminal state once the local insert lands. Pushing
-  /// them anyway just produces an `AuthSyncException: unauthenticated` per
-  /// row from the remote DTO's `user_id` check, spamming the logs with a
-  /// failure that is by design and that the user has no way to act on.
-  /// The next legitimate sync (post sign-in, or sign-in adoption) drains
-  /// any rows that legitimately need to be uploaded.
+  /// Write-through entities whose metadata is `localOnly` (e.g. any write
+  /// that intentionally opts out of remote sync) are already in their
+  /// terminal state once the local insert lands. Pushing them anyway just
+  /// produces an `AuthSyncException: unauthenticated` per row from the
+  /// remote DTO's `user_id` check, spamming the logs with a failure that is
+  /// by design and that the user has no way to act on. The next legitimate
+  /// sync drains any rows that legitimately need to be uploaded.
   bool _shouldAttemptRemotePush(T localEntity) {
     return isRemoteSyncEnabled &&
         getSyncMetadata(localEntity).status != SyncStatus.localOnly;

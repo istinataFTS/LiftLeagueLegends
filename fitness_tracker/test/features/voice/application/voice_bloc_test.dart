@@ -3,7 +3,6 @@ import 'dart:async';
 import 'package:bloc_test/bloc_test.dart';
 import 'package:dartz/dartz.dart';
 import 'package:fitness_tracker/core/constants/app_strings.dart';
-import 'package:fitness_tracker/core/enums/auth_mode.dart';
 import 'package:fitness_tracker/core/errors/failures.dart';
 import 'package:fitness_tracker/core/network/network_status_service.dart';
 import 'package:fitness_tracker/core/platform/wakelock_service.dart';
@@ -419,19 +418,8 @@ void main() {
   });
 
   group('VoiceSessionStarted', () {
-    blocTest<VoiceBloc, VoiceState>(
-      'emits isGuest=true for unauthenticated session',
-      build: () => _makeBloc(
-        sendVoiceMessage: sendVoiceMessage,
-        getVoiceBudget: getBudget,
-        deleteVoiceHistory: deleteHistory,
-        appSettingsRepository: settingsRepo,
-      ),
-      act: (bloc) => bloc.add(const VoiceSessionStarted(AppSession.guest())),
-      expect: () => <Matcher>[
-        isA<VoiceState>().having((s) => s.isGuest, 'isGuest', isTrue),
-      ],
-    );
+    // "emits isGuest=true for unauthenticated session" removed: guest
+    // sessions no longer exist.
 
     blocTest<VoiceBloc, VoiceState>(
       'assigns a sessionId for authenticated session',
@@ -444,7 +432,6 @@ void main() {
       act: (bloc) => bloc.add(
         const VoiceSessionStarted(
           AppSession(
-            authMode: AuthMode.authenticated,
             user: AppUser(id: 'user-1', email: 'test@example.com'),
           ),
         ),
@@ -456,29 +443,7 @@ void main() {
   });
 
   group('VoiceSendMessage', () {
-    blocTest<VoiceBloc, VoiceState>(
-      'guest user gets error state without calling SendVoiceMessage',
-      build: () => _makeBloc(
-        sendVoiceMessage: sendVoiceMessage,
-        getVoiceBudget: getBudget,
-        deleteVoiceHistory: deleteHistory,
-        appSettingsRepository: settingsRepo,
-      ),
-      seed: () => const VoiceState(isGuest: true, sessionId: 'sid'),
-      act: (bloc) => bloc.add(const VoiceSendMessage('hello')),
-      expect: () => <Matcher>[
-        isA<VoiceState>().having((s) => s.status, 'status', VoiceStatus.error),
-      ],
-      verify: (_) => verifyNever(
-        () => sendVoiceMessage(
-          userMessage: any(named: 'userMessage'),
-          sessionId: any(named: 'sessionId'),
-          history: any(named: 'history'),
-          settings: any(named: 'settings'),
-          weightUnit: any(named: 'weightUnit'),
-        ),
-      ),
-    );
+    // "guest user gets error state" removed: guest sessions no longer exist.
 
     blocTest<VoiceBloc, VoiceState>(
       'happy path: thinking -> speaking -> idle, TTS is invoked',
@@ -502,7 +467,7 @@ void main() {
           tts: FakeVoiceTtsService(),
         );
       },
-      seed: () => const VoiceState(isGuest: false, sessionId: 'sid'),
+      seed: () => const VoiceState(sessionId: 'sid'),
       act: (bloc) => bloc.add(const VoiceSendMessage('bench press')),
       expect: () => <Matcher>[
         isA<VoiceState>().having(
@@ -542,7 +507,7 @@ void main() {
           appSettingsRepository: settingsRepo,
         );
       },
-      seed: () => const VoiceState(isGuest: false, sessionId: 'sid'),
+      seed: () => const VoiceState(sessionId: 'sid'),
       act: (bloc) => bloc.add(const VoiceSendMessage('hello')),
       expect: () => <Matcher>[
         isA<VoiceState>().having(
@@ -590,7 +555,7 @@ void main() {
           appSettingsRepository: settingsRepo,
         );
       },
-      seed: () => const VoiceState(isGuest: false, sessionId: 'sid'),
+      seed: () => const VoiceState(sessionId: 'sid'),
       act: (bloc) => bloc.add(const VoiceSendMessage('bench')),
       verify: (_) {
         final captured = verify(
@@ -622,7 +587,7 @@ void main() {
           stt: stt,
         );
       },
-      seed: () => const VoiceState(isGuest: false, sessionId: 'sid'),
+      seed: () => const VoiceState(sessionId: 'sid'),
       act: (bloc) => bloc.add(const VoiceListenRequested()),
       expect: () => <Matcher>[
         isA<VoiceState>().having((s) => s.status, 'status', VoiceStatus.error),
@@ -651,7 +616,7 @@ void main() {
           stt: sharedStt,
         );
       },
-      seed: () => const VoiceState(isGuest: false, sessionId: 'sid'),
+      seed: () => const VoiceState(sessionId: 'sid'),
       act: (bloc) async {
         bloc.add(const VoiceListenRequested());
         await Future<void>.delayed(const Duration(milliseconds: 10));
@@ -684,7 +649,7 @@ void main() {
         appSettingsRepository: settingsRepo,
         stt: sharedStt,
       ),
-      seed: () => const VoiceState(isGuest: false, sessionId: 'sid'),
+      seed: () => const VoiceState(sessionId: 'sid'),
       act: (bloc) async {
         bloc.add(const VoiceListenRequested());
         await Future<void>.delayed(const Duration(milliseconds: 10));
@@ -711,7 +676,7 @@ void main() {
         appSettingsRepository: settingsRepo,
         stt: sharedStt,
       ),
-      seed: () => const VoiceState(isGuest: false, sessionId: 'sid'),
+      seed: () => const VoiceState(sessionId: 'sid'),
       act: (bloc) async {
         bloc.add(const VoiceListenRequested());
         await Future<void>.delayed(const Duration(milliseconds: 10));
@@ -738,7 +703,7 @@ void main() {
         appSettingsRepository: settingsRepo,
         stt: sharedStt,
       ),
-      seed: () => const VoiceState(isGuest: false, sessionId: 'sid'),
+      seed: () => const VoiceState(sessionId: 'sid'),
       act: (bloc) async {
         bloc.add(const VoiceListenRequested());
         await Future<void>.delayed(const Duration(milliseconds: 10));
@@ -778,7 +743,7 @@ void main() {
           stt: sharedStt,
         );
       },
-      seed: () => const VoiceState(isGuest: false, sessionId: 'sid'),
+      seed: () => const VoiceState(sessionId: 'sid'),
       act: (bloc) async {
         bloc.add(const VoiceListenRequested());
         await Future<void>.delayed(const Duration(milliseconds: 10));
@@ -818,7 +783,6 @@ void main() {
         appSettingsRepository: settingsRepo,
       ),
       seed: () => VoiceState(
-        isGuest: false,
         sessionId: 'old-sid',
         messages: <VoiceMessage>[
           VoiceMessage(
@@ -852,7 +816,6 @@ void main() {
         );
       },
       seed: () => VoiceState(
-        isGuest: false,
         sessionId: 'sid',
         messages: <VoiceMessage>[
           VoiceMessage(
@@ -892,8 +855,7 @@ void main() {
         deleteVoiceHistory: deleteHistory,
         appSettingsRepository: settingsRepo,
       ),
-      seed: () =>
-          const VoiceState(isGuest: false, sessionId: 'sid', isOnline: true),
+      seed: () => const VoiceState(sessionId: 'sid', isOnline: true),
       act: (bloc) => bloc.add(const VoiceConnectivityChanged(isOnline: false)),
       expect: () => <Matcher>[
         isA<VoiceState>().having((s) => s.isOnline, 'isOnline', isFalse),
@@ -916,8 +878,7 @@ void main() {
         deleteVoiceHistory: deleteHistory,
         appSettingsRepository: settingsRepo,
       ),
-      seed: () =>
-          const VoiceState(isGuest: false, sessionId: 'sid', isOnline: false),
+      seed: () => const VoiceState(sessionId: 'sid', isOnline: false),
       act: (bloc) => bloc.add(const VoiceConnectivityChanged(isOnline: true)),
       expect: () => <Matcher>[
         isA<VoiceState>().having((s) => s.isOnline, 'isOnline', isTrue),
@@ -937,7 +898,6 @@ void main() {
         );
       },
       seed: () => const VoiceState(
-        isGuest: false,
         sessionId: 'sid',
         isOnline: true,
         hasAnnouncedOfflineThisSession: false,
@@ -963,7 +923,6 @@ void main() {
       ),
       // Simulate: user was offline, came back online, goes offline again.
       seed: () => const VoiceState(
-        isGuest: false,
         sessionId: 'sid',
         isOnline: true,
         hasAnnouncedOfflineThisSession: true, // already announced once
@@ -992,7 +951,7 @@ void main() {
         deleteVoiceHistory: deleteHistory,
         appSettingsRepository: settingsRepo,
       ),
-      seed: () => const VoiceState(isGuest: false, sessionId: 'sid'),
+      seed: () => const VoiceState(sessionId: 'sid'),
       act: (bloc) => bloc.add(
         const VoiceConnectivityChanged(isOnline: true),
       ), // already true
@@ -1122,8 +1081,7 @@ void main() {
           tts: sharedTts,
         );
       },
-      seed: () =>
-          const VoiceState(isGuest: false, sessionId: 'sid', isOnline: true),
+      seed: () => const VoiceState(sessionId: 'sid', isOnline: true),
       act: (bloc) async {
         bloc.add(const VoiceConnectivityChanged(isOnline: false));
         await Future<void>.delayed(const Duration(milliseconds: 30));
@@ -1169,7 +1127,6 @@ void main() {
   }
 
   AppSession authSession() => const AppSession(
-    authMode: AuthMode.authenticated,
     user: AppUser(id: 'u1', email: 'a@b.com'),
   );
 
@@ -1808,7 +1765,6 @@ void main() {
         appSettingsRepository: settingsRepo,
       ),
       seed: () => const VoiceState(
-        isGuest: false,
         sessionId: 'sid',
         pendingConfirmation: VoiceToolCall(
           id: 'call-1',
@@ -1879,9 +1835,7 @@ void main() {
           offlineCoordinator: offlineCoordinator,
         );
 
-        bloc.emit(
-          const VoiceState(isGuest: false, sessionId: 'sid', isOnline: false),
-        );
+        bloc.emit(const VoiceState(sessionId: 'sid', isOnline: false));
 
         bloc.add(const VoiceSendMessage('log bench press'));
         await Future<void>.delayed(Duration.zero);
@@ -1936,9 +1890,7 @@ void main() {
         offlineCoordinator: offlineCoordinator,
       );
 
-      bloc.emit(
-        const VoiceState(isGuest: false, sessionId: 'sid', isOnline: false),
-      );
+      bloc.emit(const VoiceState(sessionId: 'sid', isOnline: false));
 
       bloc.add(const VoiceSendMessage('log bench press 80 kg 10 reps'));
       await Future<void>.delayed(Duration.zero);
@@ -2004,9 +1956,7 @@ void main() {
 
       final effectFuture = bloc.effects.first;
 
-      bloc.emit(
-        const VoiceState(isGuest: false, sessionId: 'sid', isOnline: false),
-      );
+      bloc.emit(const VoiceState(sessionId: 'sid', isOnline: false));
 
       bloc.add(const VoiceSendMessage('change the weight to 90 kg'));
       await Future<void>.delayed(const Duration(milliseconds: 200));
@@ -2046,9 +1996,7 @@ void main() {
         offlineCoordinator: offlineCoordinator,
       );
 
-      bloc.emit(
-        const VoiceState(isGuest: false, sessionId: 'sid', isOnline: true),
-      );
+      bloc.emit(const VoiceState(sessionId: 'sid', isOnline: true));
 
       bloc.add(const VoiceSendMessage('hello'));
       await Future<void>.delayed(Duration.zero);
@@ -2256,7 +2204,6 @@ void main() {
         appSettingsRepository: settingsRepo,
       ),
       seed: () => const VoiceState(
-        isGuest: false,
         sessionId: 'sid',
         status: VoiceStatus.awaitingConfirmation,
         pendingConfirmation: VoiceToolCall(
@@ -2294,7 +2241,6 @@ void main() {
         appSettingsRepository: settingsRepo,
       ),
       seed: () => const VoiceState(
-        isGuest: false,
         sessionId: 'sid',
         status: VoiceStatus.awaitingConfirmation,
         pendingConfirmation: VoiceToolCall(
@@ -2332,7 +2278,6 @@ void main() {
       );
       bloc.emit(
         const VoiceState(
-          isGuest: false,
           sessionId: 'sid',
           status: VoiceStatus.awaitingConfirmation,
           pendingConfirmation: VoiceToolCall(
@@ -2390,7 +2335,7 @@ void main() {
           appSettingsRepository: settingsRepo,
         );
       },
-      seed: () => const VoiceState(isGuest: false, sessionId: 'sid'),
+      seed: () => const VoiceState(sessionId: 'sid'),
       act: (bloc) => bloc.add(
         const VoiceTranscriptReceived(transcript: 'cancel', isFinal: true),
       ),

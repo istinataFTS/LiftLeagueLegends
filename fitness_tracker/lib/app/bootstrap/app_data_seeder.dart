@@ -53,15 +53,20 @@ class AppDataSeeder {
     debugPrint('Seeding database...');
     final seedStart = DateTime.now();
 
-    // Per-user catalog model: seed for the active account — the guest
-    // sentinel '' on a fresh launch, or a restored authenticated uid. The
-    // resolved owner is exactly the owner SeedExercises' owner-scoped
-    // "already seeded" check evaluates against, so the check and the stamp
-    // always agree and seeding stays per-account idempotent.
-    final resolver = CurrentUserIdResolver(
-      appSessionRepository: di.sl<AppSessionRepository>(),
-    );
-    final ownerId = await resolver.resolve();
+    // Per-user catalog model: seed for the active authenticated account.
+    // On a cold boot before sign-in there is no user in context — skip
+    // seeding entirely. `AccountCatalogProvisionHook` handles the post
+    // sign-in seed/heal path.
+    final String ownerId;
+    try {
+      final resolver = CurrentUserIdResolver(
+        appSessionRepository: di.sl<AppSessionRepository>(),
+      );
+      ownerId = await resolver.resolve();
+    } catch (_) {
+      debugPrint('ℹ️ Skipping catalog seed — no authenticated user yet.');
+      return;
+    }
 
     final seedMeals = di.sl<SeedMeals>();
     final mealsResult = await seedMeals(ownerUserId: ownerId);
@@ -175,11 +180,19 @@ class AppDataSeeder {
 
     // Use the shared resolver so the id we rebuild against matches the id
     // used on write paths (WorkoutBloc / AddExercise) and read paths
-    // (MuscleVisualBloc).  Guest sessions resolve to [kGuestUserId].
-    final resolver = CurrentUserIdResolver(
-      appSessionRepository: di.sl<AppSessionRepository>(),
-    );
-    final userId = await resolver.resolve();
+    // (MuscleVisualBloc). Skip silently when no authenticated user is in
+    // context (cold boot before sign-in) — the rebuild will run on next
+    // sign-in via the session sync service.
+    final String userId;
+    try {
+      final resolver = CurrentUserIdResolver(
+        appSessionRepository: di.sl<AppSessionRepository>(),
+      );
+      userId = await resolver.resolve();
+    } catch (_) {
+      debugPrint('ℹ️ Skipping stimulus rebuild — no authenticated user yet.');
+      return;
+    }
 
     final rebuild = di.sl<RebuildMuscleStimulusFromWorkoutHistory>();
     final rebuildResult = await rebuild(userId);

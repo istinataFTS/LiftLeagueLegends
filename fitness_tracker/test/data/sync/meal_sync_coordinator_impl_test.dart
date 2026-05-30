@@ -1,4 +1,4 @@
-import 'package:fitness_tracker/core/enums/sync_entity_type.dart';
+﻿import 'package:fitness_tracker/core/enums/sync_entity_type.dart';
 import 'package:fitness_tracker/core/enums/sync_status.dart';
 import 'package:fitness_tracker/data/datasources/local/meal_local_datasource.dart';
 import 'package:fitness_tracker/data/datasources/local/pending_sync_delete_local_datasource.dart';
@@ -169,10 +169,10 @@ void main() {
   });
 
   // ---------------------------------------------------------------------------
-  // Guest-owner guard
+  // Sync metadata stamping (user-owned only — guest-owner guard removed)
   // ---------------------------------------------------------------------------
 
-  group('guest-owner guard', () {
+  group('sync metadata', () {
     Meal buildMealEntity({String? ownerUserId}) => Meal(
       id: 'meal-1',
       ownerUserId: ownerUserId,
@@ -183,32 +183,6 @@ void main() {
       fatPer100g: 10,
       caloriesPer100g: 290,
       createdAt: baseDate,
-    );
-
-    test('buildAddedLocalEntity stamps null-owner meal as localOnly even when '
-        'remote is configured', () {
-      when(() => remoteDataSource.isConfigured).thenReturn(true);
-
-      final result = coordinator.buildAddedLocalEntity(
-        buildMealEntity(ownerUserId: null),
-        baseDate,
-      );
-
-      expect(result.syncMetadata.status, SyncStatus.localOnly);
-    });
-
-    test(
-      "buildAddedLocalEntity stamps guest-sentinel ('') meal as localOnly",
-      () {
-        when(() => remoteDataSource.isConfigured).thenReturn(true);
-
-        final result = coordinator.buildAddedLocalEntity(
-          buildMealEntity(ownerUserId: ''),
-          baseDate,
-        );
-
-        expect(result.syncMetadata.status, SyncStatus.localOnly);
-      },
     );
 
     test(
@@ -222,33 +196,6 @@ void main() {
         );
 
         expect(result.syncMetadata.status, SyncStatus.pendingUpload);
-      },
-    );
-
-    test('buildUpdatedLocalEntity stamps null-owner meal as localOnly', () {
-      when(() => remoteDataSource.isConfigured).thenReturn(true);
-
-      final result = coordinator.buildUpdatedLocalEntity(
-        entity: buildMealEntity(ownerUserId: null),
-        existingLocal: null,
-        now: baseDate,
-      );
-
-      expect(result.syncMetadata.status, SyncStatus.localOnly);
-    });
-
-    test(
-      "buildUpdatedLocalEntity stamps guest-sentinel ('') meal as localOnly",
-      () {
-        when(() => remoteDataSource.isConfigured).thenReturn(true);
-
-        final result = coordinator.buildUpdatedLocalEntity(
-          entity: buildMealEntity(ownerUserId: ''),
-          existingLocal: null,
-          now: baseDate,
-        );
-
-        expect(result.syncMetadata.status, SyncStatus.localOnly);
       },
     );
   });

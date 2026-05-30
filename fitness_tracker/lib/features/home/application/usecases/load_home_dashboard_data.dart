@@ -70,12 +70,12 @@ class LoadHomeDashboardData {
 
   /// Resolves both the per-muscle counts and the total weekly set count via
   /// [MuscleLoadResolver] so the body map, the muscle-group progress list,
-  /// and the "Sets" stat card all derive from the same pipeline. Guest
-  /// sessions or resolver errors collapse to the empty/zero defaults rather
-  /// than surface as a dashboard load failure.
+  /// and the "Sets" stat card all derive from the same pipeline. A failed
+  /// session lookup collapses to the empty/zero defaults rather than
+  /// surfacing as a dashboard load failure.
   Future<_WeeklyMuscleLoad> _loadWeeklyMuscleLoad() async {
     final sessionResult = await _appSessionRepository.getCurrentSession();
-    final String? userId = sessionResult.fold((_) => null, (s) => s.user?.id);
+    final String? userId = sessionResult.fold((_) => null, (s) => s.user.id);
     if (userId == null) return const _WeeklyMuscleLoad.empty();
 
     final now = _clock.now();

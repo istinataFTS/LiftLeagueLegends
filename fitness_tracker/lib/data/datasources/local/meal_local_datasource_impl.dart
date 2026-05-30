@@ -1,4 +1,4 @@
-import 'package:sqflite/sqflite.dart';
+﻿import 'package:sqflite/sqflite.dart';
 
 import '../../../core/constants/database_tables.dart';
 import '../../../core/errors/exceptions.dart';
@@ -43,7 +43,7 @@ class MealLocalDataSourceImpl extends UserScopedLocalDatasource
   @override
   Future<MealModel?> getMealByName(String name) async {
     try {
-      final ownerId = await resolveOwnerId();
+      final ownerId = await this.ownerId();
       final db = await databaseHelper.database;
       final f = whereOwned(
         ownerId: ownerId,
@@ -72,7 +72,7 @@ class MealLocalDataSourceImpl extends UserScopedLocalDatasource
   @override
   Future<List<MealModel>> searchMealsByName(String searchTerm) async {
     try {
-      final ownerId = await resolveOwnerId();
+      final ownerId = await this.ownerId();
       final db = await databaseHelper.database;
       final f = whereOwned(
         ownerId: ownerId,
@@ -96,7 +96,7 @@ class MealLocalDataSourceImpl extends UserScopedLocalDatasource
   @override
   Future<List<MealModel>> getRecentMeals({int limit = 10}) async {
     try {
-      final ownerId = await resolveOwnerId();
+      final ownerId = await this.ownerId();
       final db = await databaseHelper.database;
       final f = whereOwned(
         ownerId: ownerId,
@@ -125,7 +125,7 @@ class MealLocalDataSourceImpl extends UserScopedLocalDatasource
   @override
   Future<List<MealModel>> getPendingSyncMeals() async {
     try {
-      final ownerId = await resolveOwnerId();
+      final ownerId = await this.ownerId();
       final db = await databaseHelper.database;
       final f = whereOwned(
         ownerId: ownerId,
@@ -230,9 +230,7 @@ class MealLocalDataSourceImpl extends UserScopedLocalDatasource
 
   @override
   Future<void> prepareForInitialCloudMigration({required String userId}) async {
-    await requireAuthenticatedOwnerId(
-      operation: 'prepareForInitialCloudMigration',
-    );
+    await ownerId();
     try {
       final storedMeals = await _getStoredMeals();
       final preparedMeals = storedMeals
@@ -409,7 +407,7 @@ class MealLocalDataSourceImpl extends UserScopedLocalDatasource
   @override
   Future<int> getMealsCount() async {
     try {
-      final ownerId = await resolveOwnerId();
+      final ownerId = await this.ownerId();
       final db = await databaseHelper.database;
       final result = await db.rawQuery(
         '''
@@ -428,7 +426,7 @@ class MealLocalDataSourceImpl extends UserScopedLocalDatasource
   }
 
   Future<List<MealModel>> _getVisibleMeals() async {
-    final ownerId = await resolveOwnerId();
+    final ownerId = await this.ownerId();
     final db = await databaseHelper.database;
     final f = whereOwned(
       ownerId: ownerId,
@@ -447,7 +445,7 @@ class MealLocalDataSourceImpl extends UserScopedLocalDatasource
   }
 
   Future<MealModel?> _getVisibleMealById(String id) async {
-    final ownerId = await resolveOwnerId();
+    final ownerId = await this.ownerId();
     final db = await databaseHelper.database;
     final f = whereOwned(
       ownerId: ownerId,
@@ -592,9 +590,6 @@ class MealLocalDataSourceImpl extends UserScopedLocalDatasource
     String userId,
   ) {
     final ownerUserId = meal.ownerUserId;
-    if (ownerUserId == null || ownerUserId.isEmpty) {
-      return meal;
-    }
     if (ownerUserId != userId) {
       return meal;
     }

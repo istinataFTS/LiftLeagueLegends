@@ -1,5 +1,4 @@
 import 'package:dartz/dartz.dart';
-import 'package:fitness_tracker/core/enums/auth_mode.dart';
 import 'package:fitness_tracker/core/enums/data_source_preference.dart';
 import 'package:fitness_tracker/core/errors/failures.dart';
 import 'package:fitness_tracker/domain/entities/app_session.dart';
@@ -43,7 +42,6 @@ final _logFixture = NutritionLog(
 );
 
 const _authenticatedSession = AppSession(
-  authMode: AuthMode.authenticated,
   user: AppUser(id: 'user-1', email: 'test@example.com'),
 );
 
@@ -78,19 +76,8 @@ void main() {
       );
     });
 
-    test('does not set ownerUserId when session fails', () async {
-      when(
-        () => mockSessionRepo.getCurrentSession(),
-      ).thenAnswer((_) async => const Left(CacheFailure('no session')));
-      when(
-        () => mockLogRepo.addLog(_logFixture),
-      ).thenAnswer((_) async => const Right(null));
-
-      final result = await useCase(_logFixture);
-
-      expect(result.isRight(), isTrue);
-      verify(() => mockLogRepo.addLog(_logFixture)).called(1);
-    });
+    // "does not set ownerUserId when session fails" removed: AddNutritionLog
+    // now propagates the session failure instead of using a guest fallback.
 
     test('sets ownerUserId when session is authenticated', () async {
       final logWithOwner = _logFixture.copyWith(ownerUserId: 'user-1');
@@ -108,29 +95,15 @@ void main() {
       verify(() => mockLogRepo.addLog(logWithOwner)).called(1);
     });
 
-    test(
-      'does not set ownerUserId for unauthenticated guest session',
-      () async {
-        when(
-          () => mockSessionRepo.getCurrentSession(),
-        ).thenAnswer((_) async => const Right(AppSession.guest()));
-        when(
-          () => mockLogRepo.addLog(_logFixture),
-        ).thenAnswer((_) async => const Right(null));
-
-        final result = await useCase(_logFixture);
-
-        expect(result.isRight(), isTrue);
-        verify(() => mockLogRepo.addLog(_logFixture)).called(1);
-      },
-    );
+    // "does not set ownerUserId for unauthenticated guest session" removed.
 
     test('propagates repository failure', () async {
+      final logWithOwner = _logFixture.copyWith(ownerUserId: 'user-1');
       when(
         () => mockSessionRepo.getCurrentSession(),
-      ).thenAnswer((_) async => const Left(CacheFailure('no session')));
+      ).thenAnswer((_) async => const Right(_authenticatedSession));
       when(
-        () => mockLogRepo.addLog(_logFixture),
+        () => mockLogRepo.addLog(logWithOwner),
       ).thenAnswer((_) async => const Left(_dbFailure));
 
       final result = await useCase(_logFixture);
@@ -376,29 +349,28 @@ void main() {
       );
     });
 
-    test(
-      'updates log without changing ownerUserId when session fails',
-      () async {
-        when(
-          () => mockSessionRepo.getCurrentSession(),
-        ).thenAnswer((_) async => const Left(CacheFailure('no session')));
-        when(
-          () => mockLogRepo.updateLog(_logFixture),
-        ).thenAnswer((_) async => const Right(null));
-
-        final result = await useCase(_logFixture);
-
-        expect(result.isRight(), isTrue);
-        verify(() => mockLogRepo.updateLog(_logFixture)).called(1);
-      },
-    );
-
-    test('propagates repository failure', () async {
+    test('stamps ownerUserId from the current authenticated session', () async {
+      final logWithOwner = _logFixture.copyWith(ownerUserId: 'user-1');
       when(
         () => mockSessionRepo.getCurrentSession(),
-      ).thenAnswer((_) async => const Left(CacheFailure('no session')));
+      ).thenAnswer((_) async => const Right(_authenticatedSession));
       when(
-        () => mockLogRepo.updateLog(_logFixture),
+        () => mockLogRepo.updateLog(logWithOwner),
+      ).thenAnswer((_) async => const Right(null));
+
+      final result = await useCase(_logFixture);
+
+      expect(result.isRight(), isTrue);
+      verify(() => mockLogRepo.updateLog(logWithOwner)).called(1);
+    });
+
+    test('propagates repository failure', () async {
+      final logWithOwner = _logFixture.copyWith(ownerUserId: 'user-1');
+      when(
+        () => mockSessionRepo.getCurrentSession(),
+      ).thenAnswer((_) async => const Right(_authenticatedSession));
+      when(
+        () => mockLogRepo.updateLog(logWithOwner),
       ).thenAnswer((_) async => const Left(_dbFailure));
 
       final result = await useCase(_logFixture);

@@ -1,6 +1,5 @@
 import 'package:dartz/dartz.dart';
 import 'package:fitness_tracker/core/config/app_sync_policy.dart';
-import 'package:fitness_tracker/core/enums/auth_mode.dart';
 import 'package:fitness_tracker/core/errors/failures.dart';
 import 'package:fitness_tracker/domain/entities/app_session.dart';
 import 'package:fitness_tracker/domain/entities/app_user.dart';
@@ -73,7 +72,6 @@ void main() {
     when(() => appSessionRepository.getCurrentSession()).thenAnswer(
       (_) async => Right(
         AppSession(
-          authMode: AuthMode.authenticated,
           user: const AppUser(id: 'user-123', email: 'user@test.com'),
         ),
       ),
@@ -88,39 +86,26 @@ void main() {
     expect(captured.ownerUserId, 'user-123');
   });
 
-  test('keeps guest workout set owner unchanged', () async {
-    when(
-      () => appSessionRepository.getCurrentSession(),
-    ).thenAnswer((_) async => const Right(AppSession.guest()));
+  // "keeps guest workout set owner unchanged" and
+  // "falls back to original set when session lookup fails" removed:
+  // AddWorkoutSet now propagates the session failure rather than falling
+  // back to a guest sentinel.
 
-    await usecase(baseSet);
-
-    final captured =
-        verify(() => workoutSetRepository.addSet(captureAny())).captured.single
-            as WorkoutSet;
-
-    expect(captured.ownerUserId, isNull);
-  });
-
-  test('falls back to original set when session lookup fails', () async {
+  test('returns Left when session lookup fails', () async {
     when(
       () => appSessionRepository.getCurrentSession(),
     ).thenAnswer((_) async => Left(CacheFailure('session unavailable')));
 
-    await usecase(baseSet);
+    final result = await usecase(baseSet);
 
-    final captured =
-        verify(() => workoutSetRepository.addSet(captureAny())).captured.single
-            as WorkoutSet;
-
-    expect(captured.ownerUserId, isNull);
+    expect(result.isLeft(), isTrue);
+    verifyNever(() => workoutSetRepository.addSet(any()));
   });
 
   test('triggers full muscle stimulus rebuild after successful add', () async {
     when(() => appSessionRepository.getCurrentSession()).thenAnswer(
       (_) async => Right(
         AppSession(
-          authMode: AuthMode.authenticated,
           user: const AppUser(id: 'user-123', email: 'user@test.com'),
         ),
       ),
@@ -135,9 +120,13 @@ void main() {
     when(
       () => workoutSetRepository.addSet(any()),
     ).thenAnswer((_) async => const Left(DatabaseFailure('write failed')));
-    when(
-      () => appSessionRepository.getCurrentSession(),
-    ).thenAnswer((_) async => const Right(AppSession.guest()));
+    when(() => appSessionRepository.getCurrentSession()).thenAnswer(
+      (_) async => Right(
+        AppSession(
+          user: const AppUser(id: 'user-123', email: 'user@test.com'),
+        ),
+      ),
+    );
 
     await usecase(baseSet);
 

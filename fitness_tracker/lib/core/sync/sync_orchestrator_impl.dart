@@ -216,7 +216,7 @@ class SyncOrchestratorImpl implements SyncOrchestrator {
   ) async {
     AppLogger.info('Sync orchestration started for $trigger', category: 'sync');
 
-    final userId = session.user?.id ?? '';
+    final userId = session.user.id;
     final since = session.lastCloudSyncAt;
 
     final List<SyncFeatureRunResult> featureResults = <SyncFeatureRunResult>[];
@@ -309,11 +309,11 @@ class SyncOrchestratorImpl implements SyncOrchestrator {
       return;
     }
 
-    final userId = session.user?.id;
-    if (userId == null || userId.isEmpty) {
-      // Hooks need a concrete user scope to operate on. A guest or
-      // unresolved session must never reach this code path, but guard
-      // defensively in case the session contract changes.
+    final userId = session.user.id;
+    if (userId.isEmpty) {
+      // Hooks need a concrete user scope to operate on. An empty user id
+      // must never reach this code path, but guard defensively in case the
+      // session contract changes.
       return;
     }
 

@@ -203,7 +203,6 @@ class VoiceState extends Equatable {
     this.messages = const <VoiceMessage>[],
     this.budget,
     this.sessionId,
-    this.isGuest = false,
     this.errorMessage,
     this.liveTranscript = '',
     this.pendingConfirmation,
@@ -223,10 +222,6 @@ class VoiceState extends Equatable {
 
   /// Server-side session UUID. Null until [VoiceSessionStarted] fires.
   final String? sessionId;
-
-  /// True for unauthenticated sessions — voice features are gated
-  /// behind sign-in in v1.
-  final bool isGuest;
 
   /// Set when [status] == [VoiceStatus.error]. Already mapped to a
   /// user-facing string by the bloc; the UI never has to translate.
@@ -264,7 +259,6 @@ class VoiceState extends Equatable {
     List<VoiceMessage>? messages,
     VoiceBudget? budget,
     String? sessionId,
-    bool? isGuest,
     String? errorMessage,
     String? liveTranscript,
     VoiceToolCall? pendingConfirmation,
@@ -280,7 +274,6 @@ class VoiceState extends Equatable {
       messages: messages ?? this.messages,
       budget: budget ?? this.budget,
       sessionId: sessionId ?? this.sessionId,
-      isGuest: isGuest ?? this.isGuest,
       errorMessage: clearError ? null : errorMessage ?? this.errorMessage,
       liveTranscript: clearTranscript
           ? ''
@@ -301,7 +294,6 @@ class VoiceState extends Equatable {
     messages,
     budget,
     sessionId,
-    isGuest,
     errorMessage,
     liveTranscript,
     pendingConfirmation,
@@ -491,8 +483,6 @@ class VoiceBloc extends Bloc<VoiceEvent, VoiceState>
   // ---------------------------------------------------------------------------
 
   void _onSessionStarted(VoiceSessionStarted event, Emitter<VoiceState> emit) {
-    final isGuest = !event.session.isAuthenticated;
-    final sessionId = isGuest ? null : _uuid.v4();
     // Reset per-session recent-entity caches on new session.
     // ExerciseLookup is a singleton whose cache persists across sessions
     // (the exercise library is static) — it is NOT reset here.
@@ -500,8 +490,7 @@ class VoiceBloc extends Bloc<VoiceEvent, VoiceState>
     _cachedNutritionLogs = <NutritionLog>[];
     emit(
       state.copyWith(
-        isGuest: isGuest,
-        sessionId: sessionId,
+        sessionId: _uuid.v4(),
         messages: const <VoiceMessage>[],
         status: VoiceStatus.idle,
         clearError: true,
@@ -518,7 +507,7 @@ class VoiceBloc extends Bloc<VoiceEvent, VoiceState>
     VoiceListenRequested event,
     Emitter<VoiceState> emit,
   ) async {
-    if (_rejectGuest(emit) || _rejectBusy()) return;
+    if (_rejectBusy()) return;
     _ensureSessionId(emit);
 
     try {
@@ -692,7 +681,6 @@ class VoiceBloc extends Bloc<VoiceEvent, VoiceState>
     VoiceSendMessage event,
     Emitter<VoiceState> emit,
   ) async {
-    if (_rejectGuest(emit)) return;
     final sid = _ensureSessionId(emit);
 
     final userMsg = VoiceMessage(
@@ -1475,7 +1463,6 @@ class VoiceBloc extends Bloc<VoiceEvent, VoiceState>
     VoiceBudgetRefreshRequested event,
     Emitter<VoiceState> emit,
   ) async {
-    if (state.isGuest) return;
     final result = await _getVoiceBudget();
     result.fold((_) {}, (budget) => emit(state.copyWith(budget: budget)));
   }
@@ -1484,7 +1471,6 @@ class VoiceBloc extends Bloc<VoiceEvent, VoiceState>
     VoiceHistoryDeleteRequested event,
     Emitter<VoiceState> emit,
   ) async {
-    if (state.isGuest) return;
     final result = await _deleteVoiceHistory();
     result.fold(
       (failure) => emit(state.copyWith(errorMessage: _messageFor(failure))),
@@ -1571,17 +1557,6 @@ class VoiceBloc extends Bloc<VoiceEvent, VoiceState>
   // ---------------------------------------------------------------------------
   // Helpers
   // ---------------------------------------------------------------------------
-
-  bool _rejectGuest(Emitter<VoiceState> emit) {
-    if (!state.isGuest) return false;
-    emit(
-      state.copyWith(
-        status: VoiceStatus.error,
-        errorMessage: 'Sign in to use the voice assistant.',
-      ),
-    );
-    return true;
-  }
 
   /// Returns true if the bloc is already mid-operation. Caller should
   /// silently drop the event — re-entering a state would corrupt the

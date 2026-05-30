@@ -14,14 +14,10 @@ class AddNutritionLog {
   Future<Either<Failure, void>> call(NutritionLog log) async {
     final sessionResult = await appSessionRepository.getCurrentSession();
 
-    final preparedLog = sessionResult.fold((_) => log, (session) {
-      if (!session.isAuthenticated || session.user == null) {
-        return log;
-      }
-
-      return log.copyWith(ownerUserId: session.user!.id);
-    });
-
-    return repository.addLog(preparedLog);
+    return sessionResult.fold(
+      (failure) => Left(failure),
+      (session) =>
+          repository.addLog(log.copyWith(ownerUserId: session.user.id)),
+    );
   }
 }

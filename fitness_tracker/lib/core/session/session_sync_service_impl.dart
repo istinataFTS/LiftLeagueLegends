@@ -1,5 +1,4 @@
 import '../../core/logging/app_logger.dart';
-import '../../core/session/current_user_id_resolver.dart';
 import '../../data/datasources/local/exercise_local_datasource.dart';
 import '../../data/datasources/local/meal_local_datasource.dart';
 import '../../data/datasources/local/muscle_stimulus_local_datasource.dart';
@@ -129,10 +128,12 @@ class SessionSyncServiceImpl implements SessionSyncService {
 
   @override
   Future<SessionSyncActionResult> signOut() async {
-    // Capture the owner id now, before the session is cleared.
-    // '' resolves to the guest bucket; null means session lookup failed (skip clear).
+    // Capture the owner id now, before the session is cleared. A failed
+    // lookup (no authenticated user in context) yields null and we skip
+    // the per-owner clear — there is no longer a guest bucket to fall back
+    // to. The pending-delete queue is still drained below.
     final sessionResult = await appSessionRepository.getCurrentSession();
-    final ownerId = sessionResult.fold((_) => null, (s) => s.user?.id ?? '');
+    final ownerId = sessionResult.fold((_) => null, (s) => s.user.id);
 
     try {
       await authRemoteDataSource.signOut();
@@ -168,12 +169,6 @@ class SessionSyncServiceImpl implements SessionSyncService {
       },
       (_) async {
         await _clearAllLocalUserData(ownerId);
-
-        // Rebuild the guest stimulus projection so the body map immediately
-        // reflects the returning guest's own workout history, not the
-        // just-signed-out account's. Failure is non-fatal — the map
-        // self-heals on the next workout log.
-        await _rebuildMuscleStimulus(kGuestUserId);
 
         AppLogger.info(
           'Session signed out, local session reset, and local user data cleared',
@@ -224,7 +219,7 @@ class SessionSyncServiceImpl implements SessionSyncService {
     );
   }
 
-  /// Clears local data belonging to [ownerId] ('' for the guest bucket).
+  /// Clears local data belonging to [ownerId].
   ///
   /// If [ownerId] is null the session lookup failed and nothing is cleared.
   /// Ordering matters for FK integrity: meals before nutrition_logs.
@@ -236,22 +231,16 @@ class SessionSyncServiceImpl implements SessionSyncService {
       await mealLocalDataSource.clearMealsForOwner(ownerId);
       await nutritionLogLocalDataSource.clearLogsForOwner(ownerId);
       await workoutSetLocalDataSource.clearSetsForOwner(ownerId);
+      await Future.wait(<Future<void>>[
+        exerciseLocalDataSource.clearUserOwnedExercises(ownerId),
+        muscleStimulusLocalDataSource.clearStimulusForUser(ownerId),
+      ]);
 
-      // exercises and muscle_stimulus: only for authenticated owners.
-      // The guest '' catalog must survive so a returning guest still has
-      // exercises; stimulus is irrelevant for guest sessions.
-      if (ownerId.isNotEmpty) {
-        await Future.wait(<Future<void>>[
-          exerciseLocalDataSource.clearUserOwnedExercises(ownerId),
-          muscleStimulusLocalDataSource.clearStimulusForUser(ownerId),
-        ]);
-      }
-
-      // Clear the pending-delete queue regardless of account type.
-      // The table has no owner column, so all entries belong to whichever user
-      // was active. Leaving them in causes the next session's sync to attempt
-      // the old user's server deletes with the new user's auth token (Supabase
-      // RLS would block them, but they'd keep retrying and polluting logs).
+      // Clear the pending-delete queue regardless. The table has no owner
+      // column, so all entries belong to whichever user was active. Leaving
+      // them in causes the next session's sync to attempt the old user's
+      // server deletes with the new user's auth token (Supabase RLS would
+      // block them, but they'd keep retrying and polluting logs).
       await pendingSyncDeleteLocalDataSource.clearAll();
     } catch (error) {
       AppLogger.warning(

@@ -11,6 +11,17 @@ import 'package:fitness_tracker/core/utils/deterministic_catalog_id.dart';
 import 'package:fitness_tracker/data/datasources/local/database_helper.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:sqflite_common_ffi/sqflite_ffi.dart';
+import 'package:uuid/uuid.dart';
+
+/// Legacy name-only UUIDv5 derivation. Preserved here so the v21 migration
+/// test can still assert against the historical id scheme that the v21
+/// migration rewrote rows to. `DeterministicCatalogId.fromName` was removed
+/// in the guest-mode removal initiative; new code must use
+/// `forOwner({ownerUserId, name})` with a non-empty owner.
+String _legacyNameOnlyId(String name) => const Uuid().v5(
+  DeterministicCatalogId.namespace,
+  DeterministicCatalogId.canonicalName(name),
+);
 
 void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
@@ -96,8 +107,8 @@ void main() {
         DatabaseTables.nutritionLogSyncStatus: 'localOnly',
       });
 
-  final benchId = DeterministicCatalogId.fromName('Bench Press');
-  final chickenId = DeterministicCatalogId.fromName('Chicken Breast');
+  final benchId = _legacyNameOnlyId('Bench Press');
+  final chickenId = _legacyNameOnlyId('Chicken Breast');
 
   test('rewrites default exercise id and repoints workout_sets', () async {
     await insertExercise('old-rand-1', 'Bench Press');

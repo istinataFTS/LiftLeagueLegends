@@ -46,10 +46,7 @@ class WorkoutSetSyncCoordinatorImpl
   WorkoutSet buildAddedLocalEntity(WorkoutSet entity, DateTime now) {
     return entity.copyWith(
       updatedAt: now,
-      syncMetadata: guestAwareAddedSyncMetadata(
-        entity.syncMetadata,
-        entity.ownerUserId,
-      ),
+      syncMetadata: buildAddedSyncMetadata(entity.syncMetadata),
     );
   }
 
@@ -61,10 +58,9 @@ class WorkoutSetSyncCoordinatorImpl
   }) {
     return entity.copyWith(
       updatedAt: now,
-      syncMetadata: guestAwareUpdatedSyncMetadata(
+      syncMetadata: buildUpdatedSyncMetadata(
         incomingMetadata: entity.syncMetadata,
         existingLocalMetadata: existingLocal?.syncMetadata,
-        ownerUserId: entity.ownerUserId,
       ),
     );
   }

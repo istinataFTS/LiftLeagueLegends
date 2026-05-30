@@ -1,6 +1,5 @@
 import 'package:bloc_test/bloc_test.dart';
 import 'package:dartz/dartz.dart';
-import 'package:fitness_tracker/core/enums/auth_mode.dart';
 import 'package:fitness_tracker/core/errors/failures.dart';
 import 'package:fitness_tracker/domain/entities/app_session.dart';
 import 'package:fitness_tracker/domain/entities/app_user.dart';
@@ -23,7 +22,6 @@ class MockAppSessionRepository extends Mock implements AppSessionRepository {}
 
 const String _testUserId = 'user-1';
 const _authenticatedSession = AppSession(
-  authMode: AuthMode.authenticated,
   user: AppUser(id: _testUserId, email: 'user@test.com'),
 );
 
@@ -147,20 +145,8 @@ void main() {
         },
       );
 
-      blocTest<MuscleVisualBloc, MuscleVisualState>(
-        'uses empty userId when session resolves to guest',
-        build: buildBloc,
-        setUp: () {
-          when(
-            () => mockSession.getCurrentSession(),
-          ).thenAnswer((_) async => const Right(AppSession.guest()));
-          when(
-            () => mockGet(TimePeriod.week, ''),
-          ).thenAnswer((_) async => const Right(_weekData));
-        },
-        act: (bloc) => bloc.add(const LoadMuscleVisualsEvent(TimePeriod.week)),
-        verify: (_) => verify(() => mockGet(TimePeriod.week, '')).called(1),
-      );
+      // "uses empty userId when session resolves to guest" removed:
+      // guest sessions no longer exist.
     });
 
     group('ChangePeriodEvent', () {

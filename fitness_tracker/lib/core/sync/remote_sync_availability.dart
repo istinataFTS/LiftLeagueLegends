@@ -43,12 +43,6 @@ class RemoteSyncAvailability {
       return const RemoteSyncAvailabilityDecision.denied('network unavailable');
     }
 
-    if (!session.isAuthenticated) {
-      return const RemoteSyncAvailabilityDecision.denied(
-        'session is not authenticated',
-      );
-    }
-
     if (session.requiresInitialCloudMigration &&
         trigger != SyncTrigger.initialSignIn) {
       return const RemoteSyncAvailabilityDecision.denied(

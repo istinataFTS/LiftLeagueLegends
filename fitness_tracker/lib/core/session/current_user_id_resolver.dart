@@ -1,35 +1,32 @@
+import '../errors/exceptions.dart';
 import '../../domain/repositories/app_session_repository.dart';
 
-/// Identifier used for records that belong to an unauthenticated (guest)
-/// session.  Centralised here so that writers and readers never drift apart.
-const String kGuestUserId = '';
-
-/// Resolves the identifier of the currently-active user (authenticated or
-/// guest) from the [AppSessionRepository].  Returns [kGuestUserId] when the
-/// session is a guest session, the user is missing, or the session read
-/// fails for any reason.
+/// Resolves the identifier of the currently-active authenticated user from
+/// the [AppSessionRepository].
+///
+/// After guest-mode removal, the app has no session-without-user state at
+/// runtime — every reachable code path runs above the auth gate. If the
+/// session lookup fails or returns no user, [resolve] throws
+/// [MissingUserContextException] so the caller surfaces the real cause
+/// instead of silently operating on the wrong owner key.
 ///
 /// This must stay the single source of truth for user-id resolution on both
 /// the write path (e.g. `WorkoutBloc` recording stimulus) and the read path
-/// (e.g. `MuscleVisualBloc` querying stimulus).  A mismatch between writer
+/// (e.g. `MuscleVisualBloc` querying stimulus). A mismatch between writer
 /// and reader silently hides training data.
 class CurrentUserIdResolver {
   const CurrentUserIdResolver({required this.appSessionRepository});
 
   final AppSessionRepository appSessionRepository;
 
-  /// Resolves the active user id, or [kGuestUserId] for guest sessions.
+  /// Resolves the active authenticated user id. Throws
+  /// [MissingUserContextException] when no user is in context.
   Future<String> resolve() async {
     final result = await appSessionRepository.getCurrentSession();
     return result.fold(
-      (_) => kGuestUserId,
-      (session) => session.user?.id ?? kGuestUserId,
+      (_) =>
+          throw const MissingUserContextException(operation: 'session lookup'),
+      (session) => session.user.id,
     );
-  }
-
-  /// Whether the currently-active user is an authenticated (non-guest) user.
-  Future<bool> hasAuthenticatedUser() async {
-    final id = await resolve();
-    return id.isNotEmpty;
   }
 }

@@ -14,14 +14,10 @@ class AddMeal {
   Future<Either<Failure, void>> call(Meal meal) async {
     final sessionResult = await appSessionRepository.getCurrentSession();
 
-    final preparedMeal = sessionResult.fold((_) => meal, (session) {
-      if (!session.isAuthenticated || session.user == null) {
-        return meal;
-      }
-
-      return meal.copyWith(ownerUserId: session.user!.id);
-    });
-
-    return repository.addMeal(preparedMeal);
+    return sessionResult.fold(
+      (failure) => Left(failure),
+      (session) =>
+          repository.addMeal(meal.copyWith(ownerUserId: session.user.id)),
+    );
   }
 }

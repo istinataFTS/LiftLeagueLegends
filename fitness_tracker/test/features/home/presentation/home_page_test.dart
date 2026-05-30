@@ -1,5 +1,4 @@
 import 'package:bloc_test/bloc_test.dart';
-import 'package:fitness_tracker/core/enums/auth_mode.dart';
 import 'package:fitness_tracker/domain/entities/app_session.dart';
 import 'package:fitness_tracker/domain/entities/app_settings.dart';
 import 'package:fitness_tracker/domain/entities/app_user.dart';
@@ -32,7 +31,6 @@ class MockProfileCubit extends MockCubit<ProfileState>
 ProfileState _authedProfileState({String displayName = 'Marin'}) =>
     ProfileState(
       session: AppSession(
-        authMode: AuthMode.authenticated,
         user: AppUser(id: 'u1', email: 'a@b.com', displayName: displayName),
         requiresInitialCloudMigration: false,
         lastCloudSyncAt: null,
@@ -236,26 +234,8 @@ void main() {
     expect(find.text('Hello, Marin!'), findsOneWidget);
   });
 
-  testWidgets('greeting falls back to Guest for an unauthenticated session', (
-    WidgetTester tester,
-  ) async {
-    const ProfileState guest = ProfileState(
-      session: AppSession.guest(),
-      isLoading: false,
-      hasLoaded: true,
-    );
-    when(() => profileCubit.state).thenReturn(guest);
-    whenListen<ProfileState>(
-      profileCubit,
-      const Stream<ProfileState>.empty(),
-      initialState: guest,
-    );
-
-    await tester.pumpWidget(buildSubject());
-    await tester.pump();
-
-    expect(find.text('Hello, Guest!'), findsOneWidget);
-  });
+  // "greeting falls back to Guest for an unauthenticated session" removed:
+  // unauthenticated sessions are rejected by the auth gate above HomePage.
 
   testWidgets(
     'period selector exposes stable key and dispatches month change',

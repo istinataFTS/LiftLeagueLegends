@@ -1,4 +1,4 @@
-import 'package:sqflite/sqflite.dart';
+﻿import 'package:sqflite/sqflite.dart';
 
 import '../../../core/constants/database_tables.dart';
 import '../../../core/errors/exceptions.dart';
@@ -44,7 +44,7 @@ class WorkoutSetLocalDataSourceImpl extends UserScopedLocalDatasource
   @override
   Future<List<WorkoutSet>> getSetsByExerciseId(String exerciseId) async {
     try {
-      final ownerId = await resolveOwnerId();
+      final ownerId = await this.ownerId();
       final db = await databaseHelper.database;
       final f = whereOwned(
         ownerId: ownerId,
@@ -73,7 +73,7 @@ class WorkoutSetLocalDataSourceImpl extends UserScopedLocalDatasource
     DateTime endDate,
   ) async {
     try {
-      final ownerId = await resolveOwnerId();
+      final ownerId = await this.ownerId();
       final db = await databaseHelper.database;
       final f = whereOwned(
         ownerId: ownerId,
@@ -104,7 +104,7 @@ class WorkoutSetLocalDataSourceImpl extends UserScopedLocalDatasource
   @override
   Future<List<WorkoutSet>> getPendingSyncSets() async {
     try {
-      final ownerId = await resolveOwnerId();
+      final ownerId = await this.ownerId();
       if (ownerId.isEmpty) return <WorkoutSet>[];
       final db = await databaseHelper.database;
       final f = whereOwned(
@@ -180,9 +180,7 @@ class WorkoutSetLocalDataSourceImpl extends UserScopedLocalDatasource
 
   @override
   Future<void> prepareForInitialCloudMigration({required String userId}) async {
-    await requireAuthenticatedOwnerId(
-      operation: 'prepareForInitialCloudMigration',
-    );
+    await ownerId();
     try {
       final storedSets = await _getStoredSets();
       final preparedSets = storedSets
@@ -362,7 +360,7 @@ class WorkoutSetLocalDataSourceImpl extends UserScopedLocalDatasource
   }
 
   Future<List<WorkoutSet>> _getVisibleSets() async {
-    final ownerId = await resolveOwnerId();
+    final ownerId = await this.ownerId();
     final db = await databaseHelper.database;
     final f = whereOwned(
       ownerId: ownerId,
@@ -382,7 +380,7 @@ class WorkoutSetLocalDataSourceImpl extends UserScopedLocalDatasource
   }
 
   Future<WorkoutSet?> _getVisibleSetById(String id) async {
-    final ownerId = await resolveOwnerId();
+    final ownerId = await this.ownerId();
     final db = await databaseHelper.database;
     final f = whereOwned(
       ownerId: ownerId,
@@ -456,9 +454,6 @@ class WorkoutSetLocalDataSourceImpl extends UserScopedLocalDatasource
     String userId,
   ) {
     final ownerUserId = set.ownerUserId;
-    if (ownerUserId == null || ownerUserId.isEmpty) {
-      return set;
-    }
     if (ownerUserId != userId) {
       return set;
     }

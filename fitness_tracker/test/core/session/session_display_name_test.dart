@@ -1,4 +1,3 @@
-import 'package:fitness_tracker/core/enums/auth_mode.dart';
 import 'package:fitness_tracker/core/session/session_display_name.dart';
 import 'package:fitness_tracker/domain/entities/app_session.dart';
 import 'package:fitness_tracker/domain/entities/app_user.dart';
@@ -7,7 +6,6 @@ import 'package:flutter_test/flutter_test.dart';
 
 void main() {
   AppSession authed({String displayName = ''}) => AppSession(
-    authMode: AuthMode.authenticated,
     user: AppUser(id: 'u1', email: 'a@b.com', displayName: displayName),
     requiresInitialCloudMigration: false,
     lastCloudSyncAt: null,
@@ -23,12 +21,7 @@ void main() {
       );
 
   group('SessionDisplayName.resolve', () {
-    test('returns Guest for an unauthenticated session', () {
-      expect(
-        SessionDisplayName.resolve(const AppSession.guest(), null),
-        'Guest',
-      );
-    });
+    // Guest-session case removed: every session at runtime is authenticated.
 
     test('prefers the profile display name', () {
       expect(

@@ -1,6 +1,5 @@
 import 'package:dartz/dartz.dart';
 import 'package:fitness_tracker/core/config/app_sync_policy.dart';
-import 'package:fitness_tracker/core/enums/auth_mode.dart';
 import 'package:fitness_tracker/core/errors/failures.dart';
 import 'package:fitness_tracker/core/sync/initial_cloud_migration_coordinator.dart';
 import 'package:fitness_tracker/core/sync/initial_cloud_migration_coordinator_impl.dart';
@@ -33,7 +32,6 @@ void main() {
 
   AppSession authenticatedSession({bool requiresInitialCloudMigration = true}) {
     return AppSession(
-      authMode: AuthMode.authenticated,
       user: user,
       requiresInitialCloudMigration: requiresInitialCloudMigration,
     );
@@ -78,17 +76,7 @@ void main() {
     );
   });
 
-  test('skips when session is guest', () async {
-    when(
-      () => repository.getCurrentSession(),
-    ).thenAnswer((_) async => const Right(AppSession.guest()));
-
-    final result = await coordinator.runIfRequired();
-
-    expect(result.status, InitialCloudMigrationStatus.skipped);
-    expect(executionLog, isEmpty);
-    verifyNever(() => repository.getInitialCloudMigrationState());
-  });
+  // "skips when session is guest" removed: guest sessions no longer exist.
 
   test('skips when migration is already completed', () async {
     when(() => repository.getCurrentSession()).thenAnswer(

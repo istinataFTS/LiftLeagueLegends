@@ -77,7 +77,7 @@ class _SettingsPageState extends State<SettingsPage> {
         // so the values stay in sync.
         final VoiceSettings voiceSettings = state.settings.voiceSettings;
         final ProfileState profileState = context.watch<ProfileCubit>().state;
-        final String? username = profileState.session.isAuthenticated
+        final String? username = profileState.session != null
             ? profileState.userProfile?.username
             : null;
         final SettingsPageViewData viewData = SettingsPageViewDataMapper.map(

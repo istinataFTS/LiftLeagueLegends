@@ -16,10 +16,7 @@ class _TestDatasource extends UserScopedLocalDatasource {
     required super.currentUserIdResolver,
   });
 
-  Future<String> callResolveOwnerId() => resolveOwnerId();
-
-  Future<String> callRequireAuthenticatedOwnerId() =>
-      requireAuthenticatedOwnerId(operation: 'test-operation');
+  Future<String> callOwnerId() => ownerId();
 
   ({String where, List<Object?> whereArgs}) callWhereOwned({
     required String ownerId,
@@ -42,50 +39,36 @@ void main() {
     );
   });
 
-  group('UserScopedLocalDatasource.resolveOwnerId', () {
-    test(
-      'returns the guest sentinel (empty string) for a guest session',
-      () async {
-        when(() => mockResolver.resolve()).thenAnswer((_) async => '');
-
-        final id = await datasource.callResolveOwnerId();
-
-        expect(id, equals(''));
-      },
-    );
-
-    test('returns the user id for an authenticated session', () async {
-      when(() => mockResolver.resolve()).thenAnswer((_) async => 'user-abc');
-
-      final id = await datasource.callResolveOwnerId();
-
-      expect(id, equals('user-abc'));
-    });
-  });
-
-  group('UserScopedLocalDatasource.requireAuthenticatedOwnerId', () {
-    test('throws MissingUserContextException when session is guest', () async {
-      when(() => mockResolver.resolve()).thenAnswer((_) async => '');
-
-      await expectLater(
-        datasource.callRequireAuthenticatedOwnerId(),
-        throwsA(
-          isA<MissingUserContextException>().having(
-            (e) => e.operation,
-            'operation',
-            'test-operation',
-          ),
-        ),
-      );
-    });
-
-    test('returns the user id when session is authenticated', () async {
+  group('UserScopedLocalDatasource.ownerId', () {
+    test('returns the user id when the resolver yields one', () async {
       when(() => mockResolver.resolve()).thenAnswer((_) async => 'user-xyz');
 
-      final id = await datasource.callRequireAuthenticatedOwnerId();
+      final id = await datasource.callOwnerId();
 
       expect(id, equals('user-xyz'));
     });
+
+    test(
+      'propagates MissingUserContextException when the resolver throws',
+      () async {
+        when(() => mockResolver.resolve()).thenAnswer(
+          (_) async => throw const MissingUserContextException(
+            operation: 'session lookup',
+          ),
+        );
+
+        await expectLater(
+          datasource.callOwnerId(),
+          throwsA(
+            isA<MissingUserContextException>().having(
+              (e) => e.operation,
+              'operation',
+              'session lookup',
+            ),
+          ),
+        );
+      },
+    );
   });
 
   group('UserScopedLocalDatasource.whereOwned', () {
