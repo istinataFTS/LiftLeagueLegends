@@ -682,7 +682,7 @@ The `voice-transcribe` Edge Function is a **new** function — Supabase does not
 ### voice-phantom-success-spoken-before-persistence-completes
 
 - **Severity:** High
-- **Status:** Active
+- **Status:** Resolved-but-monitor
 - **First observed:** 2026-05-27
 - **Last verified:** 2026-05-30
 - **Area:** voice
@@ -701,9 +701,13 @@ Diagnostic workaround: open the History tab after every voice log to confirm the
 
 **References**
 
-- `lib/features/voice/application/voice_bloc.dart:960` — `_dispatchMutationTool` fire-and-forget return
-- `lib/app/voice/voice_command_router.dart` — dispatch bridge between `VoiceBloc` and target BLoCs
+- `lib/features/voice/application/voice_bloc.dart` — `_dispatchMutationTool` round-trip dispatch
+- `lib/app/voice/voice_command_router.dart` — dispatch bridge and completer outcome bridge
 - `plan-2-post-guest-removal-cleanups.md` — full implementation plan (Commit 3)
+
+**Resolution**
+
+`VoiceBloc` now awaits a `VoiceMutationOutcome` via a `Completer` round-trip through `VoiceCommandRouter` and the target BLoC's effects. `VoiceCommandRouter` subscribes to `WorkoutBloc.effects`, `NutritionLogBloc.effects`, and `HistoryBloc.effects`, completing the completer when a success or failure effect arrives. Cache mutation (`_cachedWorkoutSets` / `_cachedNutritionLogs`) occurs only on `VoiceMutationSuccess`. A 5-second timeout returns `voiceSpokenMutationTimedOut` if the target BLoC stalls. Concurrent dispatches are serialised via a FIFO queue (max 5). See Commit 3 of `plan-2-post-guest-removal-cleanups.md`.
 
 ---
 

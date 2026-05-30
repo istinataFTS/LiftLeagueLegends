@@ -149,18 +149,22 @@ class HistoryBloc extends Bloc<HistoryEvent, HistoryState>
   }) async {
     final dynamic result = await action();
 
-    await result.fold((failure) async => emit(HistoryError(failure.message)), (
-      _,
-    ) async {
-      final HistoryLoaded? reloaded = await _reloadCurrentMonth();
-      if (reloaded == null) {
-        emit(const HistoryError(HistoryStrings.reloadFailed));
-        return;
-      }
+    await result.fold(
+      (failure) async {
+        emit(HistoryError(failure.message));
+        emitEffect(HistoryMutationFailedEffect(failure.message));
+      },
+      (_) async {
+        final HistoryLoaded? reloaded = await _reloadCurrentMonth();
+        if (reloaded == null) {
+          emit(const HistoryError(HistoryStrings.reloadFailed));
+          return;
+        }
 
-      emit(reloaded);
-      emitEffect(HistorySuccessEffect(successMessage));
-    });
+        emit(reloaded);
+        emitEffect(HistorySuccessEffect(successMessage));
+      },
+    );
   }
 
   Future<HistoryLoaded?> _reloadCurrentMonth() async {

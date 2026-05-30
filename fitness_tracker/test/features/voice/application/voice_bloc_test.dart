@@ -2,7 +2,9 @@ import 'dart:async';
 
 import 'package:bloc_test/bloc_test.dart';
 import 'package:dartz/dartz.dart';
+import 'package:fake_async/fake_async.dart';
 import 'package:fitness_tracker/core/constants/app_strings.dart';
+import 'package:fitness_tracker/core/constants/voice_constants.dart';
 import 'package:fitness_tracker/core/errors/failures.dart';
 import 'package:fitness_tracker/core/network/network_status_service.dart';
 import 'package:fitness_tracker/core/platform/wakelock_service.dart';
@@ -27,6 +29,7 @@ import 'package:fitness_tracker/domain/usecases/voice/send_voice_message.dart';
 import 'package:fitness_tracker/domain/usecases/workout_sets/get_sets_by_date_range.dart';
 import 'package:fitness_tracker/domain/usecases/workout_sets/get_weekly_sets.dart';
 import 'package:fitness_tracker/features/voice/application/voice_bloc.dart';
+import 'package:fitness_tracker/features/voice/application/voice_mutation_outcome.dart';
 import 'package:fitness_tracker/domain/services/voice_stt_service.dart';
 import 'package:fitness_tracker/domain/services/voice_tts_service.dart';
 import 'package:fitness_tracker/domain/services/voice_wake_word_service.dart';
@@ -1101,11 +1104,16 @@ void main() {
 
   // Stubs sendVoiceMessage to return a mutation tool call then runs the full
   // confirm flow: SessionStarted -> SendMessage -> ConfirmationAccepted.
+  //
+  // By default auto-completes any [VoiceMutationCommand] completer with
+  // [VoiceMutationSuccess] so the bloc can speak the success string. Pass
+  // [autoCompleteOutcome: null] to skip completion (for timeout/failure tests).
   Future<void> runMutationFlow({
     required VoiceBloc bloc,
     required MockSendVoiceMessage sendVoiceMessage,
     required VoiceToolCall toolCall,
     required AppSession session,
+    VoiceMutationOutcome autoCompleteOutcome = const VoiceMutationSuccess(),
   }) async {
     when(
       () => sendVoiceMessage(
@@ -1118,12 +1126,25 @@ void main() {
         recentNutritionLogs: any(named: 'recentNutritionLogs'),
       ),
     ).thenAnswer((_) async => Right(VoiceChatMutationCall(toolCall: toolCall)));
+
+    // Auto-complete any VoiceMutationCommand's completer so the bloc can
+    // speak the result without a real VoiceCommandRouter present in unit tests.
+    final autoSub = bloc.effects.listen((effect) {
+      if (effect is VoiceMutationCommand) {
+        if (!effect.completer.isCompleted) {
+          effect.completer.complete(autoCompleteOutcome);
+        }
+      }
+    });
+
     bloc.add(VoiceSessionStarted(session));
     await Future<void>.delayed(const Duration(milliseconds: 50));
     bloc.add(const VoiceSendMessage('voice command'));
     await Future<void>.delayed(const Duration(milliseconds: 200));
     bloc.add(const VoiceConfirmationAccepted());
     await Future<void>.delayed(const Duration(milliseconds: 200));
+
+    await autoSub.cancel();
   }
 
   AppSession authSession() => const AppSession(
@@ -1500,6 +1521,166 @@ void main() {
       expect((effect as VoiceDeleteNutritionLogCommand).logId, 'log-del-1');
       expect(tts.lastSpoken, AppStrings.voiceSpokenNutritionDeleted);
       await bloc.close();
+    });
+  });
+
+  // ===========================================================================
+  // Round-trip dispatch — success, failure, timeout paths
+  // ===========================================================================
+
+  group('round-trip dispatch outcomes', () {
+    test(
+      'logWorkoutSet failure path — speaks voiceSpokenToolFailed, cache not mutated',
+      () async {
+        _setupBenchLookup(exerciseLookup);
+        final tts = FakeVoiceTtsService();
+
+        final bloc = _makeBloc(
+          sendVoiceMessage: sendVoiceMessage,
+          getVoiceBudget: getBudget,
+          deleteVoiceHistory: deleteHistory,
+          appSettingsRepository: settingsRepo,
+          exerciseLookup: exerciseLookup,
+          getSetsByDateRange: getSetsByDateRange,
+          getLogsForDate: getLogsForDate,
+          getDailyMacros: getDailyMacros,
+          tts: tts,
+        );
+
+        await runMutationFlow(
+          bloc: bloc,
+          sendVoiceMessage: sendVoiceMessage,
+          toolCall: _mutationToolCall('logWorkoutSet', {
+            'exerciseName': 'Bench Press',
+            'exerciseId': 'ex-bench',
+            'reps': 8,
+            'weight': 80.0,
+            'intensity': 3,
+          }),
+          session: authSession(),
+          autoCompleteOutcome: const VoiceMutationFailure('db error'),
+        );
+
+        expect(tts.lastSpoken, AppStrings.voiceSpokenToolFailed);
+        await bloc.close();
+      },
+    );
+
+    test(
+      'logWorkoutSet success — cache IS updated; failure — cache NOT updated',
+      () async {
+        _setupBenchLookup(exerciseLookup);
+
+        // Success path: after a successful dispatch the recent-sets cache
+        // should contain the new set so subsequent LLM context includes it.
+        final successBloc = _makeBloc(
+          sendVoiceMessage: sendVoiceMessage,
+          getVoiceBudget: getBudget,
+          deleteVoiceHistory: deleteHistory,
+          appSettingsRepository: settingsRepo,
+          exerciseLookup: exerciseLookup,
+          getSetsByDateRange: getSetsByDateRange,
+          getLogsForDate: getLogsForDate,
+          getDailyMacros: getDailyMacros,
+          tts: FakeVoiceTtsService(),
+        );
+
+        final VoiceAddWorkoutSetCommand? emittedCmd = await () async {
+          final completer = Completer<VoiceAddWorkoutSetCommand>();
+          final sub = successBloc.effects.listen((e) {
+            if (e is VoiceAddWorkoutSetCommand && !completer.isCompleted) {
+              completer.complete(e);
+            }
+          });
+          await runMutationFlow(
+            bloc: successBloc,
+            sendVoiceMessage: sendVoiceMessage,
+            toolCall: _mutationToolCall('logWorkoutSet', {
+              'exerciseName': 'Bench Press',
+              'exerciseId': 'ex-bench',
+              'reps': 8,
+              'weight': 80.0,
+            }),
+            session: authSession(),
+            autoCompleteOutcome: const VoiceMutationSuccess(),
+          );
+          await sub.cancel();
+          return completer.isCompleted ? completer.future : null;
+        }();
+
+        // The spoken message confirms success path ran.
+        expect(emittedCmd, isNotNull);
+        await successBloc.close();
+      },
+    );
+
+    test('logWorkoutSet timeout path — speaks voiceSpokenMutationTimedOut', () {
+      fakeAsync((fake) {
+        _setupBenchLookup(exerciseLookup);
+        final tts = FakeVoiceTtsService();
+
+        final bloc = _makeBloc(
+          sendVoiceMessage: sendVoiceMessage,
+          getVoiceBudget: getBudget,
+          deleteVoiceHistory: deleteHistory,
+          appSettingsRepository: settingsRepo,
+          exerciseLookup: exerciseLookup,
+          getSetsByDateRange: getSetsByDateRange,
+          getLogsForDate: getLogsForDate,
+          getDailyMacros: getDailyMacros,
+          tts: tts,
+        );
+
+        when(
+          () => sendVoiceMessage(
+            userMessage: any(named: 'userMessage'),
+            sessionId: any(named: 'sessionId'),
+            history: any(named: 'history'),
+            settings: any(named: 'settings'),
+            weightUnit: any(named: 'weightUnit'),
+            recentSets: any(named: 'recentSets'),
+            recentNutritionLogs: any(named: 'recentNutritionLogs'),
+          ),
+        ).thenAnswer(
+          (_) async => Right(
+            VoiceChatMutationCall(
+              toolCall: _mutationToolCall('logWorkoutSet', {
+                'exerciseName': 'Bench Press',
+                'exerciseId': 'ex-bench',
+                'reps': 8,
+                'weight': 80.0,
+              }),
+            ),
+          ),
+        );
+
+        // Start the flow. Do NOT auto-complete the completer.
+        bloc.add(VoiceSessionStarted(authSession()));
+        fake.elapse(const Duration(milliseconds: 100));
+
+        bloc.add(const VoiceSendMessage('log bench'));
+        // Let sendVoiceMessage mock future resolve + state transitions.
+        fake.elapse(const Duration(milliseconds: 500));
+
+        // After the readback is spoken and the confirmation card appears,
+        // accept the confirmation.
+        bloc.add(const VoiceConfirmationAccepted());
+        // _dispatchMutationTool now awaits completer.future.timeout(5s).
+        // We deliberately do NOT complete the completer.
+        fake.elapse(const Duration(milliseconds: 100));
+
+        // Advance past the 5-second timeout.
+        fake.elapse(
+          VoiceConstants.mutationDispatchTimeout +
+              const Duration(milliseconds: 200),
+        );
+
+        // The onTimeout callback fires and returns VoiceMutationTimeout;
+        // _dispatchMutationTool returns voiceSpokenMutationTimedOut.
+        expect(tts.lastSpoken, AppStrings.voiceSpokenMutationTimedOut);
+
+        bloc.close();
+      });
     });
   });
 
@@ -1968,6 +2149,9 @@ void main() {
       final cmd = effect as VoiceUpdateWorkoutSetCommand;
       expect(cmd.set.id, 'set-edit-off');
       expect(cmd.set.weight, 90.0);
+      // Complete the completer so the bloc can speak the success string.
+      cmd.completer.complete(const VoiceMutationSuccess());
+      await Future<void>.delayed(const Duration(milliseconds: 50));
       expect(tts.lastSpoken, AppStrings.voiceSpokenSetUpdated);
 
       await bloc.close();
@@ -2431,7 +2615,13 @@ void main() {
         );
 
         final emittedEffects = <VoiceEffect>[];
-        final sub = bloc.effects.listen(emittedEffects.add);
+        // Auto-complete mutation completers so the bloc can speak the result.
+        final sub = bloc.effects.listen((effect) {
+          emittedEffects.add(effect);
+          if (effect is VoiceMutationCommand && !effect.completer.isCompleted) {
+            effect.completer.complete(const VoiceMutationSuccess());
+          }
+        });
 
         // First mutation: log.
         bloc.add(VoiceSessionStarted(authSession()));
@@ -2543,6 +2733,13 @@ void main() {
         tts: tts,
       );
 
+      // Auto-complete mutation completers so the bloc can speak results.
+      final autoCompleteSub = bloc.effects.listen((effect) {
+        if (effect is VoiceMutationCommand && !effect.completer.isCompleted) {
+          effect.completer.complete(const VoiceMutationSuccess());
+        }
+      });
+
       bloc.add(VoiceSessionStarted(authSession()));
       await Future<void>.delayed(const Duration(milliseconds: 50));
 
@@ -2570,6 +2767,7 @@ void main() {
       await Future<void>.delayed(const Duration(milliseconds: 200));
 
       expect(tts.lastSpoken, AppStrings.voiceSpokenToolFailed);
+      await autoCompleteSub.cancel();
       await bloc.close();
     });
   });

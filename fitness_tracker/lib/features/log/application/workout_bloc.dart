@@ -66,6 +66,15 @@ abstract class WorkoutUiEffect {
   const WorkoutUiEffect();
 }
 
+/// Emitted alongside [WorkoutError] state when [AddWorkoutSetEvent] fails.
+/// [VoiceCommandRouter] listens for this to complete the in-flight mutation
+/// completer with a failure outcome so [VoiceBloc] can speak an error reply.
+class WorkoutMutationFailedEffect extends WorkoutUiEffect {
+  const WorkoutMutationFailedEffect(this.message);
+
+  final String message;
+}
+
 class WorkoutLoggedEffect extends WorkoutUiEffect {
   final String message;
   final List<String> affectedMuscles;
@@ -113,7 +122,10 @@ class WorkoutBloc extends Bloc<WorkoutEvent, WorkoutState>
     final addResult = await addWorkoutSet(event.workoutSet);
 
     await addResult.fold(
-      (failure) async => emit(WorkoutError(failure.message)),
+      (failure) async {
+        emit(WorkoutError(failure.message));
+        emitEffect(WorkoutMutationFailedEffect(failure.message));
+      },
       (_) async {
         // Derive which muscles the exercise targets for the UI notification.
         // The actual stimulus update is handled by the rebuild inside

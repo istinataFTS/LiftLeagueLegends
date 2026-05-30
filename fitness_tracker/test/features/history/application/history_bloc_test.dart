@@ -337,5 +337,25 @@ void main() {
         ).called(2);
       },
     );
+
+    test(
+      'emits HistoryMutationFailedEffect alongside HistoryError when DeleteSetEvent fails',
+      () async {
+        when(
+          () => mockDeleteWorkoutSet(any()),
+        ).thenAnswer((_) async => const Left(DatabaseFailure('delete failed')));
+
+        final effectFuture = bloc.effects.first;
+        bloc.add(const DeleteSetEvent('set-del-1'));
+
+        final effect = await effectFuture;
+        expect(effect, isA<HistoryMutationFailedEffect>());
+        expect(
+          (effect as HistoryMutationFailedEffect).message,
+          'delete failed',
+        );
+        expect(bloc.state, isA<HistoryError>());
+      },
+    );
   });
 }
