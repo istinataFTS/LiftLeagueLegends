@@ -3,14 +3,13 @@
 - **Pattern:** User-scoped local datasource
 - **Canonical file:** `lib/data/datasources/local/workout_set_local_datasource_impl.dart`
 - **Locked by:** PR `#56`, commit `6171671` — Adoption 02 migrated this datasource to extend `UserScopedLocalDatasource`, making it the first full exerciser of every base-class method
-- **Last verified:** 2026-05-21
+- **Last verified:** 2026-05-30
 - **Related references:** [[repository]], [[injection_module]]
 - **Companion playbook:** _(to be added by Adoption 05: `.claude/skills/add-feature.md`)_
 - **Embodied conventions:**
   - Every user-scoped local datasource extends `UserScopedLocalDatasource` — see CLAUDE.md "User-scoped local datasources"
   - `whereOwned(...)` is the only sanctioned way to build an owner-filtered `WHERE` clause — see `lib/data/datasources/local/user_scoped_local_datasource.dart`
-  - `resolveOwnerId()` for ordinary queries; `requireAuthenticatedOwnerId(operation:)` for auth-only operations (push, pull, initial-sync prepare) — see KNOWN_ISSUES.md (no direct entry; contract is on the base class)
-  - Guest sessions return `''` (not null) — never throw on an empty owner ID from `resolveOwnerId()`, only on auth-required paths
+  - `ownerId()` obtains the current authenticated owner ID — it throws `MissingUserContextException` if no user is in context; **there is no guest mode**
   - Bulk replacement uses a single SQLite transaction + batch to keep the write atomic — see CLAUDE.md "Local database"
   - All public methods wrap in `try/catch` and rethrow as `CacheDatabaseException` — see CLAUDE.md "Error handling"
   - Datasource interface (`WorkoutSetLocalDataSource`) lives in a separate file; the impl is a distinct file — no "god file" with both
@@ -22,6 +21,8 @@
 `WorkoutSetLocalDataSourceImpl` is the canonical datasource example because it is the *only* datasource in the codebase that exercises every method on `UserScopedLocalDatasource`: `resolveOwnerId()` for standard queries, `requireAuthenticatedOwnerId(operation:)` for the initial-sync prepare path, and `whereOwned(...)` with and without the `extra:` predicate. It was explicitly hardened by Adoption 02 (PR `#56`) to demonstrate all three usage modes in a single class, making it the reference point for every datasource added afterward.
 
 It also showcases the two-tier read model that is standard in this codebase: `_getVisibleSets()` / `_getVisibleSetById()` for UI reads (owner-scoped, pending-delete filtered), and `_getStoredSets()` / `_getStoredSetById()` for sync reads (unscoped, all rows). Understanding why the unscoped variants exist — and when to use each — is the main thing a copier needs to internalise.
+
+**There is no guest mode.** Every datasource operates only on authenticated user data. The convention checker enforces that every concrete local datasource extends `UserScopedLocalDatasource`, with three documented exemptions (see the base class doc comment). `ownerId()` either returns an authenticated user ID or throws — callers do not need a "missing user" branch.
 
 ---
 
@@ -39,13 +40,9 @@ It also showcases the two-tier read model that is standard in this codebase: `_g
 
 `workout_set_local_datasource_impl.dart:47-68` — `getSetsByExerciseId` is the canonical example of a query with two filters: an entity-specific predicate (`exercise_id = ?`) and the standard pending-delete exclusion, both composed via the `extra:` / `extraArgs:` parameters of `whereOwned(...)`. The owner filter is always the *last* predicate because `whereOwned` appends `owner_user_id = ?` after the `extra` clause. Do not write inline `WHERE` strings that include `owner_user_id`; always delegate to `whereOwned`.
 
-### Guest-safe early return on sync queries (lines 105–130)
+### Obtaining the owner id — `ownerId()` (lines 182–198)
 
-`workout_set_local_datasource_impl.dart:105-130` — `getPendingSyncSets` is intentionally called in guest mode (the sync orchestrator is not guest-aware at its call sites). The correct pattern is: resolve the owner id, check `if (ownerId.isEmpty) return <Entity>[]`, then proceed. This prevents spurious pending-sync rows from being queued for guests while avoiding an exception that would break the sync orchestration path.
-
-### Auth-only guard — `requireAuthenticatedOwnerId(operation:)` (lines 182–198)
-
-`workout_set_local_datasource_impl.dart:182-185` — `prepareForInitialCloudMigration` is only valid for authenticated users. The correct pattern is to call `requireAuthenticatedOwnerId(operation: '<methodName>')` as the *first* line of such a method. It throws `MissingUserContextException` if called in guest mode, which propagates up through `RepositoryGuard.run` as a `CacheFailure`. The rest of the method's logic runs only when auth is confirmed.
+`workout_set_local_datasource_impl.dart:182-185` — `prepareForInitialCloudMigration` calls `await ownerId()` as its first action. Since guest mode was removed, `ownerId()` is the single method for obtaining the current owner — it returns the authenticated user ID or throws `MissingUserContextException` if the session cannot be resolved. The distinction between "guest-safe" reads (old `resolveOwnerId()`) and "auth-only" writes (old `requireAuthenticatedOwnerId()`) no longer exists: every datasource call runs above the sign-in gate and may safely call `ownerId()` without a guest fallback check.
 
 ### Internal visible-reads pattern (lines 364–406)
 
@@ -68,8 +65,7 @@ It also showcases the two-tier read model that is standard in this codebase: `_g
 - [ ] **Extend, do not compose.** Your new datasource must `extends UserScopedLocalDatasource`, not hold it as a field. Composition bypasses the `@protected` access control on `resolveOwnerId()` and `whereOwned(...)`.
 - [ ] **Pass `super.databaseHelper` and `super.currentUserIdResolver` in the constructor.** Do not redeclare them as your own fields.
 - [ ] **Every public read method that targets the UI must use `whereOwned(...)`.** No inline `owner_user_id = ?` strings in public methods.
-- [ ] **Call `requireAuthenticatedOwnerId(operation: '...')` at the top of any method that only makes sense for authenticated users.** Guest sessions must never silently succeed on auth-only paths.
-- [ ] **For sync queries that may legitimately be called in guest mode, check `if (ownerId.isEmpty) return []` after `resolveOwnerId()`.** Do not throw; the sync orchestrator does not distinguish guest sessions.
+- [ ] **Call `await ownerId()` at the top of any method that needs the current user.** It throws `MissingUserContextException` if no user is in context — do not add an empty-string guard around it.
 - [ ] **Wrap all public methods in `try/catch` and rethrow as `CacheDatabaseException`.** No raw exceptions escape the datasource layer.
 - [ ] **Name your internal helpers `_getVisible*` for UI reads and `_getStored*` for raw/sync reads.** This naming convention is the only signal of which kind of scope applies.
 - [ ] **Use `db.transaction(...)` + `batch.commit(noResult: true)` for any bulk delete+insert.** Never delete and then insert outside a transaction.

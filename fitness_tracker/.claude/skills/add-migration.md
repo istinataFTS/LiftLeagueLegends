@@ -3,7 +3,7 @@
 - **Task:** Add a new SQLite schema migration (new table, new column, or schema change)
 - **When to use:** When a feature needs a new table or column in the local SQLite database
 - **Estimated steps:** 6
-- **Last verified:** 2026-05-23
+- **Last verified:** 2026-05-30
 - **Canonical references:**
 - **Touches:** data
 - **Related playbooks:** [add-datasource](add-datasource.md), [add-feature](add-feature.md)
@@ -24,7 +24,7 @@
 
 - [ ] Read [#sqflite-version-15-rejects-incompatible-legacy-databases](../../KNOWN_ISSUES.md#sqflite-version-15-rejects-incompatible-legacy-databases). Understand the additive-only constraint and the version-15+ reject behaviour.
 - [ ] Read [#conflict-algorithm-replace-needed-for-deterministic-default-ids](../../KNOWN_ISSUES.md#conflict-algorithm-replace-needed-for-deterministic-default-ids). If your new table has a deterministic default-id pattern, you need `ConflictAlgorithm.replace` on insert.
-- [ ] Read [#default-catalog-ids-must-be-owner-scoped](../../KNOWN_ISSUES.md#default-catalog-ids-must-be-owner-scoped). If your new table has an `owner_user_id` column AND deterministic default IDs, derive the id via `DeterministicCatalogId.forOwner(name:, ownerUserId:)`, not `.fromName(...)`, or post-sign-in seeding will collide with the guest catalog.
+- [ ] Read [#default-catalog-ids-must-be-owner-scoped](../../KNOWN_ISSUES.md#default-catalog-ids-must-be-owner-scoped). If your new table has an `owner_user_id` column AND deterministic default IDs, derive the id via `DeterministicCatalogId.forOwner(name:, ownerUserId:)` — it mixes the owner into the id key, guaranteeing uniqueness per (owner, name) pair and preventing collisions across accounts. Never use `.fromName(...)` (removed) or pass an empty `ownerUserId` — `forOwner` asserts a non-empty owner.
 
 ### 2. Bump `EnvConfig.databaseVersion`
 
@@ -34,7 +34,7 @@
 ### 3. Add the migration branch in `_onUpgrade`
 
 - [ ] In `lib/data/datasources/local/database_helper.dart`, find the `_onUpgrade` method (line 204) and add a new `if (oldVersion < N)` branch for your version number `N`.
-- [ ] Migrations are **additive only**: `CREATE TABLE`, `ALTER TABLE ADD COLUMN`, `CREATE INDEX`. Never `DROP TABLE`, `DROP COLUMN`, or `ALTER COLUMN` in a migration branch. Destructive changes require a fresh install path only.
+- [ ] Migrations must be **additive at the schema level**: `CREATE TABLE`, `ALTER TABLE ADD COLUMN`, `CREATE INDEX`. Never `DROP TABLE`, `DROP COLUMN`, or `ALTER COLUMN` in a migration branch. Data-level cleanup (`DELETE FROM`, `UPDATE`) is permitted when it represents a deliberate semantic shift, but must (a) run inside a single `db.transaction(...)`, (b) be covered by a migration test, and (c) have a corresponding `KNOWN_ISSUES.md` entry explaining the data-loss scope. See the `v22` branch in `database_helper.dart` for the canonical data-cleanup example.
 - [ ] If adding a new table, also add the `CREATE TABLE` statement to `createSchema` (the `onCreate` handler) so fresh installs include it.
 - [ ] Test the branch with a real `sqflite` database in a migration test — do not rely on mocks.
 
@@ -73,7 +73,7 @@ dart run tool/check_coverage.dart
 
 ## Pitfalls
 
-- **Non-additive migration** — `ALTER TABLE DROP COLUMN` and `DROP TABLE` crash or corrupt data on users with the old schema. Additive only. See [KNOWN_ISSUES.md#sqflite-version-15-rejects-incompatible-legacy-databases](../../KNOWN_ISSUES.md#sqflite-version-15-rejects-incompatible-legacy-databases).
+- **Non-additive schema migration** — `ALTER TABLE DROP COLUMN` and `DROP TABLE` crash or corrupt data on users with the old schema. Schema migrations must be additive. Data-level cleanup (`DELETE FROM`, `UPDATE`) is allowed but must be wrapped in a transaction, covered by a migration test, and documented in `KNOWN_ISSUES.md`. See [KNOWN_ISSUES.md#sqflite-version-15-rejects-incompatible-legacy-databases](../../KNOWN_ISSUES.md#sqflite-version-15-rejects-incompatible-legacy-databases) and the `v22` branch in `lib/data/datasources/local/database_helper.dart` for the canonical example.
 - **Skipping a version number** — sqflite calls `onUpgrade` with `oldVersion` and `newVersion`. Skipping a version means migrations for that number never run on users who were on the skipped version.
 - **Forget to add the table to `createSchema`** — fresh-install users skip `_onUpgrade` entirely. The table must exist in `onCreate` too.
 - **Deterministic default ID with insert conflict** — if you use a content-hash or deterministic ID, use `ConflictAlgorithm.replace` on insert. See [KNOWN_ISSUES.md#conflict-algorithm-replace-needed-for-deterministic-default-ids](../../KNOWN_ISSUES.md#conflict-algorithm-replace-needed-for-deterministic-default-ids).

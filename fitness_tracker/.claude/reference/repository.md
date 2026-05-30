@@ -3,7 +3,7 @@
 - **Pattern:** Repository implementation
 - **Canonical file:** `lib/data/repositories/workout_set_repository_impl.dart`
 - **Locked by:** commit `810bcbe` — offline-resilience fix that introduced `_tryRemoteFetch` and hardened all four `DataSourcePreference` paths
-- **Last verified:** 2026-05-21
+- **Last verified:** 2026-05-30
 - **Related references:** [[datasource]], [[use_case]], [[injection_module]]
 - **Companion playbook:** _(to be added by Adoption 05: `.claude/skills/add-feature.md`)_
 - **Embodied conventions:**

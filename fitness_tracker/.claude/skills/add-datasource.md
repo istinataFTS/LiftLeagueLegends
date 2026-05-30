@@ -3,7 +3,7 @@
 - **Task:** Add a new user-scoped local SQLite datasource to an existing feature
 - **When to use:** When a feature needs to persist per-user rows in the local SQLite database
 - **Estimated steps:** 6
-- **Last verified:** 2026-05-21
+- **Last verified:** 2026-05-30
 - **Canonical references:** [[datasource]], [[injection_module]]
 - **Touches:** data, di, test
 - **Related playbooks:** [add-feature](add-feature.md), [add-migration](add-migration.md)
@@ -34,15 +34,13 @@
 
 ### 3. Implement all user-scoped query methods
 
-- [ ] Every `db.query`, `db.update`, `db.delete` call that filters by owner **must** use `whereOwned(...)` (`lib/data/datasources/local/user_scoped_local_datasource.dart:83`). Never interpolate `ownerId` into the SQL string literal.
-- [ ] Reads that are allowed in guest mode: call `resolveOwnerId()` (`lib/data/datasources/local/user_scoped_local_datasource.dart:50`) to obtain the owner ID. It returns `''` for guests.
-- [ ] Writes that are only allowed for authenticated users (push, pull, initial-sync prepare): call `requireAuthenticatedOwnerId(operation: '<describe-op>')` (`lib/data/datasources/local/user_scoped_local_datasource.dart:58`). This throws `MissingUserContextException` in guest mode.
-- [ ] Insert methods must stamp the row with the `ownerId` column value obtained from `resolveOwnerId()` or `requireAuthenticatedOwnerId(...)`.
+- [ ] Every `db.query`, `db.update`, `db.delete` call that filters by owner **must** use `whereOwned(...)` (`lib/data/datasources/local/user_scoped_local_datasource.dart`). Never interpolate `ownerId` into the SQL string literal.
+- [ ] Call `await ownerId()` (`lib/data/datasources/local/user_scoped_local_datasource.dart`) to obtain the current authenticated owner ID. It throws `MissingUserContextException` if no user is in context — **there is no guest mode**, so no empty-string guard is needed.
+- [ ] Insert methods must stamp the row with the `ownerId` column value obtained from `ownerId()`.
 
-### 4. Add auth-only protection to sync operations
+### 4. Add auth protection to sync operations
 
-- [ ] List every method that reads from or writes to Supabase (push, pull, prepareMigration). Each must call `requireAuthenticatedOwnerId(...)` as its first action.
-- [ ] Guest-mode reads must use `resolveOwnerId()` and work correctly when it returns `''`.
+- [ ] List every method that reads from or writes to Supabase (push, pull, prepareMigration). Each calls `ownerId()` which already throws `MissingUserContextException` if no user is present — no separate auth guard is required beyond calling `ownerId()` first.
 
 ### 5. Register the datasource in the feature's DI module
 
@@ -53,8 +51,8 @@
 ### 6. Write the auth-only test and the base-class behaviour test
 
 - [ ] Add a test file at `test/data/datasources/local/<feature>_local_datasource_impl_test.dart`.
-- [ ] Test 1 (auth-only): call each method annotated with `requireAuthenticatedOwnerId(...)` without a signed-in user and assert `MissingUserContextException` is thrown. Mirror the pattern from Adoption 02.
-- [ ] Test 2 (base-class): confirm `resolveOwnerId()` returns `''` in guest mode and the real user ID in authenticated mode.
+- [ ] Test 1 (auth-only): call each method that calls `ownerId()` without a signed-in user and assert `MissingUserContextException` is thrown. Mirror the pattern from the v22 migration test.
+- [ ] Test 2 (base-class): confirm `ownerId()` returns the real user ID in authenticated mode and throws `MissingUserContextException` when no user is in context.
 - [ ] Run `flutter test test/data/datasources/local/<feature>_local_datasource_impl_test.dart` before moving on.
 
 ---
@@ -78,4 +76,4 @@ flutter test
 - **Interpolate `ownerId` into a SQL string** — CI will fail the `sql-userid-interpolation` rule. Always use `whereOwned(...)` or `whereArgs`.
 - **Register the datasource as a BLoC factory** — datasources are singletons. Registering as `registerFactory` creates one instance per page, each with its own database connection handle.
 - **Duplicate DI registration** — see [KNOWN_ISSUES.md#duplicate-di-registration-causes-silent-bugs](../../KNOWN_ISSUES.md#duplicate-di-registration-causes-silent-bugs).
-- **Call `requireAuthenticatedOwnerId` in a guest-accessible read path** — it throws `MissingUserContextException`. Guest reads must use `resolveOwnerId()`.
+- **Add an empty-string guard around `ownerId()`** — there is no guest mode; `ownerId()` either returns an authenticated uid or throws. An `if (id.isEmpty) return []` check masks a session-resolution bug rather than handling it.

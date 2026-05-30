@@ -368,26 +368,27 @@ The cap (`VoiceConstants.dailyBudgetCapUsd` on the Flutter side; `dailyCapUsd` p
 ### voice-fab-is-disabled-not-hidden-for-guests
 
 - **Severity:** Low
-- **Status:** Active
+- **Status:** Resolved-but-monitor
 - **First observed:** 2026-05-14
-- **Last verified:** 2026-05-23
+- **Last verified:** 2026-05-30
 - **Area:** voice
 
 **Symptom**
 
-A guest user sees the voice FAB but it is non-interactive. This is intentional — removing it appears as a regression.
+A guest user sees the voice FAB but it is non-interactive. This was intentional — removing it appeared as a regression.
 
 **Root cause**
 
-UX decision: the FAB is visible with a sign-in CTA so that guests understand the feature exists. Hiding it would suppress discoverability.
+UX decision (now superseded): the FAB was visible with a sign-in CTA so that guests understood the feature existed. Guest mode was removed in the guest-removal plan (PRs #79–#86); the app now requires sign-in before use. The FAB is always enabled for authenticated users and the sign-in gate prevents any unauthenticated access.
 
 **Workaround / fix**
 
-Leave the FAB visible and disabled for guests. The sign-in CTA is the intended interaction. If you add a condition that hides the FAB for unauthenticated users, that is a regression.
+No action needed. Guest mode was removed entirely. The FAB is active for all app users (all of whom are authenticated). See [`guest-catalog-pk-collision-blocks-initial-sign-in`](#guest-catalog-pk-collision-blocks-initial-sign-in) for the full guest-removal context.
 
 **References**
 
-- `CLAUDE.md` — "Guest users cannot use voice (FAB is visible-but-disabled with a sign-in CTA)"
+- PR `#80` — feat(auth): gate the app behind sign-in for unauthenticated users
+- PR `#84` — refactor(session): remove guest concept from domain and data layers
 
 ---
 
@@ -793,9 +794,9 @@ Default catalog rows used a name-only deterministic id: `DeterministicCatalogId.
 ### guest-catalog-pk-collision-blocks-initial-sign-in
 
 - **Severity:** Critical
-- **Status:** Active
+- **Status:** Resolved-but-monitor
 - **First observed:** 2026-05-28
-- **Last verified:** 2026-05-29
+- **Last verified:** 2026-05-30
 - **Area:** db
 
 **Symptom**
@@ -820,6 +821,10 @@ Diagnostic-only manual workaround (local DB, never push remotely): delete the tw
 - `lib/core/sync/hooks/account_catalog_provision_hook.dart` — post-sign-in provisioning bypassed when `catalog_init_<entity>_<uid>` is absent but `hasExistingData` short-circuits
 - [`guest-removal-and-migration-unstick-plan.md`](C:\Users\User\Desktop\ForLiftLeaguLegends\guest-removal-and-migration-unstick-plan.md) — full implementation plan
 - Related: [`default-catalog-ids-must-be-owner-scoped`](#default-catalog-ids-must-be-owner-scoped) — the earlier owner-scoping fix that introduced the empty-owner back-compat branch this entry's root cause depends on
+
+**Resolution**
+
+Removed guest mode entirely across commits 2–6 of PR series #79–#86. The v22 database migration (`lib/data/datasources/local/database_helper.dart`) purges all guest-owned rows from the five user-scoped tables and removes the empty-suffix catalog-init flags from `app_metadata`. The code paths that handled guest sessions — `AppSession.guest()`, `kGuestUserId`, `guestAwareAddedSyncMetadata`, `DeterministicCatalogId`'s empty-owner branch, `startGuestSession()`, and the boot-time guest catalog seed — are deleted. `AccountCatalogProvisionHook` gained a name-based self-heal pass that seeds any default exercises or meals the user is missing, gated by the absence of the per-user `catalog_init_<entity>_<uid>` flag. The collision is no longer possible because the guest catalog is never seeded. See [`guest-removal-and-migration-unstick-plan.md`](C:\Users\User\Desktop\ForLiftLeaguLegends\guest-removal-and-migration-unstick-plan.md) for the full seven-commit plan.
 
 ---
 
