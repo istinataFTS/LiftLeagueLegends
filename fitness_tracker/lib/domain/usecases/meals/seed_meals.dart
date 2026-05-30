@@ -5,6 +5,7 @@ import '../../../config/env_config.dart';
 import '../../../core/constants/default_meals_data.dart';
 import '../../../core/errors/failures.dart';
 import '../../../core/utils/deterministic_catalog_id.dart';
+import '../../entities/meal.dart';
 import '../../repositories/catalog_init_flag_repository.dart';
 import '../../repositories/meal_repository.dart';
 
@@ -57,8 +58,14 @@ class SeedMeals {
           final hasExistingData = existing.isNotEmpty;
 
           if (hasExistingData && !EnvConfig.forceReseed) {
-            _log('Account already has ${existing.length} meals — skipping');
-            return const Right(0);
+            _log(
+              'Account already has ${existing.length} meals — '
+              'running self-heal pass for missing defaults',
+            );
+            return _selfHealMissingDefaults(
+              ownerUserId: ownerUserId,
+              existingMeals: existing,
+            );
           }
 
           if (hasExistingData && EnvConfig.forceReseed) {
@@ -72,6 +79,63 @@ class SeedMeals {
     } catch (e) {
       return Left(DatabaseFailure('Meal seeding failed: $e'));
     }
+  }
+
+  /// Seeds only the default meals missing from [existingMeals] by canonical
+  /// name, then marks the catalog-init flag so delete-stickiness resumes.
+  ///
+  /// Mirrors [SeedExercises._selfHealMissingDefaults]. See that method for the
+  /// full rationale.
+  Future<Either<Failure, int>> _selfHealMissingDefaults({
+    required String ownerUserId,
+    required List<Meal> existingMeals,
+  }) async {
+    final existingCanonical = existingMeals
+        .map((m) => DeterministicCatalogId.canonicalName(m.name))
+        .toSet();
+
+    final defaults = DefaultMealsData.getDefaultMeals();
+    final missing = defaults
+        .where(
+          (d) => !existingCanonical.contains(
+            DeterministicCatalogId.canonicalName(d.name),
+          ),
+        )
+        .toList();
+
+    _log(
+      'Self-heal: ${missing.length} of ${defaults.length} defaults missing '
+      'for $ownerUserId',
+    );
+
+    final now = DateTime.now();
+    int seededCount = 0;
+
+    for (final mealData in missing) {
+      try {
+        final meal = mealData.toEntity(
+          DeterministicCatalogId.forOwner(
+            ownerUserId: ownerUserId,
+            name: mealData.name,
+          ),
+          now,
+          ownerUserId: ownerUserId,
+        );
+        final result = await repository.addMeal(meal);
+        result.fold(
+          (failure) => _log(
+            'Self-heal: failed to seed "${meal.name}": ${failure.message}',
+          ),
+          (_) => seededCount++,
+        );
+      } catch (e) {
+        _log('Self-heal: exception seeding "${mealData.name}": $e');
+      }
+    }
+
+    _log('Self-heal complete: inserted $seededCount missing meals');
+    await catalogInitFlags?.markInitialized(ownerUserId, 'meals');
+    return Right(seededCount);
   }
 
   Future<Either<Failure, int>> _seedDefaultMeals({

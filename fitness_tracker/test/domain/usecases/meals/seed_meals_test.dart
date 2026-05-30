@@ -114,27 +114,42 @@ void main() {
 
     // Guest-vs-user-coexistence test removed: guest catalogs no longer exist.
 
-    test('is a no-op when the account already has meals', () async {
-      final repo = _InMemoryMealRepository()..currentOwner = 'user-1';
-      await repo.addMeal(
-        Meal(
-          id: 'x',
-          name: 'Existing',
-          servingSizeGrams: 100,
-          carbsPer100g: 1,
-          proteinPer100g: 1,
-          fatPer100g: 1,
-          caloriesPer100g: 17,
-          createdAt: DateTime(2026),
+    test(
+      'self-heals all missing defaults when flag is not set and partial data exists',
+      () async {
+        // Simulates a user who has one non-default meal but no flag — the
+        // self-heal pass adds all 53 defaults without removing the existing row.
+        final repo = _InMemoryMealRepository()..currentOwner = 'user-1';
+        await repo.addMeal(
+          Meal(
+            id: 'x',
+            name: 'Existing',
+            servingSizeGrams: 100,
+            carbsPer100g: 1,
+            proteinPer100g: 1,
+            fatPer100g: 1,
+            caloriesPer100g: 17,
+            createdAt: DateTime(2026),
+            ownerUserId: 'user-1',
+          ),
+        );
+
+        final flags = _InMemoryInitFlags();
+        final result = await SeedMeals(repo, catalogInitFlags: flags)(
           ownerUserId: 'user-1',
-        ),
-      );
+        );
 
-      final result = await SeedMeals(repo)(ownerUserId: 'user-1');
-
-      expect(result, const Right<Failure, int>(0));
-      expect(repo.store.length, 1);
-    });
+        final defaults = DefaultMealsData.getDefaultMeals();
+        expect(result, Right<Failure, int>(defaults.length));
+        expect(repo.store.length, defaults.length + 1); // +1 for 'Existing'
+        expect(
+          await flags.isInitialized('user-1', 'meals'),
+          isTrue,
+          reason:
+              'flag must be set after self-heal so delete-stickiness resumes',
+        );
+      },
+    );
 
     // -------------------------------------------------------------------------
     // Delete-stickiness invariant (catalog-init flag)
@@ -188,5 +203,165 @@ void main() {
         expect(await flags.isInitialized('user-2', 'meals'), isFalse);
       },
     );
+
+    // -------------------------------------------------------------------------
+    // Self-heal pass
+    // -------------------------------------------------------------------------
+
+    group('self-heal', () {
+      test(
+        'seeds only the missing defaults and sets flag when catalog is partial',
+        () async {
+          // Pre-populate with all defaults except the first two.
+          final repo = _InMemoryMealRepository()..currentOwner = 'user-1';
+          final defaults = DefaultMealsData.getDefaultMeals();
+          final toSkip = {defaults[0].name, defaults[1].name};
+          final now = DateTime(2026);
+          for (final d in defaults.skip(2)) {
+            await repo.addMeal(
+              d.toEntity(
+                DeterministicCatalogId.forOwner(
+                  ownerUserId: 'user-1',
+                  name: d.name,
+                ),
+                now,
+                ownerUserId: 'user-1',
+              ),
+            );
+          }
+
+          final flags = _InMemoryInitFlags();
+          final result = await SeedMeals(repo, catalogInitFlags: flags)(
+            ownerUserId: 'user-1',
+          );
+
+          expect(result, const Right<Failure, int>(2));
+          expect(repo.store.length, defaults.length);
+          for (final name in toSkip) {
+            expect(
+              repo.store.values.any((m) => m.name == name),
+              isTrue,
+              reason: '"$name" must have been self-healed',
+            );
+          }
+          expect(await flags.isInitialized('user-1', 'meals'), isTrue);
+        },
+      );
+
+      test(
+        'marks flag and returns 0 when all defaults already present by name',
+        () async {
+          // Store has all defaults but flag is absent.
+          final repo = _InMemoryMealRepository()..currentOwner = 'user-1';
+          final now = DateTime(2026);
+          for (final d in DefaultMealsData.getDefaultMeals()) {
+            await repo.addMeal(
+              d.toEntity(
+                DeterministicCatalogId.forOwner(
+                  ownerUserId: 'user-1',
+                  name: d.name,
+                ),
+                now,
+                ownerUserId: 'user-1',
+              ),
+            );
+          }
+
+          final flags = _InMemoryInitFlags();
+          final result = await SeedMeals(repo, catalogInitFlags: flags)(
+            ownerUserId: 'user-1',
+          );
+
+          expect(result, const Right<Failure, int>(0));
+          expect(repo.store.length, DefaultMealsData.getDefaultMeals().length);
+          expect(await flags.isInitialized('user-1', 'meals'), isTrue);
+        },
+      );
+
+      test(
+        'delete-stickiness: flag set with partial catalog skips re-seeding',
+        () async {
+          // Flag already set — user deliberately deleted a default.  Must not
+          // re-seed even though the catalog is incomplete.
+          final repo = _InMemoryMealRepository()..currentOwner = 'user-1';
+          final defaults = DefaultMealsData.getDefaultMeals();
+          final now = DateTime(2026);
+          for (final d in defaults.skip(1)) {
+            await repo.addMeal(
+              d.toEntity(
+                DeterministicCatalogId.forOwner(
+                  ownerUserId: 'user-1',
+                  name: d.name,
+                ),
+                now,
+                ownerUserId: 'user-1',
+              ),
+            );
+          }
+          final flags = _InMemoryInitFlags();
+          await flags.markInitialized('user-1', 'meals');
+
+          final result = await SeedMeals(repo, catalogInitFlags: flags)(
+            ownerUserId: 'user-1',
+          );
+
+          expect(result, const Right<Failure, int>(0));
+          expect(
+            repo.store.length,
+            defaults.length - 1,
+            reason: 'no new rows may be added when the flag is set',
+          );
+        },
+      );
+
+      test(
+        'does not insert duplicate when default name exists under a legacy id',
+        () async {
+          // Simulates the Supabase scenario: "Chicken Breast" was pulled from
+          // the server under a legacy (name-only) id, not the new forOwner id.
+          // The self-heal must detect the name match and skip insertion.
+          final repo = _InMemoryMealRepository()..currentOwner = 'user-1';
+          final defaults = DefaultMealsData.getDefaultMeals();
+          final legacyTarget = defaults[0]; // e.g. 'Chicken Breast'
+          final now = DateTime(2026);
+
+          // Insert all defaults EXCEPT legacyTarget under their correct ids.
+          for (final d in defaults.skip(1)) {
+            await repo.addMeal(
+              d.toEntity(
+                DeterministicCatalogId.forOwner(
+                  ownerUserId: 'user-1',
+                  name: d.name,
+                ),
+                now,
+                ownerUserId: 'user-1',
+              ),
+            );
+          }
+          // Insert legacyTarget under a different (legacy) id.
+          await repo.addMeal(
+            legacyTarget.toEntity(
+              'legacy-id-chicken-breast',
+              now,
+              ownerUserId: 'user-1',
+            ),
+          );
+
+          final flags = _InMemoryInitFlags();
+          final result = await SeedMeals(repo, catalogInitFlags: flags)(
+            ownerUserId: 'user-1',
+          );
+
+          // All names were present → self-heal inserts 0, flag is set.
+          expect(result, const Right<Failure, int>(0));
+          expect(
+            repo.store.length,
+            defaults.length,
+            reason: 'no duplicate must be added for "${legacyTarget.name}"',
+          );
+          expect(await flags.isInitialized('user-1', 'meals'), isTrue);
+        },
+      );
+    });
   });
 }

@@ -4,6 +4,7 @@ import '../../../config/env_config.dart';
 import '../../../core/constants/default_exercises_data.dart';
 import '../../../core/errors/failures.dart';
 import '../../../core/utils/deterministic_catalog_id.dart';
+import '../../entities/exercise.dart';
 import '../../repositories/catalog_init_flag_repository.dart';
 import '../../repositories/exercise_repository.dart';
 
@@ -66,9 +67,14 @@ class SeedExercises {
 
           // Step 3: Decide if we should seed
           if (hasExistingData && !EnvConfig.forceReseed) {
-            _log('Database already has ${existingExercises.length} exercises');
-            _log('Skipping seeding (set FORCE_RESEED=true to override)');
-            return const Right(0);
+            _log(
+              'Database already has ${existingExercises.length} exercises — '
+              'running self-heal pass for missing defaults',
+            );
+            return _selfHealMissingDefaults(
+              ownerUserId: ownerUserId,
+              existingExercises: existingExercises,
+            );
           }
 
           if (hasExistingData && EnvConfig.forceReseed) {
@@ -98,6 +104,71 @@ class SeedExercises {
       _logError('Failed to clear existing data: $e');
       rethrow;
     }
+  }
+
+  /// Seeds only the default exercises that are missing from [existingExercises]
+  /// by canonical name, then marks the catalog-init flag so delete-stickiness
+  /// resumes for this account going forward.
+  ///
+  /// This is the one-shot self-heal path: it runs when the flag is absent but
+  /// the account already has some exercises (e.g. after a partial pull from
+  /// Supabase, or after the v22 guest-cleanup migration that left two defaults
+  /// un-seeded). Matching is by [DeterministicCatalogId.canonicalName] so a
+  /// legacy-ID row from Supabase prevents a duplicate insertion even though
+  /// its id differs from what [DeterministicCatalogId.forOwner] would produce.
+  Future<Either<Failure, int>> _selfHealMissingDefaults({
+    required String ownerUserId,
+    required List<Exercise> existingExercises,
+  }) async {
+    final existingCanonical = existingExercises
+        .map((e) => DeterministicCatalogId.canonicalName(e.name))
+        .toSet();
+
+    final defaults = DefaultExercisesData.getDefaultExercises();
+    final missing = defaults
+        .where(
+          (d) => !existingCanonical.contains(
+            DeterministicCatalogId.canonicalName(d.name),
+          ),
+        )
+        .toList();
+
+    _log(
+      'Self-heal: ${missing.length} of ${defaults.length} defaults missing '
+      'for $ownerUserId',
+    );
+
+    final now = DateTime.now();
+    int seededCount = 0;
+
+    for (final exerciseData in missing) {
+      try {
+        final exercise = exerciseData.toEntity(
+          DeterministicCatalogId.forOwner(
+            ownerUserId: ownerUserId,
+            name: exerciseData.name,
+          ),
+          now,
+          ownerUserId: ownerUserId,
+        );
+        final result = await repository.addExercise(exercise);
+        result.fold(
+          (failure) => _logError(
+            'Self-heal: failed to seed "${exercise.name}": ${failure.message}',
+          ),
+          (_) {
+            seededCount++;
+            _logVerbose('Self-heal: ✓ seeded "${exercise.name}"');
+          },
+        );
+      } catch (e) {
+        _logError('Self-heal: exception seeding "${exerciseData.name}": $e');
+      }
+    }
+
+    _log('Self-heal complete: inserted $seededCount missing exercises');
+    await catalogInitFlags?.markInitialized(ownerUserId, 'exercises');
+    return Right(seededCount);
   }
 
   /// Seed all default exercises, owned by [ownerUserId].
