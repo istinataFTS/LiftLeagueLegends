@@ -73,7 +73,6 @@ The script errors if `dart_defines.json` is missing. Equivalent raw command: `fl
 | `PICOVOICE_ACCESS_KEY` | Picovoice Console access key (voice wake word) |
 
 The `PICOVOICE_ACCESS_KEY` is written into `flutter_secure_storage` by `AppBootstrapper` on every launch. The wake-word engine starts automatically after the write via `VoiceCredentialService.onPicovoiceKeyChanged`. See KNOWN_ISSUES `#voice-picovoice-key-must-ship-via-dart-define`.
-<<<<<<< HEAD
 
 ## Platform support
 
@@ -103,8 +102,6 @@ The `PICOVOICE_ACCESS_KEY` is written into `flutter_secure_storage` by `AppBoots
 - `ios/Runner/Assets.xcassets/` — iOS icons (does not exist yet)
 
 Do not introduce platform-specific Dart code via `Platform.isAndroid` / `Platform.isIOS` checks unless the platform abstraction layer (a `VoiceXxxService` interface in `lib/domain/services/`) cannot reasonably express the difference. Prefer one interface, two implementations registered per platform in DI.
-=======
->>>>>>> origin/main
 
 ## Known issues and the 15-minute rule
 
@@ -116,7 +113,7 @@ Do not introduce platform-specific Dart code via `Platform.isAndroid` / `Platfor
 
 Before writing a new datasource, repository, use case, BLoC, injection module, or test, read the matching canonical example in `.claude/reference/`. Each file points at the live, blessed implementation of one pattern with an annotated walkthrough explaining what makes it canonical and what to watch out for when copying it.
 
-- [Local datasource](.claude/reference/datasource.md) — `UserScopedLocalDatasource`, `whereOwned(...)`, `resolveOwnerId()`, `requireAuthenticatedOwnerId()`
+- [Local datasource](.claude/reference/datasource.md) — `UserScopedLocalDatasource`, `whereOwned(...)`, `ownerId()`
 - [Repository implementation](.claude/reference/repository.md) — `RepositoryGuard.run`, `Either<Failure, T>`, `DataSourcePreference`, offline-resilient remote reads
 - [Use case](.claude/reference/use_case.md) — pure domain, `call()` entry point, session resolution, chained side effects
 - [BLoC](.claude/reference/bloc.md) — `BlocEffectsMixin`, event/state/effect types, load-vs-refresh pattern
@@ -226,11 +223,10 @@ All repository methods return `Either<Failure, T>` (via `dartz`). Use `Repositor
 
 ### Data / sync architecture
 
-- **Guest mode**: local SQLite only (`sqflite`). No remote calls.
-- **Authenticated mode**: offline-first. Local writes are immediately committed; sync runs in the background.
+- **Offline-first**: local writes are immediately committed; sync runs in the background.
 - **Source of truth**: Supabase for authenticated users (`ConflictResolutionStrategy.serverWins`).
 - **SyncOrchestrator** (`core/sync/`) runs on `appLaunch`, `appResume`, `connectivityRestored`, `manualRefresh`, `writeThrough`, and `initialSignIn`.
-- **Initial sign-in**: guest data is migrated to the authenticated user before any pull (prepare → push → pull, ordered by FK dependency: exercises → meals → workout_sets → nutrition_logs).
+- **Initial sign-in**: triggers prepare → push → pull, ordered by FK dependency: exercises → meals → workout_sets → nutrition_logs.
 - **Post-sync hooks**: after every sync, `MuscleFactorHealHook` runs first (ensures exercise factors are present), then `MuscleStimulusRebuildHook` rebuilds derived stimulus data.
 
 ### User-scoped local datasources
@@ -238,15 +234,14 @@ All repository methods return `Either<Failure, T>` (via `dartz`). Use `Repositor
 Every local datasource whose rows are owned by a user **must** extend `UserScopedLocalDatasource` (`lib/data/datasources/local/user_scoped_local_datasource.dart`). This is a structural requirement, not a convention — adding a new user-scoped datasource without extending the base class will fail CI in Adoption 04.
 
 The base class provides:
-- `resolveOwnerId()` — returns the current owner ID; returns `''` (guest sentinel) for guests.
-- `requireAuthenticatedOwnerId({required String operation})` — throws `MissingUserContextException` if called in guest mode. Use for auth-only operations (push, pull, initial-sync prepare).
+- `ownerId()` — returns the current authenticated owner ID; throws `MissingUserContextException` if no user is in context. **There is no guest mode** — every datasource call runs above the sign-in gate.
 - `whereOwned({required String ownerId, String? extra, List<Object?> extraArgs})` — builds a scoped `WHERE` clause for `db.query()` calls.
 
 Three datasources are **exempt** (documented in the base class doc comment): `AppMetadataLocalDataSource`, `MuscleFactorLocalDataSource`, `PendingSyncDeleteLocalDataSource`.
 
 ### Local database
 
-SQLite via `sqflite`. Current schema version: **19**. Migration history is documented inline in `EnvConfig.databaseVersion`. Version upgrades are additive; version 15+ rejects incompatible legacy databases rather than destroying data.
+SQLite via `sqflite`. Current schema version: **22**. Migration history is documented inline in `EnvConfig.databaseVersion`. Version upgrades are additive; version 15+ rejects incompatible legacy databases rather than destroying data.
 
 ### Voice bot
 
@@ -260,11 +255,10 @@ The voice feature is split across Flutter (on-device I/O) and a single Supabase 
 - **Shared backend modules** live in `supabase/functions/_shared/` (budget enforcement, OpenAI chat wrapper, cost accounting). All LLM calls are logged to `voice_usage_log`, including failures (`status=<error_code>`, `cost_usd=0`).
 - `OPENAI_API_KEY` lives exclusively as a Supabase function secret — it is never present in Flutter client code.
 - If Supabase is not configured, the voice module falls back to `NoopVoiceRemoteDataSource` (all calls return `ServerFailure`).
-- Guest users cannot use voice (FAB is visible-but-disabled with a sign-in CTA).
 
 ### Feature list
 
-`home`, `log` (workout + nutrition), `history`, `library` (exercises + meals), `profile`, `settings`, `auth` (sign-in, sign-up, OTP), `voice`.
+`home`, `log` (workout + nutrition), `history`, `library` (exercises + meals), `profile`, `settings`, `auth` (sign-in, sign-up, OTP — sign-in is required to use the app; there is no guest mode), `voice`.
 
 ### CI
 
