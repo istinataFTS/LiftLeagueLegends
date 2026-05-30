@@ -191,6 +191,28 @@ void main() {
         await subscription.cancel();
         await bloc.close();
       });
+
+      test(
+        'emits NutritionMutationFailedEffect alongside error state on failure',
+        () async {
+          when(
+            () => mockAdd(_logFixture),
+          ).thenAnswer((_) async => const Left(_dbFailure));
+
+          final bloc = buildBloc();
+          final effectFuture = bloc.effects.first;
+
+          bloc.add(AddNutritionLogEvent(_logFixture));
+          await Future<void>.delayed(Duration.zero);
+
+          final effect = await effectFuture;
+          expect(effect, isA<NutritionMutationFailedEffect>());
+          expect((effect as NutritionMutationFailedEffect).message, 'db error');
+          expect(bloc.state, const NutritionLogError('db error'));
+
+          await bloc.close();
+        },
+      );
     });
 
     group('UpdateNutritionLogEvent', () {

@@ -6,6 +6,7 @@ import 'package:uuid/uuid.dart';
 
 import '../../../core/bloc/bloc_effects_mixin.dart';
 import '../../../core/constants/app_strings.dart';
+import 'voice_mutation_outcome.dart';
 import '../../../core/constants/muscle_stimulus_constants.dart';
 import '../../../core/constants/voice_constants.dart';
 import '../../../core/errors/failures.dart';
@@ -322,38 +323,52 @@ sealed class VoiceEffect {
 /// Each subclass carries only domain entities or scalar identifiers —
 /// never target-feature event objects. This keeps cross-feature imports
 /// out of [VoiceBloc] entirely.
+///
+/// Every subclass owns a [completer] that [VoiceCommandRouter] must complete
+/// once the target BLoC confirms success or failure. [VoiceBloc] awaits this
+/// completer (with a bounded timeout) before speaking a response.
 sealed class VoiceMutationCommand extends VoiceEffect {
   const VoiceMutationCommand();
+
+  /// Completer owned by [VoiceBloc]; completed by [VoiceCommandRouter] with
+  /// the authoritative persistence outcome from the target BLoC.
+  Completer<VoiceMutationOutcome> get completer;
 }
 
 class VoiceAddWorkoutSetCommand extends VoiceMutationCommand {
-  const VoiceAddWorkoutSetCommand(this.set);
+  VoiceAddWorkoutSetCommand(this.set, {required this.completer});
   final WorkoutSet set;
+  final Completer<VoiceMutationOutcome> completer;
 }
 
 class VoiceUpdateWorkoutSetCommand extends VoiceMutationCommand {
-  const VoiceUpdateWorkoutSetCommand(this.set);
+  VoiceUpdateWorkoutSetCommand(this.set, {required this.completer});
   final WorkoutSet set;
+  final Completer<VoiceMutationOutcome> completer;
 }
 
 class VoiceDeleteWorkoutSetCommand extends VoiceMutationCommand {
-  const VoiceDeleteWorkoutSetCommand(this.setId);
+  VoiceDeleteWorkoutSetCommand(this.setId, {required this.completer});
   final String setId;
+  final Completer<VoiceMutationOutcome> completer;
 }
 
 class VoiceAddNutritionLogCommand extends VoiceMutationCommand {
-  const VoiceAddNutritionLogCommand(this.log);
+  VoiceAddNutritionLogCommand(this.log, {required this.completer});
   final NutritionLog log;
+  final Completer<VoiceMutationOutcome> completer;
 }
 
 class VoiceUpdateNutritionLogCommand extends VoiceMutationCommand {
-  const VoiceUpdateNutritionLogCommand(this.log);
+  VoiceUpdateNutritionLogCommand(this.log, {required this.completer});
   final NutritionLog log;
+  final Completer<VoiceMutationOutcome> completer;
 }
 
 class VoiceDeleteNutritionLogCommand extends VoiceMutationCommand {
-  const VoiceDeleteNutritionLogCommand(this.logId);
+  VoiceDeleteNutritionLogCommand(this.logId, {required this.completer});
   final String logId;
+  final Completer<VoiceMutationOutcome> completer;
 }
 
 // ---------------------------------------------------------------------------
@@ -947,78 +962,152 @@ class VoiceBloc extends Bloc<VoiceEvent, VoiceState>
   // C-5: Mutation tool dispatcher
   // ---------------------------------------------------------------------------
 
-  /// Dispatches the confirmed tool call as a [VoiceMutationCommand] effect.
-  /// [VoiceCommandRouter] in the widget tree converts each effect into a
-  /// target-BLoC event via `context.read<X>().add(...)`.
-  /// Returns the spoken success string, or null if dispatch failed.
+  /// Dispatches the confirmed tool call as a [VoiceMutationCommand] effect and
+  /// awaits an authoritative outcome from [VoiceCommandRouter] before speaking.
   ///
-  /// On successful dispatch, refreshes [_cachedWorkoutSets] /
-  /// [_cachedNutritionLogs] synchronously so the LLM's next outgoing context
-  /// payload includes the just-mutated row (D1 — fixes the stale-cache bug
-  /// where the second voice-logged set in a session was invisible to the bot).
-  /// Cache is NOT mutated on failure paths since no effect was emitted.
+  /// Each command carries a [Completer<VoiceMutationOutcome>]. The router
+  /// observes the target BLoC's next success or failure effect and completes
+  /// the completer, unblocking this method. A finite timeout (see
+  /// [VoiceConstants.mutationDispatchTimeout]) prevents indefinite blocking if
+  /// the target BLoC stalls without emitting an outcome.
+  ///
+  /// Cache mutation ([_cachedWorkoutSets] / [_cachedNutritionLogs]) only
+  /// occurs on [VoiceMutationSuccess] — never on failure or timeout — so
+  /// subsequent voice-context payloads do not include rows that never persisted.
   Future<String?> _dispatchMutationTool(VoiceToolCall tc, DateTime now) async {
     try {
       switch (tc.toolName) {
         case 'logWorkoutSet':
           final set = await _buildWorkoutSet(tc.args, now);
           if (set == null) return AppStrings.voiceSpokenExerciseNotFound;
-          emitEffect(VoiceAddWorkoutSetCommand(set));
-          _cachedWorkoutSets = <WorkoutSet>[
-            set,
-            ..._cachedWorkoutSets,
-          ].take(_recentCacheWindowSize).toList();
-          return AppStrings.voiceSpokenSetLogged;
+          final completer = Completer<VoiceMutationOutcome>();
+          emitEffect(VoiceAddWorkoutSetCommand(set, completer: completer));
+          final outcome = await completer.future.timeout(
+            VoiceConstants.mutationDispatchTimeout,
+            onTimeout: () => const VoiceMutationTimeout(),
+          );
+          return switch (outcome) {
+            VoiceMutationSuccess() => () {
+              _cachedWorkoutSets = <WorkoutSet>[
+                set,
+                ..._cachedWorkoutSets,
+              ].take(_recentCacheWindowSize).toList();
+              return AppStrings.voiceSpokenSetLogged;
+            }(),
+            VoiceMutationFailure() => AppStrings.voiceSpokenToolFailed,
+            VoiceMutationTimeout() => AppStrings.voiceSpokenMutationTimedOut,
+          };
 
         case 'editWorkoutSet':
           final setId = tc.args['setId'] as String? ?? '';
           final existing = _fetchSetById(setId);
           if (existing == null) return AppStrings.voiceSpokenToolFailed;
           final updated = _applyWorkoutSetEdits(existing, tc.args);
-          emitEffect(VoiceUpdateWorkoutSetCommand(updated));
-          _cachedWorkoutSets = _cachedWorkoutSets
-              .map((s) => s.id == updated.id ? updated : s)
-              .toList();
-          return AppStrings.voiceSpokenSetUpdated;
+          final completer = Completer<VoiceMutationOutcome>();
+          emitEffect(
+            VoiceUpdateWorkoutSetCommand(updated, completer: completer),
+          );
+          final outcome = await completer.future.timeout(
+            VoiceConstants.mutationDispatchTimeout,
+            onTimeout: () => const VoiceMutationTimeout(),
+          );
+          return switch (outcome) {
+            VoiceMutationSuccess() => () {
+              _cachedWorkoutSets = _cachedWorkoutSets
+                  .map((s) => s.id == updated.id ? updated : s)
+                  .toList();
+              return AppStrings.voiceSpokenSetUpdated;
+            }(),
+            VoiceMutationFailure() => AppStrings.voiceSpokenToolFailed,
+            VoiceMutationTimeout() => AppStrings.voiceSpokenMutationTimedOut,
+          };
 
         case 'deleteWorkoutSet':
           final setId = tc.args['setId'] as String? ?? '';
           if (setId.isEmpty) return AppStrings.voiceSpokenToolFailed;
-          emitEffect(VoiceDeleteWorkoutSetCommand(setId));
-          _cachedWorkoutSets = _cachedWorkoutSets
-              .where((s) => s.id != setId)
-              .toList();
-          return AppStrings.voiceSpokenSetDeleted;
+          final completer = Completer<VoiceMutationOutcome>();
+          emitEffect(VoiceDeleteWorkoutSetCommand(setId, completer: completer));
+          final outcome = await completer.future.timeout(
+            VoiceConstants.mutationDispatchTimeout,
+            onTimeout: () => const VoiceMutationTimeout(),
+          );
+          return switch (outcome) {
+            VoiceMutationSuccess() => () {
+              _cachedWorkoutSets = _cachedWorkoutSets
+                  .where((s) => s.id != setId)
+                  .toList();
+              return AppStrings.voiceSpokenSetDeleted;
+            }(),
+            VoiceMutationFailure() => AppStrings.voiceSpokenToolFailed,
+            VoiceMutationTimeout() => AppStrings.voiceSpokenMutationTimedOut,
+          };
 
         case 'logNutrition':
           final log = _buildNutritionLog(tc.args, now);
           if (log == null) return AppStrings.voiceSpokenToolFailed;
-          emitEffect(VoiceAddNutritionLogCommand(log));
-          _cachedNutritionLogs = <NutritionLog>[
-            log,
-            ..._cachedNutritionLogs,
-          ].take(_recentCacheWindowSize).toList();
-          return AppStrings.voiceSpokenNutritionLogged;
+          final completer = Completer<VoiceMutationOutcome>();
+          emitEffect(VoiceAddNutritionLogCommand(log, completer: completer));
+          final outcome = await completer.future.timeout(
+            VoiceConstants.mutationDispatchTimeout,
+            onTimeout: () => const VoiceMutationTimeout(),
+          );
+          return switch (outcome) {
+            VoiceMutationSuccess() => () {
+              _cachedNutritionLogs = <NutritionLog>[
+                log,
+                ..._cachedNutritionLogs,
+              ].take(_recentCacheWindowSize).toList();
+              return AppStrings.voiceSpokenNutritionLogged;
+            }(),
+            VoiceMutationFailure() => AppStrings.voiceSpokenToolFailed,
+            VoiceMutationTimeout() => AppStrings.voiceSpokenMutationTimedOut,
+          };
 
         case 'editNutritionLog':
           final logId = tc.args['logId'] as String? ?? '';
           final existing = _fetchNutritionLogById(logId);
           if (existing == null) return AppStrings.voiceSpokenToolFailed;
           final updated = _applyNutritionLogEdits(existing, tc.args);
-          emitEffect(VoiceUpdateNutritionLogCommand(updated));
-          _cachedNutritionLogs = _cachedNutritionLogs
-              .map((l) => l.id == updated.id ? updated : l)
-              .toList();
-          return AppStrings.voiceSpokenNutritionUpdated;
+          final completer = Completer<VoiceMutationOutcome>();
+          emitEffect(
+            VoiceUpdateNutritionLogCommand(updated, completer: completer),
+          );
+          final outcome = await completer.future.timeout(
+            VoiceConstants.mutationDispatchTimeout,
+            onTimeout: () => const VoiceMutationTimeout(),
+          );
+          return switch (outcome) {
+            VoiceMutationSuccess() => () {
+              _cachedNutritionLogs = _cachedNutritionLogs
+                  .map((l) => l.id == updated.id ? updated : l)
+                  .toList();
+              return AppStrings.voiceSpokenNutritionUpdated;
+            }(),
+            VoiceMutationFailure() => AppStrings.voiceSpokenToolFailed,
+            VoiceMutationTimeout() => AppStrings.voiceSpokenMutationTimedOut,
+          };
 
         case 'deleteNutritionLog':
           final logId = tc.args['logId'] as String? ?? '';
           if (logId.isEmpty) return AppStrings.voiceSpokenToolFailed;
-          emitEffect(VoiceDeleteNutritionLogCommand(logId));
-          _cachedNutritionLogs = _cachedNutritionLogs
-              .where((l) => l.id != logId)
-              .toList();
-          return AppStrings.voiceSpokenNutritionDeleted;
+          final completer = Completer<VoiceMutationOutcome>();
+          emitEffect(
+            VoiceDeleteNutritionLogCommand(logId, completer: completer),
+          );
+          final outcome = await completer.future.timeout(
+            VoiceConstants.mutationDispatchTimeout,
+            onTimeout: () => const VoiceMutationTimeout(),
+          );
+          return switch (outcome) {
+            VoiceMutationSuccess() => () {
+              _cachedNutritionLogs = _cachedNutritionLogs
+                  .where((l) => l.id != logId)
+                  .toList();
+              return AppStrings.voiceSpokenNutritionDeleted;
+            }(),
+            VoiceMutationFailure() => AppStrings.voiceSpokenToolFailed,
+            VoiceMutationTimeout() => AppStrings.voiceSpokenMutationTimedOut,
+          };
 
         default:
           AppLogger.warning('VoiceBloc: unknown mutation tool: ${tc.toolName}');

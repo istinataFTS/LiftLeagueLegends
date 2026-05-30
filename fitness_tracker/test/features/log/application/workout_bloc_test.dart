@@ -139,6 +139,26 @@ void main() {
       },
     );
 
+    test(
+      'emits WorkoutMutationFailedEffect alongside WorkoutError on failure',
+      () async {
+        when(() => mockAddWorkoutSet(workoutSet)).thenAnswer(
+          (_) async => const Left(DatabaseFailure('db write failed')),
+        );
+
+        final effectFuture = bloc.effects.first;
+        bloc.add(AddWorkoutSetEvent(workoutSet));
+
+        final effect = await effectFuture;
+        expect(effect, isA<WorkoutMutationFailedEffect>());
+        expect(
+          (effect as WorkoutMutationFailedEffect).message,
+          'db write failed',
+        );
+        expect(bloc.state, const WorkoutError('db write failed'));
+      },
+    );
+
     blocTest<WorkoutBloc, WorkoutState>(
       'refresh emits loaded without forcing loading state',
       build: () {

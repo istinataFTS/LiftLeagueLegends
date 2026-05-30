@@ -117,6 +117,15 @@ class NutritionLogSuccessEffect extends NutritionLogUiEffect {
   const NutritionLogSuccessEffect(this.message);
 }
 
+/// Emitted alongside [NutritionLogError] state when a mutation fails.
+/// [VoiceCommandRouter] listens for this to complete the in-flight mutation
+/// completer with a failure outcome so [VoiceBloc] can speak an error reply.
+class NutritionMutationFailedEffect extends NutritionLogUiEffect {
+  const NutritionMutationFailedEffect(this.message);
+
+  final String message;
+}
+
 // ==================== BLoC ====================
 
 class NutritionLogBloc extends Bloc<NutritionLogEvent, NutritionLogState>
@@ -201,7 +210,10 @@ class NutritionLogBloc extends Bloc<NutritionLogEvent, NutritionLogState>
     final result = await action();
 
     await result.fold(
-      (failure) async => emit(NutritionLogError(failure.message)),
+      (failure) async {
+        emit(NutritionLogError(failure.message));
+        emitEffect(NutritionMutationFailedEffect(failure.message));
+      },
       (_) async {
         await _loadDay(_currentDate, emit);
         emitEffect(NutritionLogSuccessEffect(successMessage));

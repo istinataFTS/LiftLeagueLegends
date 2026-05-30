@@ -43,6 +43,12 @@ abstract final class VoiceConstants {
   /// but short enough to avoid hanging indefinitely on poor connections.
   static const Duration voiceChatHttpTimeout = Duration(seconds: 30);
 
+  /// Maximum time [VoiceBloc._dispatchMutationTool] waits for
+  /// [VoiceCommandRouter] to complete a mutation's [Completer] before giving
+  /// up and returning [AppStrings.voiceSpokenMutationTimedOut]. Long enough
+  /// for slow SQLite writes; short enough that the user notices and retries.
+  static const Duration mutationDispatchTimeout = Duration(seconds: 5);
+
   /// Hard upper bound for a single STT session — even if the user keeps
   /// talking, force a stop at this duration to bound audio cost and UX.
   ///

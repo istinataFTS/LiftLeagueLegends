@@ -3,7 +3,7 @@
 - **Pattern:** BLoC (Business Logic Component)
 - **Canonical file:** `lib/features/log/application/workout_bloc.dart`
 - **Locked by:** commit `5042902` — last substantial shape change; `BlocEffectsMixin` wiring and the `_loadWeeklySetsData` helper were both in place at this commit
-- **Last verified:** 2026-05-23
+- **Last verified:** 2026-05-31
 - **Related references:** [[use_case]], [[bloc_test]], [[injection_module]]
 - **Companion playbook:** _(to be added by Adoption 05: `.claude/skills/add-bloc-effect.md`)_
 - **Embodied conventions:**
@@ -61,6 +61,21 @@ The effect is emitted **after** the state update (line 143 before 145), so the w
 `workout_bloc.dart:170-187` — `_loadWeeklySetsData` is the private method both load and refresh handlers call. Extract any async data-fetch sequence used by more than one handler into a private helper. This prevents subtle divergences between code paths and makes the individual handlers trivial to read.
 
 `workout_bloc.dart:183` — `_cachedWeeklySets = sets` stores the last-seen list for the `cachedWeeklySets` getter (line 189). The cache is updated inside the BLoC, not inside a state subclass. This is intentional: the cache is a transient implementation detail that helps UI layers avoid rebuilds when sets do not change; it is not part of the state contract.
+
+---
+
+## Cross-BLoC round-trip via Completer-bearing effect
+
+When a BLoC dispatches a mutation to another BLoC through a router widget (see `lib/app/voice/voice_command_router.dart`) and needs an authoritative success/failure outcome before proceeding, thread a `Completer<Outcome>` through the dispatch effect:
+
+1. The **originating BLoC** (`VoiceBloc`) creates a `Completer<VoiceMutationOutcome>`, attaches it to the effect, and `await`s the future with a finite timeout.
+2. The **router widget** (`VoiceCommandRouter`) receives the effect, dispatches the corresponding event to the **target BLoC** (`WorkoutBloc`, `HistoryBloc`, etc.), and listens for that BLoC's next success or failure effect.
+3. The **target BLoC** emits both a state change (e.g. `WorkoutError`) and a new failure effect (e.g. `WorkoutMutationFailedEffect`) on failure — so both the state channel (for the UI) and the effect channel (for the router) are notified.
+4. The **router** completes the originating BLoC's completer when the outcome effect arrives. On `dispose()`, any in-flight or queued completers are completed with `VoiceMutationTimeout` so the originating BLoC is never permanently suspended.
+
+This keeps the architecture's directional flow (voice → router → target → router → voice) without introducing direct cross-feature BLoC references. Document the contract in the effect-class docstring and reference both producer and awaiter.
+
+**Concrete example:** `voice_bloc.dart` `_dispatchMutationTool`, `voice_command_router.dart` `_onVoiceEffect` / `_completeInflight`, `workout_bloc.dart` `WorkoutMutationFailedEffect`. See Commit 3 of `plan-2-post-guest-removal-cleanups.md`.
 
 ---
 
