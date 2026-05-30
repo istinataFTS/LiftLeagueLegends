@@ -19,10 +19,7 @@ class DeleteWorkoutSet {
 
   Future<Either<Failure, void>> call(String id) async {
     final sessionResult = await appSessionRepository.getCurrentSession();
-    final userId = sessionResult.fold(
-      (_) => '',
-      (session) => session.user?.id ?? '',
-    );
+    final userId = sessionResult.fold((_) => '', (session) => session.user.id);
 
     final deleteResult = await repository.deleteSet(id);
 

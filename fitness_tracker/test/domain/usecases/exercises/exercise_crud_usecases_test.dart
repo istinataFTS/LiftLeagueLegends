@@ -46,9 +46,9 @@ final _exerciseFixture = Exercise(
   createdAt: DateTime(2026),
 );
 
-// Per-user catalog model: AddExercise always stamps the resolved owner.
-// Guest / failed-session resolves to the guest sentinel '' ('').
-final _guestOwnedFixture = _exerciseFixture.copyWith(ownerUserId: '');
+// Per-user catalog model: AddExercise always stamps the resolved owner
+// from the authenticated session. A failed session lookup now surfaces as
+// Left(failure) rather than a guest-sentinel fallback.
 
 const _authenticatedSession = AppSession(
   user: AppUser(id: 'user-1', email: 'test@example.com'),
