@@ -60,9 +60,8 @@ abstract class ExerciseLocalDataSource {
   /// next account can never see the signed-out user's catalog.
   ///
   /// Per-user catalog model (db v20+): every row is owned, so this only
-  /// removes `owner_user_id = userId` rows. Other accounts' rows and the
-  /// guest catalog (the `''` sentinel) are untouched, so a subsequent guest
-  /// session still resolves its own catalog.
+  /// removes `owner_user_id = userId` rows. Other accounts' rows are
+  /// untouched. There is no guest catalog (removed in the v22 migration).
   Future<void> clearUserOwnedExercises(String userId);
 }
 
@@ -482,8 +481,8 @@ class ExerciseLocalDataSourceImpl extends UserScopedLocalDatasource
   // Private helpers
   // ---------------------------------------------------------------------------
 
-  /// Exercises visible to the active account:
-  /// - Only rows owned by the active account (guest `''` or `uid`).
+  /// Exercises visible to the active authenticated account:
+  /// - Only rows owned by the current user (scoped by `owner_user_id`).
   /// - Soft-deleted exercises (sync_status = pendingDelete) are excluded.
   Future<List<ExerciseModel>> _getVisibleExercises() async {
     final ownerId = await this.ownerId();

@@ -48,8 +48,8 @@ abstract class VoiceEvent extends Equatable {
 }
 
 /// Fired when a voice session begins (user opens the overlay or wakes
-/// the bot). Carries the current auth session so guests can be
-/// rejected before any network call.
+/// the bot). Carries the current auth session so the authenticated
+/// user id is available throughout the voice session lifecycle.
 class VoiceSessionStarted extends VoiceEvent {
   const VoiceSessionStarted(this.session);
 

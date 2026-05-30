@@ -101,5 +101,40 @@ void main() {
         );
       },
     );
+
+    test(
+      'fix hint mentions authenticated-owner-only with no guest mode',
+      () async {
+        final repo = FakeRepoView({
+          'lib/data/datasources/local/baz_local_datasource_impl.dart':
+              'class BazLocalDataSourceImpl {\n'
+              '  Future<void> get() async {}\n'
+              '}\n',
+        });
+        final violations = await rule.check(repo);
+        expect(violations, hasLength(1));
+        expect(violations.first.fixHint, contains('no guest mode'));
+        expect(violations.first.fixHint, contains('authenticated-owner-only'));
+      },
+    );
+
+    test('exemption list contains exactly the three documented non-user-scoped '
+        'datasources — no guest-mode exemptions', () {
+      // This test locks the exemption list so any new addition requires an
+      // explicit review. The three exempt datasources (AppMetadata,
+      // MuscleFactor, PendingSyncDelete) are not user-scoped by design and
+      // have nothing to do with guest mode. Adding a guest-related exemption
+      // here would be a regression.
+      expect(UserScopedDatasourceRule.exemptFiles, hasLength(4));
+      expect(
+        UserScopedDatasourceRule.exemptFiles,
+        containsAll([
+          'lib/data/datasources/local/app_metadata_local_datasource.dart',
+          'lib/data/datasources/local/muscle_factor_local_datasource.dart',
+          'lib/data/datasources/local/pending_sync_delete_local_datasource.dart',
+          'lib/data/datasources/local/pending_sync_delete_local_datasource_impl.dart',
+        ]),
+      );
+    });
   });
 }

@@ -81,7 +81,8 @@ void _registerAppComposition(GetIt sl) {
   //   exercises → meals → workout_sets → nutrition_logs
   // Every migration step follows the same prepare → pull → push shape,
   // mirroring the regular feature sync (which already pulls before pushing):
-  //   1. prepare: reassign any guest-owned rows to this authenticated user.
+  //   1. prepare: mark local-only rows ready for push; post-v22 migration
+  //               there are no guest rows, so this is a lightweight no-op.
   //   2. pull:    download the cloud rows for this user first and reconcile
   //               by (name, owner) via the local insert path, so a server
   //               row that already exists is adopted locally instead of

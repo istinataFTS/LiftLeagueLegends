@@ -172,11 +172,11 @@ void main() {
       expect(fab.onPressed, isNotNull);
     });
 
-    testWidgets('does not show guest tooltip text', (tester) async {
+    testWidgets('shows open tooltip for authenticated session', (tester) async {
       await tester.pumpWidget(
         _wrap(session: _authSession, settingsCubit: settingsCubit),
       );
-      expect(find.text(AppStrings.voiceFabTooltipGuest), findsNothing);
+      expect(find.byTooltip(AppStrings.voiceFabTooltipOpen), findsOneWidget);
     });
 
     testWidgets(
