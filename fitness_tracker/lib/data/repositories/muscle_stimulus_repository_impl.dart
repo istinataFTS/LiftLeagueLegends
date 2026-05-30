@@ -16,7 +16,6 @@ class MuscleStimulusRepositoryImpl implements MuscleStimulusRepository {
 
   @override
   Future<Either<Failure, MuscleStimulus?>> getStimulusByMuscleAndDate({
-    required String userId,
     required String muscleGroup,
     required DateTime date,
   }) {
@@ -30,7 +29,6 @@ class MuscleStimulusRepositoryImpl implements MuscleStimulusRepository {
 
   @override
   Future<Either<Failure, List<MuscleStimulus>>> getStimulusByDateRange({
-    required String userId,
     required String muscleGroup,
     required DateTime startDate,
     required DateTime endDate,
@@ -46,7 +44,6 @@ class MuscleStimulusRepositoryImpl implements MuscleStimulusRepository {
 
   @override
   Future<Either<Failure, MuscleStimulus?>> getTodayStimulus(
-    String userId,
     String muscleGroup,
   ) {
     return RepositoryGuard.run(() async {
@@ -56,7 +53,6 @@ class MuscleStimulusRepositoryImpl implements MuscleStimulusRepository {
 
   @override
   Future<Either<Failure, List<MuscleStimulus>>> getAllStimulusForDate(
-    String userId,
     DateTime date,
   ) {
     return RepositoryGuard.run(() async {
@@ -94,24 +90,21 @@ class MuscleStimulusRepositoryImpl implements MuscleStimulusRepository {
   }
 
   @override
-  Future<Either<Failure, void>> applyDailyDecayToAll(String userId) {
+  Future<Either<Failure, void>> applyDailyDecayToAll() {
     return RepositoryGuard.run(() async {
       await localDataSource.applyDailyDecayToAll();
     });
   }
 
   @override
-  Future<Either<Failure, double>> getMaxStimulusForMuscle(
-    String userId,
-    String muscleGroup,
-  ) {
+  Future<Either<Failure, double>> getMaxStimulusForMuscle(String muscleGroup) {
     return RepositoryGuard.run(() async {
       return localDataSource.getMaxStimulusForMuscle(muscleGroup);
     });
   }
 
   @override
-  Future<Either<Failure, void>> deleteOlderThan(String userId, DateTime date) {
+  Future<Either<Failure, void>> deleteOlderThan(DateTime date) {
     return RepositoryGuard.run(() async {
       await localDataSource.deleteOlderThan(date);
     });

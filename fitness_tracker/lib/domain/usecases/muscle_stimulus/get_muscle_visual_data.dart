@@ -21,27 +21,25 @@ class GetMuscleVisualData {
 
   Future<Either<Failure, Map<String, MuscleVisualData>>> call(
     TimePeriod period,
-    String userId,
   ) async {
     try {
       switch (period) {
         case TimePeriod.today:
-          return _getTodayVisualData(userId);
+          return _getTodayVisualData();
         case TimePeriod.week:
-          return _getWeekVisualData(userId);
+          return _getWeekVisualData();
         case TimePeriod.month:
-          return _getMonthVisualData(userId);
+          return _getMonthVisualData();
         case TimePeriod.allTime:
-          return _getAllTimeVisualData(userId);
+          return _getAllTimeVisualData();
       }
     } catch (e) {
       return Left(UnexpectedFailure('Failed to get visual data: $e'));
     }
   }
 
-  Future<Either<Failure, Map<String, MuscleVisualData>>> _getTodayVisualData(
-    String userId,
-  ) async {
+  Future<Either<Failure, Map<String, MuscleVisualData>>>
+  _getTodayVisualData() async {
     try {
       final today = _clock.now();
       final todayStart = DateTime(today.year, today.month, today.day);
@@ -54,7 +52,6 @@ class GetMuscleVisualData {
       for (final muscleGroup in MuscleStimulus.allMuscleGroups) {
         final stimulusResult = await muscleStimulusRepository
             .getStimulusByMuscleAndDate(
-              userId: userId,
               muscleGroup: muscleGroup,
               date: todayStart,
             );
@@ -88,9 +85,8 @@ class GetMuscleVisualData {
     }
   }
 
-  Future<Either<Failure, Map<String, MuscleVisualData>>> _getWeekVisualData(
-    String userId,
-  ) async {
+  Future<Either<Failure, Map<String, MuscleVisualData>>>
+  _getWeekVisualData() async {
     try {
       final today = _clock.now();
       final todayStart = DateTime(today.year, today.month, today.day);
@@ -103,7 +99,6 @@ class GetMuscleVisualData {
       for (final muscleGroup in MuscleStimulus.allMuscleGroups) {
         final stimulusResult = await muscleStimulusRepository
             .getStimulusByMuscleAndDate(
-              userId: userId,
               muscleGroup: muscleGroup,
               date: todayStart,
             );
@@ -120,7 +115,6 @@ class GetMuscleVisualData {
 
         if (stimulus == null) {
           visualData[muscleGroup] = await _buildWeekDataWithoutToday(
-            userId: userId,
             muscleGroup: muscleGroup,
             todayStart: todayStart,
           );
@@ -211,9 +205,8 @@ class GetMuscleVisualData {
     }
   }
 
-  Future<Either<Failure, Map<String, MuscleVisualData>>> _getMonthVisualData(
-    String userId,
-  ) async {
+  Future<Either<Failure, Map<String, MuscleVisualData>>>
+  _getMonthVisualData() async {
     try {
       final today = _clock.now();
       final todayStart = DateTime(today.year, today.month, today.day);
@@ -227,7 +220,6 @@ class GetMuscleVisualData {
       for (final muscleGroup in MuscleStimulus.allMuscleGroups) {
         final stimulusResult = await muscleStimulusRepository
             .getStimulusByDateRange(
-              userId: userId,
               muscleGroup: muscleGroup,
               startDate: monthAgo,
               endDate: todayStart,
@@ -260,9 +252,8 @@ class GetMuscleVisualData {
     }
   }
 
-  Future<Either<Failure, Map<String, MuscleVisualData>>> _getAllTimeVisualData(
-    String userId,
-  ) async {
+  Future<Either<Failure, Map<String, MuscleVisualData>>>
+  _getAllTimeVisualData() async {
     try {
       final aggregationMode = MuscleVisualContract.aggregationModeForPeriod(
         TimePeriod.allTime,
@@ -273,7 +264,7 @@ class GetMuscleVisualData {
 
       for (final muscleGroup in MuscleStimulus.allMuscleGroups) {
         final maxResult = await muscleStimulusRepository
-            .getMaxStimulusForMuscle(userId, muscleGroup);
+            .getMaxStimulusForMuscle(muscleGroup);
 
         maxResult.fold((_) {}, (maxStimulus) {
           if (maxStimulus > maxStimulusAcrossAll) {
@@ -288,7 +279,7 @@ class GetMuscleVisualData {
 
       for (final muscleGroup in MuscleStimulus.allMuscleGroups) {
         final maxResult = await muscleStimulusRepository
-            .getMaxStimulusForMuscle(userId, muscleGroup);
+            .getMaxStimulusForMuscle(muscleGroup);
 
         visualData[muscleGroup] = maxResult.fold(
           (_) => MuscleVisualData.untrained(
@@ -320,7 +311,6 @@ class GetMuscleVisualData {
   }
 
   Future<MuscleVisualData> _buildWeekDataWithoutToday({
-    required String userId,
     required String muscleGroup,
     required DateTime todayStart,
   }) async {
@@ -333,7 +323,6 @@ class GetMuscleVisualData {
     final lookbackStart = todayStart.subtract(const Duration(days: 30));
     final pastRecordsResult = await muscleStimulusRepository
         .getStimulusByDateRange(
-          userId: userId,
           muscleGroup: muscleGroup,
           startDate: lookbackStart,
           endDate: todayStart.subtract(const Duration(days: 1)),
@@ -430,12 +419,8 @@ class GetMuscleVisualData {
   }
 
   Future<Either<Failure, Map<String, MuscleVisualData>>>
-  getVisualDataForMuscles(
-    TimePeriod period,
-    String userId,
-    List<String> muscleGroups,
-  ) async {
-    final allDataResult = await call(period, userId);
+  getVisualDataForMuscles(TimePeriod period, List<String> muscleGroups) async {
+    final allDataResult = await call(period);
 
     return allDataResult.fold((failure) => Left(failure), (allData) {
       final filteredData = <String, MuscleVisualData>{};

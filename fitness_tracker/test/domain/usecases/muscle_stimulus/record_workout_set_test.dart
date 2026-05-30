@@ -125,7 +125,6 @@ void main() {
           // No existing record for today
           when(
             () => mockStimulusRepo.getStimulusByMuscleAndDate(
-              userId: _testUserId,
               muscleGroup: any(named: 'muscleGroup'),
               date: any(named: 'date'),
             ),
@@ -134,7 +133,6 @@ void main() {
           // No past records in date range
           when(
             () => mockStimulusRepo.getStimulusByDateRange(
-              userId: _testUserId,
               muscleGroup: any(named: 'muscleGroup'),
               startDate: any(named: 'startDate'),
               endDate: any(named: 'endDate'),
@@ -181,7 +179,6 @@ void main() {
 
           when(
             () => mockStimulusRepo.getStimulusByMuscleAndDate(
-              userId: _testUserId,
               muscleGroup: any(named: 'muscleGroup'),
               date: any(named: 'date'),
             ),
@@ -189,7 +186,6 @@ void main() {
 
           when(
             () => mockStimulusRepo.getStimulusByDateRange(
-              userId: _testUserId,
               muscleGroup: any(named: 'muscleGroup'),
               startDate: any(named: 'startDate'),
               endDate: any(named: 'endDate'),
@@ -228,7 +224,6 @@ void main() {
 
         when(
           () => mockStimulusRepo.getStimulusByMuscleAndDate(
-            userId: _testUserId,
             muscleGroup: any(named: 'muscleGroup'),
             date: any(named: 'date'),
           ),
@@ -236,7 +231,6 @@ void main() {
 
         when(
           () => mockStimulusRepo.getStimulusByDateRange(
-            userId: _testUserId,
             muscleGroup: any(named: 'muscleGroup'),
             startDate: any(named: 'startDate'),
             endDate: any(named: 'endDate'),
@@ -282,7 +276,6 @@ void main() {
           // Existing record found for today
           when(
             () => mockStimulusRepo.getStimulusByMuscleAndDate(
-              userId: _testUserId,
               muscleGroup: any(named: 'muscleGroup'),
               date: any(named: 'date'),
             ),

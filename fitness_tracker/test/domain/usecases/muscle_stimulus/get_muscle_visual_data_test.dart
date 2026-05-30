@@ -38,7 +38,6 @@ void main() {
         if (muscleGroup == stimulus_constants.MuscleStimulus.quads) {
           when(
             () => repository.getStimulusByMuscleAndDate(
-              userId: testUserId,
               muscleGroup: muscleGroup,
               date: todayStart,
             ),
@@ -61,7 +60,6 @@ void main() {
         } else {
           when(
             () => repository.getStimulusByMuscleAndDate(
-              userId: testUserId,
               muscleGroup: muscleGroup,
               date: todayStart,
             ),
@@ -69,7 +67,7 @@ void main() {
         }
       }
 
-      final result = await usecase(TimePeriod.today, testUserId);
+      final result = await usecase(TimePeriod.today);
       final visualData = result.getOrElse(
         () => throw StateError('expected data'),
       );
@@ -91,14 +89,13 @@ void main() {
           in stimulus_constants.MuscleStimulus.allMuscleGroups) {
         when(
           () => repository.getStimulusByMuscleAndDate(
-            userId: testUserId,
             muscleGroup: muscleGroup,
             date: todayStart,
           ),
         ).thenAnswer((_) async => const Right(null));
       }
 
-      final result = await usecase(TimePeriod.today, testUserId);
+      final result = await usecase(TimePeriod.today);
       final visualData = result.getOrElse(
         () => throw StateError('expected data'),
       );
@@ -130,7 +127,6 @@ void main() {
           in stimulus_constants.MuscleStimulus.allMuscleGroups) {
         when(
           () => repository.getStimulusByMuscleAndDate(
-            userId: testUserId,
             muscleGroup: muscleGroup,
             date: todayStart,
           ),
@@ -145,7 +141,6 @@ void main() {
         if (muscleGroup == stimulus_constants.MuscleStimulus.lats) {
           when(
             () => repository.getStimulusByDateRange(
-              userId: testUserId,
               muscleGroup: muscleGroup,
               startDate: lookbackStart,
               endDate: yesterday,
@@ -167,7 +162,6 @@ void main() {
         } else {
           when(
             () => repository.getStimulusByDateRange(
-              userId: testUserId,
               muscleGroup: muscleGroup,
               startDate: lookbackStart,
               endDate: yesterday,
@@ -178,7 +172,7 @@ void main() {
         }
       }
 
-      final result = await usecase(TimePeriod.week, testUserId);
+      final result = await usecase(TimePeriod.week);
       final visualData = result.getOrElse(
         () => throw StateError('expected data'),
       );
@@ -211,7 +205,6 @@ void main() {
       if (muscleGroup == stimulus_constants.MuscleStimulus.lats) {
         when(
           () => repository.getStimulusByMuscleAndDate(
-            userId: testUserId,
             muscleGroup: muscleGroup,
             date: todayStart,
           ),
@@ -234,14 +227,12 @@ void main() {
       } else {
         when(
           () => repository.getStimulusByMuscleAndDate(
-            userId: testUserId,
             muscleGroup: muscleGroup,
             date: todayStart,
           ),
         ).thenAnswer((_) async => const Right(null));
         when(
           () => repository.getStimulusByDateRange(
-            userId: testUserId,
             muscleGroup: muscleGroup,
             startDate: any(named: 'startDate'),
             endDate: any(named: 'endDate'),
@@ -252,7 +243,7 @@ void main() {
       }
     }
 
-    final result = await usecase(TimePeriod.week, testUserId);
+    final result = await usecase(TimePeriod.week);
     final visualData = result.getOrElse(
       () => throw StateError('expected data'),
     );
@@ -286,7 +277,6 @@ void main() {
       if (muscleGroup == stimulus_constants.MuscleStimulus.midChest) {
         when(
           () => repository.getStimulusByMuscleAndDate(
-            userId: testUserId,
             muscleGroup: muscleGroup,
             date: todayStart,
           ),
@@ -307,14 +297,12 @@ void main() {
       } else {
         when(
           () => repository.getStimulusByMuscleAndDate(
-            userId: testUserId,
             muscleGroup: muscleGroup,
             date: todayStart,
           ),
         ).thenAnswer((_) async => const Right(null));
         when(
           () => repository.getStimulusByDateRange(
-            userId: testUserId,
             muscleGroup: muscleGroup,
             startDate: any(named: 'startDate'),
             endDate: any(named: 'endDate'),
@@ -325,7 +313,7 @@ void main() {
       }
     }
 
-    final result = await usecase(TimePeriod.week, testUserId);
+    final result = await usecase(TimePeriod.week);
     final visualData = result.getOrElse(
       () => throw StateError('expected data'),
     );
@@ -333,61 +321,6 @@ void main() {
     expect(
       visualData[stimulus_constants.MuscleStimulus.midChest]!.hasTrained,
       isFalse,
-    );
-  });
-
-  test('userId is forwarded to every repository query', () async {
-    const otherUserId = 'user-other';
-    final today = DateTime.now();
-    final todayStart = DateTime(today.year, today.month, today.day);
-
-    // Stub for the other user: all muscles have stimulus
-    for (final String muscleGroup
-        in stimulus_constants.MuscleStimulus.allMuscleGroups) {
-      when(
-        () => repository.getStimulusByMuscleAndDate(
-          userId: otherUserId,
-          muscleGroup: muscleGroup,
-          date: todayStart,
-        ),
-      ).thenAnswer(
-        (_) async => Right(
-          stimulus_entity.MuscleStimulus(
-            id: '$muscleGroup-today',
-            ownerUserId: otherUserId,
-            muscleGroup: muscleGroup,
-            date: todayStart,
-            dailyStimulus: 5.0,
-            rollingWeeklyLoad: 5.0,
-            createdAt: todayStart,
-            updatedAt: todayStart,
-          ),
-        ),
-      );
-
-      // Stub for testUserId: all muscles return null
-      when(
-        () => repository.getStimulusByMuscleAndDate(
-          userId: testUserId,
-          muscleGroup: muscleGroup,
-          date: todayStart,
-        ),
-      ).thenAnswer((_) async => const Right(null));
-    }
-
-    final result = await usecase(TimePeriod.today, testUserId);
-    final visualData = result.getOrElse(() => throw StateError(''));
-
-    // testUserId has no data, so all muscles must be untrained
-    expect(visualData.values.every((d) => !d.hasTrained), isTrue);
-
-    // Verify no query was ever made with otherUserId
-    verifyNever(
-      () => repository.getStimulusByMuscleAndDate(
-        userId: otherUserId,
-        muscleGroup: any(named: 'muscleGroup'),
-        date: any(named: 'date'),
-      ),
     );
   });
 }

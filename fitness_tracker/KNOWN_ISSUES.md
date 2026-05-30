@@ -1280,7 +1280,7 @@ Replace the `Center > Padding > Column` shape with `LayoutBuilder > SingleChildS
 ### muscle-stimulus-repository-userid-parameter-silently-dropped
 
 - **Severity:** Low
-- **Status:** Active
+- **Status:** Resolved-but-monitor
 - **First observed:** 2026-05-28
 - **Last verified:** 2026-05-30
 - **Area:** other
@@ -1302,6 +1302,10 @@ No user-visible workaround is needed; current behaviour matches caller intent. T
 - `lib/data/repositories/muscle_stimulus_repository_impl.dart:18,32,48,58,97,104,114` — methods with the unused parameter
 - `lib/domain/repositories/muscle_stimulus_repository.dart` — interface to be cleaned up
 - `plan-2-post-guest-removal-cleanups.md` — full implementation plan (Commit 2)
+
+**Resolution**
+
+Repository interface no longer accepts a `userId` argument on read methods where it was dropped silently. The two methods that genuinely use the argument (`clearStimulusForUser`, `applyDailyDecayToAll`) keep it — wait, `applyDailyDecayToAll` was also dropped since the datasource resolves the owner from the session. Only `clearStimulusForUser` retains `userId`. See Commit 2 of `plan-2-post-guest-removal-cleanups.md`.
 
 ---
 

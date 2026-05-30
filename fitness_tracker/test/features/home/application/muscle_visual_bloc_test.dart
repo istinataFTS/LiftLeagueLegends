@@ -82,7 +82,7 @@ void main() {
         build: buildBloc,
         setUp: () {
           when(
-            () => mockGet(TimePeriod.week, _testUserId),
+            () => mockGet(TimePeriod.week),
           ).thenAnswer((_) async => const Right(_weekData));
         },
         act: (bloc) => bloc.add(const LoadMuscleVisualsEvent(TimePeriod.week)),
@@ -97,7 +97,7 @@ void main() {
         build: buildBloc,
         setUp: () {
           when(
-            () => mockGet(TimePeriod.week, _testUserId),
+            () => mockGet(TimePeriod.week),
           ).thenAnswer((_) async => const Left(_dbFailure));
         },
         act: (bloc) => bloc.add(const LoadMuscleVisualsEvent(TimePeriod.week)),
@@ -112,7 +112,7 @@ void main() {
         build: buildBloc,
         setUp: () {
           when(
-            () => mockGet(TimePeriod.week, _testUserId),
+            () => mockGet(TimePeriod.week),
           ).thenAnswer((_) async => const Right(_weekData));
         },
         act: (bloc) async {
@@ -126,8 +126,7 @@ void main() {
           _isLoaded(period: TimePeriod.week),
         ],
         // The use case must only be called once despite two load events
-        verify: (_) =>
-            verify(() => mockGet(TimePeriod.week, _testUserId)).called(1),
+        verify: (_) => verify(() => mockGet(TimePeriod.week)).called(1),
       );
 
       blocTest<MuscleVisualBloc, MuscleVisualState>(
@@ -135,13 +134,13 @@ void main() {
         build: buildBloc,
         setUp: () {
           when(
-            () => mockGet(TimePeriod.week, _testUserId),
+            () => mockGet(TimePeriod.week),
           ).thenAnswer((_) async => const Right(_weekData));
         },
         act: (bloc) => bloc.add(const LoadMuscleVisualsEvent(TimePeriod.week)),
         verify: (_) {
           verify(() => mockSession.getCurrentSession()).called(greaterThan(0));
-          verify(() => mockGet(TimePeriod.week, _testUserId)).called(1);
+          verify(() => mockGet(TimePeriod.week)).called(1);
         },
       );
 
@@ -155,7 +154,7 @@ void main() {
         build: buildBloc,
         setUp: () {
           when(
-            () => mockGet(TimePeriod.today, _testUserId),
+            () => mockGet(TimePeriod.today),
           ).thenAnswer((_) async => const Right(_weekData));
         },
         act: (bloc) => bloc.add(const ChangePeriodEvent(TimePeriod.today)),
@@ -183,10 +182,10 @@ void main() {
         build: buildBloc,
         setUp: () {
           when(
-            () => mockGet(TimePeriod.week, _testUserId),
+            () => mockGet(TimePeriod.week),
           ).thenAnswer((_) async => const Right(_weekData));
           when(
-            () => mockGet(TimePeriod.today, _testUserId),
+            () => mockGet(TimePeriod.today),
           ).thenAnswer((_) async => const Right(_weekData));
         },
         act: (bloc) async {
@@ -220,10 +219,10 @@ void main() {
         build: buildBloc,
         setUp: () {
           when(
-            () => mockGet(TimePeriod.today, _testUserId),
+            () => mockGet(TimePeriod.today),
           ).thenAnswer((_) async => const Right(_weekData));
           when(
-            () => mockGet(TimePeriod.week, _testUserId),
+            () => mockGet(TimePeriod.week),
           ).thenAnswer((_) async => const Right(_weekData));
         },
         act: (bloc) async {
@@ -243,8 +242,8 @@ void main() {
           _isLoaded(period: TimePeriod.today, mode: MuscleMapMode.fatigue),
         ],
         verify: (_) {
-          verify(() => mockGet(TimePeriod.today, _testUserId)).called(1);
-          verify(() => mockGet(TimePeriod.week, _testUserId)).called(1);
+          verify(() => mockGet(TimePeriod.today)).called(1);
+          verify(() => mockGet(TimePeriod.week)).called(1);
         },
       );
 
@@ -253,7 +252,7 @@ void main() {
         build: buildBloc,
         setUp: () {
           when(
-            () => mockGet(TimePeriod.week, _testUserId),
+            () => mockGet(TimePeriod.week),
           ).thenAnswer((_) async => const Right(_weekData));
         },
         act: (bloc) async {
@@ -268,8 +267,7 @@ void main() {
           _isLoaded(period: TimePeriod.week, mode: MuscleMapMode.volume),
           _isLoaded(period: TimePeriod.week, mode: MuscleMapMode.fatigue),
         ],
-        verify: (_) =>
-            verify(() => mockGet(TimePeriod.week, _testUserId)).called(1),
+        verify: (_) => verify(() => mockGet(TimePeriod.week)).called(1),
       );
 
       blocTest<MuscleVisualBloc, MuscleVisualState>(
@@ -291,7 +289,7 @@ void main() {
         build: buildBloc,
         setUp: () {
           when(
-            () => mockGet(TimePeriod.week, _testUserId),
+            () => mockGet(TimePeriod.week),
           ).thenAnswer((_) async => const Right(_weekData));
         },
         act: (bloc) async {
@@ -307,8 +305,7 @@ void main() {
           const MuscleVisualLoading(TimePeriod.week),
           _isLoaded(period: TimePeriod.week),
         ],
-        verify: (_) =>
-            verify(() => mockGet(TimePeriod.week, _testUserId)).called(2),
+        verify: (_) => verify(() => mockGet(TimePeriod.week)).called(2),
       );
     });
 
@@ -318,7 +315,7 @@ void main() {
         build: buildBloc,
         setUp: () {
           when(
-            () => mockGet(TimePeriod.month, _testUserId),
+            () => mockGet(TimePeriod.month),
           ).thenAnswer((_) async => const Right(_weekData));
         },
         act: (bloc) => bloc.add(const ClearCacheEvent()),

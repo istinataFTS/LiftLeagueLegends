@@ -67,7 +67,6 @@ void main() {
         ).thenAnswer((_) async => _stimulusModel);
 
         final result = await repository.getStimulusByMuscleAndDate(
-          userId: _userId,
           muscleGroup: 'chest',
           date: _date,
         );
@@ -85,7 +84,6 @@ void main() {
         ).thenAnswer((_) async => null);
 
         final result = await repository.getStimulusByMuscleAndDate(
-          userId: _userId,
           muscleGroup: 'chest',
           date: _date,
         );
@@ -103,7 +101,6 @@ void main() {
         ).thenThrow(_dbException);
 
         final result = await repository.getStimulusByMuscleAndDate(
-          userId: _userId,
           muscleGroup: 'chest',
           date: _date,
         );
@@ -127,7 +124,6 @@ void main() {
         ).thenAnswer((_) async => [_stimulusModel]);
 
         final result = await repository.getStimulusByDateRange(
-          userId: _userId,
           muscleGroup: 'chest',
           startDate: startDate,
           endDate: endDate,
@@ -147,7 +143,6 @@ void main() {
         ).thenThrow(_dbException);
 
         final result = await repository.getStimulusByDateRange(
-          userId: _userId,
           muscleGroup: 'chest',
           startDate: startDate,
           endDate: endDate,
@@ -164,7 +159,7 @@ void main() {
           () => mockDataSource.getTodayStimulus('chest'),
         ).thenAnswer((_) async => _stimulusModel);
 
-        final result = await repository.getTodayStimulus(_userId, 'chest');
+        final result = await repository.getTodayStimulus('chest');
 
         expect(result.isRight(), isTrue);
         expect((result as Right).value, _stimulusModel);
@@ -175,7 +170,7 @@ void main() {
           () => mockDataSource.getTodayStimulus('chest'),
         ).thenThrow(_dbException);
 
-        final result = await repository.getTodayStimulus(_userId, 'chest');
+        final result = await repository.getTodayStimulus('chest');
 
         expect(result.isLeft(), isTrue);
         expect((result as Left).value, isA<DatabaseFailure>());
@@ -188,7 +183,7 @@ void main() {
           () => mockDataSource.getAllStimulusForDate(_date),
         ).thenAnswer((_) async => [_stimulusModel]);
 
-        final result = await repository.getAllStimulusForDate(_userId, _date);
+        final result = await repository.getAllStimulusForDate(_date);
 
         expect(result.isRight(), isTrue);
         expect((result as Right).value, [_stimulusModel]);
@@ -199,7 +194,7 @@ void main() {
           () => mockDataSource.getAllStimulusForDate(_date),
         ).thenThrow(_dbException);
 
-        final result = await repository.getAllStimulusForDate(_userId, _date);
+        final result = await repository.getAllStimulusForDate(_date);
 
         expect(result.isLeft(), isTrue);
         expect((result as Left).value, isA<DatabaseFailure>());
@@ -287,7 +282,7 @@ void main() {
           () => mockDataSource.applyDailyDecayToAll(),
         ).thenAnswer((_) async {});
 
-        final result = await repository.applyDailyDecayToAll(_userId);
+        final result = await repository.applyDailyDecayToAll();
 
         expect(result.isRight(), isTrue);
         verify(() => mockDataSource.applyDailyDecayToAll()).called(1);
@@ -298,7 +293,7 @@ void main() {
           () => mockDataSource.applyDailyDecayToAll(),
         ).thenThrow(_dbException);
 
-        final result = await repository.applyDailyDecayToAll(_userId);
+        final result = await repository.applyDailyDecayToAll();
 
         expect(result.isLeft(), isTrue);
         expect((result as Left).value, isA<DatabaseFailure>());
@@ -311,10 +306,7 @@ void main() {
           () => mockDataSource.getMaxStimulusForMuscle('chest'),
         ).thenAnswer((_) async => 15.0);
 
-        final result = await repository.getMaxStimulusForMuscle(
-          _userId,
-          'chest',
-        );
+        final result = await repository.getMaxStimulusForMuscle('chest');
 
         expect(result.isRight(), isTrue);
         expect((result as Right).value, 15.0);
@@ -325,10 +317,7 @@ void main() {
           () => mockDataSource.getMaxStimulusForMuscle('chest'),
         ).thenThrow(_dbException);
 
-        final result = await repository.getMaxStimulusForMuscle(
-          _userId,
-          'chest',
-        );
+        final result = await repository.getMaxStimulusForMuscle('chest');
 
         expect(result.isLeft(), isTrue);
         expect((result as Left).value, isA<DatabaseFailure>());
@@ -341,7 +330,7 @@ void main() {
           () => mockDataSource.deleteOlderThan(_date),
         ).thenAnswer((_) async {});
 
-        final result = await repository.deleteOlderThan(_userId, _date);
+        final result = await repository.deleteOlderThan(_date);
 
         expect(result.isRight(), isTrue);
         verify(() => mockDataSource.deleteOlderThan(_date)).called(1);
@@ -352,7 +341,7 @@ void main() {
           () => mockDataSource.deleteOlderThan(_date),
         ).thenThrow(_dbException);
 
-        final result = await repository.deleteOlderThan(_userId, _date);
+        final result = await repository.deleteOlderThan(_date);
 
         expect(result.isLeft(), isTrue);
         expect((result as Left).value, isA<DatabaseFailure>());
