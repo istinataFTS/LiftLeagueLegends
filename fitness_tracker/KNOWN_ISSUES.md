@@ -82,6 +82,7 @@ Numbered steps or a short paragraph. State what to do and what *not* to do.
 17. [voice-mic-permission-must-be-requested-before-overlay](#voice-mic-permission-must-be-requested-before-overlay)
 18. [voice-whisper-is-the-default-stt-backend](#voice-whisper-is-the-default-stt-backend)
 19. [voice-transcribe-must-deploy-with-openai-secret-and-cors](#voice-transcribe-must-deploy-with-openai-secret-and-cors)
+20. [voice-phantom-success-spoken-before-persistence-completes](#voice-phantom-success-spoken-before-persistence-completes)
 
 ### Database
 11. [sqflite-version-15-rejects-incompatible-legacy-databases](#sqflite-version-15-rejects-incompatible-legacy-databases)
@@ -112,6 +113,8 @@ Numbered steps or a short paragraph. State what to do and what *not* to do.
 26. [voice-slider-persists-on-every-drag-tick](#voice-slider-persists-on-every-drag-tick)
 27. [cross-feature-presentation-imports-are-architectural-cycles](#cross-feature-presentation-imports-are-architectural-cycles)
 28. [empty-state-columns-need-scrollable-centering](#empty-state-columns-need-scrollable-centering)
+29. [muscle-stimulus-repository-userid-parameter-silently-dropped](#muscle-stimulus-repository-userid-parameter-silently-dropped)
+30. [history-calendar-dot-disagrees-with-day-detail-for-orphan-sets](#history-calendar-dot-disagrees-with-day-detail-for-orphan-sets)
 
 ---
 
@@ -673,6 +676,34 @@ The `voice-transcribe` Edge Function is a **new** function — Supabase does not
 - `supabase/functions/voice-transcribe/index.ts` — entry
 - `supabase/functions/_shared/cors.ts` — shared CORS preflight
 - `.github/workflows/supabase-deploy.yml` — manual deploy workflow
+
+---
+
+### voice-phantom-success-spoken-before-persistence-completes
+
+- **Severity:** High
+- **Status:** Active
+- **First observed:** 2026-05-27
+- **Last verified:** 2026-05-30
+- **Area:** voice
+
+**Symptom**
+
+User logs a set via voice; the bot replies "Set logged" within ~200 ms; the actual `WorkoutBloc.add(AddWorkoutSetEvent)` dispatch may still be pending or may fail silently. If the persistence step fails (transient SQLite error, `MissingUserContextException` from a session race, etc.), the user is misled — no row lands, but they were told everything is fine. The local recent-sets cache also carries the phantom row until the next app restart, so subsequent voice-context payloads to the LLM "see" a set that was never written to disk.
+
+**Root cause**
+
+`VoiceBloc._dispatchMutationTool` (`lib/features/voice/application/voice_bloc.dart:960`) emits `VoiceAddWorkoutSetCommand` as a fire-and-forget effect and **immediately returns** the success string. There is no round-trip wait for the target BLoC's outcome. `_cachedWorkoutSets` is mutated synchronously in the same branch, compounding the deception: the cache is updated regardless of whether the underlying write succeeds.
+
+**Workaround / fix**
+
+Diagnostic workaround: open the History tab after every voice log to confirm the row appears. The fix (planned in `plan-2-post-guest-removal-cleanups.md` Commit 3) makes `VoiceBloc._dispatchMutationTool` await a `Completer<VoiceMutationOutcome>` completed by `VoiceCommandRouter` only after the target BLoC emits a success or failure effect. Cache mutation moves into the success branch only.
+
+**References**
+
+- `lib/features/voice/application/voice_bloc.dart:960` — `_dispatchMutationTool` fire-and-forget return
+- `lib/app/voice/voice_command_router.dart` — dispatch bridge between `VoiceBloc` and target BLoCs
+- `plan-2-post-guest-removal-cleanups.md` — full implementation plan (Commit 3)
 
 ---
 
@@ -1243,3 +1274,63 @@ Replace the `Center > Padding > Column` shape with `LayoutBuilder > SingleChildS
 
 - `lib/features/library/presentation/widgets/exercises_tab.dart` — `_buildEmptyState`
 - `lib/features/library/presentation/widgets/meals_tab.dart` — `_buildEmptyState`
+
+---
+
+### muscle-stimulus-repository-userid-parameter-silently-dropped
+
+- **Severity:** Low
+- **Status:** Resolved-but-monitor
+- **First observed:** 2026-05-28
+- **Last verified:** 2026-05-30
+- **Area:** other
+
+**Symptom**
+
+Six methods on `MuscleStimulusRepository` accept a `userId` parameter that is never forwarded to the datasource. Callers believe they are being explicit about which user's data they want; in practice the datasource always resolves the owner from the active session via `UserScopedLocalDatasource.ownerId()`. Today this is benign — there is only ever one authenticated user — but the lying signature is a latent footgun: any future caller wanting to query a different user's data will receive the wrong rows without an error.
+
+**Root cause**
+
+The repository was authored while the guest/auth layer was being unwound. The `userId` parameter was retained "for safety" during that refactor but was never wired through to the datasource. After guest removal (Plan 1, PRs #79–#86), no caller path will ever pass a user ID that differs from the session owner, making the parameter purely misleading.
+
+**Workaround / fix**
+
+No user-visible workaround is needed; current behaviour matches caller intent. The fix (planned in `plan-2-post-guest-removal-cleanups.md` Commit 2) drops the `userId` parameter from every method where it is unused. The two methods that genuinely pass it to the datasource (`clearStimulusForUser`, `applyDailyDecayToAll`) retain it.
+
+**References**
+
+- `lib/data/repositories/muscle_stimulus_repository_impl.dart:18,32,48,58,97,104,114` — methods with the unused parameter
+- `lib/domain/repositories/muscle_stimulus_repository.dart` — interface to be cleaned up
+- `plan-2-post-guest-removal-cleanups.md` — full implementation plan (Commit 2)
+
+**Resolution**
+
+Repository interface no longer accepts a `userId` argument on read methods where it was dropped silently. The two methods that genuinely use the argument (`clearStimulusForUser`, `applyDailyDecayToAll`) keep it — wait, `applyDailyDecayToAll` was also dropped since the datasource resolves the owner from the session. Only `clearStimulusForUser` retains `userId`. See Commit 2 of `plan-2-post-guest-removal-cleanups.md`.
+
+---
+
+### history-calendar-dot-disagrees-with-day-detail-for-orphan-sets
+
+- **Severity:** Low
+- **Status:** Active
+- **First observed:** 2026-05-28
+- **Last verified:** 2026-05-30
+- **Area:** other
+
+**Symptom**
+
+A day that contains only workout sets whose `exerciseId` no longer resolves to a library row shows no activity dot on the History calendar. Tapping the same day opens the day-detail bottom sheet, which renders every set with the label "Unknown exercise". The two surfaces apply different orphan-filtering policies, so the calendar silently understates activity for days containing exclusively orphaned sets.
+
+**Root cause**
+
+`HistoryActivityAggregator._countResolvableSets` (`lib/features/history/presentation/helpers/history_activity_aggregator.dart:94`) filters out sets whose `exerciseId` is absent from `resolvableExerciseIds`, which is derived from the current exercise library. The day-detail bottom sheet applies no such filter — it renders every set regardless of whether the exercise still exists. The docstring rationale ("a dot promises data the user can't actually open") is contradicted by the actual day-detail behaviour: the user can open the day and see all sets, just with a degraded label.
+
+**Workaround / fix**
+
+After Plan 1 (guest removal), the user's device has no orphaned sets. This inconsistency is theoretical until a set's exercise is manually deleted. The fix (planned in `plan-2-post-guest-removal-cleanups.md` Commit 4) removes the `resolvableExerciseIds` filter from the aggregator so the calendar counts every set, matching the day-detail's policy of showing orphans with an "Unknown exercise" label.
+
+**References**
+
+- `lib/features/history/presentation/helpers/history_activity_aggregator.dart:94` — `_countResolvableSets` filter
+- `lib/features/history/presentation/history_page.dart` — aggregator call site
+- `plan-2-post-guest-removal-cleanups.md` — full implementation plan (Commit 4)

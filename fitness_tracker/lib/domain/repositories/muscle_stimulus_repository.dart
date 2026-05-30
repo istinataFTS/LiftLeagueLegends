@@ -4,33 +4,30 @@ import '../entities/muscle_stimulus.dart';
 
 /// Repository interface for MuscleStimulus operations.
 ///
-/// All read/write methods that operate on user-specific data require a
-/// [userId] parameter — always the authenticated user's uid.
+/// Ownership is resolved by the datasource via the active session.
+/// Methods that read or aggregate data do not accept a userId parameter —
+/// the datasource always scopes to the current authenticated user.
+/// [clearStimulusForUser] retains its parameter because it is called
+/// during sign-out for an explicit owner.
 abstract class MuscleStimulusRepository {
   /// Get stimulus for a specific muscle on a specific date.
   Future<Either<Failure, MuscleStimulus?>> getStimulusByMuscleAndDate({
-    required String userId,
     required String muscleGroup,
     required DateTime date,
   });
 
   /// Get all stimulus records for a muscle within a date range.
   Future<Either<Failure, List<MuscleStimulus>>> getStimulusByDateRange({
-    required String userId,
     required String muscleGroup,
     required DateTime startDate,
     required DateTime endDate,
   });
 
   /// Get today's stimulus for a specific muscle.
-  Future<Either<Failure, MuscleStimulus?>> getTodayStimulus(
-    String userId,
-    String muscleGroup,
-  );
+  Future<Either<Failure, MuscleStimulus?>> getTodayStimulus(String muscleGroup);
 
   /// Get all stimulus records for all muscles on a specific date.
   Future<Either<Failure, List<MuscleStimulus>>> getAllStimulusForDate(
-    String userId,
     DateTime date,
   );
 
@@ -46,17 +43,14 @@ abstract class MuscleStimulusRepository {
     double? lastSetStimulus,
   });
 
-  /// Apply daily decay to all muscle records owned by [userId].
-  Future<Either<Failure, void>> applyDailyDecayToAll(String userId);
+  /// Apply daily decay to all muscle records owned by the current user.
+  Future<Either<Failure, void>> applyDailyDecayToAll();
 
-  /// Get maximum daily stimulus ever recorded for a muscle owned by [userId].
-  Future<Either<Failure, double>> getMaxStimulusForMuscle(
-    String userId,
-    String muscleGroup,
-  );
+  /// Get maximum daily stimulus ever recorded for a muscle.
+  Future<Either<Failure, double>> getMaxStimulusForMuscle(String muscleGroup);
 
-  /// Delete stimulus records older than [date] for [userId].
-  Future<Either<Failure, void>> deleteOlderThan(String userId, DateTime date);
+  /// Delete stimulus records older than [date].
+  Future<Either<Failure, void>> deleteOlderThan(DateTime date);
 
   /// Clear all stimulus records across every user.
   Future<Either<Failure, void>> clearAllStimulus();

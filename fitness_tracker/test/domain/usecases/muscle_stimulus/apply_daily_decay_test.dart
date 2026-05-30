@@ -54,33 +54,22 @@ void main() {
     group('call', () {
       test('returns Right(20) on repository success', () async {
         when(
-          () => mockRepo.applyDailyDecayToAll(_testUserId),
+          () => mockRepo.applyDailyDecayToAll(),
         ).thenAnswer((_) async => const Right(null));
 
-        final result = await useCase(_testUserId);
+        final result = await useCase();
 
         expect(result, const Right(20));
       });
 
       test('returns Left(failure) on repository failure', () async {
         when(
-          () => mockRepo.applyDailyDecayToAll(_testUserId),
+          () => mockRepo.applyDailyDecayToAll(),
         ).thenAnswer((_) async => const Left(_dbFailure));
 
-        final result = await useCase(_testUserId);
+        final result = await useCase();
 
         expect(result, const Left(_dbFailure));
-      });
-
-      test('forwards userId to applyDailyDecayToAll', () async {
-        when(
-          () => mockRepo.applyDailyDecayToAll(_testUserId),
-        ).thenAnswer((_) async => const Right(null));
-
-        await useCase(_testUserId);
-
-        verify(() => mockRepo.applyDailyDecayToAll(_testUserId)).called(1);
-        verifyNever(() => mockRepo.applyDailyDecayToAll(any()));
       });
     });
 
@@ -89,10 +78,10 @@ void main() {
 
       test('returns Right(0) when no records exist for the date', () async {
         when(
-          () => mockRepo.getAllStimulusForDate(_testUserId, date),
+          () => mockRepo.getAllStimulusForDate(date),
         ).thenAnswer((_) async => const Right([]));
 
-        final result = await useCase.applyDecayForDate(_testUserId, date);
+        final result = await useCase.applyDecayForDate(date);
 
         expect(result, const Right(0));
         verifyNever(
@@ -111,7 +100,7 @@ void main() {
           final rec2 = _makeStimulus(id: 'rec-2', rollingWeeklyLoad: 20.0);
 
           when(
-            () => mockRepo.getAllStimulusForDate(_testUserId, date),
+            () => mockRepo.getAllStimulusForDate(date),
           ).thenAnswer((_) async => Right([rec1, rec2]));
           // 10.0 × 0.6 = 6.0,  20.0 × 0.6 = 12.0
           when(
@@ -133,7 +122,7 @@ void main() {
             ),
           ).thenAnswer((_) async => const Right(null));
 
-          final result = await useCase.applyDecayForDate(_testUserId, date);
+          final result = await useCase.applyDecayForDate(date);
 
           expect(result, const Right(2));
         },
@@ -144,7 +133,7 @@ void main() {
         final rec2 = _makeStimulus(id: 'rec-2', rollingWeeklyLoad: 20.0);
 
         when(
-          () => mockRepo.getAllStimulusForDate(_testUserId, date),
+          () => mockRepo.getAllStimulusForDate(date),
         ).thenAnswer((_) async => Right([rec1, rec2]));
         when(
           () => mockRepo.updateStimulusValues(
@@ -165,7 +154,7 @@ void main() {
           ),
         ).thenAnswer((_) async => const Right(null));
 
-        final result = await useCase.applyDecayForDate(_testUserId, date);
+        final result = await useCase.applyDecayForDate(date);
 
         // rec-1 failed, rec-2 succeeded → count = 1
         expect(result, const Right(1));
@@ -175,10 +164,10 @@ void main() {
         'propagates repository failure from getAllStimulusForDate',
         () async {
           when(
-            () => mockRepo.getAllStimulusForDate(_testUserId, date),
+            () => mockRepo.getAllStimulusForDate(date),
           ).thenAnswer((_) async => const Left(_dbFailure));
 
-          final result = await useCase.applyDecayForDate(_testUserId, date);
+          final result = await useCase.applyDecayForDate(date);
 
           expect(result, const Left(_dbFailure));
         },
@@ -187,34 +176,32 @@ void main() {
 
     group('shouldApplyDecayToday', () {
       test('returns false when records already exist for today', () async {
-        when(
-          () => mockRepo.getAllStimulusForDate(_testUserId, any()),
-        ).thenAnswer(
+        when(() => mockRepo.getAllStimulusForDate(any())).thenAnswer(
           (_) async =>
               Right([_makeStimulus(id: 'rec-1', rollingWeeklyLoad: 5.0)]),
         );
 
-        final result = await useCase.shouldApplyDecayToday(_testUserId);
+        final result = await useCase.shouldApplyDecayToday();
 
         expect(result, const Right(false));
       });
 
       test('returns true when no records exist for today', () async {
         when(
-          () => mockRepo.getAllStimulusForDate(_testUserId, any()),
+          () => mockRepo.getAllStimulusForDate(any()),
         ).thenAnswer((_) async => const Right([]));
 
-        final result = await useCase.shouldApplyDecayToday(_testUserId);
+        final result = await useCase.shouldApplyDecayToday();
 
         expect(result, const Right(true));
       });
 
       test('propagates repository failure', () async {
         when(
-          () => mockRepo.getAllStimulusForDate(_testUserId, any()),
+          () => mockRepo.getAllStimulusForDate(any()),
         ).thenAnswer((_) async => const Left(_dbFailure));
 
-        final result = await useCase.shouldApplyDecayToday(_testUserId);
+        final result = await useCase.shouldApplyDecayToday();
 
         expect(result, const Left(_dbFailure));
       });

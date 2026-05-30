@@ -17,13 +17,11 @@ class ApplyDailyDecay {
     Clock clock = const SystemClock(),
   }) : _clock = clock;
 
-  Future<Either<Failure, int>> call(String userId) async {
+  Future<Either<Failure, int>> call() async {
     try {
       _logDebug('Starting daily decay application...');
 
-      final result = await muscleStimulusRepository.applyDailyDecayToAll(
-        userId,
-      );
+      final result = await muscleStimulusRepository.applyDailyDecayToAll();
 
       return result.fold(
         (failure) {
@@ -42,17 +40,14 @@ class ApplyDailyDecay {
   }
 
   /// Apply decay for a specific date (for manual corrections).
-  Future<Either<Failure, int>> applyDecayForDate(
-    String userId,
-    DateTime date,
-  ) async {
+  Future<Either<Failure, int>> applyDecayForDate(DateTime date) async {
     try {
       _logDebug('Applying decay for date: ${date.toIso8601String()}');
 
       final dateStart = DateTime(date.year, date.month, date.day);
 
       final recordsResult = await muscleStimulusRepository
-          .getAllStimulusForDate(userId, dateStart);
+          .getAllStimulusForDate(dateStart);
 
       return await recordsResult.fold((failure) async => Left(failure), (
         records,
@@ -98,14 +93,14 @@ class ApplyDailyDecay {
     }
   }
 
-  /// Check if decay should be applied today for [userId].
-  Future<Either<Failure, bool>> shouldApplyDecayToday(String userId) async {
+  /// Check if decay should be applied today.
+  Future<Either<Failure, bool>> shouldApplyDecayToday() async {
     try {
       final today = _clock.now();
       final todayStart = DateTime(today.year, today.month, today.day);
 
       final recordsResult = await muscleStimulusRepository
-          .getAllStimulusForDate(userId, todayStart);
+          .getAllStimulusForDate(todayStart);
 
       return recordsResult.fold((failure) => Left(failure), (records) {
         final shouldApply = records.isEmpty;

@@ -114,11 +114,7 @@ class RecordWorkoutSet {
       final today = DateTime(setDate.year, setDate.month, setDate.day);
 
       final existingResult = await muscleStimulusRepository
-          .getStimulusByMuscleAndDate(
-            userId: userId,
-            muscleGroup: muscleGroup,
-            date: today,
-          );
+          .getStimulusByMuscleAndDate(muscleGroup: muscleGroup, date: today);
 
       return await existingResult.fold((failure) async => Left(failure), (
         existingStimulus,
@@ -158,7 +154,6 @@ class RecordWorkoutSet {
       final lookbackStart = date.subtract(const Duration(days: 30));
       final pastRecordsResult = await muscleStimulusRepository
           .getStimulusByDateRange(
-            userId: userId,
             muscleGroup: muscleGroup,
             startDate: lookbackStart,
             endDate: date.subtract(const Duration(days: 1)),

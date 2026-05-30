@@ -198,7 +198,7 @@ class MuscleVisualBloc extends Bloc<MuscleVisualEvent, MuscleVisualState> {
 
     emit(MuscleVisualLoading(event.period, mode: _currentMode));
 
-    final result = await getMuscleVisualData(event.period, userId);
+    final result = await getMuscleVisualData(event.period);
 
     result.fold(
       (failure) => emit(
@@ -259,7 +259,7 @@ class MuscleVisualBloc extends Bloc<MuscleVisualEvent, MuscleVisualState> {
 
     emit(MuscleVisualLoading(event.newPeriod, mode: _currentMode));
 
-    final result = await getMuscleVisualData(event.newPeriod, userId);
+    final result = await getMuscleVisualData(event.newPeriod);
 
     result.fold(
       (failure) => emit(
@@ -322,7 +322,7 @@ class MuscleVisualBloc extends Bloc<MuscleVisualEvent, MuscleVisualState> {
 
     emit(MuscleVisualLoading(_currentPeriod, mode: _currentMode));
 
-    final result = await getMuscleVisualData(periodToFetch, userId);
+    final result = await getMuscleVisualData(periodToFetch);
 
     result.fold(
       (failure) => emit(
@@ -367,7 +367,7 @@ class MuscleVisualBloc extends Bloc<MuscleVisualEvent, MuscleVisualState> {
 
     emit(MuscleVisualLoading(_currentPeriod, mode: _currentMode));
 
-    final result = await getMuscleVisualData(periodToRefresh, userId);
+    final result = await getMuscleVisualData(periodToRefresh);
 
     result.fold(
       (failure) => emit(

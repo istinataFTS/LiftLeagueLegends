@@ -111,14 +111,12 @@ class FakeMuscleStimulusRepository implements MuscleStimulusRepository {
 
   @override
   Future<Either<Failure, MuscleStimulus?>> getStimulusByMuscleAndDate({
-    required String userId,
     required String muscleGroup,
     required DateTime date,
   }) => throw UnimplementedError();
 
   @override
   Future<Either<Failure, List<MuscleStimulus>>> getStimulusByDateRange({
-    required String userId,
     required String muscleGroup,
     required DateTime startDate,
     required DateTime endDate,
@@ -126,13 +124,11 @@ class FakeMuscleStimulusRepository implements MuscleStimulusRepository {
 
   @override
   Future<Either<Failure, MuscleStimulus?>> getTodayStimulus(
-    String userId,
     String muscleGroup,
   ) => throw UnimplementedError();
 
   @override
   Future<Either<Failure, List<MuscleStimulus>>> getAllStimulusForDate(
-    String userId,
     DateTime date,
   ) => throw UnimplementedError();
 
@@ -146,17 +142,15 @@ class FakeMuscleStimulusRepository implements MuscleStimulusRepository {
   }) => throw UnimplementedError();
 
   @override
-  Future<Either<Failure, void>> applyDailyDecayToAll(String userId) =>
+  Future<Either<Failure, void>> applyDailyDecayToAll() =>
       throw UnimplementedError();
 
   @override
-  Future<Either<Failure, double>> getMaxStimulusForMuscle(
-    String userId,
-    String muscleGroup,
-  ) => throw UnimplementedError();
+  Future<Either<Failure, double>> getMaxStimulusForMuscle(String muscleGroup) =>
+      throw UnimplementedError();
 
   @override
-  Future<Either<Failure, void>> deleteOlderThan(String userId, DateTime date) =>
+  Future<Either<Failure, void>> deleteOlderThan(DateTime date) =>
       throw UnimplementedError();
 
   @override
