@@ -256,29 +256,8 @@ void main() {
       },
     );
 
-    test(
-      "getAllExercises returns only guest-owned ('') rows for a guest session",
-      () async {
-        when(() => mockResolver.resolve()).thenAnswer((_) async => '');
-
-        await dataSource.insertExercise(
-          buildExercise(id: 'guest-ex', ownerUserId: '', name: 'Squat'),
-        );
-        await dataSource.insertExercise(
-          buildExercise(
-            id: 'user-owned',
-            ownerUserId: currentUserId,
-            name: 'My Custom',
-          ),
-        );
-
-        final exercises = await dataSource.getAllExercises();
-        final ids = exercises.map((e) => e.id).toSet();
-
-        expect(ids, <String>{'guest-ex'});
-        expect(ids, isNot(contains('user-owned')));
-      },
-    );
+    // "getAllExercises returns only guest-owned rows for a guest session"
+    // removed: guest sessions no longer exist; the resolver throws.
 
     test('getExerciseById respects owner filter', () async {
       await dataSource.insertExercise(
@@ -403,39 +382,35 @@ void main() {
       expect(ids, isNot(contains('mine')));
     });
 
-    test('sign-out isolation: cleared catalog is invisible to a later guest or '
-        "other user, and the guest '' catalog survives", () async {
-      // user-1's adopted catalog + a guest-bucket row + another user.
-      await dataSource.insertExercise(
-        buildExercise(id: 'a-ex', ownerUserId: currentUserId, name: 'A Custom'),
-      );
-      await dataSource.insertExercise(
-        buildExercise(id: 'guest-cat', ownerUserId: '', name: 'Squat'),
-      );
-      await dataSource.insertExercise(
-        buildExercise(id: 'b-ex', ownerUserId: otherUserId, name: 'B Custom'),
-      );
+    test(
+      "sign-out isolation: cleared catalog is invisible to a later other user",
+      () async {
+        await dataSource.insertExercise(
+          buildExercise(
+            id: 'a-ex',
+            ownerUserId: currentUserId,
+            name: 'A Custom',
+          ),
+        );
+        await dataSource.insertExercise(
+          buildExercise(id: 'b-ex', ownerUserId: otherUserId, name: 'B Custom'),
+        );
 
-      // Sign-out cleanup for user-1.
-      await dataSource.clearUserOwnedExercises(currentUserId);
+        // Sign-out cleanup for user-1.
+        await dataSource.clearUserOwnedExercises(currentUserId);
 
-      // Physically: only user-1's row is gone; guest + other-user survive.
-      final rawIds = (await database.query(
-        DatabaseTables.exercises,
-      )).map((r) => r[DatabaseTables.exerciseId]).toSet();
-      expect(rawIds, <Object?>{'guest-cat', 'b-ex'});
+        // Physically: only user-1's row is gone; other-user survives.
+        final rawIds = (await database.query(
+          DatabaseTables.exercises,
+        )).map((r) => r[DatabaseTables.exerciseId]).toSet();
+        expect(rawIds, <Object?>{'b-ex'});
 
-      // A subsequent guest session sees only its own '' catalog —
-      // never user-1's cleared data or user-2's rows.
-      when(() => mockResolver.resolve()).thenAnswer((_) async => '');
-      final asGuest = await dataSource.getAllExercises();
-      expect(asGuest.map((e) => e.id).toList(), <String>['guest-cat']);
-
-      // A different signed-in user sees only their own rows.
-      when(() => mockResolver.resolve()).thenAnswer((_) async => otherUserId);
-      final asOther = await dataSource.getAllExercises();
-      expect(asOther.map((e) => e.id).toList(), <String>['b-ex']);
-    });
+        // A different signed-in user sees only their own rows.
+        when(() => mockResolver.resolve()).thenAnswer((_) async => otherUserId);
+        final asOther = await dataSource.getAllExercises();
+        expect(asOther.map((e) => e.id).toList(), <String>['b-ex']);
+      },
+    );
   });
 
   // ---------------------------------------------------------------------------
@@ -638,7 +613,9 @@ void main() {
       test(
         'throws MissingUserContextException when called in guest mode',
         () async {
-          when(() => mockResolver.resolve()).thenAnswer((_) async => '');
+          when(() => mockResolver.resolve()).thenThrow(
+            const MissingUserContextException(operation: 'session lookup'),
+          );
 
           await expectLater(
             dataSource.prepareForInitialCloudMigration(userId: 'user-1'),

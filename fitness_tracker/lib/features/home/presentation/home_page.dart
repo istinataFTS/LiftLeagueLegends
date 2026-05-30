@@ -4,6 +4,7 @@ import 'package:flutter_bloc/flutter_bloc.dart';
 import '../../../core/constants/app_strings.dart';
 import '../../../core/session/session_display_name.dart';
 import '../../../core/themes/app_theme.dart';
+import '../../../domain/entities/app_session.dart';
 import '../../../domain/entities/app_settings.dart';
 // convention-checker:allow=cross-feature-presentation-import reason=home observes ProfileCubit (app-level singleton) for username display; data-observation pattern, not navigation
 import '../../../features/profile/application/profile_cubit.dart';
@@ -60,10 +61,13 @@ class HomePage extends StatelessWidget {
                 final ProfileState profileState = context
                     .watch<ProfileCubit>()
                     .state;
-                final String userName = SessionDisplayName.resolve(
-                  profileState.session,
-                  profileState.userProfile,
-                );
+                final AppSession? session = profileState.session;
+                final String userName = session == null
+                    ? 'Signed-in User'
+                    : SessionDisplayName.resolve(
+                        session,
+                        profileState.userProfile,
+                      );
                 final HomePageViewData viewData = HomeViewDataMapper.map(
                   homeData: loadedState.data,
                   muscleVisualState: muscleState,

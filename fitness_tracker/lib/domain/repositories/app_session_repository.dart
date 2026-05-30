@@ -9,8 +9,6 @@ import '../entities/initial_cloud_migration_state.dart';
 abstract class AppSessionRepository {
   Future<Either<Failure, AppSession>> getCurrentSession();
 
-  Future<Either<Failure, void>> startGuestSession();
-
   Future<Either<Failure, void>> startAuthenticatedSession(
     AppUser user, {
     bool requiresInitialCloudMigration = true,

@@ -8,30 +8,19 @@ class ProfileViewDataMapper {
   const ProfileViewDataMapper._();
 
   static ProfilePageViewData map(ProfileState state) {
-    final AppSession session = state.session;
+    final AppSession? session = state.session;
     final UserProfile? profile = state.userProfile;
 
-    // ---------------------------------------------------------------------------
-    // Title / subtitle
-    // Prefer real profile data; fall back to auth user fields; then guest label.
-    // ---------------------------------------------------------------------------
-    final String title = _resolveTitle(session, profile);
+    final String title = session == null
+        ? 'Signed out'
+        : SessionDisplayName.resolve(session, profile);
     final String subtitle = _resolveSubtitle(session, profile);
 
-    // ---------------------------------------------------------------------------
-    // Session / account mode copy
-    // ---------------------------------------------------------------------------
-    final String sessionBannerMessage = session.isAuthenticated
-        ? 'Your data is backed by the cloud and stays in sync across devices.'
-        : 'You are in guest mode. Sign in to enable cloud sync and social features.';
-
-    final String accountModeTitle = session.isAuthenticated
-        ? 'Cloud account'
-        : 'Guest account';
-
-    final String accountModeSubtitle = session.isAuthenticated
-        ? 'Data is owned and synced with your authenticated account'
-        : 'Data is stored locally only — sign in to back it up';
+    const String sessionBannerMessage =
+        'Your data is backed by the cloud and stays in sync across devices.';
+    const String accountModeTitle = 'Cloud account';
+    const String accountModeSubtitle =
+        'Data is owned and synced with your authenticated account';
 
     return ProfilePageViewData(
       title: title,
@@ -46,12 +35,9 @@ class ProfileViewDataMapper {
     );
   }
 
-  static String _resolveTitle(AppSession session, UserProfile? profile) =>
-      SessionDisplayName.resolve(session, profile);
-
-  static String _resolveSubtitle(AppSession session, UserProfile? profile) {
-    if (!session.isAuthenticated) {
-      return 'Sign in to unlock cloud sync and social features';
+  static String _resolveSubtitle(AppSession? session, UserProfile? profile) {
+    if (session == null) {
+      return 'Sign in to continue.';
     }
 
     final String? handle = profile?.username;
@@ -59,7 +45,7 @@ class ProfileViewDataMapper {
       return '@$handle';
     }
 
-    return session.user?.email.trim().nullIfEmpty() ?? 'Authenticated session';
+    return session.user.email.trim().nullIfEmpty() ?? 'Authenticated session';
   }
 }
 

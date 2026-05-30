@@ -481,24 +481,8 @@ void main() {
       expect(result.map((s) => s.id).toList(), <String>['mine']);
     });
 
-    test('returns empty for a guest session', () async {
-      when(
-        () => mockCurrentUserIdResolver.resolve(),
-      ).thenAnswer((_) async => kGuestUserId);
-      await dataSource.addSet(
-        buildSet(
-          id: 'set-1',
-          exerciseId: 'bench',
-          date: baseDate,
-          syncMetadata: const EntitySyncMetadata(
-            status: SyncStatus.pendingUpload,
-          ),
-        ),
-      );
-
-      final result = await dataSource.getPendingSyncSets();
-      expect(result, isEmpty);
-    });
+    // "returns empty for a guest session" removed: guest sessions no longer
+    // exist; the resolver throws.
 
     test('excludes localOnly and synced rows', () async {
       await dataSource.addSet(
@@ -529,9 +513,11 @@ void main() {
       test(
         'throws MissingUserContextException when called in guest mode',
         () async {
-          when(
-            () => mockCurrentUserIdResolver.resolve(),
-          ).thenAnswer((_) async => '');
+          when(() => mockCurrentUserIdResolver.resolve()).thenAnswer(
+            (_) async => throw const MissingUserContextException(
+              operation: 'session lookup',
+            ),
+          );
 
           await expectLater(
             dataSource.prepareForInitialCloudMigration(userId: 'user-1'),
@@ -650,7 +636,7 @@ void main() {
             id: 'guest-set',
             exerciseId: 'squat',
             date: baseDate,
-          ).copyWith(ownerUserId: kGuestUserId),
+          ).copyWith(ownerUserId: ''),
         );
         // 'user-1' is the default owner in buildSet.
         await dataSource.addSet(
@@ -684,13 +670,13 @@ void main() {
             id: 'guest-set',
             exerciseId: 'squat',
             date: baseDate,
-          ).copyWith(ownerUserId: kGuestUserId),
+          ).copyWith(ownerUserId: ''),
         );
         await dataSource.addSet(
           buildSet(id: 'user-set', exerciseId: 'bench', date: baseDate),
         );
 
-        await dataSource.clearSetsForOwner(kGuestUserId);
+        await dataSource.clearSetsForOwner('');
 
         final remaining = await database.query(DatabaseTables.workoutSets);
         final ids = remaining

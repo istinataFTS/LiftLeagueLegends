@@ -1,4 +1,4 @@
-import 'package:sqflite/sqflite.dart';
+﻿import 'package:sqflite/sqflite.dart';
 
 import '../../../core/constants/database_tables.dart';
 import '../../../core/errors/exceptions.dart';
@@ -105,7 +105,7 @@ class ExerciseLocalDataSourceImpl extends UserScopedLocalDatasource
   @override
   Future<ExerciseModel?> getExerciseByName(String name) async {
     try {
-      final ownerId = await resolveOwnerId();
+      final ownerId = await this.ownerId();
       final f = whereOwned(
         ownerId: ownerId,
         extra:
@@ -161,7 +161,7 @@ class ExerciseLocalDataSourceImpl extends UserScopedLocalDatasource
   @override
   Future<List<ExerciseModel>> getExercisesForMuscle(String muscleGroup) async {
     try {
-      final ownerId = await resolveOwnerId();
+      final ownerId = await this.ownerId();
       final f = whereOwned(
         ownerId: ownerId,
         extra:
@@ -185,7 +185,7 @@ class ExerciseLocalDataSourceImpl extends UserScopedLocalDatasource
   @override
   Future<List<ExerciseModel>> getPendingSyncExercises() async {
     try {
-      final ownerId = await resolveOwnerId();
+      final ownerId = await this.ownerId();
       final db = await databaseHelper.database;
       final f = whereOwned(
         ownerId: ownerId,
@@ -295,9 +295,7 @@ class ExerciseLocalDataSourceImpl extends UserScopedLocalDatasource
 
   @override
   Future<void> prepareForInitialCloudMigration({required String userId}) async {
-    await requireAuthenticatedOwnerId(
-      operation: 'prepareForInitialCloudMigration',
-    );
+    await ownerId();
     try {
       final storedExercises = await _getStoredExercises();
       final preparedExercises = storedExercises
@@ -488,7 +486,7 @@ class ExerciseLocalDataSourceImpl extends UserScopedLocalDatasource
   /// - Only rows owned by the active account (guest `''` or `uid`).
   /// - Soft-deleted exercises (sync_status = pendingDelete) are excluded.
   Future<List<ExerciseModel>> _getVisibleExercises() async {
-    final ownerId = await resolveOwnerId();
+    final ownerId = await this.ownerId();
     final f = whereOwned(
       ownerId: ownerId,
       extra:
@@ -507,7 +505,7 @@ class ExerciseLocalDataSourceImpl extends UserScopedLocalDatasource
   }
 
   Future<ExerciseModel?> _getVisibleExerciseById(String id) async {
-    final ownerId = await resolveOwnerId();
+    final ownerId = await this.ownerId();
     final f = whereOwned(
       ownerId: ownerId,
       extra:
@@ -660,9 +658,6 @@ class ExerciseLocalDataSourceImpl extends UserScopedLocalDatasource
     String userId,
   ) {
     final ownerUserId = exercise.ownerUserId;
-    if (ownerUserId == null || ownerUserId.isEmpty) {
-      return exercise;
-    }
     if (ownerUserId != userId) {
       return exercise;
     }

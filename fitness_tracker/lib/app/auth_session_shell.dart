@@ -16,14 +16,17 @@ import 'voice/voice_command_router.dart';
 /// Establishes the authentication boundary in the widget tree.
 ///
 /// Listens to [ProfileCubit] and derives a stable *session key* from the
-/// current user id (`'guest'` when unauthenticated). A [KeyedSubtree] keyed
-/// on that value wraps the entire user-scoped sub-tree, including [child].
+/// current user id (a fallback sentinel when no session is in flight). A
+/// [KeyedSubtree] keyed on that value wraps the entire user-scoped sub-tree,
+/// including [child].
 ///
-/// **Why this matters:** when the session key changes (sign-out → `'guest'`,
-/// or `'guest'` → a new authenticated user id), Flutter disposes the entire
+/// **Why this matters:** when the session key changes (sign-out → sentinel,
+/// or sentinel → a new authenticated user id), Flutter disposes the entire
 /// old sub-tree in full before building the new one. Every user-data BLoC
 /// underneath is closed and recreated, so no stale state from a previous
-/// session can ever leak into the next.
+/// session can ever leak into the next. The sentinel value is unreachable
+/// under the AuthGate in practice, but is retained as a defensive default
+/// for the brief moment between sign-out and the gate re-asserting.
 ///
 /// **Important – navigator scope:** [child] should contain the [MaterialApp]
 /// (or equivalent navigator host). Placing [MaterialApp] *inside* the keyed
@@ -44,8 +47,9 @@ class AuthSessionShell extends StatelessWidget {
   /// pushed routes and modal sheets inherit the user-scoped blocs.
   final Widget child;
 
-  // Sentinel key used when no authenticated user is present.
-  static const String _guestKey = 'guest';
+  // Sentinel key used when no authenticated user is present (e.g. the
+  // transient moment between sign-out and the AuthGate re-asserting).
+  static const String _unauthenticatedKey = '__unauthenticated__';
 
   @override
   Widget build(BuildContext context) {
@@ -53,7 +57,8 @@ class AuthSessionShell extends StatelessWidget {
     // keyed sub-tree is only torn down and rebuilt on a genuine user switch —
     // not on every ProfileState update (e.g. loading flags, profile edits).
     return BlocSelector<ProfileCubit, ProfileState, String>(
-      selector: (ProfileState state) => state.session.user?.id ?? _guestKey,
+      selector: (ProfileState state) =>
+          state.session?.user.id ?? _unauthenticatedKey,
       builder: (BuildContext context, String sessionKey) {
         return KeyedSubtree(
           key: ValueKey<String>(sessionKey),

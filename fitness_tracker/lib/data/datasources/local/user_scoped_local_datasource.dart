@@ -1,13 +1,12 @@
 import 'package:meta/meta.dart';
 
 import '../../../core/constants/database_tables.dart';
-import '../../../core/errors/exceptions.dart';
 import '../../../core/session/current_user_id_resolver.dart';
 import 'database_helper.dart';
 
 /// Base class for every local datasource whose rows are owned by a specific
-/// user (authenticated or guest). Extending this class is the *only* sanctioned
-/// way to scope local queries to the current owner.
+/// authenticated user. Extending this class is the *only* sanctioned way to
+/// scope local queries to the current owner.
 ///
 /// ## Why this exists
 ///
@@ -15,8 +14,15 @@ import 'database_helper.dart';
 /// after three real cross-user data leaks. The resolver alone is a convention:
 /// each datasource must remember to call it on every query. This base class
 /// removes that "must remember" — `whereOwned(...)` is the path of least
-/// resistance, and the resolver is reached only via [resolveOwnerId] /
-/// [requireAuthenticatedOwnerId].
+/// resistance, and the resolver is reached only via [ownerId].
+///
+/// ## Post guest-removal contract
+///
+/// There is no guest mode. Every reachable datasource call site runs above
+/// the auth gate, so [ownerId] either returns an authenticated user id or
+/// throws `MissingUserContextException`. Callers do not need to handle a
+/// "missing user" branch — that scenario indicates a session-lookup or
+/// sign-out race and should surface as an error, not as silent empty data.
 ///
 /// ## What is exempt
 ///
@@ -30,8 +36,8 @@ import 'database_helper.dart';
 ///   `ownerUserId` and are queried as a whole queue, not per-active-user.
 ///
 /// Any file added to `lib/data/datasources/local/` must either extend this
-/// class or be added to this list with a one-line reason. Adoption 04 will
-/// enforce this in CI.
+/// class or be added to this list with a one-line reason. The
+/// `user-scoped-datasource` convention rule enforces this in CI.
 abstract class UserScopedLocalDatasource {
   UserScopedLocalDatasource({
     required this.databaseHelper,
@@ -44,26 +50,11 @@ abstract class UserScopedLocalDatasource {
   @protected
   final CurrentUserIdResolver currentUserIdResolver;
 
-  /// Returns the current owner id. Returns [kGuestUserId] (`''`) for guests.
-  /// Never throws.
+  /// Returns the current authenticated owner id. Throws
+  /// `MissingUserContextException` if no user is in context (session-lookup
+  /// failure or pre-auth code path that should not be reachable).
   @protected
-  Future<String> resolveOwnerId() => currentUserIdResolver.resolve();
-
-  /// Returns the current owner id only when the session is authenticated.
-  /// Throws [MissingUserContextException] if the session is a guest.
-  ///
-  /// Use for operations that genuinely cannot run in guest mode (push, pull,
-  /// initial-sync prepare).
-  @protected
-  Future<String> requireAuthenticatedOwnerId({
-    required String operation,
-  }) async {
-    final id = await resolveOwnerId();
-    if (id.isEmpty) {
-      throw MissingUserContextException(operation: operation);
-    }
-    return id;
-  }
+  Future<String> ownerId() => currentUserIdResolver.resolve();
 
   /// Builds a `WHERE` clause that scopes results to [ownerId], optionally
   /// composed with [extra] / [extraArgs]. Always emits `owner_user_id = ?`
@@ -71,9 +62,9 @@ abstract class UserScopedLocalDatasource {
   ///
   /// Example:
   /// ```dart
-  /// final ownerId = await resolveOwnerId();
+  /// final id = await ownerId();
   /// final f = whereOwned(
-  ///   ownerId: ownerId,
+  ///   ownerId: id,
   ///   extra: '(sync_status IS NULL OR sync_status != ?)',
   ///   extraArgs: [SyncStatus.pendingDelete.name],
   /// );

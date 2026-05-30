@@ -220,10 +220,10 @@ void main() {
   });
 
   // ---------------------------------------------------------------------------
-  // Guest-owner guard
+  // Sync metadata stamping (user-owned only — guest-owner guard removed)
   // ---------------------------------------------------------------------------
 
-  group('guest-owner guard', () {
+  group('sync metadata', () {
     NutritionLog buildLogEntity({String? ownerUserId}) => NutritionLog(
       id: 'log-1',
       ownerUserId: ownerUserId,
@@ -234,32 +234,6 @@ void main() {
       calories: 310,
       loggedAt: baseDate,
       createdAt: baseDate,
-    );
-
-    test('buildAddedLocalEntity stamps null-owner log as localOnly even when '
-        'remote is configured', () {
-      when(() => remoteDataSource.isConfigured).thenReturn(true);
-
-      final result = coordinator.buildAddedLocalEntity(
-        buildLogEntity(ownerUserId: null),
-        baseDate,
-      );
-
-      expect(result.syncMetadata.status, SyncStatus.localOnly);
-    });
-
-    test(
-      "buildAddedLocalEntity stamps guest-sentinel ('') log as localOnly",
-      () {
-        when(() => remoteDataSource.isConfigured).thenReturn(true);
-
-        final result = coordinator.buildAddedLocalEntity(
-          buildLogEntity(ownerUserId: ''),
-          baseDate,
-        );
-
-        expect(result.syncMetadata.status, SyncStatus.localOnly);
-      },
     );
 
     test(
@@ -273,33 +247,6 @@ void main() {
         );
 
         expect(result.syncMetadata.status, SyncStatus.pendingUpload);
-      },
-    );
-
-    test('buildUpdatedLocalEntity stamps null-owner log as localOnly', () {
-      when(() => remoteDataSource.isConfigured).thenReturn(true);
-
-      final result = coordinator.buildUpdatedLocalEntity(
-        entity: buildLogEntity(ownerUserId: null),
-        existingLocal: null,
-        now: baseDate,
-      );
-
-      expect(result.syncMetadata.status, SyncStatus.localOnly);
-    });
-
-    test(
-      "buildUpdatedLocalEntity stamps guest-sentinel ('') log as localOnly",
-      () {
-        when(() => remoteDataSource.isConfigured).thenReturn(true);
-
-        final result = coordinator.buildUpdatedLocalEntity(
-          entity: buildLogEntity(ownerUserId: ''),
-          existingLocal: null,
-          now: baseDate,
-        );
-
-        expect(result.syncMetadata.status, SyncStatus.localOnly);
       },
     );
   });

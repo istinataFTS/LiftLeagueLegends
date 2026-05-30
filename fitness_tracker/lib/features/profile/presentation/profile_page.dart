@@ -68,8 +68,7 @@ class _ProfileViewState extends State<_ProfileView> {
             title: const Text('Profile'),
             automaticallyImplyLeading: false,
             actions: [
-              if (state.session.isAuthenticated &&
-                  state.userProfile != null) ...[
+              if (state.session != null && state.userProfile != null)
                 IconButton(
                   icon: const Icon(Icons.edit_outlined),
                   tooltip: 'Edit profile',
@@ -78,25 +77,7 @@ class _ProfileViewState extends State<_ProfileView> {
                       : () =>
                             _showEditProfileSheet(context, state.userProfile!),
                 ),
-              ],
-              if (!state.session.isAuthenticated)
-                IconButton(
-                  icon: const Icon(Icons.login),
-                  tooltip: 'Sign in',
-                  onPressed: () async {
-                    final ProfileCubit cubit = context.read<ProfileCubit>();
-                    final didSignIn = await Navigator.of(
-                      context,
-                    ).pushNamed<bool>(AppRoutes.signIn);
-
-                    if (!mounted) return;
-
-                    if (didSignIn == true) {
-                      await cubit.loadProfile();
-                    }
-                  },
-                ),
-              if (state.session.isAuthenticated)
+              if (state.session != null)
                 IconButton(
                   icon: const Icon(Icons.logout),
                   tooltip: 'Sign out',

@@ -1,6 +1,5 @@
 import 'package:dartz/dartz.dart';
 import 'package:fitness_tracker/core/config/app_sync_policy.dart';
-import 'package:fitness_tracker/core/enums/auth_mode.dart';
 import 'package:fitness_tracker/core/enums/conflict_resolution_strategy.dart';
 import 'package:fitness_tracker/core/enums/data_source_preference.dart';
 import 'package:fitness_tracker/core/errors/failures.dart';
@@ -18,8 +17,6 @@ const _remoteOnPolicy = AppSyncPolicy(
   offlineFirst: true,
   localStoreAcceptsWrites: true,
   remoteIsSourceOfTruthWhenAuthenticated: true,
-  guestModeUsesLocalStorageOnly: true,
-  authenticatedModeUsesUserScopedData: true,
   conflictResolutionStrategy: ConflictResolutionStrategy.serverWins,
   syncTriggers: [],
 );
@@ -29,19 +26,15 @@ const _remoteOffPolicy = AppSyncPolicy(
   offlineFirst: true,
   localStoreAcceptsWrites: true,
   remoteIsSourceOfTruthWhenAuthenticated: false,
-  guestModeUsesLocalStorageOnly: true,
-  authenticatedModeUsesUserScopedData: true,
   conflictResolutionStrategy: ConflictResolutionStrategy.serverWins,
   syncTriggers: [],
 );
 
 const _authenticatedSession = AppSession(
-  authMode: AuthMode.authenticated,
   user: AppUser(id: 'user-1', email: 'test@example.com'),
 );
 
 const _migrationPendingSession = AppSession(
-  authMode: AuthMode.authenticated,
   user: AppUser(id: 'user-1', email: 'test@example.com'),
   requiresInitialCloudMigration: true,
 );
@@ -97,15 +90,8 @@ void main() {
         },
       );
 
-      test('returns localOnly for unauthenticated guest session', () async {
-        when(
-          () => mockRepository.getCurrentSession(),
-        ).thenAnswer((_) async => const Right(AppSession.guest()));
-
-        final result = await resolver.resolveReadPreference();
-
-        expect(result, DataSourcePreference.localOnly);
-      });
+      // "returns localOnly for unauthenticated guest session" removed:
+      // guest sessions no longer exist.
 
       test('returns localOnly when initial cloud migration is pending, '
           'even if syncPolicy enables remote', () async {

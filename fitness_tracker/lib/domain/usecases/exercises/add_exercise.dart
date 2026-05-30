@@ -28,8 +28,7 @@ class AddExercise {
     // decoration this use case owns.
     //
     // Every exercise is owned (per-user catalog model): the resolver returns
-    // the authenticated user's id, or the guest sentinel `''`
-    // ([kGuestUserId]) for guest/unauthenticated sessions — never null. This
+    // the authenticated user's id, or throws if no user is in context. This
     // is the same identifier readers use, so a row is always visible to the
     // account that created it.
     final ownerId = await CurrentUserIdResolver(

@@ -1,5 +1,4 @@
 import 'package:dartz/dartz.dart';
-import 'package:fitness_tracker/core/enums/auth_mode.dart';
 import 'package:fitness_tracker/core/enums/data_source_preference.dart';
 import 'package:fitness_tracker/core/errors/failures.dart';
 import 'package:fitness_tracker/domain/entities/app_session.dart';
@@ -40,7 +39,6 @@ final _mealFixture = Meal(
 );
 
 const _authenticatedSession = AppSession(
-  authMode: AuthMode.authenticated,
   user: AppUser(id: 'user-1', email: 'test@example.com'),
 );
 
@@ -72,19 +70,8 @@ void main() {
       useCase = AddMeal(mockMealRepo, appSessionRepository: mockSessionRepo);
     });
 
-    test('does not set ownerUserId when session fails', () async {
-      when(
-        () => mockSessionRepo.getCurrentSession(),
-      ).thenAnswer((_) async => const Left(CacheFailure('no session')));
-      when(
-        () => mockMealRepo.addMeal(_mealFixture),
-      ).thenAnswer((_) async => const Right(null));
-
-      final result = await useCase(_mealFixture);
-
-      expect(result.isRight(), isTrue);
-      verify(() => mockMealRepo.addMeal(_mealFixture)).called(1);
-    });
+    // "does not set ownerUserId when session fails" removed: AddMeal now
+    // propagates the session failure instead of using a guest fallback.
 
     test('sets ownerUserId when session is authenticated', () async {
       final mealWithOwner = _mealFixture.copyWith(ownerUserId: 'user-1');
@@ -102,29 +89,15 @@ void main() {
       verify(() => mockMealRepo.addMeal(mealWithOwner)).called(1);
     });
 
-    test(
-      'does not set ownerUserId for unauthenticated guest session',
-      () async {
-        when(
-          () => mockSessionRepo.getCurrentSession(),
-        ).thenAnswer((_) async => const Right(AppSession.guest()));
-        when(
-          () => mockMealRepo.addMeal(_mealFixture),
-        ).thenAnswer((_) async => const Right(null));
-
-        final result = await useCase(_mealFixture);
-
-        expect(result.isRight(), isTrue);
-        verify(() => mockMealRepo.addMeal(_mealFixture)).called(1);
-      },
-    );
+    // "does not set ownerUserId for unauthenticated guest session" removed.
 
     test('propagates repository failure', () async {
+      final mealWithOwner = _mealFixture.copyWith(ownerUserId: 'user-1');
       when(
         () => mockSessionRepo.getCurrentSession(),
-      ).thenAnswer((_) async => const Left(CacheFailure('no session')));
+      ).thenAnswer((_) async => const Right(_authenticatedSession));
       when(
-        () => mockMealRepo.addMeal(_mealFixture),
+        () => mockMealRepo.addMeal(mealWithOwner),
       ).thenAnswer((_) async => const Left(_dbFailure));
 
       final result = await useCase(_mealFixture);
@@ -331,29 +304,28 @@ void main() {
       useCase = UpdateMeal(mockMealRepo, appSessionRepository: mockSessionRepo);
     });
 
-    test(
-      'updates meal without changing ownerUserId when session fails',
-      () async {
-        when(
-          () => mockSessionRepo.getCurrentSession(),
-        ).thenAnswer((_) async => const Left(CacheFailure('no session')));
-        when(
-          () => mockMealRepo.updateMeal(_mealFixture),
-        ).thenAnswer((_) async => const Right(null));
-
-        final result = await useCase(_mealFixture);
-
-        expect(result.isRight(), isTrue);
-        verify(() => mockMealRepo.updateMeal(_mealFixture)).called(1);
-      },
-    );
-
-    test('propagates repository failure', () async {
+    test('stamps ownerUserId from the current authenticated session', () async {
+      final mealWithOwner = _mealFixture.copyWith(ownerUserId: 'user-1');
       when(
         () => mockSessionRepo.getCurrentSession(),
-      ).thenAnswer((_) async => const Left(CacheFailure('no session')));
+      ).thenAnswer((_) async => const Right(_authenticatedSession));
       when(
-        () => mockMealRepo.updateMeal(_mealFixture),
+        () => mockMealRepo.updateMeal(mealWithOwner),
+      ).thenAnswer((_) async => const Right(null));
+
+      final result = await useCase(_mealFixture);
+
+      expect(result.isRight(), isTrue);
+      verify(() => mockMealRepo.updateMeal(mealWithOwner)).called(1);
+    });
+
+    test('propagates repository failure', () async {
+      final mealWithOwner = _mealFixture.copyWith(ownerUserId: 'user-1');
+      when(
+        () => mockSessionRepo.getCurrentSession(),
+      ).thenAnswer((_) async => const Right(_authenticatedSession));
+      when(
+        () => mockMealRepo.updateMeal(mealWithOwner),
       ).thenAnswer((_) async => const Left(_dbFailure));
 
       final result = await useCase(_mealFixture);

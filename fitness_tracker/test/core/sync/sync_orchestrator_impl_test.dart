@@ -1,6 +1,5 @@
 import 'package:dartz/dartz.dart';
 import 'package:fitness_tracker/core/config/app_sync_policy.dart';
-import 'package:fitness_tracker/core/enums/auth_mode.dart';
 import 'package:fitness_tracker/core/enums/conflict_resolution_strategy.dart';
 import 'package:fitness_tracker/core/enums/sync_trigger.dart';
 import 'package:fitness_tracker/core/errors/failures.dart';
@@ -61,7 +60,6 @@ void main() {
     bool requiresInitialCloudMigration = false,
   }) {
     return AppSession(
-      authMode: AuthMode.authenticated,
       user: const AppUser(id: 'user-1', email: 'user@test.com'),
       requiresInitialCloudMigration: requiresInitialCloudMigration,
     );
@@ -124,17 +122,8 @@ void main() {
     orchestrator = buildOrchestrator();
   });
 
-  test('skips when session is guest', () async {
-    when(
-      () => repository.getCurrentSession(),
-    ).thenAnswer((_) async => const Right(AppSession.guest()));
-
-    final result = await orchestrator.run(SyncTrigger.appLaunch);
-
-    expect(result.status, SyncRunStatus.skipped);
-    expect(executionLog, isEmpty);
-    verifyNever(() => repository.recordSuccessfulCloudSync(any()));
-  });
+  // "skips when session is guest" test removed: every reachable session is
+  // authenticated. The session-lookup-failure path is still covered below.
 
   test(
     'runs feature sync in registration order for authenticated session',
@@ -332,8 +321,6 @@ void main() {
         offlineFirst: true,
         localStoreAcceptsWrites: true,
         remoteIsSourceOfTruthWhenAuthenticated: true,
-        guestModeUsesLocalStorageOnly: true,
-        authenticatedModeUsesUserScopedData: true,
         conflictResolutionStrategy: ConflictResolutionStrategy.serverWins,
         syncTriggers: <SyncTrigger>[],
       ),
@@ -554,22 +541,7 @@ void main() {
     await failedSub.cancel();
   });
 
-  test('does not broadcast onSyncCompleted for skipped runs', () async {
-    when(
-      () => repository.getCurrentSession(),
-    ).thenAnswer((_) async => const Right(AppSession.guest()));
-
-    final emitted = <SyncRunStatus>[];
-    final sub = orchestrator.onSyncCompleted.listen(
-      (result) => emitted.add(result.status),
-    );
-
-    final result = await orchestrator.run(SyncTrigger.appLaunch);
-    await pumpEventQueue();
-
-    expect(result.status, SyncRunStatus.skipped);
-    expect(emitted, isEmpty);
-
-    await sub.cancel();
-  });
+  // "does not broadcast onSyncCompleted for skipped runs" removed: no skip
+  // path is reachable now that guest sessions are gone. Failure-path coverage
+  // above still proves onSyncCompleted is suppressed when the run never ran.
 }

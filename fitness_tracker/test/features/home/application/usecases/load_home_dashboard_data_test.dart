@@ -1,6 +1,5 @@
 import 'package:dartz/dartz.dart';
 import 'package:fitness_tracker/core/errors/failures.dart';
-import 'package:fitness_tracker/core/enums/auth_mode.dart';
 import 'package:fitness_tracker/domain/entities/app_session.dart';
 import 'package:fitness_tracker/domain/entities/app_user.dart';
 import 'package:fitness_tracker/domain/entities/entity_sync_metadata.dart';
@@ -67,7 +66,6 @@ void main() {
   };
 
   const AppSession authenticatedSession = AppSession(
-    authMode: AuthMode.authenticated,
     user: AppUser(id: 'user-1', email: 'test@example.com'),
   );
 
@@ -133,37 +131,8 @@ void main() {
     },
   );
 
-  test('falls back to empty muscle counts for guest sessions', () async {
-    when(
-      () => mockAppSessionRepository.getCurrentSession(),
-    ).thenAnswer((_) async => const Right(AppSession.guest()));
-    when(
-      () => mockGetLogsForDate(any()),
-    ).thenAnswer((_) async => Right(<NutritionLog>[newerLog]));
-    when(
-      () => mockGetDailyMacros(any()),
-    ).thenAnswer((_) async => Right(dailyMacros));
-
-    final result = await usecase();
-
-    expect(
-      result,
-      Right<Failure, HomeDashboardData>(
-        HomeDashboardData(
-          todaysLogs: <NutritionLog>[newerLog],
-          dailyMacros: dailyMacros,
-          muscleSetCounts: const <String, int>{},
-        ),
-      ),
-    );
-    verifyNever(
-      () => mockMuscleLoadResolver.getSetCountsByMuscle(
-        userId: any(named: 'userId'),
-        start: any(named: 'start'),
-        end: any(named: 'end'),
-      ),
-    );
-  });
+  // "falls back to empty muscle counts for guest sessions" removed:
+  // guest sessions no longer exist.
 
   test('falls back to empty logs when logs loading fails', () async {
     stubSuccessfulCoreLoads();

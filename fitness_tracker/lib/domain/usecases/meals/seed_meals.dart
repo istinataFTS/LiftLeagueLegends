@@ -25,12 +25,9 @@ class SeedMeals {
 
   const SeedMeals(this.repository, {this.catalogInitFlags});
 
-  /// [ownerUserId] — the account the seeded meals are owned by (the guest
-  /// sentinel `''` or an authenticated uid).
-  ///
   /// Returns the number of meals inserted, or 0 if seeding was skipped
   /// because the account already had meals.
-  Future<Either<Failure, int>> call({String? ownerUserId}) async {
+  Future<Either<Failure, int>> call({required String ownerUserId}) async {
     try {
       if (!EnvConfig.seedDefaultData) {
         _log('Seeding disabled in environment config');
@@ -40,13 +37,11 @@ class SeedMeals {
       // Catalog-init flag: delete-stickiness guard (mirrors SeedExercises).
       if (catalogInitFlags != null && !EnvConfig.forceReseed) {
         final initialized = await catalogInitFlags!.isInitialized(
-          ownerUserId ?? '',
+          ownerUserId,
           'meals',
         );
         if (initialized) {
-          _log(
-            'Meal catalog already initialized for ${ownerUserId ?? 'guest'} — skipping',
-          );
+          _log('Meal catalog already initialized for $ownerUserId — skipping');
           return const Right(0);
         }
       }
@@ -79,7 +74,9 @@ class SeedMeals {
     }
   }
 
-  Future<Either<Failure, int>> _seedDefaultMeals({String? ownerUserId}) async {
+  Future<Either<Failure, int>> _seedDefaultMeals({
+    required String ownerUserId,
+  }) async {
     final defaultMeals = DefaultMealsData.getDefaultMeals();
     final now = DateTime.now();
 
@@ -117,7 +114,7 @@ class SeedMeals {
     );
 
     if (successCount > 0) {
-      await catalogInitFlags?.markInitialized(ownerUserId ?? '', 'meals');
+      await catalogInitFlags?.markInitialized(ownerUserId, 'meals');
       return Right(successCount);
     }
     return const Left(DatabaseFailure('Failed to seed any meals'));

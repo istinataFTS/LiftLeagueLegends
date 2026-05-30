@@ -1,6 +1,5 @@
 import 'package:dartz/dartz.dart';
 import 'package:fitness_tracker/core/auth/auth_session_service.dart';
-import 'package:fitness_tracker/core/enums/auth_mode.dart';
 import 'package:fitness_tracker/core/errors/failures.dart';
 import 'package:fitness_tracker/core/session/session_sync_service.dart';
 import 'package:fitness_tracker/domain/entities/app_session.dart';
@@ -46,7 +45,6 @@ void main() {
   );
 
   final AppSession authenticatedSession = AppSession(
-    authMode: _authMode,
     user: testUser,
     requiresInitialCloudMigration: false,
     lastCloudSyncAt: null,
@@ -80,7 +78,7 @@ void main() {
   // Initial state
   // ---------------------------------------------------------------------------
   test('initial state is guest, not loaded, no profile', () {
-    expect(sut.state.session.isAuthenticated, isFalse);
+    expect(sut.state.session, isNull);
     expect(sut.state.hasLoaded, isFalse);
     expect(sut.state.userProfile, isNull);
     expect(sut.state.errorMessage, isNull);
@@ -141,7 +139,7 @@ void main() {
       await sut.loadProfile();
 
       expect(sut.state.userProfile, isNull);
-      expect(sut.state.session.isAuthenticated, isTrue);
+      expect(sut.state.session, isNotNull);
       expect(sut.state.hasLoaded, isTrue);
     },
   );
@@ -152,7 +150,7 @@ void main() {
   test('loadProfile does not fetch profile for guest session', () async {
     when(
       () => mockSessionRepo.getCurrentSession(),
-    ).thenAnswer((_) async => const Right(AppSession.guest()));
+    ).thenAnswer((_) async => Left(DatabaseFailure('no session')));
 
     await sut.loadProfile();
 
@@ -172,7 +170,7 @@ void main() {
     await sut.loadProfile();
 
     expect(sut.state.errorMessage, isNotNull);
-    expect(sut.state.session.isAuthenticated, isFalse);
+    expect(sut.state.session, isNull);
     expect(sut.state.userProfile, isNull);
   });
 
@@ -328,12 +326,12 @@ void main() {
     );
     when(
       () => mockSessionRepo.getCurrentSession(),
-    ).thenAnswer((_) async => const Right(AppSession.guest()));
+    ).thenAnswer((_) async => Left(DatabaseFailure('no session')));
 
     await sut.signOut();
 
     expect(sut.state.userProfile, isNull);
-    expect(sut.state.session.isAuthenticated, isFalse);
+    expect(sut.state.session, isNull);
   });
 
   // ---------------------------------------------------------------------------
@@ -357,5 +355,3 @@ void main() {
     expect(sut.state, stateBefore);
   });
 }
-
-const _authMode = AuthMode.authenticated;

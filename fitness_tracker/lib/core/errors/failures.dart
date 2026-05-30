@@ -43,3 +43,11 @@ class UnexpectedFailure extends Failure {
 class ServerFailure extends Failure {
   const ServerFailure(super.message);
 }
+
+/// Session resolution failed — no authenticated user is in context. After
+/// guest-mode removal this surfaces any code path that reached the session
+/// repository without an active sign-in.
+class SessionLookupFailure extends Failure {
+  const SessionLookupFailure({String message = 'no authenticated session'})
+    : super(message);
+}

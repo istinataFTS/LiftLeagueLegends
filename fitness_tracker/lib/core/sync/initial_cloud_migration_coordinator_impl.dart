@@ -26,13 +26,6 @@ class InitialCloudMigrationCoordinatorImpl
         );
       },
       (session) async {
-        if (!session.isAuthenticated) {
-          return const InitialCloudMigrationResult(
-            status: InitialCloudMigrationStatus.skipped,
-            message: 'initial cloud migration skipped because session is guest',
-          );
-        }
-
         if (!session.requiresInitialCloudMigration) {
           return const InitialCloudMigrationResult(
             status: InitialCloudMigrationStatus.skipped,
@@ -40,7 +33,7 @@ class InitialCloudMigrationCoordinatorImpl
           );
         }
 
-        final user = session.user!;
+        final user = session.user;
         final existingStateResult = await appSessionRepository
             .getInitialCloudMigrationState();
 

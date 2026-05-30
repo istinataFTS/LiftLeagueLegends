@@ -1,10 +1,6 @@
 enum BackendTarget { supabasePrimary }
 
-enum LocalStorageRole {
-  guestPrimaryStore,
-  authenticatedOfflineStore,
-  transitionalMigrationLayer,
-}
+enum LocalStorageRole { authenticatedOfflineStore, transitionalMigrationLayer }
 
 enum SourceOfTruth { localOnly, supabase, derivedFromUserScopedData }
 
@@ -29,11 +25,9 @@ class AppDataArchitecture {
   /// the application is being built toward Supabase as the primary backend.
   static const BackendTarget backendTarget = BackendTarget.supabasePrimary;
 
-  /// Guest mode remains available for now, but it is local-only.
-  static const bool guestModeEnabled = true;
-  static const bool guestModeUsesLocalStorageOnly = true;
-
-  /// Signed-in users operate on user-scoped data.
+  /// Signed-in users operate on user-scoped data. Guest mode was removed in
+  /// the `fix/remove-guest-and-unstick-migration` initiative — there is no
+  /// "guest" alternative path at runtime.
   static const bool authenticatedModeUsesUserScopedData = true;
 
   /// Once authenticated, remote data becomes authoritative.
@@ -42,7 +36,6 @@ class AppDataArchitecture {
   /// Local storage still matters, but not as the final authority for
   /// authenticated users.
   static const List<LocalStorageRole> localStorageRoles = <LocalStorageRole>[
-    LocalStorageRole.guestPrimaryStore,
     LocalStorageRole.authenticatedOfflineStore,
     LocalStorageRole.transitionalMigrationLayer,
   ];

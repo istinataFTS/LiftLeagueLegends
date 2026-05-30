@@ -82,8 +82,14 @@ void main() {
     });
 
     test('deterministic ids are unique across the catalog', () {
+      const ownerUserId = 'user-1';
       final ids = DefaultMealsData.getDefaultMeals()
-          .map((m) => DeterministicCatalogId.fromName(m.name))
+          .map(
+            (m) => DeterministicCatalogId.forOwner(
+              ownerUserId: ownerUserId,
+              name: m.name,
+            ),
+          )
           .toList();
       expect(ids.toSet().length, ids.length);
     });
@@ -106,38 +112,7 @@ void main() {
       }
     });
 
-    test('guest-seeded catalog coexists with a post-sign-in user catalog '
-        '(no primary-key collision on adoption)', () async {
-      // Regression for the empty-Library-after-sign-in bug: with a
-      // name-only id, the guest seed at boot reserved ids that an
-      // authenticated user could never insert again, leaving them with
-      // an empty catalog. With owner-scoped ids both catalogs coexist.
-      final repo = _InMemoryMealRepository();
-
-      repo.currentOwner = '';
-      final guestResult = await SeedMeals(repo)(ownerUserId: '');
-      expect(guestResult.isRight(), isTrue);
-      final guestCount = repo.store.length;
-
-      repo.currentOwner = 'user-1';
-      final userResult = await SeedMeals(repo)(ownerUserId: 'user-1');
-      expect(userResult.isRight(), isTrue);
-
-      final defaults = DefaultMealsData.getDefaultMeals();
-      expect(repo.store.length, guestCount + defaults.length);
-      for (final d in defaults) {
-        final guestId = DeterministicCatalogId.forOwner(
-          ownerUserId: '',
-          name: d.name,
-        );
-        final userId = DeterministicCatalogId.forOwner(
-          ownerUserId: 'user-1',
-          name: d.name,
-        );
-        expect(repo.store[guestId]?.ownerUserId, '');
-        expect(repo.store[userId]?.ownerUserId, 'user-1');
-      }
-    });
+    // Guest-vs-user-coexistence test removed: guest catalogs no longer exist.
 
     test('is a no-op when the account already has meals', () async {
       final repo = _InMemoryMealRepository()..currentOwner = 'user-1';

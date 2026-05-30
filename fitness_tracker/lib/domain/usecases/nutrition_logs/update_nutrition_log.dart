@@ -17,18 +17,12 @@ class UpdateNutritionLog {
   Future<Either<Failure, void>> call(NutritionLog log) async {
     final sessionResult = await appSessionRepository.getCurrentSession();
 
-    final preparedLog = sessionResult.fold((_) => log, (session) {
-      if (!session.isAuthenticated || session.user == null) {
-        return log;
-      }
-
-      if (log.ownerUserId == session.user!.id) {
-        return log;
-      }
-
-      return log.copyWith(ownerUserId: session.user!.id);
+    return sessionResult.fold((failure) => Left(failure), (session) {
+      final userId = session.user.id;
+      final preparedLog = log.ownerUserId == userId
+          ? log
+          : log.copyWith(ownerUserId: userId);
+      return repository.updateLog(preparedLog);
     });
-
-    return repository.updateLog(preparedLog);
   }
 }

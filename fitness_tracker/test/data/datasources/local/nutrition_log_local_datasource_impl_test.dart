@@ -511,24 +511,8 @@ void main() {
       expect(result.map((l) => l.id).toList(), <String>['mine']);
     });
 
-    test('returns empty for a guest session', () async {
-      when(
-        () => mockCurrentUserIdResolver.resolve(),
-      ).thenAnswer((_) async => kGuestUserId);
-      await dataSource.insertLog(
-        buildLog(
-          id: 'log-1',
-          loggedAt: baseDate,
-          ownerUserId: 'user-1',
-          syncMetadata: const EntitySyncMetadata(
-            status: SyncStatus.pendingUpload,
-          ),
-        ),
-      );
-
-      final result = await dataSource.getPendingSyncLogs();
-      expect(result, isEmpty);
-    });
+    // "returns empty for a guest session" removed: guest sessions no longer
+    // exist; the resolver throws.
 
     test('excludes localOnly and synced rows', () async {
       await dataSource.insertLog(
@@ -560,9 +544,11 @@ void main() {
       test(
         'throws MissingUserContextException when called in guest mode',
         () async {
-          when(
-            () => mockCurrentUserIdResolver.resolve(),
-          ).thenAnswer((_) async => '');
+          when(() => mockCurrentUserIdResolver.resolve()).thenAnswer(
+            (_) async => throw const MissingUserContextException(
+              operation: 'session lookup',
+            ),
+          );
 
           await expectLater(
             dataSource.prepareForInitialCloudMigration(userId: 'user-1'),
@@ -645,7 +631,7 @@ void main() {
           buildLog(
             id: 'guest-log',
             loggedAt: baseDate,
-            ownerUserId: kGuestUserId,
+            ownerUserId: '',
             mealId: null,
           ),
         );
@@ -681,7 +667,7 @@ void main() {
           buildLog(
             id: 'guest-log',
             loggedAt: baseDate,
-            ownerUserId: kGuestUserId,
+            ownerUserId: '',
             mealId: null,
           ),
         );
@@ -689,7 +675,7 @@ void main() {
           buildLog(id: 'user-log', loggedAt: baseDate, mealId: null),
         );
 
-        await dataSource.clearLogsForOwner(kGuestUserId);
+        await dataSource.clearLogsForOwner('');
 
         final remaining = await database.query(DatabaseTables.nutritionLogs);
         final ids = remaining

@@ -1,6 +1,5 @@
 import 'package:dartz/dartz.dart';
 import 'package:fitness_tracker/core/config/app_sync_policy.dart';
-import 'package:fitness_tracker/core/enums/auth_mode.dart';
 import 'package:fitness_tracker/core/enums/sync_trigger.dart';
 import 'package:fitness_tracker/core/network/network_status_service.dart';
 import 'package:fitness_tracker/core/sync/initial_cloud_migration_coordinator.dart';
@@ -67,7 +66,6 @@ void main() {
     bool requiresInitialCloudMigration = false,
   }) {
     return AppSession(
-      authMode: AuthMode.authenticated,
       user: const AppUser(id: 'user-1', email: 'user@test.com'),
       requiresInitialCloudMigration: requiresInitialCloudMigration,
     );
@@ -372,25 +370,8 @@ void main() {
     });
   });
 
-  test(
-    'hooks are not run when sync is skipped for a non-auth reason',
-    () async {
-      final hook = _RecordingHook(
-        name: 'factor_heal',
-        triggeringFeatures: const {'exercises'},
-      );
-
-      final orchestrator = buildOrchestrator(hooks: <PostSyncHook>[hook]);
-      when(
-        () => repository.getCurrentSession(),
-      ).thenAnswer((_) async => const Right(AppSession.guest()));
-
-      final result = await orchestrator.run(SyncTrigger.appLaunch);
-
-      expect(result.status, SyncRunStatus.skipped);
-      expect(hook.invocations, isEmpty);
-    },
-  );
+  // "hooks are not run when sync is skipped for a non-auth reason" removed:
+  // no skip path is reachable now that guest sessions are gone.
 
   test('pulledFeatures set handed to hooks is immutable', () async {
     final hook = _RecordingHook(

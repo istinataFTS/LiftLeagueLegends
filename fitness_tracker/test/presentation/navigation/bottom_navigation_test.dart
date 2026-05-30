@@ -1,6 +1,8 @@
 import 'dart:async';
 
 import 'package:bloc_test/bloc_test.dart';
+import 'package:fitness_tracker/domain/entities/app_session.dart';
+import 'package:fitness_tracker/domain/entities/app_user.dart';
 import 'package:fitness_tracker/domain/entities/voice_settings.dart';
 import 'package:fitness_tracker/features/history/history.dart';
 import 'package:fitness_tracker/features/home/application/home_bloc.dart';
@@ -210,11 +212,18 @@ void main() {
       initialState: AppSettingsState.initial().copyWith(hasLoaded: true),
     );
 
-    when(() => profileCubit.state).thenReturn(ProfileState.initial());
+    const authedState = ProfileState(
+      session: AppSession(
+        user: AppUser(id: 'user-1', email: 'user@test.com'),
+      ),
+      isLoading: false,
+      hasLoaded: true,
+    );
+    when(() => profileCubit.state).thenReturn(authedState);
     whenListen<ProfileState>(
       profileCubit,
       const Stream<ProfileState>.empty(),
-      initialState: ProfileState.initial(),
+      initialState: authedState,
     );
 
     when(() => voiceSettingsCubit.state).thenReturn(const VoiceSettings());

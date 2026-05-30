@@ -14,18 +14,12 @@ class UpdateMeal {
   Future<Either<Failure, void>> call(Meal meal) async {
     final sessionResult = await appSessionRepository.getCurrentSession();
 
-    final preparedMeal = sessionResult.fold((_) => meal, (session) {
-      if (!session.isAuthenticated || session.user == null) {
-        return meal;
-      }
-
-      if (meal.ownerUserId == session.user!.id) {
-        return meal;
-      }
-
-      return meal.copyWith(ownerUserId: session.user!.id);
+    return sessionResult.fold((failure) => Left(failure), (session) {
+      final userId = session.user.id;
+      final preparedMeal = meal.ownerUserId == userId
+          ? meal
+          : meal.copyWith(ownerUserId: userId);
+      return repository.updateMeal(preparedMeal);
     });
-
-    return repository.updateMeal(preparedMeal);
   }
 }

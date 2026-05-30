@@ -12,6 +12,13 @@ class RepositoryErrorMapper {
       return ValidationFailure(error.message);
     }
 
+    if (error is MissingUserContextException) {
+      return SessionLookupFailure(
+        message:
+            'no authenticated user in context (operation: ${error.operation})',
+      );
+    }
+
     if (error is CacheDatabaseException) {
       return DatabaseFailure(error.message);
     }

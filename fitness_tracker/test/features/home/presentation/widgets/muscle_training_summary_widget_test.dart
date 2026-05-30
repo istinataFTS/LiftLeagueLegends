@@ -8,6 +8,7 @@ import 'package:fitness_tracker/features/home/application/home_bloc.dart';
 import 'package:fitness_tracker/features/home/application/models/home_dashboard_data.dart';
 import 'package:fitness_tracker/features/home/application/muscle_visual_bloc.dart';
 import 'package:fitness_tracker/domain/entities/app_session.dart';
+import 'package:fitness_tracker/domain/entities/app_user.dart';
 import 'package:fitness_tracker/features/home/presentation/home_page.dart';
 import 'package:fitness_tracker/features/profile/application/profile_cubit.dart';
 import 'package:flutter/material.dart';
@@ -63,7 +64,9 @@ void main() {
     profileCubit = MockProfileCubit();
 
     const ProfileState guest = ProfileState(
-      session: AppSession.guest(),
+      session: AppSession(
+        user: AppUser(id: '__test_guest__', email: 'guest@test.local'),
+      ),
       isLoading: false,
       hasLoaded: true,
     );

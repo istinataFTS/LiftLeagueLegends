@@ -14,17 +14,13 @@ import 'package:uuid/uuid.dart';
 ///
 /// **Owner scoping** (per-user catalog model): under the isolation invariant
 /// every account owns its own copy of the default catalog. If the id were
-/// derived from name alone, the guest's "Bench Press" and an authenticated
-/// user's "Bench Press" would collide on the primary key — and since the
-/// guest catalog is seeded at boot before the user signs in, post-sign-in
-/// provisioning would always abort with a constraint violation, leaving the
-/// new user with an empty library. Scoping the id by owner eliminates the
-/// collision.
+/// derived from name alone, two accounts' "Bench Press" rows would collide
+/// on the primary key. Scoping the id by owner eliminates that collision.
 ///
-/// **Back-compat with pre-owner-scoping installs**: for the guest owner
-/// (`null` or `''`) the formula collapses to the historical name-only
-/// derivation, so existing guest rows seeded by earlier app versions keep
-/// their ids and remain idempotent on reseed.
+/// After guest-mode removal there is no "unowned" catalog state at runtime:
+/// every catalog row belongs to exactly one authenticated user. [forOwner]
+/// therefore asserts a non-empty owner — passing an empty string is now a
+/// caller bug we want to surface, not silently absorb.
 ///
 /// User-*created* catalog rows keep a random v4 id (they are already unique
 /// per user); only the curated defaults use this deterministic scheme.
@@ -54,22 +50,18 @@ class DeterministicCatalogId {
   /// - Same `(owner, canonical name)` ⇒ same id.
   /// - Different owners with the same name ⇒ different ids (the property
   ///   that lets per-account catalogs co-exist without PK collisions).
-  /// - Guest owner (`null` or `''`) collapses to the legacy name-only
-  ///   formula, keeping older guest rows valid.
-  static String forOwner({required String name, String? ownerUserId}) {
-    final canonicalOwner = (ownerUserId ?? '').trim();
-    final canonical = canonicalName(name);
-    final key = canonicalOwner.isEmpty
-        ? canonical
-        : '$canonicalOwner|$canonical';
-    return _uuid.v5(namespace, key);
-  }
-
-  /// Legacy alias for guest-equivalent id derivation.
   ///
-  /// Equivalent to `forOwner(ownerUserId: '', name: name)`. Retained because
-  /// the historical formula is on-disk for guest rows from older app
-  /// versions; new call sites should prefer [forOwner] so the id is owner
-  /// scoped and the per-user catalog model is honoured.
-  static String fromName(String name) => forOwner(name: name, ownerUserId: '');
+  /// [ownerUserId] must be a non-empty authenticated user id. Passing an
+  /// empty string trips an assertion — guest-flavored ids are no longer
+  /// supported (see `KNOWN_ISSUES.md#guest-catalog-pk-collision-blocks-initial-sign-in`).
+  static String forOwner({required String name, required String ownerUserId}) {
+    assert(
+      ownerUserId.trim().isNotEmpty,
+      'DeterministicCatalogId.forOwner requires a non-empty authenticated '
+      'owner id; guest-flavored ids are no longer supported.',
+    );
+    final canonicalOwner = ownerUserId.trim();
+    final canonical = canonicalName(name);
+    return _uuid.v5(namespace, '$canonicalOwner|$canonical');
+  }
 }

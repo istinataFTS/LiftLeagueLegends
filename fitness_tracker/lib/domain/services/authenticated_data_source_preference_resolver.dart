@@ -20,13 +20,9 @@ class AuthenticatedDataSourcePreferenceResolver {
         return DataSourcePreference.localOnly;
       }
 
-      final shouldPreferRemote =
-          session.isAuthenticated &&
-          appSessionRepository
-              .syncPolicy
-              .remoteIsSourceOfTruthWhenAuthenticated;
-
-      if (shouldPreferRemote) {
+      if (appSessionRepository
+          .syncPolicy
+          .remoteIsSourceOfTruthWhenAuthenticated) {
         return DataSourcePreference.remoteThenLocal;
       }
 

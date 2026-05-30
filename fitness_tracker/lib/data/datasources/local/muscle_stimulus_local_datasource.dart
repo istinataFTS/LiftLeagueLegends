@@ -1,4 +1,4 @@
-import 'package:sqflite/sqflite.dart';
+﻿import 'package:sqflite/sqflite.dart';
 import '../../../core/constants/database_tables.dart';
 import '../../../core/errors/exceptions.dart';
 import '../../models/muscle_stimulus_model.dart';
@@ -78,7 +78,7 @@ class MuscleStimulusLocalDataSourceImpl extends UserScopedLocalDatasource
     required DateTime date,
   }) async {
     try {
-      final ownerId = await resolveOwnerId();
+      final ownerId = await this.ownerId();
       final db = await databaseHelper.database;
       final dateString = MuscleStimulusModel.formatDateForDb(date);
       final f = whereOwned(
@@ -110,7 +110,7 @@ class MuscleStimulusLocalDataSourceImpl extends UserScopedLocalDatasource
     required DateTime endDate,
   }) async {
     try {
-      final ownerId = await resolveOwnerId();
+      final ownerId = await this.ownerId();
       final db = await databaseHelper.database;
       final startDateString = MuscleStimulusModel.formatDateForDb(startDate);
       final endDateString = MuscleStimulusModel.formatDateForDb(endDate);
@@ -147,7 +147,7 @@ class MuscleStimulusLocalDataSourceImpl extends UserScopedLocalDatasource
   @override
   Future<List<MuscleStimulusModel>> getAllStimulusForDate(DateTime date) async {
     try {
-      final ownerId = await resolveOwnerId();
+      final ownerId = await this.ownerId();
       final db = await databaseHelper.database;
       final dateString = MuscleStimulusModel.formatDateForDb(date);
       final f = whereOwned(
@@ -220,7 +220,7 @@ class MuscleStimulusLocalDataSourceImpl extends UserScopedLocalDatasource
   @override
   Future<void> applyDailyDecayToAll() async {
     try {
-      final ownerId = await resolveOwnerId();
+      final ownerId = await this.ownerId();
       final db = await databaseHelper.database;
       final f = whereOwned(ownerId: ownerId);
 
@@ -256,7 +256,7 @@ class MuscleStimulusLocalDataSourceImpl extends UserScopedLocalDatasource
   @override
   Future<double> getMaxStimulusForMuscle(String muscleGroup) async {
     try {
-      final ownerId = await resolveOwnerId();
+      final ownerId = await this.ownerId();
       final db = await databaseHelper.database;
 
       final result = await db.rawQuery(
@@ -280,7 +280,7 @@ class MuscleStimulusLocalDataSourceImpl extends UserScopedLocalDatasource
   @override
   Future<void> deleteOlderThan(DateTime date) async {
     try {
-      final ownerId = await resolveOwnerId();
+      final ownerId = await this.ownerId();
       final db = await databaseHelper.database;
       final dateString = MuscleStimulusModel.formatDateForDb(date);
       final f = whereOwned(

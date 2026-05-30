@@ -1,5 +1,4 @@
 import 'package:dartz/dartz.dart';
-import 'package:fitness_tracker/core/enums/auth_mode.dart';
 import 'package:fitness_tracker/core/errors/failures.dart';
 import 'package:fitness_tracker/domain/entities/app_session.dart';
 import 'package:fitness_tracker/domain/entities/app_user.dart';
@@ -102,7 +101,6 @@ void main() {
       when(() => appSessionRepository.getCurrentSession()).thenAnswer(
         (_) async => const Right(
           AppSession(
-            authMode: AuthMode.authenticated,
             user: AppUser(id: 'user-1', email: 'user@test.com'),
           ),
         ),
@@ -134,7 +132,6 @@ void main() {
       when(() => appSessionRepository.getCurrentSession()).thenAnswer(
         (_) async => const Right(
           AppSession(
-            authMode: AuthMode.authenticated,
             user: AppUser(id: 'user-1', email: 'user@test.com'),
           ),
         ),
@@ -161,43 +158,7 @@ void main() {
     },
   );
 
-  test(
-    "AddExercise stamps the guest sentinel '' for a guest session",
-    () async {
-      when(
-        () => appSessionRepository.getCurrentSession(),
-      ).thenAnswer((_) async => const Right(AppSession.guest()));
-
-      final result = await addExercise(baseExercise);
-
-      expect(result, const Right(null));
-
-      // Per-user catalog model: guests own their catalog under '' so it is
-      // visible to the guest session and adoptable on sign-in.
-      verify(
-        () => exerciseRepository.addExercise(
-          baseExercise.copyWith(ownerUserId: ''),
-        ),
-      ).called(1);
-      verify(
-        () => muscleFactorRepository.addMuscleFactorsBatch(any()),
-      ).called(1);
-    },
-  );
-
-  test(
-    'UpdateExercise leaves exercise unchanged when session lookup fails',
-    () async {
-      when(() => appSessionRepository.getCurrentSession()).thenAnswer(
-        (_) async => const Left(CacheFailure('session unavailable')),
-      );
-
-      final result = await updateExercise(baseExercise);
-
-      expect(result, const Right(null));
-
-      verify(() => exerciseRepository.updateExercise(baseExercise)).called(1);
-      verify(() => rebuildMuscleStimulusFromWorkoutHistory(any())).called(1);
-    },
-  );
+  // Guest-session and session-lookup-failure tests removed: AddExercise and
+  // UpdateExercise now propagate a session-lookup failure rather than
+  // falling back to a sentinel guest owner.
 }
