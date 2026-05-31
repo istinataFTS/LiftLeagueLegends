@@ -8,14 +8,11 @@ import '../models/day_activity.dart';
 /// green for nutrition), so the aggregator returns counts split by type via
 /// [DayActivity] rather than a single combined integer.
 ///
-/// Workout sets can become orphaned when their [WorkoutSet.exerciseId] no
-/// longer resolves to an [Exercise] in the library (e.g. the exercise was
-/// deleted). The day-detail view filters those out and shows an "unavailable"
-/// fallback, so the calendar must do the same — otherwise a dot promises
-/// data the user can't actually open. Pass [resolvableExerciseIds] to gate
-/// the workout count; pass `null` while the exercise list is still loading
-/// to fall back to counting every set (avoids an empty-then-populated flash
-/// during boot).
+/// **Orphaned sets** (those whose [WorkoutSet.exerciseId] no longer resolves
+/// to a library row) count toward the dot. The day-detail bottom sheet
+/// renders them with an "Unknown exercise" label, so the user has a path to
+/// inspect and act on orphans. A dot therefore promises real data the user
+/// can open — just labelled in a degraded form.
 class HistoryActivityAggregator {
   const HistoryActivityAggregator._();
 
@@ -27,14 +24,10 @@ class HistoryActivityAggregator {
     required Map<DateTime, List<WorkoutSet>> monthSets,
     required Map<DateTime, List<NutritionLog>> monthNutritionLogs,
     required DateTime date,
-    Set<String>? resolvableExerciseIds,
   }) {
     final DateTime normalizedDate = normalizeDate(date);
 
-    final int exerciseSets = _countResolvableSets(
-      monthSets[normalizedDate],
-      resolvableExerciseIds,
-    );
+    final int exerciseSets = _countSets(monthSets[normalizedDate]);
     final int nutritionLogs = monthNutritionLogs[normalizedDate]?.length ?? 0;
 
     return DayActivity(
@@ -46,17 +39,13 @@ class HistoryActivityAggregator {
   static Map<DateTime, DayActivity> buildActivityCounts({
     required Map<DateTime, List<WorkoutSet>> monthSets,
     required Map<DateTime, List<NutritionLog>> monthNutritionLogs,
-    Set<String>? resolvableExerciseIds,
   }) {
     final Map<DateTime, int> exerciseByDate = <DateTime, int>{};
     final Map<DateTime, int> nutritionByDate = <DateTime, int>{};
 
     for (final MapEntry<DateTime, List<WorkoutSet>> entry
         in monthSets.entries) {
-      final int count = _countResolvableSets(
-        entry.value,
-        resolvableExerciseIds,
-      );
+      final int count = _countSets(entry.value);
       if (count == 0) continue;
       final DateTime normalizedDate = normalizeDate(entry.key);
       exerciseByDate.update(
@@ -91,16 +80,5 @@ class HistoryActivityAggregator {
     };
   }
 
-  static int _countResolvableSets(
-    List<WorkoutSet>? sets,
-    Set<String>? resolvableExerciseIds,
-  ) {
-    if (sets == null || sets.isEmpty) return 0;
-    if (resolvableExerciseIds == null) return sets.length;
-    int count = 0;
-    for (final WorkoutSet set in sets) {
-      if (resolvableExerciseIds.contains(set.exerciseId)) count++;
-    }
-    return count;
-  }
+  static int _countSets(List<WorkoutSet>? sets) => sets?.length ?? 0;
 }
