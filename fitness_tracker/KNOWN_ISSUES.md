@@ -498,7 +498,7 @@ The key ships via `--dart-define=PICOVOICE_ACCESS_KEY=<key>` at build time (stor
 - **Severity:** High
 - **Status:** Resolved-but-monitor
 - **First observed:** 2026-05-25
-- **Last verified:** 2026-05-26
+- **Last verified:** 2026-05-31
 - **Area:** voice
 
 **Symptom**

@@ -72,6 +72,8 @@ The script errors if `dart_defines.json` is missing. Equivalent raw command: `fl
 | `SUPABASE_ANON_KEY` | Supabase anon/public key |
 | `PICOVOICE_ACCESS_KEY` | Picovoice Console access key (voice wake word) |
 
+> **If you see `VoiceWakeWordException(VoiceWakeWordErrorKind.noAccessKey, …)` in the logs on every app boot,** your `dart_defines.json` still has the placeholder for `PICOVOICE_ACCESS_KEY`. Get a real key from [Picovoice Console](https://console.picovoice.ai/) (free tier is fine), paste it into `dart_defines.json`, and re-run `./scripts/run.ps1`. See `KNOWN_ISSUES.md#voice-picovoice-key-must-ship-via-dart-define` for the long-form rationale.
+
 The `PICOVOICE_ACCESS_KEY` is written into `flutter_secure_storage` by `AppBootstrapper` on every launch. The wake-word engine starts automatically after the write via `VoiceCredentialService.onPicovoiceKeyChanged`. See KNOWN_ISSUES `#voice-picovoice-key-must-ship-via-dart-define`.
 
 ## Platform support
