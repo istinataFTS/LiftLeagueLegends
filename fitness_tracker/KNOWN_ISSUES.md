@@ -1316,9 +1316,9 @@ Repository interface no longer accepts a `userId` argument on read methods where
 ### history-calendar-dot-disagrees-with-day-detail-for-orphan-sets
 
 - **Severity:** Low
-- **Status:** Active
+- **Status:** Resolved-but-monitor
 - **First observed:** 2026-05-28
-- **Last verified:** 2026-05-30
+- **Last verified:** 2026-05-31
 - **Area:** other
 
 **Symptom**
@@ -1327,14 +1327,18 @@ A day that contains only workout sets whose `exerciseId` no longer resolves to a
 
 **Root cause**
 
-`HistoryActivityAggregator._countResolvableSets` (`lib/features/history/presentation/helpers/history_activity_aggregator.dart:94`) filters out sets whose `exerciseId` is absent from `resolvableExerciseIds`, which is derived from the current exercise library. The day-detail bottom sheet applies no such filter — it renders every set regardless of whether the exercise still exists. The docstring rationale ("a dot promises data the user can't actually open") is contradicted by the actual day-detail behaviour: the user can open the day and see all sets, just with a degraded label.
+`HistoryActivityAggregator._countResolvableSets` filtered out sets whose `exerciseId` was absent from `resolvableExerciseIds`, which was derived from the current exercise library. The day-detail bottom sheet applied no such filter — it rendered every set regardless of whether the exercise still exists. The docstring rationale ("a dot promises data the user can't actually open") was contradicted by the actual day-detail behaviour: the user could open the day and see all sets, just with a degraded label.
 
 **Workaround / fix**
 
-After Plan 1 (guest removal), the user's device has no orphaned sets. This inconsistency is theoretical until a set's exercise is manually deleted. The fix (planned in `plan-2-post-guest-removal-cleanups.md` Commit 4) removes the `resolvableExerciseIds` filter from the aggregator so the calendar counts every set, matching the day-detail's policy of showing orphans with an "Unknown exercise" label.
+No user-visible workaround needed post Plan 1 (no orphaned sets on device). Fixed in Commit 4 of `plan-2-post-guest-removal-cleanups.md`.
 
 **References**
 
-- `lib/features/history/presentation/helpers/history_activity_aggregator.dart:94` — `_countResolvableSets` filter
+- `lib/features/history/presentation/helpers/history_activity_aggregator.dart` — `_countSets` (replaced filtered version)
 - `lib/features/history/presentation/history_page.dart` — aggregator call site
 - `plan-2-post-guest-removal-cleanups.md` — full implementation plan (Commit 4)
+
+**Resolution**
+
+`HistoryActivityAggregator` no longer accepts a `resolvableExerciseIds` parameter. The private `_countResolvableSets` method is replaced with `_countSets`, which counts every set unconditionally. The `BlocBuilder<ExerciseBloc>` wrapper in `HistoryPage` (whose sole purpose was computing the id-set for the filter) is removed. The calendar now shows a dot for every day that has sets, regardless of whether the exercises still resolve — matching the day-detail bottom sheet's policy of rendering orphans as "Unknown exercise". See Commit 4 of `plan-2-post-guest-removal-cleanups.md`.

@@ -135,8 +135,11 @@ void main() {
     });
 
     test(
-      'buildActivityCounts excludes orphan workout sets when ids provided',
+      'buildActivityCounts counts orphan sets — dot matches day-detail policy',
       () {
+        // 1 resolvable + 2 orphaned sets on Mar 18; 1 orphaned set on Mar 19.
+        // The calendar must count all of them (policy: show dot, render orphans
+        // as "Unknown exercise" in the day-detail bottom sheet).
         final Map<DateTime, List<WorkoutSet>> monthSets =
             <DateTime, List<WorkoutSet>>{
               DateTime(2026, 3, 18): <WorkoutSet>[
@@ -148,14 +151,19 @@ void main() {
                 buildWorkoutSet(
                   id: 'w2',
                   date: DateTime(2026, 3, 18, 18, 0),
-                  exerciseId: 'deleted',
+                  exerciseId: 'deleted-1',
+                ),
+                buildWorkoutSet(
+                  id: 'w3',
+                  date: DateTime(2026, 3, 18, 20, 0),
+                  exerciseId: 'deleted-2',
                 ),
               ],
               DateTime(2026, 3, 19): <WorkoutSet>[
                 buildWorkoutSet(
-                  id: 'w3',
+                  id: 'w4',
                   date: DateTime(2026, 3, 19, 8, 0),
-                  exerciseId: 'deleted',
+                  exerciseId: 'deleted-1',
                 ),
               ],
             };
@@ -164,42 +172,45 @@ void main() {
             HistoryActivityAggregator.buildActivityCounts(
               monthSets: monthSets,
               monthNutritionLogs: const <DateTime, List<NutritionLog>>{},
-              resolvableExerciseIds: const <String>{'known'},
             );
 
-        expect(result, <DateTime, DayActivity>{
-          DateTime(2026, 3, 18): const DayActivity(
-            exerciseSets: 1,
-            nutritionLogs: 0,
-          ),
-        });
-        expect(result.containsKey(DateTime(2026, 3, 19)), isFalse);
+        expect(
+          result[DateTime(2026, 3, 18)],
+          const DayActivity(exerciseSets: 3, nutritionLogs: 0),
+        );
+        expect(
+          result[DateTime(2026, 3, 19)],
+          const DayActivity(exerciseSets: 1, nutritionLogs: 0),
+        );
       },
     );
 
-    test('buildActivityCounts counts every set when no id-set is supplied', () {
-      final Map<DateTime, List<WorkoutSet>> monthSets =
-          <DateTime, List<WorkoutSet>>{
-            DateTime(2026, 3, 18): <WorkoutSet>[
-              buildWorkoutSet(
-                id: 'w1',
-                date: DateTime(2026, 3, 18, 8, 0),
-                exerciseId: 'anything',
-              ),
-            ],
-          };
+    test(
+      'buildActivityCounts counts every set regardless of exercise resolution',
+      () {
+        final Map<DateTime, List<WorkoutSet>> monthSets =
+            <DateTime, List<WorkoutSet>>{
+              DateTime(2026, 3, 18): <WorkoutSet>[
+                buildWorkoutSet(
+                  id: 'w1',
+                  date: DateTime(2026, 3, 18, 8, 0),
+                  exerciseId: 'anything',
+                ),
+              ],
+            };
 
-      final Map<DateTime, DayActivity> result =
-          HistoryActivityAggregator.buildActivityCounts(
-            monthSets: monthSets,
-            monthNutritionLogs: const <DateTime, List<NutritionLog>>{},
-          );
+        final Map<DateTime, DayActivity> result =
+            HistoryActivityAggregator.buildActivityCounts(
+              monthSets: monthSets,
+              monthNutritionLogs: const <DateTime, List<NutritionLog>>{},
+            );
 
-      expect(
-        result[DateTime(2026, 3, 18)],
-        const DayActivity(exerciseSets: 1, nutritionLogs: 0),
-      );
-    });
+        expect(
+          result[DateTime(2026, 3, 18)],
+          const DayActivity(exerciseSets: 1, nutritionLogs: 0),
+        );
+      },
+    );
 
     test('buildActivityCounts returns empty map when nothing logged', () {
       final Map<DateTime, DayActivity> result =
