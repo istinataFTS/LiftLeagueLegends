@@ -90,3 +90,25 @@ The `OPENAI_API_KEY` lives **only** as a Supabase Function secret set via
 - ❌ Never present in `lib/` (Flutter client code)
 - ❌ Never in git history
 - ❌ Never logged by any Edge Function
+
+## One-off maintenance scripts
+
+SQL scripts under `supabase/` that are **not** Supabase migrations — they are
+applied manually once and are idempotent (running them again is a no-op).
+
+| Script | Purpose | When to run |
+|---|---|---|
+| `cleanup_duplicate_exercises_and_meals.sql` | Collapses duplicate (user_id, name) exercise/meal rows and adds the UNIQUE constraint. | Already applied. Do not re-run unless starting from a fresh schema. |
+| `cleanup_legacy_catalog_ids.sql` | Rewrites exercise/meal rows whose `id` was stamped with the pre-owner-scoping name-only UUIDv5 formula to the current owner-scoped formula. | Apply once after Plan 1 (guest-mode removal) has shipped. Required for fresh-device installs to sync without UNIQUE conflicts. |
+
+### Running a maintenance script on the VPS
+
+```sh
+docker exec -i supabase-db \
+  psql -U postgres -d postgres \
+  < supabase/<script-name>.sql
+```
+
+Each script contains a **STEP 1 DRY RUN** block and a **STEP 2 CLEANUP** block.
+Always run STEP 1 first, inspect the output, then run STEP 2.  Confirm
+idempotency by re-running STEP 1 afterwards — it should return zero rows.

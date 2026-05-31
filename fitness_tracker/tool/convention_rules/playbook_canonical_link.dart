@@ -72,10 +72,7 @@ final class PlaybookCanonicalLinkRule implements ConventionRule {
         .toSet();
 
     final mdFiles = allMdFiles
-        .where(
-          (f) =>
-              !thirdPartySkillDirs.any((dir) => f.startsWith(dir)),
-        )
+        .where((f) => !thirdPartySkillDirs.any((dir) => f.startsWith(dir)))
         .toList();
 
     if (mdFiles.isEmpty) return [];
