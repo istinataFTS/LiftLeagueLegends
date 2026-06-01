@@ -653,4 +653,99 @@ void main() {
       },
     );
   });
+
+  // ---------------------------------------------------------------------------
+  // Overlay nesting — regression for the dual-VoiceBloc instance bug.
+  //
+  // Proves that when VoiceCommandRouter is mounted BELOW an overlay's own
+  // BlocProvider<VoiceBloc> (with target blocs as ancestors), the router
+  // reads the overlay's VoiceBloc and the command round-trip completes.
+  // This test would fail on the old wiring where the shell and overlay used
+  // different VoiceBloc instances.
+  // ---------------------------------------------------------------------------
+
+  group('overlay nesting (regression: single VoiceBloc instance)', () {
+    late _MockWorkoutBloc mockWorkoutBloc;
+    late _MockHistoryBloc mockHistoryBloc;
+    late _MockNutritionLogBloc mockNutritionLogBloc;
+    late VoiceBloc realVoiceBloc;
+    late StreamController<WorkoutUiEffect> workoutEffects;
+    late StreamController<HistoryUiEffect> historyEffects;
+    late StreamController<NutritionLogUiEffect> nutritionEffects;
+
+    setUp(() {
+      workoutEffects = StreamController<WorkoutUiEffect>.broadcast();
+      historyEffects = StreamController<HistoryUiEffect>.broadcast();
+      nutritionEffects = StreamController<NutritionLogUiEffect>.broadcast();
+
+      mockWorkoutBloc = _MockWorkoutBloc();
+      mockHistoryBloc = _MockHistoryBloc();
+      mockNutritionLogBloc = _MockNutritionLogBloc();
+      realVoiceBloc = _buildVoiceBloc();
+
+      when(
+        () => mockWorkoutBloc.effects,
+      ).thenAnswer((_) => workoutEffects.stream);
+      when(
+        () => mockHistoryBloc.effects,
+      ).thenAnswer((_) => historyEffects.stream);
+      when(
+        () => mockNutritionLogBloc.effects,
+      ).thenAnswer((_) => nutritionEffects.stream);
+    });
+
+    tearDown(() async {
+      await realVoiceBloc.close();
+      await workoutEffects.close();
+      await historyEffects.close();
+      await nutritionEffects.close();
+    });
+
+    testWidgets(
+      'VoiceAddWorkoutSetCommand round-trips when router is nested below overlay BlocProvider<VoiceBloc>',
+      (tester) async {
+        final cmd = VoiceAddWorkoutSetCommand(_testSet, completer: Completer());
+
+        // Tree mirrors the overlay's real composition:
+        //   MultiBlocProvider (target blocs — shell ancestors)
+        //     BlocProvider<VoiceBloc> (overlay's own instance)
+        //       VoiceCommandRouter
+        //         child
+        await tester.pumpWidget(
+          MultiBlocProvider(
+            providers: [
+              BlocProvider<WorkoutBloc>.value(value: mockWorkoutBloc),
+              BlocProvider<HistoryBloc>.value(value: mockHistoryBloc),
+              BlocProvider<NutritionLogBloc>.value(value: mockNutritionLogBloc),
+            ],
+            child: BlocProvider<VoiceBloc>.value(
+              value: realVoiceBloc,
+              child: const MaterialApp(
+                home: VoiceCommandRouter(child: SizedBox()),
+              ),
+            ),
+          ),
+        );
+
+        // Emit command on the overlay's VoiceBloc — the router must hear it.
+        realVoiceBloc.emitEffect(cmd);
+        await tester.pump();
+
+        verify(
+          () => mockWorkoutBloc.add(any(that: isA<AddWorkoutSetEvent>())),
+        ).called(1);
+
+        workoutEffects.add(
+          const WorkoutLoggedEffect(
+            message: 'Set logged!',
+            affectedMuscles: [],
+          ),
+        );
+        await tester.pump(const Duration(milliseconds: 50));
+
+        expect(cmd.completer.isCompleted, isTrue);
+        expect(await cmd.completer.future, isA<VoiceMutationSuccess>());
+      },
+    );
+  });
 }

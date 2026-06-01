@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 
 import '../../../app/routes/app_routes.dart';
+import '../../../app/voice/voice_command_router.dart';
 import '../../../core/constants/app_strings.dart';
 import '../../../core/network/network_status_service.dart';
 import '../../../core/themes/app_theme.dart';
@@ -47,9 +48,16 @@ class VoiceOverlayPage extends StatelessWidget {
   Widget build(BuildContext context) {
     return BlocProvider<VoiceBloc>(
       create: (_) => sl<VoiceBloc>()..add(VoiceSessionStarted(session)),
-      child: _VoiceOverlayView(
-        session: session,
-        openedByWakeWord: openedByWakeWord,
+      // VoiceCommandRouter must sit BELOW this provider so it observes THIS
+      // overlay's VoiceBloc (the one that emits mutation commands), and ABOVE
+      // the view. It reads WorkoutBloc/HistoryBloc/NutritionLogBloc from the
+      // auth-session shell (this pushed route is their descendant). Mounting it
+      // here is what makes the round-trip dispatch actually fire.
+      child: VoiceCommandRouter(
+        child: _VoiceOverlayView(
+          session: session,
+          openedByWakeWord: openedByWakeWord,
+        ),
       ),
     );
   }
