@@ -716,7 +716,7 @@ Diagnostic workaround: open the History tab after every voice log to confirm the
 ### voice-overlay-and-shell-use-different-voicebloc-instances
 
 - **Severity:** Critical
-- **Status:** Active
+- **Status:** Resolved-but-monitor
 - **First observed:** 2026-05-31
 - **Last verified:** 2026-06-01
 - **Area:** voice
@@ -740,6 +740,10 @@ No user workaround; voice logging is entirely unusable until fixed. Fix: mount `
 - `lib/app/voice/voice_command_router.dart:83` — router listens to the shell instance, never the overlay's
 - `issue-2-voice-dual-voicebloc-fix-plan.md` — full fix plan
 - See also: [`voice-phantom-success-spoken-before-persistence-completes`](#voice-phantom-success-spoken-before-persistence-completes)
+
+**Resolution**
+
+Mounted `VoiceCommandRouter` inside `VoiceOverlayPage` below its `BlocProvider<VoiceBloc>`, so the router observes the same `VoiceBloc` the overlay uses; the round-trip now dispatches and persists. The dead shell-level `VoiceBloc`/router were removed in the follow-up refactor. See `issue-2-voice-dual-voicebloc-fix-plan.md`.
 
 ---
 
