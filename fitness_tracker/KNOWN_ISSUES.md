@@ -115,6 +115,7 @@ Numbered steps or a short paragraph. State what to do and what *not* to do.
 28. [empty-state-columns-need-scrollable-centering](#empty-state-columns-need-scrollable-centering)
 29. [muscle-stimulus-repository-userid-parameter-silently-dropped](#muscle-stimulus-repository-userid-parameter-silently-dropped)
 30. [history-calendar-dot-disagrees-with-day-detail-for-orphan-sets](#history-calendar-dot-disagrees-with-day-detail-for-orphan-sets)
+31. [signin-does-not-navigate-until-restart](#signin-does-not-navigate-until-restart)
 
 ---
 
@@ -1342,3 +1343,32 @@ No user-visible workaround needed post Plan 1 (no orphaned sets on device). Fixe
 **Resolution**
 
 `HistoryActivityAggregator` no longer accepts a `resolvableExerciseIds` parameter. The private `_countResolvableSets` method is replaced with `_countSets`, which counts every set unconditionally. The `BlocBuilder<ExerciseBloc>` wrapper in `HistoryPage` (whose sole purpose was computing the id-set for the filter) is removed. The calendar now shows a dot for every day that has sets, regardless of whether the exercises still resolve — matching the day-detail bottom sheet's policy of rendering orphans as "Unknown exercise". See Commit 4 of `plan-2-post-guest-removal-cleanups.md`.
+
+---
+
+### signin-does-not-navigate-until-restart
+
+- **Severity:** Critical
+- **Status:** Active
+- **First observed:** 2026-05-31
+- **Last verified:** 2026-05-31
+- **Area:** other
+
+**Symptom**
+
+A successful sign-in (logs show `Session established successfully`) leaves the user on the sign-in screen; the app only opens to the home screen after a manual restart. Affects all three authenticated entry points: sign-in, sign-up (no-email-confirmation branch), and OTP verification.
+
+**Root cause**
+
+`AuthGate` (`lib/app/auth_gate.dart`) swaps screens purely on `ProfileCubit.state.session != null`. The live-auth flow — `SignInCubit` → `AuthSessionService` → `SessionSyncService.establishAuthenticatedSession()` → `AppSessionRepository.startAuthenticatedSession()` — persists the session successfully, but nothing notifies `ProfileCubit`. `ProfileCubit.state.session` is only populated by `_loadProfile()`, which runs once at cold start (`lib/app/app.dart:60`) and from within the already-authenticated tree. `SignInCubit` (`lib/features/auth/application/sign_in_cubit.dart`) and `ProfileCubit` (`lib/features/profile/application/profile_cubit.dart`) are fully decoupled — there is no bridge. So after a live sign-in, `session` stays `null` in `ProfileCubit`, the gate's selector never changes, and the sign-in screen stays up. A restart re-runs `loadProfile()`, finds the persisted session, and the gate finally swaps.
+
+**Workaround / fix**
+
+End-user workaround: restart the app after signing in — the session is already persisted and the app will open normally on relaunch. Developer fix: see `issue-1-signin-navigation-fix-plan.md` (reactive `onSessionEstablished` stream on `SessionSyncService`; `ProfileCubit` subscribes and reloads via `loadProfile()`).
+
+**References**
+
+- `lib/app/auth_gate.dart` — gate that keys off `ProfileCubit.state.session`
+- `lib/features/auth/application/sign_in_cubit.dart` — live-auth path that never touches `ProfileCubit`
+- `lib/features/profile/application/profile_cubit.dart` — `session` only loaded at cold start
+- `issue-1-signin-navigation-fix-plan.md` — full implementation plan
