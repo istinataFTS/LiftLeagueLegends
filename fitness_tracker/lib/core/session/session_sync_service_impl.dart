@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import '../../core/logging/app_logger.dart';
 import '../../data/datasources/local/exercise_local_datasource.dart';
 import '../../data/datasources/local/meal_local_datasource.dart';
@@ -25,7 +27,16 @@ class SessionSyncServiceImpl implements SessionSyncService {
   final WorkoutSetLocalDataSource workoutSetLocalDataSource;
   final PendingSyncDeleteLocalDataSource pendingSyncDeleteLocalDataSource;
 
-  const SessionSyncServiceImpl({
+  // App-lifetime singleton: the controller is created once and never closed,
+  // matching AppSettingsRepositoryImpl's broadcast controller.
+  final StreamController<void> _onSessionEstablishedController =
+      StreamController<void>.broadcast();
+
+  @override
+  Stream<void> get onSessionEstablished =>
+      _onSessionEstablishedController.stream;
+
+  SessionSyncServiceImpl({
     required this.appSessionRepository,
     required this.authRemoteDataSource,
     required this.syncOrchestrator,
@@ -90,6 +101,11 @@ class SessionSyncServiceImpl implements SessionSyncService {
         // and fatigue views immediately reflect the restored training history.
         // muscle_stimulus is derived data — it is never synced remotely.
         await _rebuildMuscleStimulus(user.id);
+
+        // Announce the fully-established session so reactive listeners
+        // (ProfileCubit) swap the auth gate to the app. Completed path
+        // only — never skipped/failed.
+        _onSessionEstablishedController.add(null);
 
         return SessionSyncActionResult(
           status: SessionSyncActionStatus.completed,

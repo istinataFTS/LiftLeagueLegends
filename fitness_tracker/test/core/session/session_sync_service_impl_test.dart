@@ -419,4 +419,113 @@ void main() {
 
     // Guest-bucket scoping test removed: guest sessions no longer exist.
   });
+
+  group('onSessionEstablished', () {
+    test('emits once on a fully-completed establish', () async {
+      when(
+        () => repository.startAuthenticatedSession(
+          any(),
+          requiresInitialCloudMigration: any(
+            named: 'requiresInitialCloudMigration',
+          ),
+        ),
+      ).thenAnswer((_) async => const Right(null));
+
+      when(() => syncOrchestrator.run(SyncTrigger.initialSignIn)).thenAnswer(
+        (_) async => const SyncRunResult(
+          status: SyncRunStatus.completed,
+          trigger: SyncTrigger.initialSignIn,
+          message: 'initial cloud migration completed successfully',
+          featureResults: <SyncFeatureRunResult>[],
+        ),
+      );
+
+      final events = <void>[];
+      final sub = service.onSessionEstablished.listen(events.add);
+
+      await service.establishAuthenticatedSession(user);
+      await Future<void>.delayed(Duration.zero);
+
+      expect(events, hasLength(1));
+      await sub.cancel();
+    });
+
+    test('does NOT emit when session persistence fails', () async {
+      when(
+        () => repository.startAuthenticatedSession(
+          any(),
+          requiresInitialCloudMigration: any(
+            named: 'requiresInitialCloudMigration',
+          ),
+        ),
+      ).thenAnswer((_) async => const Left(CacheFailure('write failed')));
+
+      final events = <void>[];
+      final sub = service.onSessionEstablished.listen(events.add);
+
+      await service.establishAuthenticatedSession(user);
+      await Future<void>.delayed(Duration.zero);
+
+      expect(events, isEmpty);
+      await sub.cancel();
+    });
+
+    test('does NOT emit when the sync fails', () async {
+      when(
+        () => repository.startAuthenticatedSession(
+          any(),
+          requiresInitialCloudMigration: any(
+            named: 'requiresInitialCloudMigration',
+          ),
+        ),
+      ).thenAnswer((_) async => const Right(null));
+
+      when(() => syncOrchestrator.run(SyncTrigger.initialSignIn)).thenAnswer(
+        (_) async => const SyncRunResult(
+          status: SyncRunStatus.failed,
+          trigger: SyncTrigger.initialSignIn,
+          message: 'initial cloud migration failed',
+          featureResults: <SyncFeatureRunResult>[],
+        ),
+      );
+
+      final events = <void>[];
+      final sub = service.onSessionEstablished.listen(events.add);
+
+      await service.establishAuthenticatedSession(user);
+      await Future<void>.delayed(Duration.zero);
+
+      expect(events, isEmpty);
+      await sub.cancel();
+    });
+
+    test('does NOT emit when the sync is skipped', () async {
+      when(
+        () => repository.startAuthenticatedSession(
+          any(),
+          requiresInitialCloudMigration: any(
+            named: 'requiresInitialCloudMigration',
+          ),
+        ),
+      ).thenAnswer((_) async => const Right(null));
+
+      when(() => syncOrchestrator.run(SyncTrigger.initialSignIn)).thenAnswer(
+        (_) async => const SyncRunResult(
+          status: SyncRunStatus.skipped,
+          trigger: SyncTrigger.initialSignIn,
+          message: 'initial cloud migration already completed',
+          featureResults: <SyncFeatureRunResult>[],
+        ),
+      );
+
+      final events = <void>[];
+      final sub = service.onSessionEstablished.listen(events.add);
+
+      await service.establishAuthenticatedSession(user);
+      await Future<void>.delayed(Duration.zero);
+
+      expect(events, isEmpty);
+      await sub.cancel();
+    });
+  });
 }
