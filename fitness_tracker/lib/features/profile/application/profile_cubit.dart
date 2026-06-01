@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:equatable/equatable.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 
@@ -78,12 +80,31 @@ class ProfileCubit extends Cubit<ProfileState> {
        _sessionSyncService = sessionSyncService,
        _authSessionService = authSessionService,
        _userProfileRepository = userProfileRepository,
-       super(ProfileState.initial());
+       super(ProfileState.initial()) {
+    // Reactively reload when a new authenticated session is established
+    // (sign-in / sign-up / OTP). Without this, AuthGate — which keys off
+    // ProfileState.session — would not swap to the app until a manual restart
+    // re-ran loadProfile(). Mirrors AppSettingsCubit's subscription to
+    // AppSettingsRepository.watchSettings().
+    _onSessionEstablishedSub = _sessionSyncService.onSessionEstablished.listen((
+      _,
+    ) {
+      if (isClosed) return;
+      unawaited(loadProfile());
+    });
+  }
 
   final AppSessionRepository _repository;
   final SessionSyncService _sessionSyncService;
   final AuthSessionService _authSessionService;
   final UserProfileRepository _userProfileRepository;
+  late final StreamSubscription<void> _onSessionEstablishedSub;
+
+  @override
+  Future<void> close() async {
+    await _onSessionEstablishedSub.cancel();
+    return super.close();
+  }
 
   Future<void> ensureLoaded() async {
     if (state.hasLoaded || state.isLoading) {

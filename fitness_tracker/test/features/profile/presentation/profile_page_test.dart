@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:dartz/dartz.dart';
 import 'package:fitness_tracker/core/auth/auth_session_service.dart';
 import 'package:fitness_tracker/core/config/app_sync_policy.dart';
@@ -27,12 +29,18 @@ void main() {
   late MockSessionSyncService sessionSyncService;
   late MockAuthSessionService authSessionService;
   late MockUserProfileRepository userProfileRepository;
+  late StreamController<void> sessionEstablishedController;
 
   setUp(() {
     repository = MockAppSessionRepository();
     sessionSyncService = MockSessionSyncService();
     authSessionService = MockAuthSessionService();
     userProfileRepository = MockUserProfileRepository();
+
+    sessionEstablishedController = StreamController<void>.broadcast();
+    when(
+      () => sessionSyncService.onSessionEstablished,
+    ).thenAnswer((_) => sessionEstablishedController.stream);
 
     when(
       () => repository.syncPolicy,
@@ -51,6 +59,10 @@ void main() {
     when(
       () => userProfileRepository.getProfile(any()),
     ).thenAnswer((_) async => const Left(CacheFailure('no profile')));
+  });
+
+  tearDown(() async {
+    await sessionEstablishedController.close();
   });
 
   // ProfilePage reads ProfileCubit from its ancestor. Each test pumps a

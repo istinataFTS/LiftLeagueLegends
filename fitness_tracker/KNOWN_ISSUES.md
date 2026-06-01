@@ -1349,9 +1349,9 @@ No user-visible workaround needed post Plan 1 (no orphaned sets on device). Fixe
 ### signin-does-not-navigate-until-restart
 
 - **Severity:** Critical
-- **Status:** Active
+- **Status:** Resolved-but-monitor
 - **First observed:** 2026-05-31
-- **Last verified:** 2026-05-31
+- **Last verified:** 2026-06-01
 - **Area:** other
 
 **Symptom**
@@ -1372,3 +1372,7 @@ End-user workaround: restart the app after signing in — the session is already
 - `lib/features/auth/application/sign_in_cubit.dart` — live-auth path that never touches `ProfileCubit`
 - `lib/features/profile/application/profile_cubit.dart` — `session` only loaded at cold start
 - `issue-1-signin-navigation-fix-plan.md` — full implementation plan
+
+**Resolution**
+
+`ProfileCubit` now subscribes to `SessionSyncService.onSessionEstablished` (emitted on the completed establish path only — never skipped/failed) in its constructor and reloads via the existing `loadProfile()`, so `AuthGate` swaps from the sign-in screen to the app on live sign-in/up/OTP without a restart. The subscription is cancelled in `close()`. No auth-page or `AuthGate` changes were required. See `issue-1-signin-navigation-fix-plan.md`.
