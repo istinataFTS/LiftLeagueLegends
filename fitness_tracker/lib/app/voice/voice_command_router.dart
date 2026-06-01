@@ -11,10 +11,11 @@ import '../../features/voice/application/voice_bloc.dart';
 import '../../features/voice/application/voice_mutation_outcome.dart';
 
 /// Listens to [VoiceBloc.effects] and dispatches each mutation command via
-/// `context.read<X>()`. Lives as a child of the auth-session shell's
-/// [MultiBlocProvider] so `context.read` resolves the same [WorkoutBloc],
-/// [NutritionLogBloc], and [HistoryBloc] instances the user-facing pages
-/// observe — no ghost instances, no GetIt detours.
+/// `context.read<X>()`. Mounted inside [VoiceOverlayPage], below the overlay's
+/// `BlocProvider<VoiceBloc>`, so `context.read<VoiceBloc>()` resolves the
+/// overlay's bloc (the one emitting mutation commands). [WorkoutBloc],
+/// [NutritionLogBloc], and [HistoryBloc] resolve from the auth-session shell
+/// because the overlay is a descendant route of its [MultiBlocProvider].
 ///
 /// ## Round-trip dispatch contract
 ///
