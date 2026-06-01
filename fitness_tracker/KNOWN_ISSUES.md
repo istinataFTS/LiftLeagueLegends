@@ -83,6 +83,7 @@ Numbered steps or a short paragraph. State what to do and what *not* to do.
 18. [voice-whisper-is-the-default-stt-backend](#voice-whisper-is-the-default-stt-backend)
 19. [voice-transcribe-must-deploy-with-openai-secret-and-cors](#voice-transcribe-must-deploy-with-openai-secret-and-cors)
 20. [voice-phantom-success-spoken-before-persistence-completes](#voice-phantom-success-spoken-before-persistence-completes)
+21. [voice-overlay-and-shell-use-different-voicebloc-instances](#voice-overlay-and-shell-use-different-voicebloc-instances)
 
 ### Database
 11. [sqflite-version-15-rejects-incompatible-legacy-databases](#sqflite-version-15-rejects-incompatible-legacy-databases)
@@ -685,7 +686,7 @@ The `voice-transcribe` Edge Function is a **new** function — Supabase does not
 - **Severity:** High
 - **Status:** Resolved-but-monitor
 - **First observed:** 2026-05-27
-- **Last verified:** 2026-05-30
+- **Last verified:** 2026-06-01
 - **Area:** voice
 
 **Symptom**
@@ -708,7 +709,37 @@ Diagnostic workaround: open the History tab after every voice log to confirm the
 
 **Resolution**
 
-`VoiceBloc` now awaits a `VoiceMutationOutcome` via a `Completer` round-trip through `VoiceCommandRouter` and the target BLoC's effects. `VoiceCommandRouter` subscribes to `WorkoutBloc.effects`, `NutritionLogBloc.effects`, and `HistoryBloc.effects`, completing the completer when a success or failure effect arrives. Cache mutation (`_cachedWorkoutSets` / `_cachedNutritionLogs`) occurs only on `VoiceMutationSuccess`. A 5-second timeout returns `voiceSpokenMutationTimedOut` if the target BLoC stalls. Concurrent dispatches are serialised via a FIFO queue (max 5). See Commit 3 of `plan-2-post-guest-removal-cleanups.md`.
+`VoiceBloc` now awaits a `VoiceMutationOutcome` via a `Completer` round-trip through `VoiceCommandRouter` and the target BLoC's effects. `VoiceCommandRouter` subscribes to `WorkoutBloc.effects`, `NutritionLogBloc.effects`, and `HistoryBloc.effects`, completing the completer when a success or failure effect arrives. Cache mutation (`_cachedWorkoutSets` / `_cachedNutritionLogs`) occurs only on `VoiceMutationSuccess`. A 5-second timeout returns `voiceSpokenMutationTimedOut` if the target BLoC stalls. Concurrent dispatches are serialised via a FIFO queue (max 5). See Commit 3 of `plan-2-post-guest-removal-cleanups.md`. The round-trip added in Plan 2 only actually dispatches once the overlay and router share one `VoiceBloc` — see [`voice-overlay-and-shell-use-different-voicebloc-instances`](#voice-overlay-and-shell-use-different-voicebloc-instances).
+
+---
+
+### voice-overlay-and-shell-use-different-voicebloc-instances
+
+- **Severity:** Critical
+- **Status:** Active
+- **First observed:** 2026-05-31
+- **Last verified:** 2026-06-01
+- **Area:** voice
+
+**Symptom**
+
+Confirming a voice mutation (log/edit/delete workout set or nutrition log) makes the bot say `voiceSpokenMutationTimedOut` after ~5 seconds and nothing persists — not in History, not in the muscle model. Affects all six voice mutations: logWorkoutSet, editWorkoutSet, deleteWorkoutSet, logNutrition, editNutritionLog, deleteNutritionLog.
+
+**Root cause**
+
+`VoiceBloc` is registered as a factory, so every `sl<VoiceBloc>()` call returns a new object. Two separate providers exist: `VoiceOverlayPage` (`lib/features/voice/presentation/voice_overlay_page.dart:48`) creates its own instance and runs the entire overlay UI — including the confirmation card → `VoiceConfirmationAccepted` → `_dispatchMutationTool` → `emitEffect(VoiceAddWorkoutSetCommand(...))` — on that instance. Meanwhile, `VoiceCommandRouter` (`lib/app/voice/voice_command_router.dart:83`) subscribes to the separate shell instance provided by `AuthSessionShell` (`lib/app/auth_session_shell.dart:78`). Because the two are different objects, the overlay's emitted `VoiceMutationCommand` goes into its own effects stream, which the router never listens to. The dispatch never reaches `WorkoutBloc`/`HistoryBloc`/`NutritionLogBloc`, the `Completer<VoiceMutationOutcome>` is never completed, and `_dispatchMutationTool` times out after `VoiceConstants.mutationDispatchTimeout` (5 s). This dual-instance split was also the true underlying cause of the earlier phantom-success symptom — see [`voice-phantom-success-spoken-before-persistence-completes`](#voice-phantom-success-spoken-before-persistence-completes).
+
+**Workaround / fix**
+
+No user workaround; voice logging is entirely unusable until fixed. Fix: mount `VoiceCommandRouter` inside `VoiceOverlayPage`, below its `BlocProvider<VoiceBloc>`, so the router observes the same instance the overlay uses. It still reaches `WorkoutBloc`/`HistoryBloc`/`NutritionLogBloc` via the auth-session shell (pushed routes are descendants of its `MultiBlocProvider`). Then remove the now-dead shell-level `BlocProvider<VoiceBloc>` and `VoiceCommandRouter` wrapper from `AuthSessionShell`. See `issue-2-voice-dual-voicebloc-fix-plan.md`.
+
+**References**
+
+- `lib/features/voice/presentation/voice_overlay_page.dart:48` — overlay creates its own `VoiceBloc` instance
+- `lib/app/auth_session_shell.dart:78` — shell provides a separate `VoiceBloc` instance
+- `lib/app/voice/voice_command_router.dart:83` — router listens to the shell instance, never the overlay's
+- `issue-2-voice-dual-voicebloc-fix-plan.md` — full fix plan
+- See also: [`voice-phantom-success-spoken-before-persistence-completes`](#voice-phantom-success-spoken-before-persistence-completes)
 
 ---
 
