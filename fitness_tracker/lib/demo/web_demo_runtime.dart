@@ -1380,6 +1380,15 @@ class WebDemoSessionSyncService implements SessionSyncService {
 
   final WebDemoStore _store;
 
+  // App-lifetime singleton: the controller is created once and never closed,
+  // matching AppSettingsRepositoryImpl's broadcast controller.
+  final StreamController<void> _onSessionEstablishedController =
+      StreamController<void>.broadcast();
+
+  @override
+  Stream<void> get onSessionEstablished =>
+      _onSessionEstablishedController.stream;
+
   @override
   Future<SessionSyncActionResult> establishAuthenticatedSession(
     AppUser user,
@@ -1391,6 +1400,8 @@ class WebDemoSessionSyncService implements SessionSyncService {
       lastCloudSyncAt: DateTime.now(),
     );
     _store.migrationState = null;
+
+    _onSessionEstablishedController.add(null);
 
     return const SessionSyncActionResult(
       status: SessionSyncActionStatus.completed,
