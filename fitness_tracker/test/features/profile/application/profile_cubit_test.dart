@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:dartz/dartz.dart';
 import 'package:fitness_tracker/core/auth/auth_session_service.dart';
 import 'package:fitness_tracker/core/errors/failures.dart';
@@ -37,6 +39,7 @@ void main() {
   late _MockAuthSessionService mockAuthService;
   late _MockUserProfileRepository mockProfileRepo;
   late ProfileCubit sut;
+  late StreamController<void> sessionEstablishedController;
 
   final AppUser testUser = AppUser(
     id: 'user-1',
@@ -64,6 +67,11 @@ void main() {
     mockAuthService = _MockAuthSessionService();
     mockProfileRepo = _MockUserProfileRepository();
 
+    sessionEstablishedController = StreamController<void>.broadcast();
+    when(
+      () => mockSyncService.onSessionEstablished,
+    ).thenAnswer((_) => sessionEstablishedController.stream);
+
     sut = ProfileCubit(
       repository: mockSessionRepo,
       sessionSyncService: mockSyncService,
@@ -72,7 +80,10 @@ void main() {
     );
   });
 
-  tearDown(() => sut.close());
+  tearDown(() async {
+    await sut.close();
+    await sessionEstablishedController.close();
+  });
 
   // ---------------------------------------------------------------------------
   // Initial state
@@ -353,5 +364,33 @@ void main() {
     final stateBefore = sut.state;
     sut.clearError();
     expect(sut.state, stateBefore);
+  });
+
+  // ---------------------------------------------------------------------------
+  // Reactive session reload
+  // ---------------------------------------------------------------------------
+  group('reactive session reload', () {
+    test('reloads when onSessionEstablished fires', () async {
+      when(
+        () => mockSessionRepo.getCurrentSession(),
+      ).thenAnswer((_) async => Right(authenticatedSession));
+      when(
+        () => mockProfileRepo.getProfile('user-1'),
+      ).thenAnswer((_) async => Right(testProfile));
+
+      sessionEstablishedController.add(null);
+      await Future<void>.delayed(Duration.zero);
+
+      expect(sut.state.session, authenticatedSession);
+      expect(sut.state.userProfile, testProfile);
+    });
+
+    test('does not react after close', () async {
+      await sut.close();
+      // Cancelled subscription and isClosed guard prevent any emit-after-close.
+      sessionEstablishedController.add(null);
+      await Future<void>.delayed(Duration.zero);
+      // Reaching here without a StateError is the assertion.
+    });
   });
 }
