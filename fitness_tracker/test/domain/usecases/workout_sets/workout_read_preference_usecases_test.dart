@@ -137,4 +137,34 @@ void main() {
       ).called(1);
     },
   );
+
+  test('GetSetsByDateRange forwards limit to repository', () async {
+    when(
+      () => resolver.resolveReadPreference(),
+    ).thenAnswer((_) async => DataSourcePreference.localOnly);
+    when(
+      () => workoutSetRepository.getSetsByDateRange(
+        startDate,
+        endDate,
+        sourcePreference: DataSourcePreference.localOnly,
+        limit: 5,
+      ),
+    ).thenAnswer((_) async => Right(<WorkoutSet>[workoutSet]));
+
+    final result = await getSetsByDateRange(
+      startDate: startDate,
+      endDate: endDate,
+      limit: 5,
+    );
+
+    expect(result.isRight(), isTrue);
+    verify(
+      () => workoutSetRepository.getSetsByDateRange(
+        startDate,
+        endDate,
+        sourcePreference: DataSourcePreference.localOnly,
+        limit: 5,
+      ),
+    ).called(1);
+  });
 }

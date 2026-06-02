@@ -21,8 +21,12 @@ abstract class WorkoutSetRemoteDataSource {
   /// Returns this user's sets whose `performed_at` is within
   /// [[startDate], [endDate]] (inclusive), newest-first.
   /// Bounds are normalised to UTC at the boundary.
+  ///
+  /// When [limit] is non-null the server returns at most that many rows
+  /// (the most recent ones, given the `performed_at DESC` order).
   Future<List<WorkoutSet>> fetchByDateRange({
     required DateTime startDate,
     required DateTime endDate,
+    int? limit,
   });
 }

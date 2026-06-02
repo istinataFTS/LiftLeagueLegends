@@ -61,6 +61,7 @@ class FakeWorkoutSetRepository implements WorkoutSetRepository {
     DateTime startDate,
     DateTime endDate, {
     DataSourcePreference sourcePreference = DataSourcePreference.localOnly,
+    int? limit,
   }) => throw UnimplementedError();
 
   @override

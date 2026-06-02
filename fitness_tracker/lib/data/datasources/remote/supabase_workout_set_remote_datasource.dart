@@ -117,6 +117,7 @@ class SupabaseWorkoutSetRemoteDataSource implements WorkoutSetRemoteDataSource {
   Future<List<WorkoutSet>> fetchByDateRange({
     required DateTime startDate,
     required DateTime endDate,
+    int? limit,
   }) {
     return RemoteDatasourceGuard.run(() async {
       final userId = _currentUserIdOrNull();
@@ -124,7 +125,7 @@ class SupabaseWorkoutSetRemoteDataSource implements WorkoutSetRemoteDataSource {
         return const <WorkoutSet>[];
       }
 
-      final dynamic data = await clientProvider.client
+      var query = clientProvider.client
           .from(_tableName)
           .select()
           .eq(_userIdColumn, userId)
@@ -132,6 +133,9 @@ class SupabaseWorkoutSetRemoteDataSource implements WorkoutSetRemoteDataSource {
           .lte('performed_at', endDate.toStorageIso())
           .order('performed_at', ascending: false);
 
+      if (limit != null) query = query.limit(limit);
+
+      final dynamic data = await query;
       final rows = _asMapList(data);
       return rows.map(_mapRowToEntity).toList();
     });

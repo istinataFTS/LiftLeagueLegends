@@ -20,18 +20,25 @@ class GetSetsByDateRange {
     required this.sourcePreferenceResolver,
   });
 
-  /// Get sets filtered by date range and optionally by muscle group
+  /// Get sets filtered by date range and optionally by muscle group.
   ///
   /// Parameters:
   /// - [startDate]: Start of date range (inclusive)
   /// - [endDate]: End of date range (inclusive)
   /// - [muscleGroup]: Optional muscle group filter (if null, returns all sets)
+  /// - [limit]: Optional row cap applied server-side before any in-memory
+  ///   filtering. When combined with [muscleGroup], the cap is applied first
+  ///   and the muscle filter runs on the already-limited list — callers that
+  ///   need both should pass a [limit] large enough to survive the filter.
+  ///   Voice uses [limit] without [muscleGroup]; volume aggregations use
+  ///   [muscleGroup] without [limit].
   ///
   /// Returns: Either a Failure or a List of WorkoutSets
   Future<Either<Failure, List<WorkoutSet>>> call({
     required DateTime startDate,
     required DateTime endDate,
     String? muscleGroup,
+    int? limit,
   }) async {
     final sourcePreference = await sourcePreferenceResolver
         .resolveReadPreference();
@@ -40,6 +47,7 @@ class GetSetsByDateRange {
       startDate,
       endDate,
       sourcePreference: sourcePreference,
+      limit: limit,
     );
 
     if (muscleGroup == null) {

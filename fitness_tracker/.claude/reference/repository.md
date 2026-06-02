@@ -56,15 +56,17 @@ The `remoteDataSource.isConfigured` guard must appear before every remote call. 
 
 `workout_set_repository_impl.dart:178-229` — `getAllSets` and `getSetsByExerciseId` delegate to `_readAllSets`, which implements the full four-case `DataSourcePreference` switch over the whole table. `getSetsByDateRange` does **not** use `_readAllSets` — see below. Extracting the four-case switch into a private method prevents the switch from being repeated and ensures all full-table read methods respect the same data-source strategy logic. Name your equivalent helper `_readAll<Entity>` to follow the convention.
 
-### `getSetsByDateRange` — bounded server-side query + windowed merge (lines 114–141)
+### `getSetsByDateRange` — bounded server-side query + windowed merge (lines 115–155)
 
-`workout_set_repository_impl.dart:114-141` — `getSetsByDateRange` does not call `_readAllSets`. Instead it issues a **bounded** remote query (`remoteDataSource.fetchByDateRange`) that pushes the date filter to Supabase, fetches only the matching window, merges it with the local window via `_merge.mergeLists`, persists the merged window, and re-reads from local. This replaces the old full-table fetch + in-memory filter, which was both expensive and incorrect when timestamps were shifted.
+`workout_set_repository_impl.dart:115-155` — `getSetsByDateRange` does not call `_readAllSets`. Instead it issues a **bounded** remote query (`remoteDataSource.fetchByDateRange`) that pushes the date filter to Supabase, fetches only the matching window, merges it with the local window via `_merge.mergeLists`, persists the merged window, and re-reads from local. This replaces the old full-table fetch + in-memory filter, which was both expensive and incorrect when timestamps were shifted.
+
+The method also accepts an optional `int? limit` (null = unbounded). When non-null, the limit is forwarded to all four call sites: the local-only fast path, the local pre-merge fetch, the remote `fetchByDateRange`, and the final re-read after merge. This means the count cap is applied server-side (and in SQLite via `LIMIT`) before the merge — voice uses this to fetch only the 5 most recent sets it actually shows.
 
 Two properties of this design are worth noting:
 1. **Cost**: the remote query transfers only the rows in the requested window — relevant for voice turns, which call this method on every interaction.
 2. **Correctness**: a local-only row (e.g. just logged, not yet synced) is included in the merge because `mergeLists` keeps items that exist only in the local list. The background `SyncOrchestrator` continues to own whole-table reconciliation on its triggers; windowed reads are strictly read-side.
 
-The `localOnly || !isConfigured` guard on line 121-124 ensures the offline-first path still delegates to the local datasource only.
+The `localOnly || !isConfigured` guard on lines 121–128 ensures the offline-first path still delegates to the local datasource only.
 
 ### `_tryRemoteFetch` — offline-resilient remote reads (lines 231–259)
 

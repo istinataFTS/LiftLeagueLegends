@@ -9,8 +9,9 @@ abstract class WorkoutSetLocalDataSource {
 
   Future<List<WorkoutSet>> getSetsByDateRange(
     DateTime startDate,
-    DateTime endDate,
-  );
+    DateTime endDate, {
+    int? limit,
+  });
 
   Future<List<WorkoutSet>> getPendingSyncSets();
 

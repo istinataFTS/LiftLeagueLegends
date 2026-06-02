@@ -71,8 +71,9 @@ class WorkoutSetLocalDataSourceImpl extends UserScopedLocalDatasource
   @override
   Future<List<WorkoutSet>> getSetsByDateRange(
     DateTime startDate,
-    DateTime endDate,
-  ) async {
+    DateTime endDate, {
+    int? limit,
+  }) async {
     try {
       final ownerId = await this.ownerId();
       final db = await databaseHelper.database;
@@ -94,6 +95,7 @@ class WorkoutSetLocalDataSourceImpl extends UserScopedLocalDatasource
         whereArgs: f.whereArgs,
         orderBy:
             '${DatabaseTables.setDate} DESC, ${DatabaseTables.setCreatedAt} DESC',
+        limit: limit,
       );
 
       return maps.map(WorkoutSetModel.fromMap).toList();
