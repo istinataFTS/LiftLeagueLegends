@@ -1,6 +1,7 @@
 import '../../core/constants/database_tables.dart';
 import '../../core/constants/muscle_stimulus_constants.dart';
 import '../../core/enums/sync_status.dart';
+import '../../core/utils/date_serialization.dart';
 import '../../domain/entities/entity_sync_metadata.dart';
 import '../../domain/entities/workout_set.dart';
 
@@ -34,7 +35,7 @@ class WorkoutSetModel extends WorkoutSet {
   }
 
   factory WorkoutSetModel.fromMap(Map<String, dynamic> map) {
-    final createdAt = DateTime.parse(
+    final createdAt = parseStorageDate(
       map[DatabaseTables.setCreatedAt] as String,
     );
     final updatedAtRaw = map[DatabaseTables.setUpdatedAt] as String?;
@@ -48,17 +49,17 @@ class WorkoutSetModel extends WorkoutSet {
       intensity:
           (map[DatabaseTables.setIntensity] as int?) ??
           MuscleStimulus.defaultIntensity,
-      date: DateTime.parse(map[DatabaseTables.setDate] as String),
+      date: parseStorageDate(map[DatabaseTables.setDate] as String),
       createdAt: createdAt,
       updatedAt: updatedAtRaw == null
           ? createdAt
-          : DateTime.parse(updatedAtRaw),
+          : parseStorageDate(updatedAtRaw),
       syncMetadata: EntitySyncMetadata(
         serverId: map[DatabaseTables.setServerId] as String?,
         status: _syncStatusFromStorage(
           map[DatabaseTables.setSyncStatus] as String?,
         ),
-        lastSyncedAt: _parseNullableDateTime(
+        lastSyncedAt: parseStorageDateOrNull(
           map[DatabaseTables.setLastSyncedAt] as String?,
         ),
         lastSyncError: map[DatabaseTables.setLastSyncError] as String?,
@@ -74,19 +75,18 @@ class WorkoutSetModel extends WorkoutSet {
       DatabaseTables.setReps: reps,
       DatabaseTables.setWeight: weight,
       DatabaseTables.setIntensity: intensity,
-      DatabaseTables.setDate: date.toIso8601String(),
-      DatabaseTables.setCreatedAt: createdAt.toIso8601String(),
-      DatabaseTables.setUpdatedAt: updatedAt.toIso8601String(),
+      DatabaseTables.setDate: date.toStorageIso(),
+      DatabaseTables.setCreatedAt: createdAt.toStorageIso(),
+      DatabaseTables.setUpdatedAt: updatedAt.toStorageIso(),
       DatabaseTables.setServerId: syncMetadata.serverId,
       DatabaseTables.setSyncStatus: syncMetadata.status.name,
-      DatabaseTables.setLastSyncedAt: syncMetadata.lastSyncedAt
-          ?.toIso8601String(),
+      DatabaseTables.setLastSyncedAt: syncMetadata.lastSyncedAt?.toStorageIso(),
       DatabaseTables.setLastSyncError: syncMetadata.lastSyncError,
     };
   }
 
   factory WorkoutSetModel.fromJson(Map<String, dynamic> json) {
-    final createdAt = DateTime.parse(json['createdAt'] as String);
+    final createdAt = parseStorageDate(json['createdAt'] as String);
     final updatedAtRaw = json['updatedAt'] as String?;
 
     return WorkoutSetModel(
@@ -96,15 +96,15 @@ class WorkoutSetModel extends WorkoutSet {
       reps: json['reps'] as int,
       weight: (json['weight'] as num).toDouble(),
       intensity: (json['intensity'] as int?) ?? MuscleStimulus.defaultIntensity,
-      date: DateTime.parse(json['date'] as String),
+      date: parseStorageDate(json['date'] as String),
       createdAt: createdAt,
       updatedAt: updatedAtRaw == null
           ? createdAt
-          : DateTime.parse(updatedAtRaw),
+          : parseStorageDate(updatedAtRaw),
       syncMetadata: EntitySyncMetadata(
         serverId: json['serverId'] as String?,
         status: _syncStatusFromStorage(json['syncStatus'] as String?),
-        lastSyncedAt: _parseNullableDateTime(json['lastSyncedAt'] as String?),
+        lastSyncedAt: parseStorageDateOrNull(json['lastSyncedAt'] as String?),
         lastSyncError: json['lastSyncError'] as String?,
       ),
     );
@@ -118,22 +118,14 @@ class WorkoutSetModel extends WorkoutSet {
       'reps': reps,
       'weight': weight,
       'intensity': intensity,
-      'date': date.toIso8601String(),
-      'createdAt': createdAt.toIso8601String(),
-      'updatedAt': updatedAt.toIso8601String(),
+      'date': date.toStorageIso(),
+      'createdAt': createdAt.toStorageIso(),
+      'updatedAt': updatedAt.toStorageIso(),
       'serverId': syncMetadata.serverId,
       'syncStatus': syncMetadata.status.name,
-      'lastSyncedAt': syncMetadata.lastSyncedAt?.toIso8601String(),
+      'lastSyncedAt': syncMetadata.lastSyncedAt?.toStorageIso(),
       'lastSyncError': syncMetadata.lastSyncError,
     };
-  }
-
-  static DateTime? _parseNullableDateTime(String? value) {
-    if (value == null || value.isEmpty) {
-      return null;
-    }
-
-    return DateTime.parse(value);
   }
 
   static SyncStatus _syncStatusFromStorage(String? value) {

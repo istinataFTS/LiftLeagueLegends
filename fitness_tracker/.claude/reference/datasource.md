@@ -28,21 +28,21 @@ It also showcases the two-tier read model that is standard in this codebase: `_g
 
 ## Walkthrough
 
-### Class declaration and constructor (lines 12–24)
+### Class declaration and constructor (lines 13–25)
 
-`workout_set_local_datasource_impl.dart:12-13` — The `extends UserScopedLocalDatasource` clause is load-bearing. The `implements WorkoutSetLocalDataSource` clause enforces the interface contract. Both must appear; neither alone is sufficient.
+`workout_set_local_datasource_impl.dart:13-14` — The `extends UserScopedLocalDatasource` clause is load-bearing. The `implements WorkoutSetLocalDataSource` clause enforces the interface contract. Both must appear; neither alone is sufficient.
 
-`workout_set_local_datasource_impl.dart:21-24` — The constructor passes `databaseHelper` and `currentUserIdResolver` via `super(...)`, not re-declaring them as fields. This is the correct shape: the base class owns the fields; the subclass provides values. Do not re-declare `databaseHelper` or `currentUserIdResolver` as local fields.
+`workout_set_local_datasource_impl.dart:22-25` — The constructor passes `databaseHelper` and `currentUserIdResolver` via `super(...)`, not re-declaring them as fields. This is the correct shape: the base class owns the fields; the subclass provides values. Do not re-declare `databaseHelper` or `currentUserIdResolver` as local fields.
 
-`workout_set_local_datasource_impl.dart:14-19` — `LocalRemoteMerge` is a static field because it is stateless and shared across all instances. Declare merge helpers and other stateless utilities as `static final` rather than as instance fields or local variables.
+`workout_set_local_datasource_impl.dart:15-20` — `LocalRemoteMerge` is a static field because it is stateless and shared across all instances. Declare merge helpers and other stateless utilities as `static final` rather than as instance fields or local variables.
 
-### Standard owner-filtered query — `whereOwned(...)` with `extra:` (lines 47–68)
+### Standard owner-filtered query — `whereOwned(...)` with `extra:` (lines 45–69)
 
-`workout_set_local_datasource_impl.dart:47-68` — `getSetsByExerciseId` is the canonical example of a query with two filters: an entity-specific predicate (`exercise_id = ?`) and the standard pending-delete exclusion, both composed via the `extra:` / `extraArgs:` parameters of `whereOwned(...)`. The owner filter is always the *last* predicate because `whereOwned` appends `owner_user_id = ?` after the `extra` clause. Do not write inline `WHERE` strings that include `owner_user_id`; always delegate to `whereOwned`.
+`workout_set_local_datasource_impl.dart:45-69` — `getSetsByExerciseId` is the canonical example of a query with two filters: an entity-specific predicate (`exercise_id = ?`) and the standard pending-delete exclusion, both composed via the `extra:` / `extraArgs:` parameters of `whereOwned(...)`. The owner filter is always the *last* predicate because `whereOwned` appends `owner_user_id = ?` after the `extra` clause. Do not write inline `WHERE` strings that include `owner_user_id`; always delegate to `whereOwned`.
 
-### Obtaining the owner id — `ownerId()` (lines 182–198)
+### Obtaining the owner id — `ownerId()` (lines 183–199)
 
-`workout_set_local_datasource_impl.dart:182-185` — `prepareForInitialCloudMigration` calls `await ownerId()` as its first action. Since guest mode was removed, `ownerId()` is the single method for obtaining the current owner — it returns the authenticated user ID or throws `MissingUserContextException` if the session cannot be resolved. The distinction between "guest-safe" reads (old `resolveOwnerId()`) and "auth-only" writes (old `requireAuthenticatedOwnerId()`) no longer exists: every datasource call runs above the sign-in gate and may safely call `ownerId()` without a guest fallback check.
+`workout_set_local_datasource_impl.dart:183-186` — `prepareForInitialCloudMigration` calls `await ownerId()` as its first action. Since guest mode was removed, `ownerId()` is the single method for obtaining the current owner — it returns the authenticated user ID or throws `MissingUserContextException` if the session cannot be resolved. The distinction between "guest-safe" reads (old `resolveOwnerId()`) and "auth-only" writes (old `requireAuthenticatedOwnerId()`) no longer exists: every datasource call runs above the sign-in gate and may safely call `ownerId()` without a guest fallback check.
 
 ### Internal visible-reads pattern (lines 364–406)
 
@@ -54,9 +54,9 @@ It also showcases the two-tier read model that is standard in this codebase: `_g
 
 `workout_set_local_datasource_impl.dart:408-433` — `_getStoredSets()` and `_getStoredSetById()` are intentionally *unscoped* — they query the raw table without owner or sync-status filters. These exist because sync operations (`mergeRemoteSets`, `prepareForInitialCloudMigration`) must see all rows including pending-deletes and rows belonging to the signed-out session. **Never use these from a public method** that services UI reads — they would expose cross-user data. The naming convention (`_getStored*` vs `_getVisible*`) is the signal: "stored" = raw table, "visible" = owner-scoped, pending-delete excluded.
 
-### Atomic bulk replacement with transaction + batch (lines 435–452)
+### Atomic bulk replacement with transaction + batch (lines 435–453)
 
-`workout_set_local_datasource_impl.dart:435-452` — `_replaceStoredSets` wraps the delete + batch-insert in a single `db.transaction(...)`. This is required: if the app is killed between the delete and the re-insert, the local database would be empty. Always use a transaction for operations that combine a DELETE with subsequent INSERTs. `batch.commit(noResult: true)` skips per-row result parsing for write performance.
+`workout_set_local_datasource_impl.dart:435-453` — `_replaceStoredSets` wraps the delete + batch-insert in a single `db.transaction(...)`. This is required: if the app is killed between the delete and the re-insert, the local database would be empty. Always use a transaction for operations that combine a DELETE with subsequent INSERTs. `batch.commit(noResult: true)` skips per-row result parsing for write performance.
 
 ---
 
