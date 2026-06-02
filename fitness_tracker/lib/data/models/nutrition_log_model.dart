@@ -1,6 +1,7 @@
 import '../../core/constants/database_tables.dart';
 import '../../core/enums/sync_status.dart';
 import '../../core/logging/app_logger.dart';
+import '../../core/utils/date_serialization.dart';
 import '../../domain/entities/entity_sync_metadata.dart';
 import '../../domain/entities/nutrition_log.dart';
 
@@ -40,7 +41,7 @@ class NutritionLogModel extends NutritionLog {
   }
 
   factory NutritionLogModel.fromMap(Map<String, dynamic> map) {
-    final createdAt = DateTime.parse(
+    final createdAt = parseStorageDate(
       map[DatabaseTables.nutritionLogCreatedAt] as String,
     );
     final updatedAtRaw = map[DatabaseTables.nutritionLogUpdatedAt] as String?;
@@ -56,17 +57,19 @@ class NutritionLogModel extends NutritionLog {
       carbsGrams: (map[DatabaseTables.nutritionLogCarbs] as num).toDouble(),
       fatGrams: (map[DatabaseTables.nutritionLogFat] as num).toDouble(),
       calories: (map[DatabaseTables.nutritionLogCalories] as num).toDouble(),
-      loggedAt: DateTime.parse(map[DatabaseTables.nutritionLogDate] as String),
+      loggedAt: parseStorageDate(
+        map[DatabaseTables.nutritionLogDate] as String,
+      ),
       createdAt: createdAt,
       updatedAt: updatedAtRaw == null
           ? createdAt
-          : DateTime.parse(updatedAtRaw),
+          : parseStorageDate(updatedAtRaw),
       syncMetadata: EntitySyncMetadata(
         serverId: map[DatabaseTables.nutritionLogServerId] as String?,
         status: _syncStatusFromStorage(
           map[DatabaseTables.nutritionLogSyncStatus] as String?,
         ),
-        lastSyncedAt: _parseNullableDateTime(
+        lastSyncedAt: parseStorageDateOrNull(
           map[DatabaseTables.nutritionLogLastSyncedAt] as String?,
         ),
         lastSyncError: map[DatabaseTables.nutritionLogLastSyncError] as String?,
@@ -85,13 +88,13 @@ class NutritionLogModel extends NutritionLog {
       DatabaseTables.nutritionLogCarbs: carbsGrams,
       DatabaseTables.nutritionLogFat: fatGrams,
       DatabaseTables.nutritionLogCalories: calories,
-      DatabaseTables.nutritionLogDate: loggedAt.toIso8601String(),
-      DatabaseTables.nutritionLogCreatedAt: createdAt.toIso8601String(),
-      DatabaseTables.nutritionLogUpdatedAt: updatedAt.toIso8601String(),
+      DatabaseTables.nutritionLogDate: loggedAt.toStorageIso(),
+      DatabaseTables.nutritionLogCreatedAt: createdAt.toStorageIso(),
+      DatabaseTables.nutritionLogUpdatedAt: updatedAt.toStorageIso(),
       DatabaseTables.nutritionLogServerId: syncMetadata.serverId,
       DatabaseTables.nutritionLogSyncStatus: syncMetadata.status.name,
       DatabaseTables.nutritionLogLastSyncedAt: syncMetadata.lastSyncedAt
-          ?.toIso8601String(),
+          ?.toStorageIso(),
       DatabaseTables.nutritionLogLastSyncError: syncMetadata.lastSyncError,
     };
   }
@@ -112,12 +115,12 @@ class NutritionLogModel extends NutritionLog {
       'carbsGrams': carbsGrams,
       'fatGrams': fatGrams,
       'calories': calories,
-      'loggedAt': loggedAt.toIso8601String(),
-      'createdAt': createdAt.toIso8601String(),
-      'updatedAt': updatedAt.toIso8601String(),
+      'loggedAt': loggedAt.toStorageIso(),
+      'createdAt': createdAt.toStorageIso(),
+      'updatedAt': updatedAt.toStorageIso(),
       'serverId': syncMetadata.serverId,
       'syncStatus': syncMetadata.status.name,
-      'lastSyncedAt': syncMetadata.lastSyncedAt?.toIso8601String(),
+      'lastSyncedAt': syncMetadata.lastSyncedAt?.toStorageIso(),
       'lastSyncError': syncMetadata.lastSyncError,
     };
   }
@@ -138,14 +141,6 @@ class NutritionLogModel extends NutritionLog {
         category: 'nutrition',
       );
     }
-  }
-
-  static DateTime? _parseNullableDateTime(String? value) {
-    if (value == null || value.isEmpty) {
-      return null;
-    }
-
-    return DateTime.parse(value);
   }
 
   static SyncStatus _syncStatusFromStorage(String? value) {

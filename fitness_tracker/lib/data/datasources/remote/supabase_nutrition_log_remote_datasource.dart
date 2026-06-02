@@ -1,4 +1,5 @@
 import '../../../core/errors/sync_exceptions.dart';
+import '../../../core/utils/date_serialization.dart';
 import '../../../domain/entities/nutrition_log.dart';
 import '../../dtos/supabase/supabase_nutrition_log_dto.dart';
 import 'nutrition_log_remote_datasource.dart';
@@ -83,8 +84,8 @@ class SupabaseNutritionLogRemoteDataSource
           .from(_tableName)
           .select()
           .eq(_userIdColumn, userId)
-          .gte(_loggedAtColumn, startDate.toIso8601String())
-          .lt(_loggedAtColumn, endDate.toIso8601String())
+          .gte(_loggedAtColumn, startDate.toStorageIso())
+          .lt(_loggedAtColumn, endDate.toStorageIso())
           .order(_loggedAtColumn, ascending: false);
 
       final rows = _asMapList(data);
@@ -157,7 +158,7 @@ class SupabaseNutritionLogRemoteDataSource
           .eq(_userIdColumn, userId);
 
       if (since != null) {
-        query = query.gt('updated_at', since.toIso8601String());
+        query = query.gt('updated_at', since.toStorageIso());
       }
 
       final dynamic data = await query.order('updated_at', ascending: false);
