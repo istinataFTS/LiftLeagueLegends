@@ -1,4 +1,5 @@
 import '../../../core/errors/sync_exceptions.dart';
+import '../../../core/utils/date_serialization.dart';
 import '../../../domain/entities/meal.dart';
 import '../../dtos/supabase/supabase_meal_dto.dart';
 import 'meal_remote_datasource.dart';
@@ -146,7 +147,7 @@ class SupabaseMealRemoteDataSource implements MealRemoteDataSource {
           .eq(_userIdColumn, userId);
 
       if (since != null) {
-        query = query.gt('updated_at', since.toIso8601String());
+        query = query.gt('updated_at', since.toStorageIso());
       }
 
       final dynamic data = await query.order('updated_at', ascending: false);

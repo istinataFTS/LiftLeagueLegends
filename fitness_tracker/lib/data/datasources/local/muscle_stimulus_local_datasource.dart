@@ -1,6 +1,7 @@
 ﻿import 'package:sqflite/sqflite.dart';
 import '../../../core/constants/database_tables.dart';
 import '../../../core/errors/exceptions.dart';
+import '../../../core/utils/date_serialization.dart';
 import '../../models/muscle_stimulus_model.dart';
 import 'user_scoped_local_datasource.dart';
 
@@ -196,7 +197,7 @@ class MuscleStimulusLocalDataSourceImpl extends UserScopedLocalDatasource
       final updateMap = <String, Object?>{
         DatabaseTables.stimulusDailyStimulus: dailyStimulus,
         DatabaseTables.stimulusRollingWeeklyLoad: rollingWeeklyLoad,
-        DatabaseTables.stimulusUpdatedAt: DateTime.now().toIso8601String(),
+        DatabaseTables.stimulusUpdatedAt: DateTime.now().toStorageIso(),
       };
 
       if (lastSetTimestamp != null) {
@@ -240,7 +241,7 @@ class MuscleStimulusLocalDataSourceImpl extends UserScopedLocalDatasource
           DatabaseTables.muscleStimulus,
           {
             DatabaseTables.stimulusRollingWeeklyLoad: decayedLoad,
-            DatabaseTables.stimulusUpdatedAt: DateTime.now().toIso8601String(),
+            DatabaseTables.stimulusUpdatedAt: DateTime.now().toStorageIso(),
           },
           where: '${DatabaseTables.stimulusId} = ?',
           whereArgs: [stimulus.id],

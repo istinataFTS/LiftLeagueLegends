@@ -1,3 +1,4 @@
+import 'package:fitness_tracker/core/constants/database_tables.dart';
 import 'package:fitness_tracker/data/models/meal_model.dart';
 import 'package:flutter_test/flutter_test.dart';
 
@@ -144,6 +145,39 @@ void main() {
       expect(updated.servingSizeGrams, 150);
       expect(updated.proteinPer100g, meal.proteinPer100g);
       expect(updated.createdAt, meal.createdAt);
+    });
+
+    test('toMap createdAt and updatedAt are Z-suffixed', () {
+      final MealModel meal = buildMealModel();
+      final Map<String, dynamic> map = meal.toMap();
+      expect(
+        (map[DatabaseTables.mealCreatedAt] as String).endsWith('Z'),
+        isTrue,
+      );
+      expect(
+        (map[DatabaseTables.mealUpdatedAt] as String).endsWith('Z'),
+        isTrue,
+      );
+    });
+
+    test(
+      'fromMap(toMap(x)) round-trips createdAt to same instant and is local',
+      () {
+        final MealModel meal = buildMealModel();
+        final MealModel roundTripped = MealModel.fromMap(meal.toMap());
+        expect(roundTripped.createdAt.isAtSameMomentAs(meal.createdAt), isTrue);
+        expect(roundTripped.createdAt.isUtc, isFalse);
+      },
+    );
+
+    test('Z-suffix stored createdAt parses to correct local instant', () {
+      final DateTime utcInstant = DateTime.utc(2026, 3, 22, 6, 0);
+      final MealModel meal = buildMealModel();
+      final Map<String, dynamic> map = meal.toMap();
+      map[DatabaseTables.mealCreatedAt] = '2026-03-22T06:00:00.000Z';
+      final MealModel parsed = MealModel.fromMap(map);
+      expect(parsed.createdAt.isAtSameMomentAs(utcInstant), isTrue);
+      expect(parsed.createdAt.isUtc, isFalse);
     });
   });
 }

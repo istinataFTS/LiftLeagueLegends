@@ -1,5 +1,7 @@
 import 'package:equatable/equatable.dart';
 
+import '../../core/utils/date_serialization.dart';
+
 class InitialCloudMigrationState extends Equatable {
   final String userId;
   final bool workoutSetsCompleted;
@@ -64,8 +66,8 @@ class InitialCloudMigrationState extends Equatable {
       'mealsCompleted': mealsCompleted,
       'nutritionLogsCompleted': nutritionLogsCompleted,
       'targetsCompleted': targetsCompleted,
-      'startedAt': startedAt.toIso8601String(),
-      'updatedAt': updatedAt.toIso8601String(),
+      'startedAt': startedAt.toStorageIso(),
+      'updatedAt': updatedAt.toStorageIso(),
       'lastError': lastError,
     };
   }
@@ -78,8 +80,8 @@ class InitialCloudMigrationState extends Equatable {
       mealsCompleted: json['mealsCompleted'] as bool? ?? false,
       nutritionLogsCompleted: json['nutritionLogsCompleted'] as bool? ?? false,
       targetsCompleted: json['targetsCompleted'] as bool? ?? false,
-      startedAt: DateTime.parse(json['startedAt'] as String),
-      updatedAt: DateTime.parse(json['updatedAt'] as String),
+      startedAt: parseStorageDate(json['startedAt'] as String),
+      updatedAt: parseStorageDate(json['updatedAt'] as String),
       lastError: json['lastError'] as String?,
     );
   }

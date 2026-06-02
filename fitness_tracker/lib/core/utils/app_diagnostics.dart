@@ -4,6 +4,7 @@ import 'package:sqflite/sqflite.dart';
 
 import '../../config/env_config.dart';
 import '../../core/constants/database_tables.dart';
+import '../../core/utils/date_serialization.dart';
 import '../../data/datasources/local/database_helper.dart';
 
 class AppDiagnostics {
@@ -133,7 +134,7 @@ class AppDiagnostics {
         DatabaseTables.exerciseId: testId,
         DatabaseTables.exerciseName: 'Test Exercise - Persistence',
         DatabaseTables.exerciseMuscleGroups: '["chest"]',
-        DatabaseTables.exerciseCreatedAt: DateTime.now().toIso8601String(),
+        DatabaseTables.exerciseCreatedAt: DateTime.now().toStorageIso(),
       });
       debugPrint('  ✅ Created test exercise');
 

@@ -1,4 +1,5 @@
 import '../../../core/errors/sync_exceptions.dart';
+import '../../../core/utils/date_serialization.dart';
 import '../../../domain/entities/exercise.dart';
 import '../../dtos/supabase/supabase_exercise_dto.dart';
 import 'exercise_remote_datasource.dart';
@@ -138,7 +139,7 @@ class SupabaseExerciseRemoteDataSource implements ExerciseRemoteDataSource {
           .eq(_userIdColumn, userId);
 
       if (since != null) {
-        query = query.gt('updated_at', since.toIso8601String());
+        query = query.gt('updated_at', since.toStorageIso());
       }
 
       final dynamic data = await query.order('updated_at', ascending: false);

@@ -3,6 +3,7 @@ import 'package:sqflite/sqflite.dart';
 import '../../../core/constants/database_tables.dart';
 import '../../../core/errors/exceptions.dart';
 import '../../../core/enums/sync_entity_type.dart';
+import '../../../core/utils/date_serialization.dart';
 import '../../../domain/entities/pending_sync_delete.dart';
 import '../../models/pending_sync_delete_model.dart';
 import 'database_helper.dart';
@@ -63,8 +64,7 @@ class PendingSyncDeleteLocalDataSourceImpl
       await db.update(
         DatabaseTables.pendingSyncDeletes,
         <String, Object?>{
-          DatabaseTables.pendingDeleteLastAttemptAt: attemptedAt
-              .toIso8601String(),
+          DatabaseTables.pendingDeleteLastAttemptAt: attemptedAt.toStorageIso(),
           DatabaseTables.pendingDeleteErrorMessage: errorMessage,
         },
         where: '${DatabaseTables.pendingDeleteId} = ?',

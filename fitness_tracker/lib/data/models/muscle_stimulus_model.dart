@@ -1,4 +1,5 @@
 import '../../core/constants/database_tables.dart';
+import '../../core/utils/date_serialization.dart';
 import '../../domain/entities/muscle_stimulus.dart';
 
 class MuscleStimulusModel extends MuscleStimulus {
@@ -44,10 +45,10 @@ class MuscleStimulusModel extends MuscleStimulus {
       lastSetTimestamp: map[DatabaseTables.stimulusLastSetTimestamp] as int?,
       lastSetStimulus: (map[DatabaseTables.stimulusLastSetStimulus] as num?)
           ?.toDouble(),
-      createdAt: DateTime.parse(
+      createdAt: parseStorageDate(
         map[DatabaseTables.stimulusCreatedAt] as String,
       ),
-      updatedAt: DateTime.parse(
+      updatedAt: parseStorageDate(
         map[DatabaseTables.stimulusUpdatedAt] as String,
       ),
     );
@@ -67,8 +68,8 @@ class MuscleStimulusModel extends MuscleStimulus {
       DatabaseTables.stimulusRollingWeeklyLoad: rollingWeeklyLoad,
       DatabaseTables.stimulusLastSetTimestamp: lastSetTimestamp,
       DatabaseTables.stimulusLastSetStimulus: lastSetStimulus,
-      DatabaseTables.stimulusCreatedAt: createdAt.toIso8601String(),
-      DatabaseTables.stimulusUpdatedAt: updatedAt.toIso8601String(),
+      DatabaseTables.stimulusCreatedAt: createdAt.toStorageIso(),
+      DatabaseTables.stimulusUpdatedAt: updatedAt.toStorageIso(),
     };
   }
 
@@ -92,13 +93,13 @@ class MuscleStimulusModel extends MuscleStimulus {
       id: json['id'] as String,
       ownerUserId: json['ownerUserId'] as String? ?? '',
       muscleGroup: json['muscleGroup'] as String,
-      date: DateTime.parse(json['date'] as String),
+      date: parseStorageDate(json['date'] as String),
       dailyStimulus: (json['dailyStimulus'] as num).toDouble(),
       rollingWeeklyLoad: (json['rollingWeeklyLoad'] as num).toDouble(),
       lastSetTimestamp: json['lastSetTimestamp'] as int?,
       lastSetStimulus: (json['lastSetStimulus'] as num?)?.toDouble(),
-      createdAt: DateTime.parse(json['createdAt'] as String),
-      updatedAt: DateTime.parse(json['updatedAt'] as String),
+      createdAt: parseStorageDate(json['createdAt'] as String),
+      updatedAt: parseStorageDate(json['updatedAt'] as String),
     );
   }
 
@@ -108,13 +109,13 @@ class MuscleStimulusModel extends MuscleStimulus {
       'id': id,
       'ownerUserId': ownerUserId,
       'muscleGroup': muscleGroup,
-      'date': date.toIso8601String(),
+      'date': date.toStorageIso(),
       'dailyStimulus': dailyStimulus,
       'rollingWeeklyLoad': rollingWeeklyLoad,
       'lastSetTimestamp': lastSetTimestamp,
       'lastSetStimulus': lastSetStimulus,
-      'createdAt': createdAt.toIso8601String(),
-      'updatedAt': updatedAt.toIso8601String(),
+      'createdAt': createdAt.toStorageIso(),
+      'updatedAt': updatedAt.toStorageIso(),
     };
   }
 }

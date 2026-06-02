@@ -5,6 +5,7 @@ import '../../../core/errors/exceptions.dart';
 import '../../../core/enums/sync_status.dart';
 import '../../../core/logging/app_logger.dart';
 import '../../../core/sync/local_remote_merge.dart';
+import '../../../core/utils/date_serialization.dart';
 import '../../models/meal_model.dart';
 import 'meal_local_datasource.dart';
 import 'user_scoped_local_datasource.dart';
@@ -283,7 +284,7 @@ class MealLocalDataSourceImpl extends UserScopedLocalDatasource
         <String, Object?>{
           DatabaseTables.mealServerId: serverId,
           DatabaseTables.mealSyncStatus: SyncStatus.synced.name,
-          DatabaseTables.mealLastSyncedAt: syncedAt.toIso8601String(),
+          DatabaseTables.mealLastSyncedAt: syncedAt.toStorageIso(),
           DatabaseTables.mealLastSyncError: null,
         },
         where: '${DatabaseTables.mealId} = ?',

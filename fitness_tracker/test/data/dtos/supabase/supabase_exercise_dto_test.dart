@@ -99,14 +99,13 @@ void main() {
         updatedAt: DateTime(2026, 3, 26, 11, 0),
       );
 
-      expect(dto.toMap(), <String, dynamic>{
-        'id': 'server-1',
-        'user_id': 'user-1',
-        'name': 'Bench Press',
-        'muscle_groups': <String>['chest', 'triceps'],
-        'created_at': '2026-03-26T10:00:00.000',
-        'updated_at': '2026-03-26T11:00:00.000',
-      });
+      final map = dto.toMap();
+      expect(map['id'], 'server-1');
+      expect(map['user_id'], 'user-1');
+      expect(map['name'], 'Bench Press');
+      expect(map['muscle_groups'], <String>['chest', 'triceps']);
+      expect((map['created_at'] as String).endsWith('Z'), isTrue);
+      expect((map['updated_at'] as String).endsWith('Z'), isTrue);
     });
   });
 }

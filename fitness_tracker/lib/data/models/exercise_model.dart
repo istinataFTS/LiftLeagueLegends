@@ -2,6 +2,7 @@ import 'dart:convert';
 
 import '../../core/constants/database_tables.dart';
 import '../../core/enums/sync_status.dart';
+import '../../core/utils/date_serialization.dart';
 import '../../domain/entities/entity_sync_metadata.dart';
 import '../../domain/entities/exercise.dart';
 
@@ -29,7 +30,7 @@ class ExerciseModel extends Exercise {
   }
 
   factory ExerciseModel.fromMap(Map<String, dynamic> map) {
-    final createdAt = DateTime.parse(
+    final createdAt = parseStorageDate(
       map[DatabaseTables.exerciseCreatedAt] as String,
     );
     final updatedAtRaw = map[DatabaseTables.exerciseUpdatedAt] as String?;
@@ -44,13 +45,13 @@ class ExerciseModel extends Exercise {
       createdAt: createdAt,
       updatedAt: updatedAtRaw == null
           ? createdAt
-          : DateTime.parse(updatedAtRaw),
+          : parseStorageDate(updatedAtRaw),
       syncMetadata: EntitySyncMetadata(
         serverId: map[DatabaseTables.exerciseServerId] as String?,
         status: _syncStatusFromStorage(
           map[DatabaseTables.exerciseSyncStatus] as String?,
         ),
-        lastSyncedAt: _parseNullableDateTime(
+        lastSyncedAt: parseStorageDateOrNull(
           map[DatabaseTables.exerciseLastSyncedAt] as String?,
         ),
         lastSyncError: map[DatabaseTables.exerciseLastSyncError] as String?,
@@ -64,18 +65,18 @@ class ExerciseModel extends Exercise {
       DatabaseTables.ownerUserId: ownerUserId,
       DatabaseTables.exerciseName: name,
       DatabaseTables.exerciseMuscleGroups: _encodeMuscleGroups(muscleGroups),
-      DatabaseTables.exerciseCreatedAt: createdAt.toIso8601String(),
-      DatabaseTables.exerciseUpdatedAt: updatedAt.toIso8601String(),
+      DatabaseTables.exerciseCreatedAt: createdAt.toStorageIso(),
+      DatabaseTables.exerciseUpdatedAt: updatedAt.toStorageIso(),
       DatabaseTables.exerciseServerId: syncMetadata.serverId,
       DatabaseTables.exerciseSyncStatus: syncMetadata.status.name,
       DatabaseTables.exerciseLastSyncedAt: syncMetadata.lastSyncedAt
-          ?.toIso8601String(),
+          ?.toStorageIso(),
       DatabaseTables.exerciseLastSyncError: syncMetadata.lastSyncError,
     };
   }
 
   factory ExerciseModel.fromJson(Map<String, dynamic> json) {
-    final createdAt = DateTime.parse(json['createdAt'] as String);
+    final createdAt = parseStorageDate(json['createdAt'] as String);
     final updatedAtRaw = json['updatedAt'] as String?;
 
     return ExerciseModel(
@@ -88,11 +89,11 @@ class ExerciseModel extends Exercise {
       createdAt: createdAt,
       updatedAt: updatedAtRaw == null
           ? createdAt
-          : DateTime.parse(updatedAtRaw),
+          : parseStorageDate(updatedAtRaw),
       syncMetadata: EntitySyncMetadata(
         serverId: json['serverId'] as String?,
         status: _syncStatusFromStorage(json['syncStatus'] as String?),
-        lastSyncedAt: _parseNullableDateTime(json['lastSyncedAt'] as String?),
+        lastSyncedAt: parseStorageDateOrNull(json['lastSyncedAt'] as String?),
         lastSyncError: json['lastSyncError'] as String?,
       ),
     );
@@ -104,11 +105,11 @@ class ExerciseModel extends Exercise {
       'ownerUserId': ownerUserId,
       'name': name,
       'muscleGroups': muscleGroups,
-      'createdAt': createdAt.toIso8601String(),
-      'updatedAt': updatedAt.toIso8601String(),
+      'createdAt': createdAt.toStorageIso(),
+      'updatedAt': updatedAt.toStorageIso(),
       'serverId': syncMetadata.serverId,
       'syncStatus': syncMetadata.status.name,
-      'lastSyncedAt': syncMetadata.lastSyncedAt?.toIso8601String(),
+      'lastSyncedAt': syncMetadata.lastSyncedAt?.toStorageIso(),
       'lastSyncError': syncMetadata.lastSyncError,
     };
   }
@@ -134,14 +135,6 @@ class ExerciseModel extends Exercise {
     } catch (_) {
       return const <String>[];
     }
-  }
-
-  static DateTime? _parseNullableDateTime(String? value) {
-    if (value == null || value.isEmpty) {
-      return null;
-    }
-
-    return DateTime.parse(value);
   }
 
   static SyncStatus _syncStatusFromStorage(String? value) {

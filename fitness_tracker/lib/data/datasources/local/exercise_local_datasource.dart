@@ -5,6 +5,7 @@ import '../../../core/errors/exceptions.dart';
 import '../../../core/enums/sync_status.dart';
 import '../../../core/logging/app_logger.dart';
 import '../../../core/sync/local_remote_merge.dart';
+import '../../../core/utils/date_serialization.dart';
 import '../../models/exercise_model.dart';
 import 'user_scoped_local_datasource.dart';
 
@@ -350,7 +351,7 @@ class ExerciseLocalDataSourceImpl extends UserScopedLocalDatasource
         <String, Object?>{
           DatabaseTables.exerciseServerId: serverId,
           DatabaseTables.exerciseSyncStatus: SyncStatus.synced.name,
-          DatabaseTables.exerciseLastSyncedAt: syncedAt.toIso8601String(),
+          DatabaseTables.exerciseLastSyncedAt: syncedAt.toStorageIso(),
           DatabaseTables.exerciseLastSyncError: null,
         },
         where: '${DatabaseTables.exerciseId} = ?',
