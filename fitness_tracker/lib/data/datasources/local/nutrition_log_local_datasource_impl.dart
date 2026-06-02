@@ -4,6 +4,7 @@ import '../../../core/constants/database_tables.dart';
 import '../../../core/errors/exceptions.dart';
 import '../../../core/enums/sync_status.dart';
 import '../../../core/sync/local_remote_merge.dart';
+import '../../../core/utils/date_serialization.dart';
 import '../../models/nutrition_log_model.dart';
 import 'nutrition_log_local_datasource.dart';
 import 'user_scoped_local_datasource.dart';
@@ -55,8 +56,8 @@ class NutritionLogLocalDataSourceImpl extends UserScopedLocalDatasource
             '${DatabaseTables.nutritionLogDate} <= ? AND '
             '(${DatabaseTables.nutritionLogSyncStatus} IS NULL OR ${DatabaseTables.nutritionLogSyncStatus} != ?)',
         extraArgs: [
-          startOfDay.toIso8601String(),
-          endOfDay.toIso8601String(),
+          startOfDay.toStorageIso(),
+          endOfDay.toStorageIso(),
           SyncStatus.pendingDelete.name,
         ],
       );
@@ -98,8 +99,8 @@ class NutritionLogLocalDataSourceImpl extends UserScopedLocalDatasource
             '${DatabaseTables.nutritionLogDate} <= ? AND '
             '(${DatabaseTables.nutritionLogSyncStatus} IS NULL OR ${DatabaseTables.nutritionLogSyncStatus} != ?)',
         extraArgs: [
-          start.toIso8601String(),
-          end.toIso8601String(),
+          start.toStorageIso(),
+          end.toStorageIso(),
           SyncStatus.pendingDelete.name,
         ],
       );
@@ -343,7 +344,7 @@ class NutritionLogLocalDataSourceImpl extends UserScopedLocalDatasource
         <String, Object?>{
           DatabaseTables.nutritionLogServerId: serverId,
           DatabaseTables.nutritionLogSyncStatus: SyncStatus.synced.name,
-          DatabaseTables.nutritionLogLastSyncedAt: syncedAt.toIso8601String(),
+          DatabaseTables.nutritionLogLastSyncedAt: syncedAt.toStorageIso(),
           DatabaseTables.nutritionLogLastSyncError: null,
         },
         where: '${DatabaseTables.nutritionLogId} = ?',
@@ -459,7 +460,7 @@ class NutritionLogLocalDataSourceImpl extends UserScopedLocalDatasource
         DatabaseTables.nutritionLogs,
         where:
             '${DatabaseTables.nutritionLogDate} >= ? AND ${DatabaseTables.nutritionLogDate} <= ?',
-        whereArgs: [startOfDay.toIso8601String(), endOfDay.toIso8601String()],
+        whereArgs: [startOfDay.toStorageIso(), endOfDay.toStorageIso()],
       );
     } catch (e) {
       throw CacheDatabaseException('Failed to delete logs by date: $e');
@@ -527,8 +528,8 @@ class NutritionLogLocalDataSourceImpl extends UserScopedLocalDatasource
           AND ${DatabaseTables.ownerUserId} = ?
       ''',
         [
-          startOfDay.toIso8601String(),
-          endOfDay.toIso8601String(),
+          startOfDay.toStorageIso(),
+          endOfDay.toStorageIso(),
           SyncStatus.pendingDelete.name,
           ownerId,
         ],

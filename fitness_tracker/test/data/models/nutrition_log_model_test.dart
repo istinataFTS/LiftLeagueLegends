@@ -141,14 +141,44 @@ void main() {
       expect(mapped.calories, original.calories);
     });
 
-    test('toMap stores the logged date using loggedAt', () {
+    test('toMap stores the logged date as a Z-suffixed UTC string', () {
       final NutritionLogModel log = buildMealLog();
 
       final Map<String, dynamic> result = log.toMap();
 
-      expect(result['date'], loggedAt.toIso8601String());
+      expect((result['date'] as String).endsWith('Z'), isTrue);
       expect(result['meal_name'], 'Chicken Bowl');
       expect(result['grams'], 150);
+    });
+
+    test('toMap createdAt and updatedAt are Z-suffixed', () {
+      final NutritionLogModel log = buildMealLog();
+      final Map<String, dynamic> result = log.toMap();
+      expect((result['created_at'] as String).endsWith('Z'), isTrue);
+      expect((result['updated_at'] as String).endsWith('Z'), isTrue);
+    });
+
+    test(
+      'fromMap(toMap(x)) round-trips loggedAt to same instant and is local',
+      () {
+        final NutritionLogModel log = buildMealLog();
+        final NutritionLogModel roundTripped = NutritionLogModel.fromMap(
+          log.toMap(),
+        );
+        expect(roundTripped.loggedAt.isAtSameMomentAs(log.loggedAt), isTrue);
+        expect(roundTripped.loggedAt.isUtc, isFalse);
+      },
+    );
+
+    test('fromMap parses a Z-suffix loggedAt to the correct local instant', () {
+      final utcInstant = DateTime.utc(2026, 3, 22, 10, 30);
+      final NutritionLogModel log = buildMealLog();
+      final map = log.toMap();
+      // Simulate a row returned from Supabase with a Z-suffix string.
+      map['date'] = '2026-03-22T10:30:00.000Z';
+      final parsed = NutritionLogModel.fromMap(map);
+      expect(parsed.loggedAt.isAtSameMomentAs(utcInstant), isTrue);
+      expect(parsed.loggedAt.isUtc, isFalse);
     });
   });
 }

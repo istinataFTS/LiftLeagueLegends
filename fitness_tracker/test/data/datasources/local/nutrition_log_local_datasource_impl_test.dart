@@ -698,4 +698,49 @@ void main() {
       expect(remaining, hasLength(1));
     });
   });
+
+  group('NutritionLogLocalDataSourceImpl UTC date bounds', () {
+    test(
+      'a log with loggedAt = now is returned by getLogsByDate(today)',
+      () async {
+        final now = DateTime.now();
+        await dataSource.insertLog(buildLog(id: 'now-log', loggedAt: now));
+
+        final logs = await dataSource.getLogsByDate(now);
+
+        expect(logs.map((l) => l.id).toList(), contains('now-log'));
+      },
+    );
+
+    test(
+      'a log with loggedAt = now is returned by getLogsByDateRange 7-day window',
+      () async {
+        final now = DateTime.now();
+        await dataSource.insertLog(
+          buildLog(id: 'now-log-range', loggedAt: now),
+        );
+
+        final logs = await dataSource.getLogsByDateRange(
+          now.subtract(const Duration(days: 7)),
+          now,
+        );
+
+        expect(logs.map((l) => l.id).toList(), contains('now-log-range'));
+      },
+    );
+
+    test(
+      'a log at 23:30 local is returned by getLogsByDate for that local day',
+      () async {
+        final lateEvening = DateTime(2026, 3, 22, 23, 30);
+        await dataSource.insertLog(
+          buildLog(id: 'late-log', loggedAt: lateEvening),
+        );
+
+        final logs = await dataSource.getLogsByDate(lateEvening);
+
+        expect(logs.map((l) => l.id).toList(), contains('late-log'));
+      },
+    );
+  });
 }

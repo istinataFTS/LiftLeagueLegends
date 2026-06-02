@@ -1,4 +1,5 @@
 import '../../../core/enums/sync_status.dart';
+import '../../../core/utils/date_serialization.dart';
 import '../../../domain/entities/entity_sync_metadata.dart';
 import '../../../domain/entities/nutrition_log.dart';
 
@@ -42,9 +43,9 @@ class SupabaseNutritionLogDto {
       carbsGrams: (map['carbs_grams'] as num).toDouble(),
       fatGrams: (map['fat_grams'] as num).toDouble(),
       calories: (map['calories'] as num).toDouble(),
-      loggedAt: DateTime.parse(map['logged_at'] as String),
-      createdAt: DateTime.parse(map['created_at'] as String),
-      updatedAt: DateTime.parse(map['updated_at'] as String),
+      loggedAt: parseStorageDate(map['logged_at'] as String),
+      createdAt: parseStorageDate(map['created_at'] as String),
+      updatedAt: parseStorageDate(map['updated_at'] as String),
     );
   }
 
@@ -112,9 +113,9 @@ class SupabaseNutritionLogDto {
       'carbs_grams': carbsGrams,
       'fat_grams': fatGrams,
       'calories': calories,
-      'logged_at': loggedAt.toIso8601String(),
-      'created_at': createdAt.toIso8601String(),
-      'updated_at': updatedAt.toIso8601String(),
+      'logged_at': loggedAt.toStorageIso(),
+      'created_at': createdAt.toStorageIso(),
+      'updated_at': updatedAt.toStorageIso(),
     };
   }
 }

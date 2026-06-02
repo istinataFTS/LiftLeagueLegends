@@ -399,7 +399,7 @@ void main() {
     });
 
     group('toMap', () {
-      test('serialises all fields correctly', () {
+      test('serialises non-timestamp fields correctly', () {
         final dto = SupabaseNutritionLogDto.fromMap(_dtoMap);
         final map = dto.toMap();
 
@@ -410,7 +410,14 @@ void main() {
         expect(map['grams_consumed'], 100.0);
         expect(map['protein_grams'], 13.0);
         expect(map['calories'], 355.0);
-        expect(map['logged_at'], _createdAt.toIso8601String());
+      });
+
+      test('logged_at, created_at, updated_at are Z-suffixed', () {
+        final dto = SupabaseNutritionLogDto.fromMap(_dtoMap);
+        final map = dto.toMap();
+        expect((map['logged_at'] as String).endsWith('Z'), isTrue);
+        expect((map['created_at'] as String).endsWith('Z'), isTrue);
+        expect((map['updated_at'] as String).endsWith('Z'), isTrue);
       });
     });
   });
