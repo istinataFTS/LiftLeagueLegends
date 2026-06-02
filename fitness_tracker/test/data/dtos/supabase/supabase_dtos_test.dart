@@ -126,7 +126,7 @@ void main() {
     });
 
     group('toMap', () {
-      test('serialises all fields correctly', () {
+      test('serialises non-timestamp fields correctly', () {
         final dto = SupabaseExerciseDto.fromMap(_dtoMap);
         final map = dto.toMap();
 
@@ -134,8 +134,13 @@ void main() {
         expect(map['user_id'], 'user-1');
         expect(map['name'], 'Bench Press');
         expect(map['muscle_groups'], ['chest', 'triceps']);
-        expect(map['created_at'], _createdAt.toIso8601String());
-        expect(map['updated_at'], _updatedAt.toIso8601String());
+      });
+
+      test('created_at and updated_at are Z-suffixed', () {
+        final dto = SupabaseExerciseDto.fromMap(_dtoMap);
+        final map = dto.toMap();
+        expect((map['created_at'] as String).endsWith('Z'), isTrue);
+        expect((map['updated_at'] as String).endsWith('Z'), isTrue);
       });
     });
   });

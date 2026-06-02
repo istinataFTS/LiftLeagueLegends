@@ -1,6 +1,7 @@
 import '../../core/constants/database_tables.dart';
 import '../../core/enums/sync_status.dart';
 import '../../core/logging/app_logger.dart';
+import '../../core/utils/date_serialization.dart';
 import '../../core/utils/macro_calculator.dart';
 import '../../domain/entities/entity_sync_metadata.dart';
 import '../../domain/entities/meal.dart';
@@ -37,7 +38,7 @@ class MealModel extends Meal {
   }
 
   factory MealModel.fromMap(Map<String, dynamic> map) {
-    final createdAt = DateTime.parse(
+    final createdAt = parseStorageDate(
       map[DatabaseTables.mealCreatedAt] as String,
     );
     final updatedAtRaw = map[DatabaseTables.mealUpdatedAt] as String?;
@@ -56,13 +57,13 @@ class MealModel extends Meal {
       createdAt: createdAt,
       updatedAt: updatedAtRaw == null
           ? createdAt
-          : DateTime.parse(updatedAtRaw),
+          : parseStorageDate(updatedAtRaw),
       syncMetadata: EntitySyncMetadata(
         serverId: map[DatabaseTables.mealServerId] as String?,
         status: _syncStatusFromStorage(
           map[DatabaseTables.mealSyncStatus] as String?,
         ),
-        lastSyncedAt: _parseNullableDateTime(
+        lastSyncedAt: parseStorageDateOrNull(
           map[DatabaseTables.mealLastSyncedAt] as String?,
         ),
         lastSyncError: map[DatabaseTables.mealLastSyncError] as String?,
@@ -80,12 +81,12 @@ class MealModel extends Meal {
       DatabaseTables.mealProteinPer100g: proteinPer100g,
       DatabaseTables.mealFatPer100g: fatPer100g,
       DatabaseTables.mealCaloriesPer100g: caloriesPer100g,
-      DatabaseTables.mealCreatedAt: createdAt.toIso8601String(),
-      DatabaseTables.mealUpdatedAt: updatedAt.toIso8601String(),
+      DatabaseTables.mealCreatedAt: createdAt.toStorageIso(),
+      DatabaseTables.mealUpdatedAt: updatedAt.toStorageIso(),
       DatabaseTables.mealServerId: syncMetadata.serverId,
       DatabaseTables.mealSyncStatus: syncMetadata.status.name,
       DatabaseTables.mealLastSyncedAt: syncMetadata.lastSyncedAt
-          ?.toIso8601String(),
+          ?.toStorageIso(),
       DatabaseTables.mealLastSyncError: syncMetadata.lastSyncError,
     };
   }
@@ -100,11 +101,11 @@ class MealModel extends Meal {
       'proteinPer100g': proteinPer100g,
       'fatPer100g': fatPer100g,
       'caloriesPer100g': caloriesPer100g,
-      'createdAt': createdAt.toIso8601String(),
-      'updatedAt': updatedAt.toIso8601String(),
+      'createdAt': createdAt.toStorageIso(),
+      'updatedAt': updatedAt.toStorageIso(),
       'serverId': syncMetadata.serverId,
       'syncStatus': syncMetadata.status.name,
-      'lastSyncedAt': syncMetadata.lastSyncedAt?.toIso8601String(),
+      'lastSyncedAt': syncMetadata.lastSyncedAt?.toStorageIso(),
       'lastSyncError': syncMetadata.lastSyncError,
     };
   }
@@ -253,14 +254,6 @@ class MealModel extends Meal {
       updatedAt: updatedAt ?? effectiveCreatedAt,
       syncMetadata: syncMetadata,
     );
-  }
-
-  static DateTime? _parseNullableDateTime(String? value) {
-    if (value == null || value.isEmpty) {
-      return null;
-    }
-
-    return DateTime.parse(value);
   }
 
   static SyncStatus _syncStatusFromStorage(String? value) {

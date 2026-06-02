@@ -1,4 +1,5 @@
 import '../../../core/enums/sync_status.dart';
+import '../../../core/utils/date_serialization.dart';
 import '../../../domain/entities/entity_sync_metadata.dart';
 import '../../../domain/entities/meal.dart';
 
@@ -37,8 +38,8 @@ class SupabaseMealDto {
       proteinPer100g: (map['protein_per_100g'] as num).toDouble(),
       fatPer100g: (map['fat_per_100g'] as num).toDouble(),
       caloriesPer100g: (map['calories_per_100g'] as num).toDouble(),
-      createdAt: DateTime.parse(map['created_at'] as String),
-      updatedAt: DateTime.parse(map['updated_at'] as String),
+      createdAt: parseStorageDate(map['created_at'] as String),
+      updatedAt: parseStorageDate(map['updated_at'] as String),
     );
   }
 
@@ -101,8 +102,8 @@ class SupabaseMealDto {
       'protein_per_100g': proteinPer100g,
       'fat_per_100g': fatPer100g,
       'calories_per_100g': caloriesPer100g,
-      'created_at': createdAt.toIso8601String(),
-      'updated_at': updatedAt.toIso8601String(),
+      'created_at': createdAt.toStorageIso(),
+      'updated_at': updatedAt.toStorageIso(),
     };
   }
 }

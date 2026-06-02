@@ -1,3 +1,4 @@
+import '../../../core/utils/date_serialization.dart';
 import '../../../domain/entities/user_profile.dart';
 
 class SupabaseUserProfileDto {
@@ -26,8 +27,8 @@ class SupabaseUserProfileDto {
       displayName: map['display_name'] as String?,
       bio: map['bio'] as String?,
       avatarUrl: map['avatar_url'] as String?,
-      createdAt: DateTime.parse(map['created_at'] as String),
-      updatedAt: DateTime.parse(map['updated_at'] as String),
+      createdAt: parseStorageDate(map['created_at'] as String),
+      updatedAt: parseStorageDate(map['updated_at'] as String),
     );
   }
 
@@ -62,8 +63,8 @@ class SupabaseUserProfileDto {
       'display_name': displayName,
       'bio': bio,
       'avatar_url': avatarUrl,
-      'created_at': createdAt.toIso8601String(),
-      'updated_at': updatedAt.toIso8601String(),
+      'created_at': createdAt.toStorageIso(),
+      'updated_at': updatedAt.toStorageIso(),
     };
   }
 }

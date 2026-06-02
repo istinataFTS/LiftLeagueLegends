@@ -4,6 +4,7 @@ import 'package:sqflite/sqflite.dart';
 
 import '../../../core/constants/database_tables.dart';
 import '../../../core/errors/exceptions.dart';
+import '../../../core/utils/date_serialization.dart';
 import 'database_helper.dart';
 
 abstract class AppMetadataLocalDataSource {
@@ -69,7 +70,7 @@ class AppMetadataLocalDataSourceImpl implements AppMetadataLocalDataSource {
       return null;
     }
 
-    return DateTime.parse(value);
+    return parseStorageDate(value);
   }
 
   @override
@@ -94,7 +95,7 @@ class AppMetadataLocalDataSourceImpl implements AppMetadataLocalDataSource {
       await db.insert(DatabaseTables.appMetadata, <String, Object?>{
         DatabaseTables.metadataKey: key,
         DatabaseTables.metadataValue: value,
-        DatabaseTables.metadataUpdatedAt: DateTime.now().toIso8601String(),
+        DatabaseTables.metadataUpdatedAt: DateTime.now().toStorageIso(),
       }, conflictAlgorithm: ConflictAlgorithm.replace);
     } catch (e) {
       throw CacheDatabaseException('Failed to write metadata string: $e');
@@ -108,7 +109,7 @@ class AppMetadataLocalDataSourceImpl implements AppMetadataLocalDataSource {
 
   @override
   Future<void> writeDateTime(String key, DateTime value) {
-    return writeString(key, value.toIso8601String());
+    return writeString(key, value.toStorageIso());
   }
 
   @override

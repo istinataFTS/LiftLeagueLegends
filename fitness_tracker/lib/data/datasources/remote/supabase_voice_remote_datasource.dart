@@ -5,6 +5,8 @@ import 'dart:typed_data';
 import 'package:http/http.dart' as http;
 import 'package:supabase_flutter/supabase_flutter.dart';
 
+import '../../../core/utils/date_serialization.dart';
+
 import '../../../config/env_config.dart';
 import '../../../core/constants/voice_constants.dart';
 import '../../../core/errors/failures.dart';
@@ -153,7 +155,7 @@ class SupabaseVoiceRemoteDataSource implements VoiceRemoteDataSource {
         .from('voice_usage_log')
         .select('cost_usd')
         .eq('user_id', userId)
-        .gte('created_at', startOfDay.toIso8601String());
+        .gte('created_at', startOfDay.toStorageIso());
 
     final rows = result as List<dynamic>;
     final usedUsd = rows.fold<double>(

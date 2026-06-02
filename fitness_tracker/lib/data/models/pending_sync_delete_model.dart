@@ -1,5 +1,6 @@
 import '../../core/constants/database_tables.dart';
 import '../../core/enums/sync_entity_type.dart';
+import '../../core/utils/date_serialization.dart';
 import '../../domain/entities/pending_sync_delete.dart';
 
 class PendingSyncDeleteModel extends PendingSyncDelete {
@@ -35,10 +36,10 @@ class PendingSyncDeleteModel extends PendingSyncDelete {
       localEntityId: map[DatabaseTables.pendingDeleteLocalEntityId] as String,
       serverEntityId:
           map[DatabaseTables.pendingDeleteServerEntityId] as String?,
-      createdAt: DateTime.parse(
+      createdAt: parseStorageDate(
         map[DatabaseTables.pendingDeleteCreatedAt] as String,
       ),
-      lastAttemptAt: _parseNullableDateTime(
+      lastAttemptAt: parseStorageDateOrNull(
         map[DatabaseTables.pendingDeleteLastAttemptAt] as String?,
       ),
       errorMessage: map[DatabaseTables.pendingDeleteErrorMessage] as String?,
@@ -51,18 +52,9 @@ class PendingSyncDeleteModel extends PendingSyncDelete {
       DatabaseTables.pendingDeleteEntityType: entityType.name,
       DatabaseTables.pendingDeleteLocalEntityId: localEntityId,
       DatabaseTables.pendingDeleteServerEntityId: serverEntityId,
-      DatabaseTables.pendingDeleteCreatedAt: createdAt.toIso8601String(),
-      DatabaseTables.pendingDeleteLastAttemptAt: lastAttemptAt
-          ?.toIso8601String(),
+      DatabaseTables.pendingDeleteCreatedAt: createdAt.toStorageIso(),
+      DatabaseTables.pendingDeleteLastAttemptAt: lastAttemptAt?.toStorageIso(),
       DatabaseTables.pendingDeleteErrorMessage: errorMessage,
     };
-  }
-
-  static DateTime? _parseNullableDateTime(String? value) {
-    if (value == null || value.isEmpty) {
-      return null;
-    }
-
-    return DateTime.parse(value);
   }
 }
