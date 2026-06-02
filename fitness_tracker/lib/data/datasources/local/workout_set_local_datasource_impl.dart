@@ -3,6 +3,7 @@
 import '../../../core/constants/database_tables.dart';
 import '../../../core/errors/exceptions.dart';
 import '../../../core/enums/sync_status.dart';
+import '../../../core/utils/date_serialization.dart';
 import '../../../core/sync/local_remote_merge.dart';
 import '../../../domain/entities/workout_set.dart';
 import '../../models/workout_set_model.dart';
@@ -82,8 +83,8 @@ class WorkoutSetLocalDataSourceImpl extends UserScopedLocalDatasource
             '${DatabaseTables.setDate} <= ? AND '
             '(${DatabaseTables.setSyncStatus} IS NULL OR ${DatabaseTables.setSyncStatus} != ?)',
         extraArgs: [
-          startDate.toIso8601String(),
-          endDate.toIso8601String(),
+          startDate.toStorageIso(),
+          endDate.toStorageIso(),
           SyncStatus.pendingDelete.name,
         ],
       );
@@ -209,7 +210,7 @@ class WorkoutSetLocalDataSourceImpl extends UserScopedLocalDatasource
         <String, Object?>{
           DatabaseTables.setServerId: serverId,
           DatabaseTables.setSyncStatus: SyncStatus.synced.name,
-          DatabaseTables.setLastSyncedAt: syncedAt.toIso8601String(),
+          DatabaseTables.setLastSyncedAt: syncedAt.toStorageIso(),
           DatabaseTables.setLastSyncError: null,
         },
         where: '${DatabaseTables.setId} = ?',

@@ -178,6 +178,22 @@ void main() {
     });
   });
 
+  group('WorkoutSetLocalDataSourceImpl getSetsByDateRange UTC bounds', () {
+    test('a set with date = now is returned by a 7-day window', () async {
+      final now = DateTime.now();
+      await dataSource.addSet(
+        buildSet(id: 'now-set', exerciseId: 'bench', date: now),
+      );
+
+      final sets = await dataSource.getSetsByDateRange(
+        now.subtract(const Duration(days: 7)),
+        now,
+      );
+
+      expect(sets.map((s) => s.id).toList(), contains('now-set'));
+    });
+  });
+
   group('WorkoutSetLocalDataSourceImpl mergeRemoteSets', () {
     test('preserves pending local update over newer remote row', () async {
       final localPendingSet = buildSet(

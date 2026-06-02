@@ -67,6 +67,7 @@ Numbered steps or a short paragraph. State what to do and what *not* to do.
 4. [per-entity-sync-failures-need-underlying-cause-logged](#per-entity-sync-failures-need-underlying-cause-logged)
 5. [muscle-map-needs-rebuild-after-background-sync](#muscle-map-needs-rebuild-after-background-sync)
 6. [pre-auth-write-through-must-skip-remote-push](#pre-auth-write-through-must-skip-remote-push)
+7. [timestamps-must-round-trip-as-utc-not-naive-local](#timestamps-must-round-trip-as-utc-not-naive-local)
 
 ### Voice
 7. [voice-stt-hard-cap-bounds-per-utterance-cost](#voice-stt-hard-cap-bounds-per-utterance-cost)
@@ -281,6 +282,57 @@ Guest-owned writes already land in the local store with `SyncStatus.localOnly` v
 
 - `lib/data/sync/base_entity_sync_coordinator.dart:108` — `_shouldAttemptRemotePush`
 - `test/data/sync/base_entity_sync_coordinator_test.dart` — `localOnly write-through guard` group
+
+---
+
+### timestamps-must-round-trip-as-utc-not-naive-local
+
+- **Severity:** High
+- **Status:** Resolved-but-monitor
+- **First observed:** 2026-06-02
+- **Last verified:** 2026-06-02
+- **Area:** sync
+
+**Symptom**
+
+A workout set or nutrition log created moments ago is missing from "recent" reads
+(the voice bot's "what are my latest sets", weekly volume, the home dashboard) even
+though it persisted and shows correctly in History. The gap is roughly the device's
+UTC offset — in UTC+3 the newest entry is invisible for ~3 hours after it is logged.
+Near midnight an entry can also display under the wrong calendar day, and voice
+edit/delete of a just-logged item fails with "not found".
+
+**Root cause**
+
+Entity timestamps (`WorkoutSet.date`, `NutritionLog.loggedAt`, every `createdAt` /
+`updatedAt`) are created with `DateTime.now()` — a *local* DateTime — and were
+serialized with a bare `.toIso8601String()`, which for a local DateTime omits the
+offset (e.g. `2026-06-02T01:52:00.000`). Supabase `timestamptz` reads an offset-less
+string as UTC, so the stored instant is shifted forward by the local offset; on
+pull-back `DateTime.parse` yields that shifted instant. The authenticated
+`remoteThenLocal` read path filters in memory with `!date.isAfter(DateTime.now())`
+(`workout_set_repository_impl.dart`, `nutrition_log_repository_impl.dart`), so a
+freshly-logged row reads as "in the future" and is dropped. The same offset corrupted
+the `fetchSince('updated_at', …)` cursor and the local SQLite string range bounds.
+
+**Workaround / fix**
+
+1. Normalize at the serialization boundary only — entity DateTimes stay *local* in
+   memory. Write every timestamp with `DateSerialization.toStorageIso()`
+   (`lib/core/utils/date_serialization.dart`); parse with `parseStorageDate(...)`.
+2. Compute day boundaries from local calendar components, then `.toStorageIso()` the
+   bound, preserving "the user's day" against UTC-stored values.
+3. Do NOT change the in-memory repository filters or any presentation code — under
+   this strategy entity dates stay local and those comparisons are already correct.
+4. No schema migration: only the string format inside existing columns changes.
+   Already-shifted test rows were reset once post-fix (fix-forward).
+
+**References**
+
+- `lib/core/utils/date_serialization.dart` — the boundary helper
+- `lib/data/models/workout_set_model.dart`, `lib/data/dtos/supabase/supabase_workout_set_dto.dart`
+- `lib/data/repositories/workout_set_repository_impl.dart:126-130` — the filter that surfaced it
+- PR `#NN` — fix
 
 ---
 
