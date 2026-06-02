@@ -85,6 +85,7 @@ Numbered steps or a short paragraph. State what to do and what *not* to do.
 19. [voice-transcribe-must-deploy-with-openai-secret-and-cors](#voice-transcribe-must-deploy-with-openai-secret-and-cors)
 20. [voice-phantom-success-spoken-before-persistence-completes](#voice-phantom-success-spoken-before-persistence-completes)
 21. [voice-overlay-and-shell-use-different-voicebloc-instances](#voice-overlay-and-shell-use-different-voicebloc-instances)
+22. [voice-bot-must-never-surface-internal-ids](#voice-bot-must-never-surface-internal-ids)
 
 ### Database
 11. [sqflite-version-15-rejects-incompatible-legacy-databases](#sqflite-version-15-rejects-incompatible-legacy-databases)
@@ -796,6 +797,35 @@ No user workaround; voice logging is entirely unusable until fixed. Fix: mount `
 **Resolution**
 
 Mounted `VoiceCommandRouter` inside `VoiceOverlayPage` below its `BlocProvider<VoiceBloc>`, so the router observes the same `VoiceBloc` the overlay uses; the round-trip now dispatches and persists. The dead shell-level `VoiceBloc`/router were removed in the follow-up refactor. See `issue-2-voice-dual-voicebloc-fix-plan.md`.
+
+---
+
+### voice-bot-must-never-surface-internal-ids
+
+- **Severity:** Medium
+- **Status:** Resolved-but-monitor
+- **First observed:** 2026-06-02
+- **Last verified:** 2026-06-02
+- **Area:** voice
+
+**Symptom**
+
+When asked about logged data (e.g. "what are my latest workout sets"), the voice bot sometimes reads/writes raw database identifiers — `1. Skull Crushers … [id: a74cfe8b-…]` — back to the user. Intermittent: clean when the bot routes through the `getRecentSets` query tool, leaky when it answers in its own prose.
+
+**Root cause**
+
+`SYSTEM_PROMPT_TEMPLATE` (`supabase/functions/voice-chat/index.ts`) deliberately renders recent sets/logs with `[id: …]` so the model can fill `setId`/`logId` on edit/delete tool calls, but never forbids surfacing them, and only softly routes data questions through query tools. When the model answers a data question as prose it parrots the context lines verbatim, ids included. The ids are per-user RLS-scoped row UUIDs, not credentials, so this is data-hygiene/UX incorrectness, not a credential leak.
+
+**Workaround / fix**
+
+1. Prompt rule: ids are internal-only, never spoken/written; data questions MUST be answered via a query tool. Keep ids in the context — the model needs them for tool calls.
+2. Defense-in-depth: `sanitizeAssistantText()` strips `[id: …]` and bare UUIDs from assistant *message* text before it is returned or stored. Tool calls are unaffected (the client builds an id-free readback from structured args).
+
+**References**
+
+- `supabase/functions/voice-chat/index.ts` — `SYSTEM_PROMPT_TEMPLATE`, `sanitizeAssistantText`
+- `supabase/functions/voice-chat/index.test.ts` — sanitizer tests
+- PR `#NN` — fix
 
 ---
 
