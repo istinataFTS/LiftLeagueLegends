@@ -40,6 +40,8 @@ It also showcases the two-tier read model that is standard in this codebase: `_g
 
 `workout_set_local_datasource_impl.dart:45-69` — `getSetsByExerciseId` is the canonical example of a query with two filters: an entity-specific predicate (`exercise_id = ?`) and the standard pending-delete exclusion, both composed via the `extra:` / `extraArgs:` parameters of `whereOwned(...)`. The owner filter is always the *last* predicate because `whereOwned` appends `owner_user_id = ?` after the `extra` clause. Do not write inline `WHERE` strings that include `owner_user_id`; always delegate to `whereOwned`.
 
+`getSetsByDateRange` (lines 72–105) follows the same `whereOwned` pattern with an additional optional `int? limit` parameter forwarded directly to sqflite's `db.query(limit:)`. When `limit` is non-null, SQLite applies `LIMIT` before returning rows — the result is always the most recent N rows given the `setDate DESC, setCreatedAt DESC` order.
+
 ### Obtaining the owner id — `ownerId()` (lines 183–199)
 
 `workout_set_local_datasource_impl.dart:183-186` — `prepareForInitialCloudMigration` calls `await ownerId()` as its first action. Since guest mode was removed, `ownerId()` is the single method for obtaining the current owner — it returns the authenticated user ID or throws `MissingUserContextException` if the session cannot be resolved. The distinction between "guest-safe" reads (old `resolveOwnerId()`) and "auth-only" writes (old `requireAuthenticatedOwnerId()`) no longer exists: every datasource call runs above the sign-in gate and may safely call `ownerId()` without a guest fallback check.

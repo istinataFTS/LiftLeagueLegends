@@ -23,6 +23,7 @@ abstract class WorkoutSetRepository {
     DateTime startDate,
     DateTime endDate, {
     DataSourcePreference sourcePreference = DataSourcePreference.localOnly,
+    int? limit,
   });
 
   Future<Either<Failure, void>> addSet(WorkoutSet set);

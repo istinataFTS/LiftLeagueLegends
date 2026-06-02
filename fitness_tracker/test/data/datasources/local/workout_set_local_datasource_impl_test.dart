@@ -715,4 +715,48 @@ void main() {
       expect(remaining, hasLength(1));
     });
   });
+
+  group('WorkoutSetLocalDataSourceImpl getSetsByDateRange limit', () {
+    test('limit: 5 returns the 5 newest sets when more exist', () async {
+      for (var i = 0; i < 8; i++) {
+        await dataSource.addSet(
+          buildSet(
+            id: 'set-$i',
+            exerciseId: 'bench',
+            date: baseDate.subtract(Duration(hours: i)),
+          ),
+        );
+      }
+
+      final sets = await dataSource.getSetsByDateRange(
+        baseDate.subtract(const Duration(days: 1)),
+        baseDate.add(const Duration(hours: 1)),
+        limit: 5,
+      );
+
+      expect(sets.length, 5);
+      // Results should be newest-first, so the first 5 by date
+      expect(sets.first.id, 'set-0');
+      expect(sets.last.id, 'set-4');
+    });
+
+    test('limit: null returns all in-range sets', () async {
+      for (var i = 0; i < 8; i++) {
+        await dataSource.addSet(
+          buildSet(
+            id: 'set-$i',
+            exerciseId: 'bench',
+            date: baseDate.subtract(Duration(hours: i)),
+          ),
+        );
+      }
+
+      final sets = await dataSource.getSetsByDateRange(
+        baseDate.subtract(const Duration(days: 1)),
+        baseDate.add(const Duration(hours: 1)),
+      );
+
+      expect(sets.length, 8);
+    });
+  });
 }

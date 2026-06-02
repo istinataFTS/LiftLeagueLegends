@@ -35,5 +35,6 @@ class NoopWorkoutSetRemoteDataSource implements WorkoutSetRemoteDataSource {
   Future<List<WorkoutSet>> fetchByDateRange({
     required DateTime startDate,
     required DateTime endDate,
+    int? limit,
   }) async => const <WorkoutSet>[];
 }

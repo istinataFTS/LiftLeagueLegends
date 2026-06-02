@@ -116,27 +116,38 @@ class WorkoutSetRepositoryImpl implements WorkoutSetRepository {
     DateTime startDate,
     DateTime endDate, {
     DataSourcePreference sourcePreference = DataSourcePreference.localOnly,
+    int? limit,
   }) {
     return RepositoryGuard.run(() async {
       if (sourcePreference == DataSourcePreference.localOnly ||
           !remoteDataSource.isConfigured) {
-        return localDataSource.getSetsByDateRange(startDate, endDate);
+        return localDataSource.getSetsByDateRange(
+          startDate,
+          endDate,
+          limit: limit,
+        );
       }
       final local = await localDataSource.getSetsByDateRange(
         startDate,
         endDate,
+        limit: limit,
       );
       final remote = await _tryRemoteFetch(
         () => remoteDataSource.fetchByDateRange(
           startDate: startDate,
           endDate: endDate,
+          limit: limit,
         ),
         context: 'getSetsByDateRange(remoteThenLocal)',
       );
       if (remote == null) return local;
       final merged = _merge.mergeLists(localItems: local, remoteItems: remote);
       await localDataSource.mergeRemoteSets(merged);
-      return localDataSource.getSetsByDateRange(startDate, endDate);
+      return localDataSource.getSetsByDateRange(
+        startDate,
+        endDate,
+        limit: limit,
+      );
     });
   }
 

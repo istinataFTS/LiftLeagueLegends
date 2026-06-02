@@ -407,6 +407,99 @@ void main() {
     });
   });
 
+  group('WorkoutSetRepositoryImpl.getSetsByDateRange with limit', () {
+    final DateTime start = DateTime(2026, 3, 22, 0, 0);
+    final DateTime end = DateTime(2026, 3, 22, 23, 59, 59);
+
+    test('passes limit to local datasource for localOnly', () async {
+      final List<WorkoutSet> localSets = <WorkoutSet>[
+        buildWorkoutSet(id: 'set-1', exerciseId: 'bench', date: baseDate),
+        buildWorkoutSet(
+          id: 'set-2',
+          exerciseId: 'squat',
+          date: baseDate.subtract(const Duration(hours: 1)),
+        ),
+      ];
+
+      when(
+        () => localDataSource.getSetsByDateRange(start, end, limit: 5),
+      ).thenAnswer((_) async => localSets);
+
+      final result = await repository.getSetsByDateRange(start, end, limit: 5);
+
+      expect(result.isRight(), isTrue);
+      verify(
+        () => localDataSource.getSetsByDateRange(start, end, limit: 5),
+      ).called(1);
+      verifyNever(
+        () => remoteDataSource.fetchByDateRange(
+          startDate: any(named: 'startDate'),
+          endDate: any(named: 'endDate'),
+        ),
+      );
+    });
+
+    test(
+      'passes limit to both datasources for remoteThenLocal; result length <= limit',
+      () async {
+        final List<WorkoutSet> localSets = <WorkoutSet>[
+          buildWorkoutSet(id: 'set-1', exerciseId: 'bench', date: baseDate),
+        ];
+        final List<WorkoutSet> remoteSets = <WorkoutSet>[
+          buildWorkoutSet(
+            id: 'set-2',
+            exerciseId: 'squat',
+            date: baseDate.subtract(const Duration(hours: 1)),
+            syncMetadata: const EntitySyncMetadata(status: SyncStatus.synced),
+          ),
+        ];
+        final List<WorkoutSet> mergedSets = <WorkoutSet>[
+          localSets.first,
+          remoteSets.first,
+        ];
+
+        when(() => remoteDataSource.isConfigured).thenReturn(true);
+        when(
+          () => localDataSource.getSetsByDateRange(start, end, limit: 5),
+        ).thenAnswer((_) async => localSets);
+        when(
+          () => remoteDataSource.fetchByDateRange(
+            startDate: start,
+            endDate: end,
+            limit: 5,
+          ),
+        ).thenAnswer((_) async => remoteSets);
+        when(
+          () => localDataSource.mergeRemoteSets(any()),
+        ).thenAnswer((_) async {});
+        // Final re-read also passes limit
+        when(
+          () => localDataSource.getSetsByDateRange(start, end, limit: 5),
+        ).thenAnswer((_) async => mergedSets);
+
+        final result = await repository.getSetsByDateRange(
+          start,
+          end,
+          sourcePreference: DataSourcePreference.remoteThenLocal,
+          limit: 5,
+        );
+
+        expect(result.isRight(), isTrue);
+        expect((result as Right<Failure, List<WorkoutSet>>).value.length, 2);
+        verify(
+          () => localDataSource.getSetsByDateRange(start, end, limit: 5),
+        ).called(2);
+        verify(
+          () => remoteDataSource.fetchByDateRange(
+            startDate: start,
+            endDate: end,
+            limit: 5,
+          ),
+        ).called(1);
+      },
+    );
+  });
+
   group('WorkoutSetRepositoryImpl writes', () {
     test('addSet delegates to sync coordinator', () async {
       final WorkoutSet set = buildWorkoutSet(
