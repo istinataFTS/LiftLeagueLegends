@@ -44,6 +44,12 @@ class NoopNutritionLogRemoteDataSource implements NutritionLogRemoteDataSource {
   Future<void> deleteLog({required String localId, String? serverId}) async {}
 
   @override
+  Future<List<NutritionLog>> fetchByDateRange({
+    required DateTime startDate,
+    required DateTime endDate,
+  }) async => const <NutritionLog>[];
+
+  @override
   Future<List<NutritionLog>> fetchSince({
     required String userId,
     DateTime? since,

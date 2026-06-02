@@ -2,6 +2,7 @@ import 'package:dartz/dartz.dart';
 import 'package:fitness_tracker/core/enums/data_source_preference.dart';
 import 'package:fitness_tracker/core/enums/sync_status.dart';
 import 'package:fitness_tracker/core/errors/failures.dart';
+import 'package:fitness_tracker/core/errors/sync_exceptions.dart';
 import 'package:fitness_tracker/data/datasources/local/nutrition_log_local_datasource.dart';
 import 'package:fitness_tracker/data/datasources/remote/nutrition_log_remote_datasource.dart';
 import 'package:fitness_tracker/data/models/nutrition_log_model.dart';
@@ -376,7 +377,7 @@ void main() {
     );
 
     test('aggregates logs into daily macros via repository path', () async {
-      final List<NutritionLog> mergedLogs = <NutritionLog>[
+      final List<NutritionLog> remoteLogs = <NutritionLog>[
         buildLogEntity(
           id: '1',
           loggedAt: targetDate,
@@ -394,20 +395,30 @@ void main() {
           calories: 355,
         ),
       ];
+      final List<NutritionLogModel> mergedModels = remoteLogs
+          .map(NutritionLogModel.fromEntity)
+          .toList();
+
+      int localDateReadCount = 0;
 
       when(() => remoteDataSource.isConfigured).thenReturn(true);
+      when(() => localDataSource.getLogsByDate(targetDate)).thenAnswer((
+        _,
+      ) async {
+        localDateReadCount += 1;
+        return localDateReadCount == 1
+            ? const <NutritionLogModel>[]
+            : mergedModels;
+      });
       when(
-        () => localDataSource.getAllLogs(),
-      ).thenAnswer((_) async => const <NutritionLogModel>[]);
-      when(
-        () => remoteDataSource.getAllLogs(),
-      ).thenAnswer((_) async => mergedLogs);
+        () => remoteDataSource.fetchByDateRange(
+          startDate: any(named: 'startDate'),
+          endDate: any(named: 'endDate'),
+        ),
+      ).thenAnswer((_) async => remoteLogs);
       when(
         () => localDataSource.mergeRemoteLogs(any()),
       ).thenAnswer((_) async {});
-      when(() => localDataSource.getAllLogs()).thenAnswer(
-        (_) async => mergedLogs.map(NutritionLogModel.fromEntity).toList(),
-      );
 
       final Either<Failure, DailyMacros> result = await repository
           .getDailyMacros(
@@ -423,7 +434,254 @@ void main() {
         expect(macros.logsCount, 2);
         expect(macros.date, targetDate);
       });
+      verify(
+        () => remoteDataSource.fetchByDateRange(
+          startDate: any(named: 'startDate'),
+          endDate: any(named: 'endDate'),
+        ),
+      ).called(1);
+      verifyNever(() => remoteDataSource.getAllLogs());
     });
+  });
+
+  group('NutritionLogRepositoryImpl.getLogsByDateRange', () {
+    final DateTime start = DateTime(2026, 3, 21, 0, 0);
+    final DateTime end = DateTime(2026, 3, 21, 23, 59, 59);
+
+    test(
+      'uses local window only when unconfigured (isConfigured=false)',
+      () async {
+        final List<NutritionLogModel> localLogs = <NutritionLogModel>[
+          buildLogModel(id: '1', loggedAt: targetDate),
+        ];
+
+        when(
+          () => localDataSource.getLogsByDateRange(start, end),
+        ).thenAnswer((_) async => localLogs);
+
+        final result = await repository.getLogsByDateRange(
+          start,
+          end,
+          sourcePreference: DataSourcePreference.remoteThenLocal,
+        );
+
+        expect(result, Right<Failure, List<NutritionLog>>(localLogs));
+        verify(() => localDataSource.getLogsByDateRange(start, end)).called(1);
+        verifyNever(
+          () => remoteDataSource.fetchByDateRange(
+            startDate: any(named: 'startDate'),
+            endDate: any(named: 'endDate'),
+          ),
+        );
+        verifyNever(() => remoteDataSource.getAllLogs());
+      },
+    );
+
+    test('remoteThenLocal calls fetchByDateRange — never getAllLogs', () async {
+      final List<NutritionLogModel> localLogs = <NutritionLogModel>[
+        buildLogModel(id: '1', loggedAt: targetDate),
+      ];
+      final List<NutritionLog> remoteLogs = <NutritionLog>[
+        buildLogEntity(
+          id: '1',
+          loggedAt: targetDate,
+          calories: 400,
+          syncMetadata: const EntitySyncMetadata(status: SyncStatus.synced),
+        ),
+      ];
+
+      when(() => remoteDataSource.isConfigured).thenReturn(true);
+      when(
+        () => localDataSource.getLogsByDateRange(start, end),
+      ).thenAnswer((_) async => localLogs);
+      when(
+        () => remoteDataSource.fetchByDateRange(startDate: start, endDate: end),
+      ).thenAnswer((_) async => remoteLogs);
+      when(
+        () => localDataSource.mergeRemoteLogs(any()),
+      ).thenAnswer((_) async {});
+
+      final result = await repository.getLogsByDateRange(
+        start,
+        end,
+        sourcePreference: DataSourcePreference.remoteThenLocal,
+      );
+
+      expect(result.isRight(), isTrue);
+      verify(
+        () => remoteDataSource.fetchByDateRange(startDate: start, endDate: end),
+      ).called(1);
+      verifyNever(() => remoteDataSource.getAllLogs());
+      verify(() => localDataSource.mergeRemoteLogs(any())).called(1);
+    });
+
+    test(
+      'falls back to local window when remote throws NetworkSyncException',
+      () async {
+        final List<NutritionLogModel> localLogs = <NutritionLogModel>[
+          buildLogModel(id: 'log-now', loggedAt: targetDate),
+        ];
+
+        when(() => remoteDataSource.isConfigured).thenReturn(true);
+        when(
+          () => localDataSource.getLogsByDateRange(start, end),
+        ).thenAnswer((_) async => localLogs);
+        when(
+          () =>
+              remoteDataSource.fetchByDateRange(startDate: start, endDate: end),
+        ).thenThrow(const NetworkSyncException('offline'));
+
+        final result = await repository.getLogsByDateRange(
+          start,
+          end,
+          sourcePreference: DataSourcePreference.remoteThenLocal,
+        );
+
+        expect(result, Right<Failure, List<NutritionLog>>(localLogs));
+        verifyNever(() => localDataSource.mergeRemoteLogs(any()));
+      },
+    );
+
+    test('local-only log within window survives windowed merge', () async {
+      final NutritionLogModel localOnlyLog = buildLogModel(
+        id: 'log-local-only',
+        loggedAt: targetDate,
+        syncMetadata: const EntitySyncMetadata(
+          status: SyncStatus.pendingUpload,
+        ),
+      );
+      final List<NutritionLogModel> localWindow = <NutritionLogModel>[
+        localOnlyLog,
+      ];
+
+      when(() => remoteDataSource.isConfigured).thenReturn(true);
+      when(
+        () => localDataSource.getLogsByDateRange(start, end),
+      ).thenAnswer((_) async => localWindow);
+      when(
+        () => remoteDataSource.fetchByDateRange(startDate: start, endDate: end),
+      ).thenAnswer((_) async => const <NutritionLog>[]);
+      when(
+        () => localDataSource.mergeRemoteLogs(any()),
+      ).thenAnswer((_) async {});
+
+      final result = await repository.getLogsByDateRange(
+        start,
+        end,
+        sourcePreference: DataSourcePreference.remoteThenLocal,
+      );
+
+      expect(result, Right<Failure, List<NutritionLog>>(localWindow));
+      final captured = verify(
+        () => localDataSource.mergeRemoteLogs(captureAny()),
+      ).captured;
+      final mergedList = captured.first as List<NutritionLog>;
+      expect(mergedList.any((l) => l.id == 'log-local-only'), isTrue);
+    });
+  });
+
+  group('NutritionLogRepositoryImpl.getLogsByDate', () {
+    test(
+      'remoteThenLocal calls fetchByDateRange with day window — never getAllLogs',
+      () async {
+        final List<NutritionLogModel> localLogs = <NutritionLogModel>[
+          buildLogModel(id: '1', loggedAt: targetDate),
+        ];
+        final List<NutritionLog> remoteLogs = <NutritionLog>[
+          buildLogEntity(
+            id: '1',
+            loggedAt: targetDate,
+            calories: 400,
+            syncMetadata: const EntitySyncMetadata(status: SyncStatus.synced),
+          ),
+        ];
+
+        when(() => remoteDataSource.isConfigured).thenReturn(true);
+        when(
+          () => localDataSource.getLogsByDate(targetDate),
+        ).thenAnswer((_) async => localLogs);
+        when(
+          () => remoteDataSource.fetchByDateRange(
+            startDate: any(named: 'startDate'),
+            endDate: any(named: 'endDate'),
+          ),
+        ).thenAnswer((_) async => remoteLogs);
+        when(
+          () => localDataSource.mergeRemoteLogs(any()),
+        ).thenAnswer((_) async {});
+
+        final result = await repository.getLogsByDate(
+          targetDate,
+          sourcePreference: DataSourcePreference.remoteThenLocal,
+        );
+
+        expect(result.isRight(), isTrue);
+        verify(
+          () => remoteDataSource.fetchByDateRange(
+            startDate: any(named: 'startDate'),
+            endDate: any(named: 'endDate'),
+          ),
+        ).called(1);
+        verifyNever(() => remoteDataSource.getAllLogs());
+        verify(() => localDataSource.mergeRemoteLogs(any())).called(1);
+      },
+    );
+
+    test('falls back to local getLogsByDate when remote throws', () async {
+      final List<NutritionLogModel> localLogs = <NutritionLogModel>[
+        buildLogModel(id: '1', loggedAt: targetDate),
+      ];
+
+      when(() => remoteDataSource.isConfigured).thenReturn(true);
+      when(
+        () => localDataSource.getLogsByDate(targetDate),
+      ).thenAnswer((_) async => localLogs);
+      when(
+        () => remoteDataSource.fetchByDateRange(
+          startDate: any(named: 'startDate'),
+          endDate: any(named: 'endDate'),
+        ),
+      ).thenThrow(const NetworkSyncException('offline'));
+
+      final result = await repository.getLogsByDate(
+        targetDate,
+        sourcePreference: DataSourcePreference.remoteThenLocal,
+      );
+
+      expect(result, Right<Failure, List<NutritionLog>>(localLogs));
+      verifyNever(() => localDataSource.mergeRemoteLogs(any()));
+    });
+
+    test(
+      'near-midnight log at 23:30 is returned for its local calendar day',
+      () async {
+        final DateTime nearMidnight = DateTime(2026, 3, 21, 23, 30);
+        final List<NutritionLogModel> localLogs = <NutritionLogModel>[
+          buildLogModel(id: 'late-log', loggedAt: nearMidnight),
+        ];
+
+        when(() => remoteDataSource.isConfigured).thenReturn(false);
+        when(
+          () => localDataSource.getLogsByDate(nearMidnight),
+        ).thenAnswer((_) async => localLogs);
+
+        final result = await repository.getLogsByDate(
+          nearMidnight,
+          sourcePreference: DataSourcePreference.remoteThenLocal,
+        );
+
+        expect(result.isRight(), isTrue);
+        final logs = result.fold((_) => <NutritionLog>[], (l) => l);
+        expect(logs.any((l) => l.id == 'late-log'), isTrue);
+        verify(() => localDataSource.getLogsByDate(nearMidnight)).called(1);
+        verifyNever(
+          () => remoteDataSource.fetchByDateRange(
+            startDate: any(named: 'startDate'),
+            endDate: any(named: 'endDate'),
+          ),
+        );
+      },
+    );
   });
 
   group('NutritionLogRepositoryImpl deletes and writes', () {

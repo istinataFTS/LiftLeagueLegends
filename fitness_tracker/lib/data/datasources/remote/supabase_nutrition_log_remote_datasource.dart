@@ -147,6 +147,30 @@ class SupabaseNutritionLogRemoteDataSource
   }
 
   @override
+  Future<List<NutritionLog>> fetchByDateRange({
+    required DateTime startDate,
+    required DateTime endDate,
+  }) {
+    return RemoteDatasourceGuard.run(() async {
+      final userId = _currentUserIdOrNull();
+      if (userId == null) {
+        return const <NutritionLog>[];
+      }
+
+      final dynamic data = await clientProvider.client
+          .from(_tableName)
+          .select()
+          .eq(_userIdColumn, userId)
+          .gte(_loggedAtColumn, startDate.toStorageIso())
+          .lte(_loggedAtColumn, endDate.toStorageIso())
+          .order(_loggedAtColumn, ascending: false);
+
+      final rows = _asMapList(data);
+      return rows.map(_mapRowToEntity).toList();
+    });
+  }
+
+  @override
   Future<List<NutritionLog>> fetchSince({
     required String userId,
     DateTime? since,
