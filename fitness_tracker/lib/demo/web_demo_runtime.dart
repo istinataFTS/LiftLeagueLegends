@@ -590,6 +590,7 @@ class WebDemoWorkoutSetRepository implements WorkoutSetRepository {
     DateTime startDate,
     DateTime endDate, {
     DataSourcePreference sourcePreference = DataSourcePreference.localOnly,
+    int? limit,
   }) async {
     final start = _startOfDay(startDate);
     final end = _endOfDay(endDate);
