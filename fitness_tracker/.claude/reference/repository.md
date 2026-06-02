@@ -48,17 +48,27 @@ The inclusion of `_tryRemoteFetch` as a `static` helper that catches specific re
 
 The `remoteDataSource.isConfigured` guard must appear before every remote call. Calling an unconfigured remote datasource does not crash (the noop impl returns empty results) but is wasteful and hides misconfiguration bugs.
 
-### Write path delegation to `SyncCoordinator` (lines 134–159)
+### Write path delegation to `SyncCoordinator` (lines 143–176)
 
-`workout_set_repository_impl.dart:134-159` — `addSet`, `updateSet`, `deleteSet`, and `syncPendingSets` each contain a single line inside `RepositoryGuard.run`. The repository does not touch the local datasource for writes; that is the sync coordinator's job. This separation keeps the repository from accumulating sync logic and keeps the sync coordinator independently testable. If your repository writes directly to `localDataSource` for a mutable operation, that is a code smell — route it through a sync coordinator.
+`workout_set_repository_impl.dart:143-176` — `addSet`, `updateSet`, `deleteSet`, and `syncPendingSets` each contain a single line inside `RepositoryGuard.run`. The repository does not touch the local datasource for writes; that is the sync coordinator's job. This separation keeps the repository from accumulating sync logic and keeps the sync coordinator independently testable. If your repository writes directly to `localDataSource` for a mutable operation, that is a code smell — route it through a sync coordinator.
 
-### `_readAllSets` internal helper (lines 168–219)
+### `_readAllSets` internal helper (lines 178–229)
 
-`workout_set_repository_impl.dart:168-219` — Multiple public list-read methods (`getAllSets`, `getSetsByExerciseId`, `getSetsByDateRange`) delegate to `_readAllSets`. Extracting the four-case switch into a private method prevents the switch from being repeated and ensures all read methods respect the same data-source strategy logic. Name your equivalent helper `_readAll<Entity>` to follow the convention.
+`workout_set_repository_impl.dart:178-229` — `getAllSets` and `getSetsByExerciseId` delegate to `_readAllSets`, which implements the full four-case `DataSourcePreference` switch over the whole table. `getSetsByDateRange` does **not** use `_readAllSets` — see below. Extracting the four-case switch into a private method prevents the switch from being repeated and ensures all full-table read methods respect the same data-source strategy logic. Name your equivalent helper `_readAll<Entity>` to follow the convention.
 
-### `_tryRemoteFetch` — offline-resilient remote reads (lines 221–249)
+### `getSetsByDateRange` — bounded server-side query + windowed merge (lines 114–141)
 
-`workout_set_repository_impl.dart:221-249` — This `static` helper catches three specific remote exception types (`AuthSyncException`, `NetworkSyncException`, `RemoteSyncException`), logs a warning at the `'<feature>_repository'` category, and returns `null`. The caller treats `null` as "remote unavailable; use local cache." Non-remote exceptions (e.g. a local database failure) are *not* caught here and propagate up through `RepositoryGuard.run` as real errors.
+`workout_set_repository_impl.dart:114-141` — `getSetsByDateRange` does not call `_readAllSets`. Instead it issues a **bounded** remote query (`remoteDataSource.fetchByDateRange`) that pushes the date filter to Supabase, fetches only the matching window, merges it with the local window via `_merge.mergeLists`, persists the merged window, and re-reads from local. This replaces the old full-table fetch + in-memory filter, which was both expensive and incorrect when timestamps were shifted.
+
+Two properties of this design are worth noting:
+1. **Cost**: the remote query transfers only the rows in the requested window — relevant for voice turns, which call this method on every interaction.
+2. **Correctness**: a local-only row (e.g. just logged, not yet synced) is included in the merge because `mergeLists` keeps items that exist only in the local list. The background `SyncOrchestrator` continues to own whole-table reconciliation on its triggers; windowed reads are strictly read-side.
+
+The `localOnly || !isConfigured` guard on line 121-124 ensures the offline-first path still delegates to the local datasource only.
+
+### `_tryRemoteFetch` — offline-resilient remote reads (lines 231–259)
+
+`workout_set_repository_impl.dart:231-259` — This `static` helper catches three specific remote exception types (`AuthSyncException`, `NetworkSyncException`, `RemoteSyncException`), logs a warning at the `'<feature>_repository'` category, and returns `null`. The caller treats `null` as "remote unavailable; use local cache." Non-remote exceptions (e.g. a local database failure) are *not* caught here and propagate up through `RepositoryGuard.run` as real errors.
 
 Key points:
 1. It is `static` — it needs no instance state.
@@ -73,7 +83,7 @@ Key points:
 - [ ] **Every method returns `Either<Failure, T>` via `RepositoryGuard.run`.** No raw `Future<T>` return types. No `try/catch` inside the repository.
 - [ ] **Write operations go to the sync coordinator, not the local datasource.** If you find yourself calling `localDataSource.addX(...)` directly for a user-initiated write, introduce a sync coordinator.
 - [ ] **Guard every remote call with `remoteDataSource.isConfigured`.** The app runs offline-first; an unconfigured remote must be a silent no-op on read paths.
-- [ ] **Extract the `DataSourcePreference` switch into a private `_readAll*` helper** when two or more public methods share the same four-case logic.
+- [ ] **Extract the `DataSourcePreference` switch into a private `_readAll*` helper** when two or more public methods share the same full-table four-case logic. Date-range reads use a bounded windowed pattern instead — see the `getSetsByDateRange` section above.
 - [ ] **Use `_tryRemoteFetch` (or an equivalent) for reads that have a local fallback.** Never let a `NetworkSyncException` or `AuthSyncException` escape a read path as a `Failure` — that turns a connectivity blip into a visible error screen.
 - [ ] **Make the constructor `const`** unless you genuinely need non-const initialization. Repositories are stateless coordinators.
 - [ ] **Register as `registerLazySingleton<InterfaceType>` in the DI module**, not `registerFactory`. See [[injection_module]] and KNOWN_ISSUES.md `blocs-must-be-factories-repositories-singletons`.
