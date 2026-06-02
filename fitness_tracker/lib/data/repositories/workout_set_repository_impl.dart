@@ -122,11 +122,21 @@ class WorkoutSetRepositoryImpl implements WorkoutSetRepository {
           !remoteDataSource.isConfigured) {
         return localDataSource.getSetsByDateRange(startDate, endDate);
       }
-
-      final sets = await _readAllSets(sourcePreference);
-      return sets.where((set) {
-        return !set.date.isBefore(startDate) && !set.date.isAfter(endDate);
-      }).toList();
+      final local = await localDataSource.getSetsByDateRange(
+        startDate,
+        endDate,
+      );
+      final remote = await _tryRemoteFetch(
+        () => remoteDataSource.fetchByDateRange(
+          startDate: startDate,
+          endDate: endDate,
+        ),
+        context: 'getSetsByDateRange(remoteThenLocal)',
+      );
+      if (remote == null) return local;
+      final merged = _merge.mergeLists(localItems: local, remoteItems: remote);
+      await localDataSource.mergeRemoteSets(merged);
+      return localDataSource.getSetsByDateRange(startDate, endDate);
     });
   }
 

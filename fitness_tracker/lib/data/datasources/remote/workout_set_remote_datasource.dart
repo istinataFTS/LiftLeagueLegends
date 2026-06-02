@@ -17,4 +17,12 @@ abstract class WorkoutSetRemoteDataSource {
     required String userId,
     DateTime? since,
   });
+
+  /// Returns this user's sets whose `performed_at` is within
+  /// [[startDate], [endDate]] (inclusive), newest-first.
+  /// Bounds are normalised to UTC at the boundary.
+  Future<List<WorkoutSet>> fetchByDateRange({
+    required DateTime startDate,
+    required DateTime endDate,
+  });
 }
