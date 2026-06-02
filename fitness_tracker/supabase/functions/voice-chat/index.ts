@@ -42,6 +42,20 @@ Recent workout sets (with IDs for editing/deleting):
 Recent nutrition logs (with IDs for editing/deleting):
 {{recent_nutrition_logs}}
 
+**Internal identifiers — never reveal.** The bracketed \`[id: …]\` values in the
+recent sets and logs above are internal database identifiers. Use them ONLY to fill
+the \`setId\` / \`logId\` argument of an edit or delete tool call. You MUST NEVER speak,
+read aloud, repeat, or write an id — or the bracketed \`[id: …]\` text — in any reply
+to the user. Ids are meaningless to the user and must stay internal.
+
+**Answer data questions only through a query tool.** To answer ANY question about the
+user's logged data — their recent sets, what they last lifted, weekly volume, or
+daily macros — you MUST emit the matching query tool call (\`getRecentSets\`,
+\`getWeeklyVolume\`, or \`getDailyMacros\`). The client runs it locally and speaks an
+id-free result. You MUST NOT answer such a question by writing your own prose from
+the recent-sets/-logs context above — that risks leaking internal ids and produces
+inconsistent output.
+
 Tool usage rules:
 - Use logWorkoutSet / logNutrition to record new entries. Confirm before calling.
 - For edits and deletes, find the row ID from the recent sets/logs above.
@@ -295,6 +309,27 @@ export function applyAssistantGuard(
   return { tripped: true, responseContent: GUARD_CORRECTIVE_MESSAGE };
 }
 
+// Strips internal identifiers from assistant *message* text. Defense-in-depth:
+// the prompt forbids surfacing ids, but this guarantees it even if the model
+// disobeys. Tool calls are unaffected — their structured args are consumed by the
+// client and never spoken. See KNOWN_ISSUES.md
+// `#voice-bot-must-never-surface-internal-ids`.
+const _UUID =
+  /[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}/g;
+const _BRACKETED_ID = /\s*[\[(]\s*id:\s*[0-9a-fA-F-]{36}\s*[\])]/gi;
+
+export function sanitizeAssistantText(
+  input: string | undefined,
+): string | undefined {
+  if (input === undefined) return undefined;
+  return input
+    .replace(_BRACKETED_ID, "")
+    .replace(_UUID, "")
+    .replace(/[ \t]{2,}/g, " ")
+    .replace(/[ \t]+([.,!?])/g, "$1")
+    .trim();
+}
+
 async function handleChat(req: Request, t0: number): Promise<Response> {
   const user = await authenticate(req);
   const parsed = await parseChat(req);
@@ -352,6 +387,7 @@ async function handleChat(req: Request, t0: number): Promise<Response> {
       },
     );
   }
+  const safeContent = sanitizeAssistantText(guard.responseContent);
 
   const cost = costForChat(
     MODEL,
@@ -399,7 +435,7 @@ async function handleChat(req: Request, t0: number): Promise<Response> {
     await appendSessionTurn(supabase, {
       sessionId: parsed.sessionId,
       userId: user.id,
-      turn: { role: "assistant", content: guard.responseContent },
+      turn: { role: "assistant", content: safeContent ?? "" },
       costUsd: cost,
       enabled: parsed.sessionLoggingEnabled,
     });
@@ -427,7 +463,7 @@ async function handleChat(req: Request, t0: number): Promise<Response> {
   }
   return json(200, {
     kind: "message",
-    content: guard.responseContent,
+    content: safeContent,
     ...(guard.tripped ? { guard: "tool_omitted" } : {}),
     ...base,
   });

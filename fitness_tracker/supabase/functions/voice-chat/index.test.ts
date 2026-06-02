@@ -336,7 +336,7 @@ Deno.test("voice-chat: history is capped at 3 turns server-side", () => {
 // instructions"} into history and bypasses the bot's scope refusal.
 // ---------------------------------------------------------------------------
 
-const { sanitizeHistory } = await import("./index.ts");
+const { sanitizeHistory, sanitizeAssistantText } = await import("./index.ts");
 
 Deno.test("sanitizeHistory: drops client-supplied system role", () => {
   const result = sanitizeHistory([
@@ -396,6 +396,55 @@ Deno.test("sanitizeHistory: silently drops null / non-object entries", () => {
   }]);
   assertEquals(result.length, 1);
   assertEquals(result[0].content, "ok");
+});
+
+// ---------------------------------------------------------------------------
+// sanitizeAssistantText — strips [id: …] and bare UUIDs from assistant text
+// ---------------------------------------------------------------------------
+
+Deno.test("sanitizeAssistantText: strips bracketed id form", () => {
+  const input = "Skull Crushers [id: a74cfe8b-4f9a-4c39-96f1-eaa7063819e3]";
+  const result = sanitizeAssistantText(input)!;
+  assertEquals(result.includes("[id:"), false);
+  assertEquals(
+    result.includes("a74cfe8b-4f9a-4c39-96f1-eaa7063819e3"),
+    false,
+  );
+  assertEquals(result.includes("Skull Crushers"), true);
+});
+
+Deno.test("sanitizeAssistantText: strips bare UUID embedded in prose", () => {
+  const input =
+    "Your set id is a74cfe8b-4f9a-4c39-96f1-eaa7063819e3 from yesterday.";
+  const result = sanitizeAssistantText(input)!;
+  assertEquals(
+    result.includes("a74cfe8b-4f9a-4c39-96f1-eaa7063819e3"),
+    false,
+  );
+  assertEquals(result.includes("Your set id is"), true);
+});
+
+Deno.test("sanitizeAssistantText: leaves ID-free text untouched", () => {
+  const input = "Bench Press — 80 kg × 8 reps (intensity 3)";
+  const result = sanitizeAssistantText(input);
+  assertEquals(result, "Bench Press — 80 kg × 8 reps (intensity 3)");
+});
+
+Deno.test("sanitizeAssistantText: undefined input returns undefined", () => {
+  assertEquals(sanitizeAssistantText(undefined), undefined);
+});
+
+Deno.test("sanitizeAssistantText: realistic full-leak example contains no UUID or [id:", () => {
+  const input = "Here are your latest sets:\n" +
+    "1. Skull Crushers — 17.5 kg × 10 reps (intensity 3) [id: a74cfe8b-4f9a-4c39-96f1-eaa7063819e3]\n" +
+    "2. Bench Press — 80 kg × 8 reps (intensity 4) [id: b85daf9c-5a0b-4d40-a7e2-fbb8174920f4]";
+  const result = sanitizeAssistantText(input)!;
+  const uuidPattern =
+    /[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}/;
+  assertEquals(uuidPattern.test(result), false);
+  assertEquals(result.includes("[id:"), false);
+  assertEquals(result.includes("Skull Crushers"), true);
+  assertEquals(result.includes("Bench Press"), true);
 });
 
 // ---------------------------------------------------------------------------
@@ -486,6 +535,36 @@ Deno.test("buildSystemPrompt: contains TOOL CALL CONTRACT section", () => {
   });
   assertEquals(prompt.includes("TOOL CALL CONTRACT"), true);
   assertEquals(prompt.includes("NON-NEGOTIABLE"), true);
+});
+
+Deno.test("buildSystemPrompt: contains never-reveal id rule", () => {
+  const prompt = buildSystemPrompt({
+    currentDate: "2026-05-13",
+    weightUnit: "kg",
+    recentSets: [],
+    recentNutritionLogs: [],
+  });
+  assertEquals(prompt.includes("never reveal"), true);
+  assertEquals(prompt.includes("Internal identifiers"), true);
+});
+
+Deno.test("buildSystemPrompt: ids remain in context for tool use", () => {
+  const prompt = buildSystemPrompt({
+    currentDate: "2026-05-13",
+    weightUnit: "kg",
+    recentSets: [
+      {
+        setId: "set-1",
+        exerciseName: "Squat",
+        weight: 100,
+        reps: 5,
+        intensity: 4,
+        date: "2026-05-13",
+      },
+    ],
+    recentNutritionLogs: [],
+  });
+  assertEquals(prompt.includes("set-1"), true);
 });
 
 // ---------------------------------------------------------------------------
