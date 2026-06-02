@@ -167,17 +167,22 @@ class NutritionLogRepositoryImpl implements NutritionLogRepository {
           !remoteDataSource.isConfigured) {
         return localDataSource.getLogsByDate(date);
       }
-
-      final logs = await getAllLogs(sourcePreference: sourcePreference);
-      return logs.fold(
-        (_) => const <NutritionLog>[],
-        (items) => items.where((log) {
-          final logged = log.loggedAt;
-          return logged.year == date.year &&
-              logged.month == date.month &&
-              logged.day == date.day;
-        }).toList(),
+      final startOfDay = DateTime(date.year, date.month, date.day);
+      final endOfDay = DateTime(date.year, date.month, date.day, 23, 59, 59);
+      final local = await localDataSource.getLogsByDate(date);
+      final remote = await _tryRemoteFetch(
+        () => remoteDataSource.fetchByDateRange(
+          startDate: startOfDay,
+          endDate: endOfDay,
+        ),
+        context: 'getLogsByDate(remoteThenLocal)',
       );
+      if (remote == null) return local;
+      final merged = _merge.mergeLists(localItems: local, remoteItems: remote);
+      await localDataSource.mergeRemoteLogs(
+        merged.map(NutritionLogModel.fromEntity).toList(),
+      );
+      return localDataSource.getLogsByDate(date);
     });
   }
 
@@ -200,15 +205,23 @@ class NutritionLogRepositoryImpl implements NutritionLogRepository {
           !remoteDataSource.isConfigured) {
         return localDataSource.getLogsByDateRange(startDate, endDate);
       }
-
-      final logs = await getAllLogs(sourcePreference: sourcePreference);
-      return logs.fold(
-        (_) => const <NutritionLog>[],
-        (items) => items.where((log) {
-          return !log.loggedAt.isBefore(startDate) &&
-              !log.loggedAt.isAfter(endDate);
-        }).toList(),
+      final local = await localDataSource.getLogsByDateRange(
+        startDate,
+        endDate,
       );
+      final remote = await _tryRemoteFetch(
+        () => remoteDataSource.fetchByDateRange(
+          startDate: startDate,
+          endDate: endDate,
+        ),
+        context: 'getLogsByDateRange(remoteThenLocal)',
+      );
+      if (remote == null) return local;
+      final merged = _merge.mergeLists(localItems: local, remoteItems: remote);
+      await localDataSource.mergeRemoteLogs(
+        merged.map(NutritionLogModel.fromEntity).toList(),
+      );
+      return localDataSource.getLogsByDateRange(startDate, endDate);
     });
   }
 
