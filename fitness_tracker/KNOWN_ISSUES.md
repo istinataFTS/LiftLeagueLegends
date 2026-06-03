@@ -1522,4 +1522,4 @@ Derive a three-way status from `ProfileState`: `hasLoaded == false` → a neutra
 - `lib/app/auth_gate.dart`, `lib/app/auth_loading_view.dart`
 - `lib/features/profile/application/profile_cubit.dart:287-318` — `hasLoaded` set in both branches
 - `test/app/auth_gate_test.dart` — resolving + cold-start regression tests
-- PR `#NN` — fix
+- PR `#107` — fix
