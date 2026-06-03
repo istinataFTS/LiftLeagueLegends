@@ -1,7 +1,4 @@
-import {
-  assert,
-  assertEquals,
-} from "https://deno.land/std@0.224.0/assert/mod.ts";
+import { assert, assertEquals } from "@std/assert";
 
 // Workflow lives at the REPO root (.github/workflows/), not under fitness_tracker/.
 // This file is at fitness_tracker/supabase/functions/_shared/, so we walk up 4 levels.

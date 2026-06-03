@@ -1,7 +1,4 @@
-import {
-  assertEquals,
-  assertThrows,
-} from "https://deno.land/std@0.224.0/assert/mod.ts";
+import { assertEquals, assertThrows } from "@std/assert";
 import { costForChat, PRICING_VERSION, round6 } from "./cost.ts";
 
 Deno.test("PRICING_VERSION is a non-empty string", () => {

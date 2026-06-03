@@ -1,7 +1,7 @@
-import { assertEquals } from "https://deno.land/std@0.224.0/assert/mod.ts";
+import { assertEquals } from "@std/assert";
 import { logUsage } from "./usage.ts";
 import { PRICING_VERSION } from "./cost.ts";
-import type { SupabaseClient } from "https://esm.sh/@supabase/supabase-js@2";
+import type { SupabaseClient } from "@supabase/supabase-js";
 
 function makeInsertClient(
   onInsert: (payload: Record<string, unknown>) => { error: unknown },

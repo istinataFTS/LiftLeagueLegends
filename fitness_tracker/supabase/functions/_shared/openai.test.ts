@@ -1,7 +1,4 @@
-import {
-  assertEquals,
-  assertRejects,
-} from "https://deno.land/std@0.224.0/assert/mod.ts";
+import { assertEquals, assertRejects } from "@std/assert";
 import { _setFetch, completeChat } from "./openai.ts";
 import { ErrorCodes, VoiceError } from "./errors.ts";
 

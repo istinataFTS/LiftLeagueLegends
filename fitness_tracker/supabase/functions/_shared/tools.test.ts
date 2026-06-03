@@ -1,7 +1,4 @@
-import {
-  assertEquals,
-  assertNotEquals,
-} from "https://deno.land/std@0.224.0/assert/mod.ts";
+import { assertEquals, assertNotEquals } from "@std/assert";
 import { MUTATION_TOOLS, QUERY_TOOLS, TOOL_REGISTRY } from "./tools.ts";
 
 // ── Registry shape ───────────────────────────────────────────────────────────
