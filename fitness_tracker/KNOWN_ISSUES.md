@@ -119,6 +119,7 @@ Numbered steps or a short paragraph. State what to do and what *not* to do.
 29. [muscle-stimulus-repository-userid-parameter-silently-dropped](#muscle-stimulus-repository-userid-parameter-silently-dropped)
 30. [history-calendar-dot-disagrees-with-day-detail-for-orphan-sets](#history-calendar-dot-disagrees-with-day-detail-for-orphan-sets)
 31. [signin-does-not-navigate-until-restart](#signin-does-not-navigate-until-restart)
+32. [auth-gate-must-not-flash-signin-before-session-resolves](#auth-gate-must-not-flash-signin-before-session-resolves)
 
 ---
 
@@ -1493,3 +1494,32 @@ End-user workaround: restart the app after signing in — the session is already
 **Resolution**
 
 `ProfileCubit` now subscribes to `SessionSyncService.onSessionEstablished` (emitted on the completed establish path only — never skipped/failed) in its constructor and reloads via the existing `loadProfile()`, so `AuthGate` swaps from the sign-in screen to the app on live sign-in/up/OTP without a restart. The subscription is cancelled in `close()`. No auth-page or `AuthGate` changes were required. See `issue-1-signin-navigation-fix-plan.md`.
+
+---
+
+### auth-gate-must-not-flash-signin-before-session-resolves
+
+- **Severity:** Medium
+- **Status:** Resolved-but-monitor
+- **First observed:** 2026-06-02
+- **Last verified:** 2026-06-02
+- **Area:** other
+
+**Symptom**
+
+On launching while already signed in, the sign-in page is visible for roughly one second before the app swaps to Home.
+
+**Root cause**
+
+`AuthGate` (`lib/app/auth_gate.dart`) selected its child off `state.session != null` only. `ProfileState.initial()` has `session: null, hasLoaded: false`; `loadProfile()` resolves the persisted session asynchronously (it awaits `getCurrentSession()` and a Supabase `auth.refreshSession`). During that window the gate could not distinguish "session not resolved yet" from "signed out", so it rendered `SignInPage` and then swapped to the authenticated child once the session arrived.
+
+**Workaround / fix**
+
+Derive a three-way status from `ProfileState`: `hasLoaded == false` → a neutral `AuthLoadingView` splash; `hasLoaded && session != null` → the authenticated child; `hasLoaded && session == null` → `SignInPage`. `loadProfile()` sets `hasLoaded: true` in both its success and failure branches, so the splash always resolves and never hangs. Do not reset `hasLoaded` on resume — the splash must only appear at cold start.
+
+**References**
+
+- `lib/app/auth_gate.dart`, `lib/app/auth_loading_view.dart`
+- `lib/features/profile/application/profile_cubit.dart:287-318` — `hasLoaded` set in both branches
+- `test/app/auth_gate_test.dart` — resolving + cold-start regression tests
+- PR `#NN` — fix
