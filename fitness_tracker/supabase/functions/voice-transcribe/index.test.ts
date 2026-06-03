@@ -5,11 +5,11 @@ if (!Deno.env.get("OPENAI_API_KEY")) {
   Deno.env.set("OPENAI_API_KEY", "sk-test-dummy-key");
 }
 
-import { assertEquals } from "https://deno.land/std@0.224.0/assert/mod.ts";
+import { assertEquals } from "@std/assert";
 import { _setFetch, transcribeAudio } from "../_shared/whisper.ts";
 import { ErrorCodes } from "../_shared/errors.ts";
 import { costForWhisper } from "../_shared/cost.ts";
-import type { SupabaseClient } from "https://esm.sh/@supabase/supabase-js@2";
+import type { SupabaseClient } from "@supabase/supabase-js";
 
 const REAL_FETCH = globalThis.fetch;
 

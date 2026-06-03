@@ -1,5 +1,7 @@
 {
   "imports": {
-    "https://esm.sh/@supabase/supabase-js@2": "npm:@supabase/supabase-js@2"
+    "@supabase/supabase-js": "npm:@supabase/supabase-js@2",
+    "@std/assert": "jsr:@std/assert@^1.0.0",
+    "@std/path": "jsr:@std/path@^1.0.0"
   }
 }

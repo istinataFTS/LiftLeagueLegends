@@ -1,11 +1,7 @@
-import {
-  assertAlmostEquals,
-  assertEquals,
-  assertRejects,
-} from "https://deno.land/std@0.224.0/assert/mod.ts";
+import { assertAlmostEquals, assertEquals, assertRejects } from "@std/assert";
 import { assertWithinBudget, getBudgetState } from "./budget.ts";
 import { ErrorCodes, VoiceError } from "./errors.ts";
-import type { SupabaseClient } from "https://esm.sh/@supabase/supabase-js@2";
+import type { SupabaseClient } from "@supabase/supabase-js";
 
 function makeSupabase(
   rows: Array<{ cost_usd: number }>,

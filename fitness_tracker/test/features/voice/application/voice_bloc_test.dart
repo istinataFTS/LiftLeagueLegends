@@ -251,6 +251,7 @@ MockGetSetsByDateRange _defaultGetSetsByDateRange() {
       startDate: any(named: 'startDate'),
       endDate: any(named: 'endDate'),
       muscleGroup: any(named: 'muscleGroup'),
+      limit: any(named: 'limit'),
     ),
   ).thenAnswer((_) async => const Right([]));
   return m;
@@ -1265,6 +1266,7 @@ void main() {
             startDate: any(named: 'startDate'),
             endDate: any(named: 'endDate'),
             muscleGroup: any(named: 'muscleGroup'),
+            limit: any(named: 'limit'),
           ),
         ).thenAnswer((_) async => Right([editableSet]));
 
@@ -1776,6 +1778,7 @@ void main() {
           startDate: any(named: 'startDate'),
           endDate: any(named: 'endDate'),
           muscleGroup: any(named: 'muscleGroup'),
+          limit: any(named: 'limit'),
         ),
       ).thenAnswer(
         (_) async => Right([
@@ -1831,6 +1834,7 @@ void main() {
             startDate: any(named: 'startDate'),
             endDate: any(named: 'endDate'),
             muscleGroup: any(named: 'muscleGroup'),
+            limit: any(named: 'limit'),
           ),
         ).thenAnswer(
           (_) async => Right([
@@ -1869,6 +1873,215 @@ void main() {
 
         expect(tts.lastSpoken?.contains('Bench Press'), isTrue);
         expect(tts.lastSpoken?.contains('85'), isTrue);
+        await bloc.close();
+      },
+    );
+
+    test('spoken readback contains no UUID (ID-free guard)', () async {
+      _setupBenchLookup(exerciseLookup);
+      when(
+        () => getSetsByDateRange(
+          startDate: any(named: 'startDate'),
+          endDate: any(named: 'endDate'),
+          muscleGroup: any(named: 'muscleGroup'),
+          limit: any(named: 'limit'),
+        ),
+      ).thenAnswer(
+        (_) async => Right([
+          WorkoutSet(
+            id: 'a74cfe8b-4f9a-4c39-96f1-eaa7063819e3',
+            exerciseId: 'ex-bench',
+            reps: 10,
+            weight: 85.0,
+            intensity: 3,
+            date: _now,
+            createdAt: _now,
+          ),
+        ]),
+      );
+
+      final tts = FakeVoiceTtsService();
+      final bloc = _makeBloc(
+        sendVoiceMessage: sendVoiceMessage,
+        getVoiceBudget: getBudget,
+        deleteVoiceHistory: deleteHistory,
+        appSettingsRepository: settingsRepo,
+        exerciseLookup: exerciseLookup,
+        getSetsByDateRange: getSetsByDateRange,
+        getLogsForDate: getLogsForDate,
+        getDailyMacros: getDailyMacros,
+        tts: tts,
+      );
+
+      await runQueryFlow(
+        bloc: bloc,
+        sendVoiceMessage: sendVoiceMessage,
+        toolName: 'getRecentSets',
+        args: const {},
+        session: authSession(),
+      );
+
+      expect(tts.lastSpoken, isNotNull);
+      final uuidPattern = RegExp(
+        r'[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}',
+      );
+      expect(
+        uuidPattern.hasMatch(tts.lastSpoken!),
+        isFalse,
+        reason: 'spoken readback must never contain a UUID',
+      );
+      await bloc.close();
+    });
+
+    test(
+      'warm-context fetch uses limit 5 (server-side bounded read)',
+      () async {
+        final localMock = MockGetSetsByDateRange();
+        when(
+          () => localMock(
+            startDate: any(named: 'startDate'),
+            endDate: any(named: 'endDate'),
+            muscleGroup: any(named: 'muscleGroup'),
+            limit: any(named: 'limit'),
+          ),
+        ).thenAnswer((_) async => const Right([]));
+
+        final bloc = _makeBloc(
+          sendVoiceMessage: sendVoiceMessage,
+          getVoiceBudget: getBudget,
+          deleteVoiceHistory: deleteHistory,
+          appSettingsRepository: settingsRepo,
+          getSetsByDateRange: localMock,
+          getLogsForDate: getLogsForDate,
+        );
+
+        // VoiceSendMessage → _buildRecentContext → _warmRecentCaches.
+        await runQueryFlow(
+          bloc: bloc,
+          sendVoiceMessage: sendVoiceMessage,
+          toolName: 'getRecentSets',
+          args: const {},
+          session: authSession(),
+        );
+
+        final capturedLimits = verify(
+          () => localMock(
+            startDate: any(named: 'startDate'),
+            endDate: any(named: 'endDate'),
+            muscleGroup: any(named: 'muscleGroup'),
+            limit: captureAny(named: 'limit'),
+          ),
+        ).captured;
+
+        expect(capturedLimits, contains(5));
+        await bloc.close();
+      },
+    );
+
+    test(
+      'no exerciseName: forwards tool limit to datasource server-side',
+      () async {
+        final localMock = MockGetSetsByDateRange();
+        when(
+          () => localMock(
+            startDate: any(named: 'startDate'),
+            endDate: any(named: 'endDate'),
+            muscleGroup: any(named: 'muscleGroup'),
+            limit: any(named: 'limit'),
+          ),
+        ).thenAnswer((_) async => const Right([]));
+
+        final bloc = _makeBloc(
+          sendVoiceMessage: sendVoiceMessage,
+          getVoiceBudget: getBudget,
+          deleteVoiceHistory: deleteHistory,
+          appSettingsRepository: settingsRepo,
+          getSetsByDateRange: localMock,
+          getLogsForDate: getLogsForDate,
+        );
+
+        await runQueryFlow(
+          bloc: bloc,
+          sendVoiceMessage: sendVoiceMessage,
+          toolName: 'getRecentSets',
+          args: const {'limit': 3},
+          session: authSession(),
+        );
+
+        final capturedLimits = verify(
+          () => localMock(
+            startDate: any(named: 'startDate'),
+            endDate: any(named: 'endDate'),
+            muscleGroup: any(named: 'muscleGroup'),
+            limit: captureAny(named: 'limit'),
+          ),
+        ).captured;
+
+        // The getRecentSets query call (no exerciseName) must push limit: 3
+        // server-side rather than fetching all rows then taking client-side.
+        expect(capturedLimits, contains(3));
+        await bloc.close();
+      },
+    );
+
+    test(
+      'with exerciseName: name-filters on client, server-side read unbounded',
+      () async {
+        _setupBenchLookup(exerciseLookup);
+        when(() => exerciseLookup.nameForId('ex-squat')).thenReturn('Squat');
+
+        final benchSet = WorkoutSet(
+          id: 'set-bench',
+          exerciseId: 'ex-bench',
+          reps: 10,
+          weight: 85.0,
+          intensity: 3,
+          date: _now,
+          createdAt: _now,
+        );
+        final squatSet = WorkoutSet(
+          id: 'set-squat',
+          exerciseId: 'ex-squat',
+          reps: 5,
+          weight: 100.0,
+          intensity: 4,
+          date: _now,
+          createdAt: _now,
+        );
+
+        when(
+          () => getSetsByDateRange(
+            startDate: any(named: 'startDate'),
+            endDate: any(named: 'endDate'),
+            muscleGroup: any(named: 'muscleGroup'),
+            limit: any(named: 'limit'),
+          ),
+        ).thenAnswer((_) async => Right([benchSet, squatSet]));
+
+        final tts = FakeVoiceTtsService();
+        final bloc = _makeBloc(
+          sendVoiceMessage: sendVoiceMessage,
+          getVoiceBudget: getBudget,
+          deleteVoiceHistory: deleteHistory,
+          appSettingsRepository: settingsRepo,
+          exerciseLookup: exerciseLookup,
+          getSetsByDateRange: getSetsByDateRange,
+          getLogsForDate: getLogsForDate,
+          getDailyMacros: getDailyMacros,
+          tts: tts,
+        );
+
+        await runQueryFlow(
+          bloc: bloc,
+          sendVoiceMessage: sendVoiceMessage,
+          toolName: 'getRecentSets',
+          args: const {'exerciseName': 'Bench Press'},
+          session: authSession(),
+        );
+
+        // Bench press is included; squat is filtered out.
+        expect(tts.lastSpoken?.contains('Bench Press'), isTrue);
+        expect(tts.lastSpoken?.contains('Squat'), isFalse);
         await bloc.close();
       },
     );
@@ -2120,6 +2333,7 @@ void main() {
           startDate: any(named: 'startDate'),
           endDate: any(named: 'endDate'),
           muscleGroup: any(named: 'muscleGroup'),
+          limit: any(named: 'limit'),
         ),
       ).thenAnswer((_) async => Right([editableSet]));
 
@@ -2559,6 +2773,7 @@ void main() {
             startDate: any(named: 'startDate'),
             endDate: any(named: 'endDate'),
             muscleGroup: any(named: 'muscleGroup'),
+            limit: any(named: 'limit'),
           ),
         ).thenAnswer((_) async => Right(persistedSets));
 
@@ -2682,6 +2897,7 @@ void main() {
           startDate: any(named: 'startDate'),
           endDate: any(named: 'endDate'),
           muscleGroup: any(named: 'muscleGroup'),
+          limit: any(named: 'limit'),
         ),
       ).thenAnswer((_) async => Right([initialSet]));
 
@@ -2756,6 +2972,7 @@ void main() {
           startDate: any(named: 'startDate'),
           endDate: any(named: 'endDate'),
           muscleGroup: any(named: 'muscleGroup'),
+          limit: any(named: 'limit'),
         ),
       ).thenAnswer((_) async => const Right(<WorkoutSet>[]));
 

@@ -20,12 +20,8 @@
 // new migration broadening the constraint in the same PR — this test
 // guarantees the two land together.
 
-import { assertEquals } from "https://deno.land/std@0.224.0/assert/mod.ts";
-import {
-  dirname,
-  fromFileUrl,
-  join,
-} from "https://deno.land/std@0.224.0/path/mod.ts";
+import { assertEquals } from "@std/assert";
+import { dirname, fromFileUrl, join } from "@std/path";
 
 const functionsDir = dirname(dirname(fromFileUrl(import.meta.url)));
 const supabaseDir = dirname(functionsDir);
