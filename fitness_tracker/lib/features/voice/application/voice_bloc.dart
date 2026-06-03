@@ -867,13 +867,14 @@ class VoiceBloc extends Bloc<VoiceEvent, VoiceState>
       // Warm the exercise lookup cache lazily (no-op if already populated).
       await _exerciseLookup.refreshIfStale();
 
-      // Datasource orders sets newest-first; take(5) = 5 most recent.
+      // Datasource orders sets newest-first; limit caps the read server-side.
       final setsResult = await _getSetsByDateRange(
         startDate: DateTime.now().subtract(const Duration(days: 7)),
         endDate: DateTime.now(),
+        limit: _recentCacheWindowSize,
       );
       final rawSets = setsResult.fold((_) => <WorkoutSet>[], (s) => s);
-      _cachedWorkoutSets = rawSets.take(5).toList();
+      _cachedWorkoutSets = rawSets.toList();
 
       final logsResult = await _getLogsForDate(DateTime.now());
       final rawLogs = logsResult.fold((_) => <NutritionLog>[], (l) => l);
@@ -1123,8 +1124,9 @@ class VoiceBloc extends Bloc<VoiceEvent, VoiceState>
     }
   }
 
-  /// Window size for [_cachedWorkoutSets] / [_cachedNutritionLogs]. Matches
-  /// the take(5) used by [_warmRecentCaches] — keep in sync.
+  /// Row cap passed to [_getSetsByDateRange] in [_warmRecentCaches] and used
+  /// for the no-filter path in [_queryRecentSets] — the datasource enforces
+  /// this server-side so no client-side `.take` is needed.
   static const int _recentCacheWindowSize = 5;
 
   // ---------------------------------------------------------------------------
@@ -1507,24 +1509,34 @@ class VoiceBloc extends Bloc<VoiceEvent, VoiceState>
     final limit = (args['limit'] as num?)?.toInt() ?? 5;
 
     final start = DateTime.now().subtract(const Duration(days: 30));
+
+    // When no name filter: push limit server-side (the common path).
+    // When a name filter is applied: fetch the full window first, then
+    // name-filter, then take — so the filter cannot starve on a pre-limited
+    // list (e.g. only 5 rows fetched, none matching the exercise name).
     final result = await _getSetsByDateRange(
       startDate: start,
       endDate: DateTime.now(),
+      limit: exerciseName == null ? limit : null,
     );
 
     return result.fold((_) => AppStrings.voiceQueryRecentSetsUnavailable, (
       sets,
     ) {
-      var filtered = sets;
+      final List<WorkoutSet> limited;
       if (exerciseName != null) {
         final lower = exerciseName.toLowerCase();
-        filtered = sets.where((s) {
-          final name = _exerciseNameForId(s.exerciseId).toLowerCase();
-          return name.contains(lower);
-        }).toList();
+        limited = sets
+            .where((s) {
+              final name = _exerciseNameForId(s.exerciseId).toLowerCase();
+              return name.contains(lower);
+            })
+            .take(limit)
+            .toList();
+      } else {
+        limited = sets;
       }
 
-      final limited = filtered.take(limit).toList();
       if (limited.isEmpty) {
         return exerciseName != null
             ? AppStrings.voiceQueryNoRecentSetsFor(exerciseName)
