@@ -1,5 +1,6 @@
 import 'package:bloc_test/bloc_test.dart';
 import 'package:fitness_tracker/app/auth_gate.dart';
+import 'package:fitness_tracker/app/auth_loading_view.dart';
 import 'package:fitness_tracker/core/auth/auth_session_service.dart';
 import 'package:fitness_tracker/domain/entities/app_session.dart';
 import 'package:fitness_tracker/domain/entities/app_user.dart';
@@ -17,6 +18,8 @@ class _MockProfileCubit extends MockCubit<ProfileState>
 class _MockAuthSessionService extends Mock implements AuthSessionService {}
 
 const _authenticatedChildKey = ValueKey<String>('authenticated-child');
+
+ProfileState _resolvingState() => ProfileState.initial();
 
 ProfileState _unauthenticatedState() =>
     const ProfileState(session: null, isLoading: false, hasLoaded: true);
@@ -102,6 +105,44 @@ void main() {
       expect(find.byType(SignInPage), findsOneWidget);
 
       // Let the streamed authenticated state propagate.
+      await tester.pump();
+
+      expect(find.byKey(_authenticatedChildKey), findsOneWidget);
+      expect(find.byType(SignInPage), findsNothing);
+    },
+  );
+
+  testWidgets(
+    'renders the loading splash while the session is still resolving',
+    (tester) async {
+      final cubit = _MockProfileCubit();
+      when(() => cubit.state).thenReturn(_resolvingState());
+
+      await tester.pumpWidget(_harness(cubit));
+
+      expect(find.byType(AuthLoadingView), findsOneWidget);
+      expect(find.byType(SignInPage), findsNothing);
+      expect(find.byKey(_authenticatedChildKey), findsNothing);
+    },
+  );
+
+  testWidgets(
+    'does not show SignInPage when an authenticated session resolves from a cold start',
+    (tester) async {
+      final cubit = _MockProfileCubit();
+      whenListen(
+        cubit,
+        Stream<ProfileState>.fromIterable([_authenticatedState()]),
+        initialState: _resolvingState(),
+      );
+
+      await tester.pumpWidget(_harness(cubit));
+
+      // While resolving: splash shown, sign-in page never appears.
+      expect(find.byType(AuthLoadingView), findsOneWidget);
+      expect(find.byType(SignInPage), findsNothing);
+
+      // After the authenticated state arrives: authenticated child shown, sign-in page still absent.
       await tester.pump();
 
       expect(find.byKey(_authenticatedChildKey), findsOneWidget);
