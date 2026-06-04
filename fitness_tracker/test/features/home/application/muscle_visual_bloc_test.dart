@@ -78,7 +78,7 @@ void main() {
   group('MuscleVisualBloc', () {
     group('LoadMuscleVisualsEvent', () {
       blocTest<MuscleVisualBloc, MuscleVisualState>(
-        'emits [Loading, Loaded] on success',
+        'emits [Loading(fatigue), Loaded(fatigue)] on success — default mode is fatigue',
         build: buildBloc,
         setUp: () {
           when(
@@ -87,13 +87,16 @@ void main() {
         },
         act: (bloc) => bloc.add(const LoadMuscleVisualsEvent(TimePeriod.week)),
         expect: () => [
-          const MuscleVisualLoading(TimePeriod.week),
-          _isLoaded(period: TimePeriod.week),
+          const MuscleVisualLoading(
+            TimePeriod.week,
+            mode: MuscleMapMode.fatigue,
+          ),
+          _isLoaded(period: TimePeriod.week, mode: MuscleMapMode.fatigue),
         ],
       );
 
       blocTest<MuscleVisualBloc, MuscleVisualState>(
-        'emits [Loading, Error] on use case failure',
+        'emits [Loading(fatigue), Error(fatigue)] on use case failure',
         build: buildBloc,
         setUp: () {
           when(
@@ -102,8 +105,15 @@ void main() {
         },
         act: (bloc) => bloc.add(const LoadMuscleVisualsEvent(TimePeriod.week)),
         expect: () => [
-          const MuscleVisualLoading(TimePeriod.week),
-          const MuscleVisualError(message: 'db error', period: TimePeriod.week),
+          const MuscleVisualLoading(
+            TimePeriod.week,
+            mode: MuscleMapMode.fatigue,
+          ),
+          const MuscleVisualError(
+            message: 'db error',
+            period: TimePeriod.week,
+            mode: MuscleMapMode.fatigue,
+          ),
         ],
       );
 
@@ -122,8 +132,11 @@ void main() {
           bloc.add(const LoadMuscleVisualsEvent(TimePeriod.week));
         },
         expect: () => [
-          const MuscleVisualLoading(TimePeriod.week),
-          _isLoaded(period: TimePeriod.week),
+          const MuscleVisualLoading(
+            TimePeriod.week,
+            mode: MuscleMapMode.fatigue,
+          ),
+          _isLoaded(period: TimePeriod.week, mode: MuscleMapMode.fatigue),
         ],
         // The use case must only be called once despite two load events
         verify: (_) => verify(() => mockGet(TimePeriod.week)).called(1),
@@ -189,19 +202,17 @@ void main() {
           ).thenAnswer((_) async => const Right(_weekData));
         },
         act: (bloc) async {
-          // First load week to populate cache
+          // Default mode is fatigue. Load week to populate cache.
           bloc.add(const LoadMuscleVisualsEvent(TimePeriod.week));
           await Future<void>.delayed(Duration.zero);
-          // Switch to fatigue mode (sets _currentMode = fatigue)
-          bloc.add(const ChangeModeEvent(MuscleMapMode.fatigue));
-          await Future<void>.delayed(Duration.zero);
-          // Change period → must flip back to volume
+          // Change period → must flip back to volume and load today.
           bloc.add(const ChangePeriodEvent(TimePeriod.today));
         },
         expect: () => [
-          const MuscleVisualLoading(TimePeriod.week),
-          _isLoaded(period: TimePeriod.week, mode: MuscleMapMode.volume),
-          // fatigue mode load uses week data from cache
+          const MuscleVisualLoading(
+            TimePeriod.week,
+            mode: MuscleMapMode.fatigue,
+          ),
           _isLoaded(period: TimePeriod.week, mode: MuscleMapMode.fatigue),
           // after period change, volume is restored
           const MuscleVisualLoading(
@@ -215,35 +226,91 @@ void main() {
 
     group('ChangeModeEvent', () {
       blocTest<MuscleVisualBloc, MuscleVisualState>(
-        'fatigue mode fetches week data regardless of current period',
+        'from Initial, ChangeModeEvent(fatigue) fetches week data and '
+        'emits Loaded(mode:fatigue, currentPeriod:month)',
         build: buildBloc,
         setUp: () {
-          when(
-            () => mockGet(TimePeriod.today),
-          ).thenAnswer((_) async => const Right(_weekData));
           when(
             () => mockGet(TimePeriod.week),
           ).thenAnswer((_) async => const Right(_weekData));
         },
+        // Default mode is already fatigue, but state is Initial → not a no-op.
+        act: (bloc) => bloc.add(const ChangeModeEvent(MuscleMapMode.fatigue)),
+        expect: () => [
+          const MuscleVisualLoading(
+            TimePeriod.month,
+            mode: MuscleMapMode.fatigue,
+          ),
+          _isLoaded(period: TimePeriod.month, mode: MuscleMapMode.fatigue),
+        ],
+        verify: (_) => verify(() => mockGet(TimePeriod.week)).called(1),
+      );
+
+      blocTest<MuscleVisualBloc, MuscleVisualState>(
+        'toggling to volume after fatigue loads the current period (month)',
+        build: buildBloc,
+        setUp: () {
+          when(
+            () => mockGet(TimePeriod.week),
+          ).thenAnswer((_) async => const Right(_weekData));
+          when(
+            () => mockGet(TimePeriod.month),
+          ).thenAnswer((_) async => const Right(_weekData));
+        },
         act: (bloc) async {
-          // Load today first so _currentPeriod = today
-          bloc.add(const LoadMuscleVisualsEvent(TimePeriod.today));
+          // Startup path: load fatigue (week)
+          bloc.add(const ChangeModeEvent(MuscleMapMode.fatigue));
           await Future<void>.delayed(Duration.zero);
-          // Switch to fatigue → should fetch week, not today
+          // Toggle to volume → loads month (the fallback _currentPeriod)
+          bloc.add(const ChangeModeEvent(MuscleMapMode.volume));
+        },
+        expect: () => [
+          const MuscleVisualLoading(
+            TimePeriod.month,
+            mode: MuscleMapMode.fatigue,
+          ),
+          _isLoaded(period: TimePeriod.month, mode: MuscleMapMode.fatigue),
+          const MuscleVisualLoading(
+            TimePeriod.month,
+            mode: MuscleMapMode.volume,
+          ),
+          _isLoaded(period: TimePeriod.month, mode: MuscleMapMode.volume),
+        ],
+      );
+
+      blocTest<MuscleVisualBloc, MuscleVisualState>(
+        'fatigue mode fetches week data regardless of current period',
+        build: buildBloc,
+        setUp: () {
+          when(
+            () => mockGet(TimePeriod.week),
+          ).thenAnswer((_) async => const Right(_weekData));
+          when(
+            () => mockGet(TimePeriod.month),
+          ).thenAnswer((_) async => const Right(_weekData));
+        },
+        act: (bloc) async {
+          // First: switch to volume (default is fatigue) → loads month
+          bloc.add(const ChangeModeEvent(MuscleMapMode.volume));
+          await Future<void>.delayed(Duration.zero);
+          // Switch back to fatigue → must fetch week, not month
           bloc.add(const ChangeModeEvent(MuscleMapMode.fatigue));
         },
         expect: () => [
-          const MuscleVisualLoading(TimePeriod.today),
-          _isLoaded(period: TimePeriod.today, mode: MuscleMapMode.volume),
           const MuscleVisualLoading(
-            TimePeriod.today,
+            TimePeriod.month,
+            mode: MuscleMapMode.volume,
+          ),
+          _isLoaded(period: TimePeriod.month, mode: MuscleMapMode.volume),
+          const MuscleVisualLoading(
+            TimePeriod.month,
             mode: MuscleMapMode.fatigue,
           ),
-          _isLoaded(period: TimePeriod.today, mode: MuscleMapMode.fatigue),
+          _isLoaded(period: TimePeriod.month, mode: MuscleMapMode.fatigue),
         ],
         verify: (_) {
-          verify(() => mockGet(TimePeriod.today)).called(1);
           verify(() => mockGet(TimePeriod.week)).called(1);
+          verify(() => mockGet(TimePeriod.month)).called(1);
         },
       );
 
@@ -254,38 +321,41 @@ void main() {
           when(
             () => mockGet(TimePeriod.week),
           ).thenAnswer((_) async => const Right(_weekData));
+          when(
+            () => mockGet(TimePeriod.month),
+          ).thenAnswer((_) async => const Right(_weekData));
         },
         act: (bloc) async {
-          // Load week first → caches week data
-          bloc.add(const LoadMuscleVisualsEvent(TimePeriod.week));
+          // Load fatigue (week) → caches week data
+          bloc.add(const ChangeModeEvent(MuscleMapMode.fatigue));
           await Future<void>.delayed(Duration.zero);
-          // Switch to fatigue → week cache is valid, no second fetch
+          // Toggle to volume
+          bloc.add(const ChangeModeEvent(MuscleMapMode.volume));
+          await Future<void>.delayed(Duration.zero);
+          // Back to fatigue → week cache is valid, no second fetch
           bloc.add(const ChangeModeEvent(MuscleMapMode.fatigue));
         },
         expect: () => [
-          const MuscleVisualLoading(TimePeriod.week),
-          _isLoaded(period: TimePeriod.week, mode: MuscleMapMode.volume),
-          _isLoaded(period: TimePeriod.week, mode: MuscleMapMode.fatigue),
+          const MuscleVisualLoading(
+            TimePeriod.month,
+            mode: MuscleMapMode.fatigue,
+          ),
+          _isLoaded(period: TimePeriod.month, mode: MuscleMapMode.fatigue),
+          const MuscleVisualLoading(
+            TimePeriod.month,
+            mode: MuscleMapMode.volume,
+          ),
+          _isLoaded(period: TimePeriod.month, mode: MuscleMapMode.volume),
+          _isLoaded(period: TimePeriod.month, mode: MuscleMapMode.fatigue),
         ],
-        verify: (_) => verify(() => mockGet(TimePeriod.week)).called(1),
+        verify: (_) {
+          verify(() => mockGet(TimePeriod.week)).called(1);
+          verify(() => mockGet(TimePeriod.month)).called(1);
+        },
       );
 
       blocTest<MuscleVisualBloc, MuscleVisualState>(
-        'is a no-op when already in the same mode and loaded',
-        build: buildBloc,
-        seed: () => MuscleVisualLoaded(
-          muscleData: _weekData,
-          currentPeriod: TimePeriod.month,
-          loadedAt: DateTime(2026, 4, 7),
-        ),
-        act: (bloc) => bloc.add(const ChangeModeEvent(MuscleMapMode.volume)),
-        expect: () => <MuscleVisualState>[],
-      );
-    });
-
-    group('RefreshVisualsEvent', () {
-      blocTest<MuscleVisualBloc, MuscleVisualState>(
-        'bypasses cache and reloads current period',
+        'is a no-op when already in fatigue mode and loaded',
         build: buildBloc,
         setUp: () {
           when(
@@ -293,17 +363,50 @@ void main() {
           ).thenAnswer((_) async => const Right(_weekData));
         },
         act: (bloc) async {
-          // Load once to populate cache
+          // First dispatch loads fatigue
+          bloc.add(const ChangeModeEvent(MuscleMapMode.fatigue));
+          await Future<void>.delayed(Duration.zero);
+          // Same mode + Loaded → no-op
+          bloc.add(const ChangeModeEvent(MuscleMapMode.fatigue));
+        },
+        expect: () => [
+          const MuscleVisualLoading(
+            TimePeriod.month,
+            mode: MuscleMapMode.fatigue,
+          ),
+          _isLoaded(period: TimePeriod.month, mode: MuscleMapMode.fatigue),
+        ],
+        verify: (_) => verify(() => mockGet(TimePeriod.week)).called(1),
+      );
+    });
+
+    group('RefreshVisualsEvent', () {
+      blocTest<MuscleVisualBloc, MuscleVisualState>(
+        'bypasses cache and reloads — in fatigue mode fetches week',
+        build: buildBloc,
+        setUp: () {
+          when(
+            () => mockGet(TimePeriod.week),
+          ).thenAnswer((_) async => const Right(_weekData));
+        },
+        act: (bloc) async {
+          // Load once to populate cache (fatigue = week)
           bloc.add(const LoadMuscleVisualsEvent(TimePeriod.week));
           await Future<void>.delayed(Duration.zero);
           // Refresh clears cache and reloads
           bloc.add(const RefreshVisualsEvent());
         },
         expect: () => [
-          const MuscleVisualLoading(TimePeriod.week),
-          _isLoaded(period: TimePeriod.week),
-          const MuscleVisualLoading(TimePeriod.week),
-          _isLoaded(period: TimePeriod.week),
+          const MuscleVisualLoading(
+            TimePeriod.week,
+            mode: MuscleMapMode.fatigue,
+          ),
+          _isLoaded(period: TimePeriod.week, mode: MuscleMapMode.fatigue),
+          const MuscleVisualLoading(
+            TimePeriod.week,
+            mode: MuscleMapMode.fatigue,
+          ),
+          _isLoaded(period: TimePeriod.week, mode: MuscleMapMode.fatigue),
         ],
         verify: (_) => verify(() => mockGet(TimePeriod.week)).called(2),
       );
@@ -311,18 +414,25 @@ void main() {
 
     group('ClearCacheEvent', () {
       blocTest<MuscleVisualBloc, MuscleVisualState>(
-        'clears cache and triggers a fresh load of the current period',
+        'clears cache and reloads via RefreshVisualsEvent — '
+        'in fatigue mode fetches week, not month',
         build: buildBloc,
         setUp: () {
+          // ClearCacheEvent now dispatches RefreshVisualsEvent, which is
+          // mode-aware: fatigue → fetches TimePeriod.week.
           when(
-            () => mockGet(TimePeriod.month),
+            () => mockGet(TimePeriod.week),
           ).thenAnswer((_) async => const Right(_weekData));
         },
         act: (bloc) => bloc.add(const ClearCacheEvent()),
         expect: () => [
-          const MuscleVisualLoading(TimePeriod.month),
-          _isLoaded(period: TimePeriod.month),
+          const MuscleVisualLoading(
+            TimePeriod.month,
+            mode: MuscleMapMode.fatigue,
+          ),
+          _isLoaded(period: TimePeriod.month, mode: MuscleMapMode.fatigue),
         ],
+        verify: (_) => verify(() => mockGet(TimePeriod.week)).called(1),
       );
     });
   });
