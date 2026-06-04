@@ -5,7 +5,11 @@ import 'package:flutter_test/flutter_test.dart';
 void main() {
   final DateTime baseDate = DateTime(2026, 6, 2, 10, 30, 0);
 
-  MuscleStimulusModel buildModel({DateTime? createdAt, DateTime? updatedAt}) {
+  MuscleStimulusModel buildModel({
+    DateTime? createdAt,
+    DateTime? updatedAt,
+    double dailyVolume = 0.0,
+  }) {
     final d = createdAt ?? baseDate;
     return MuscleStimulusModel(
       id: 'stim-1',
@@ -14,6 +18,7 @@ void main() {
       date: DateTime(2026, 6, 2),
       dailyStimulus: 5.0,
       rollingWeeklyLoad: 12.0,
+      dailyVolume: dailyVolume,
       createdAt: d,
       updatedAt: updatedAt ?? d,
     );
@@ -75,6 +80,42 @@ void main() {
       final roundTripped = MuscleStimulusModel.fromJson(model.toJson());
       expect(roundTripped.createdAt.isAtSameMomentAs(model.createdAt), isTrue);
       expect(roundTripped.createdAt.isUtc, isFalse);
+    });
+  });
+
+  group('MuscleStimulusModel dailyVolume', () {
+    test('toMap / fromMap round-trips a non-zero dailyVolume', () {
+      final model = buildModel(dailyVolume: 4800.0);
+      final roundTripped = MuscleStimulusModel.fromMap(model.toMap());
+      expect(roundTripped.dailyVolume, closeTo(4800.0, 0.001));
+    });
+
+    test('fromMap tolerates a missing daily_volume key (legacy row → 0.0)', () {
+      final map = buildModel().toMap()
+        ..remove(DatabaseTables.stimulusDailyVolume);
+      final parsed = MuscleStimulusModel.fromMap(map);
+      expect(parsed.dailyVolume, closeTo(0.0, 0.001));
+    });
+
+    test('toJson / fromJson round-trips a non-zero dailyVolume', () {
+      final model = buildModel(dailyVolume: 1234.5);
+      final roundTripped = MuscleStimulusModel.fromJson(model.toJson());
+      expect(roundTripped.dailyVolume, closeTo(1234.5, 0.001));
+    });
+
+    test(
+      'fromJson tolerates a missing dailyVolume key (legacy JSON → 0.0)',
+      () {
+        final json = buildModel().toJson()..remove('dailyVolume');
+        final parsed = MuscleStimulusModel.fromJson(json);
+        expect(parsed.dailyVolume, closeTo(0.0, 0.001));
+      },
+    );
+
+    test('fromEntity preserves dailyVolume', () {
+      final entity = buildModel(dailyVolume: 999.0);
+      final fromEntity = MuscleStimulusModel.fromEntity(entity);
+      expect(fromEntity.dailyVolume, closeTo(999.0, 0.001));
     });
   });
 }

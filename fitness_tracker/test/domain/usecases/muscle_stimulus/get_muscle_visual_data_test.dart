@@ -323,4 +323,112 @@ void main() {
       isFalse,
     );
   });
+
+  // ---------------------------------------------------------------------------
+  // All-time: relative total-volume ranking
+  // ---------------------------------------------------------------------------
+  //
+  // Scenario: quads has 10 000 total volume (the maximum), mid-chest has
+  // 2 000, and every other muscle has 0.  Expected outcome:
+  //   quads     → maximum bucket (ratio 1.0 → red)
+  //   mid-chest → some trained bucket (ratio 0.2 → green)
+  //   others    → untrained (gray)
+
+  group('All-time relative total-volume ranking', () {
+    setUp(() {
+      for (final m in stimulus_constants.MuscleStimulus.allMuscleGroups) {
+        double volume = 0.0;
+        if (m == stimulus_constants.MuscleStimulus.quads) volume = 10000.0;
+        if (m == stimulus_constants.MuscleStimulus.midChest) volume = 2000.0;
+
+        when(
+          () => repository.getTotalVolumeForMuscle(
+            m,
+            startDate: null,
+            endDate: null,
+          ),
+        ).thenAnswer((_) async => Right(volume));
+      }
+    });
+
+    test('most-trained muscle (quads) reaches maximum bucket', () async {
+      final result = await usecase(TimePeriod.allTime);
+      final data = result.getOrElse(() => throw StateError('expected data'));
+
+      expect(
+        data[stimulus_constants.MuscleStimulus.quads]!.bucket,
+        MuscleVisualBucket.maximum,
+        reason: 'the muscle with the highest total volume must be maximum/red',
+      );
+      expect(data[stimulus_constants.MuscleStimulus.quads]!.hasTrained, isTrue);
+    });
+
+    test(
+      'lightly-trained muscle (mid-chest, 20 % of max) is trained/green',
+      () async {
+        final result = await usecase(TimePeriod.allTime);
+        final data = result.getOrElse(() => throw StateError('expected data'));
+
+        final chest = data[stimulus_constants.MuscleStimulus.midChest]!;
+        expect(
+          chest.hasTrained,
+          isTrue,
+          reason: 'a muscle with non-zero total volume must be trained',
+        );
+        // ratio 0.2 → below orange threshold → green or low bucket
+        expect(
+          chest.bucket,
+          isNot(MuscleVisualBucket.maximum),
+          reason: '20 %% of max must not be the maximum bucket',
+        );
+      },
+    );
+
+    test('untrained muscles render as untrained (gray)', () async {
+      final result = await usecase(TimePeriod.allTime);
+      final data = result.getOrElse(() => throw StateError('expected data'));
+
+      final untrainedMuscles = stimulus_constants.MuscleStimulus.allMuscleGroups
+          .where(
+            (m) =>
+                m != stimulus_constants.MuscleStimulus.quads &&
+                m != stimulus_constants.MuscleStimulus.midChest,
+          )
+          .toList();
+
+      for (final m in untrainedMuscles) {
+        expect(
+          data[m]!.hasTrained,
+          isFalse,
+          reason: '$m has 0 volume and must render as untrained',
+        );
+      }
+    });
+
+    test(
+      'all-untrained (zero volume across all muscles) → all untrained',
+      () async {
+        // Override all muscles to zero
+        for (final m in stimulus_constants.MuscleStimulus.allMuscleGroups) {
+          when(
+            () => repository.getTotalVolumeForMuscle(
+              m,
+              startDate: null,
+              endDate: null,
+            ),
+          ).thenAnswer((_) async => const Right(0.0));
+        }
+
+        final result = await usecase(TimePeriod.allTime);
+        final data = result.getOrElse(() => throw StateError('expected data'));
+
+        expect(
+          data.values.every((d) => !d.hasTrained),
+          isTrue,
+          reason:
+              'with no workout history, every muscle must be untrained/gray',
+        );
+      },
+    );
+  });
 }

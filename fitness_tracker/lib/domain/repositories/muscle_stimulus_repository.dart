@@ -49,6 +49,15 @@ abstract class MuscleStimulusRepository {
   /// Get maximum daily stimulus ever recorded for a muscle.
   Future<Either<Failure, double>> getMaxStimulusForMuscle(String muscleGroup);
 
+  /// Sum of [daily_volume] for [muscleGroup] owned by the current user,
+  /// optionally constrained to [[startDate], [endDate]] inclusive.
+  /// Returns 0.0 when no rows match.
+  Future<Either<Failure, double>> getTotalVolumeForMuscle(
+    String muscleGroup, {
+    DateTime? startDate,
+    DateTime? endDate,
+  });
+
   /// Delete stimulus records older than [date].
   Future<Either<Failure, void>> deleteOlderThan(DateTime date);
 

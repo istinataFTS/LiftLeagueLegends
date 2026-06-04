@@ -98,6 +98,35 @@ class CalculateMuscleStimulus {
     }
   }
 
+  /// Returns `muscleGroup → factor (0..1)` for [exerciseId].
+  ///
+  /// Empty map when factors are unseeded (warning logged, matching the
+  /// behaviour of [calculateForSet] in the same situation). Use this to
+  /// compute volume (weight×reps×factor) in the rebuild loop instead of
+  /// calling [calculateForSet] twice per exercise.
+  Future<Either<Failure, Map<String, double>>> factorsForExercise(
+    String exerciseId,
+  ) async {
+    try {
+      final result = await muscleFactorRepository.getFactorsForExercise(
+        exerciseId,
+      );
+      return result.fold((f) => Left(f), (factors) {
+        if (factors.isEmpty) {
+          AppLogger.warning(
+            'No muscle factors for exerciseId=$exerciseId — '
+            'body map will not update.',
+            category: 'stimulus',
+          );
+          return const Right(<String, double>{});
+        }
+        return Right({for (final f in factors) f.muscleGroup: f.factor});
+      });
+    } catch (e) {
+      return Left(UnexpectedFailure('Failed to get muscle factors: $e'));
+    }
+  }
+
   double calculateIntensityFactor(int intensity) {
     return StimulusCalculationRules.calculateIntensityFactor(intensity);
   }

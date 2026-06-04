@@ -173,6 +173,7 @@ class DatabaseHelper {
         ${DatabaseTables.stimulusRollingWeeklyLoad} REAL NOT NULL DEFAULT 0.0,
         ${DatabaseTables.stimulusLastSetTimestamp} INTEGER,
         ${DatabaseTables.stimulusLastSetStimulus} REAL,
+        ${DatabaseTables.stimulusDailyVolume} REAL NOT NULL DEFAULT 0.0,
         ${DatabaseTables.stimulusCreatedAt} TEXT NOT NULL,
         ${DatabaseTables.stimulusUpdatedAt} TEXT NOT NULL,
         UNIQUE(${DatabaseTables.ownerUserId}, ${DatabaseTables.stimulusMuscleGroup}, ${DatabaseTables.stimulusDate})
@@ -539,6 +540,17 @@ class DatabaseHelper {
       // ever recreate one. See KNOWN_ISSUES.md anchor
       // #guest-catalog-pk-collision-blocks-initial-sign-in.
       await purgeGuestOwnedRowsAndCatalogFlags(db);
+    }
+
+    if (oldVersion < 23) {
+      // Add the per-day, per-muscle training volume column used by the
+      // Month/All-time relative-volume comparison.  Existing rows default to
+      // 0.0 — RebuildMuscleStimulusFromWorkoutHistory repopulates the full
+      // history on the next launch/sync so no manual backfill is needed.
+      await db.execute(
+        'ALTER TABLE ${DatabaseTables.muscleStimulus} '
+        'ADD COLUMN ${DatabaseTables.stimulusDailyVolume} REAL NOT NULL DEFAULT 0.0',
+      );
     }
 
     await _createIndexes(db);

@@ -66,6 +66,7 @@ void main() {
         ${DatabaseTables.stimulusRollingWeeklyLoad} REAL NOT NULL DEFAULT 0.0,
         ${DatabaseTables.stimulusLastSetTimestamp} INTEGER,
         ${DatabaseTables.stimulusLastSetStimulus} REAL,
+        ${DatabaseTables.stimulusDailyVolume} REAL NOT NULL DEFAULT 0.0,
         ${DatabaseTables.stimulusCreatedAt} TEXT NOT NULL,
         ${DatabaseTables.stimulusUpdatedAt} TEXT NOT NULL,
         UNIQUE(${DatabaseTables.ownerUserId}, ${DatabaseTables.stimulusMuscleGroup}, ${DatabaseTables.stimulusDate})
@@ -488,6 +489,177 @@ void main() {
       expect(result.rollingWeeklyLoad, 14.0);
       expect(result.lastSetTimestamp, 1000);
       expect(result.lastSetStimulus, 3.0);
+    });
+  });
+
+  // ---------------------------------------------------------------------------
+  // getTotalVolumeForMuscle
+  // ---------------------------------------------------------------------------
+
+  MuscleStimulusModel buildStimulusWithVolume({
+    required String id,
+    required String ownerUserId,
+    String muscleGroup = 'mid-chest',
+    required DateTime date,
+    double dailyVolume = 0.0,
+  }) => MuscleStimulusModel(
+    id: id,
+    ownerUserId: ownerUserId,
+    muscleGroup: muscleGroup,
+    date: date,
+    dailyStimulus: 1.0,
+    rollingWeeklyLoad: 1.0,
+    dailyVolume: dailyVolume,
+    createdAt: date,
+    updatedAt: date,
+  );
+
+  group('getTotalVolumeForMuscle', () {
+    test('sums daily_volume for the current user, no window', () async {
+      await dataSource.upsertStimulus(
+        buildStimulusWithVolume(
+          id: 'a-1',
+          ownerUserId: userA,
+          date: baseDate,
+          dailyVolume: 1000.0,
+        ),
+      );
+      await dataSource.upsertStimulus(
+        buildStimulusWithVolume(
+          id: 'a-2',
+          ownerUserId: userA,
+          date: yesterday,
+          dailyVolume: 500.0,
+        ),
+      );
+
+      final total = await dataSource.getTotalVolumeForMuscle('mid-chest');
+      expect(total, closeTo(1500.0, 0.001));
+    });
+
+    test('excludes another user\'s rows', () async {
+      await dataSource.upsertStimulus(
+        buildStimulusWithVolume(
+          id: 'a-1',
+          ownerUserId: userA,
+          date: baseDate,
+          dailyVolume: 1000.0,
+        ),
+      );
+      await dataSource.upsertStimulus(
+        buildStimulusWithVolume(
+          id: 'b-1',
+          ownerUserId: userB,
+          date: baseDate,
+          dailyVolume: 9999.0,
+        ),
+      );
+
+      final total = await dataSource.getTotalVolumeForMuscle('mid-chest');
+      expect(total, closeTo(1000.0, 0.001));
+    });
+
+    test('returns 0.0 when user has no rows for that muscle', () async {
+      await dataSource.upsertStimulus(
+        buildStimulusWithVolume(
+          id: 'a-back',
+          ownerUserId: userA,
+          muscleGroup: 'lats',
+          date: baseDate,
+          dailyVolume: 500.0,
+        ),
+      );
+
+      final total = await dataSource.getTotalVolumeForMuscle('mid-chest');
+      expect(total, closeTo(0.0, 0.001));
+    });
+
+    test('startDate bound is inclusive', () async {
+      // baseDate = 2026-04-07, yesterday = 2026-04-06
+      await dataSource.upsertStimulus(
+        buildStimulusWithVolume(
+          id: 'a-base',
+          ownerUserId: userA,
+          date: baseDate,
+          dailyVolume: 800.0,
+        ),
+      );
+      await dataSource.upsertStimulus(
+        buildStimulusWithVolume(
+          id: 'a-yest',
+          ownerUserId: userA,
+          date: yesterday,
+          dailyVolume: 200.0,
+        ),
+      );
+
+      // startDate = baseDate → only the baseDate row is included
+      final total = await dataSource.getTotalVolumeForMuscle(
+        'mid-chest',
+        startDate: baseDate,
+      );
+      expect(total, closeTo(800.0, 0.001));
+    });
+
+    test('endDate bound is inclusive', () async {
+      await dataSource.upsertStimulus(
+        buildStimulusWithVolume(
+          id: 'a-base',
+          ownerUserId: userA,
+          date: baseDate,
+          dailyVolume: 800.0,
+        ),
+      );
+      await dataSource.upsertStimulus(
+        buildStimulusWithVolume(
+          id: 'a-yest',
+          ownerUserId: userA,
+          date: yesterday,
+          dailyVolume: 200.0,
+        ),
+      );
+
+      // endDate = yesterday → only the yesterday row is included
+      final total = await dataSource.getTotalVolumeForMuscle(
+        'mid-chest',
+        endDate: yesterday,
+      );
+      expect(total, closeTo(200.0, 0.001));
+    });
+
+    test('windowed query sums only rows within [startDate, endDate]', () async {
+      await dataSource.upsertStimulus(
+        buildStimulusWithVolume(
+          id: 'a-base',
+          ownerUserId: userA,
+          date: baseDate,
+          dailyVolume: 800.0,
+        ),
+      );
+      await dataSource.upsertStimulus(
+        buildStimulusWithVolume(
+          id: 'a-yest',
+          ownerUserId: userA,
+          date: yesterday,
+          dailyVolume: 200.0,
+        ),
+      );
+      await dataSource.upsertStimulus(
+        buildStimulusWithVolume(
+          id: 'a-old',
+          ownerUserId: userA,
+          date: twoDaysAgo,
+          dailyVolume: 100.0,
+        ),
+      );
+
+      // Window [yesterday, baseDate] → 200 + 800 = 1000
+      final total = await dataSource.getTotalVolumeForMuscle(
+        'mid-chest',
+        startDate: yesterday,
+        endDate: baseDate,
+      );
+      expect(total, closeTo(1000.0, 0.001));
     });
   });
 }
