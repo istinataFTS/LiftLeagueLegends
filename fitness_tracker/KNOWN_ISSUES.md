@@ -120,6 +120,7 @@ Numbered steps or a short paragraph. State what to do and what *not* to do.
 30. [history-calendar-dot-disagrees-with-day-detail-for-orphan-sets](#history-calendar-dot-disagrees-with-day-detail-for-orphan-sets)
 31. [signin-does-not-navigate-until-restart](#signin-does-not-navigate-until-restart)
 32. [auth-gate-must-not-flash-signin-before-session-resolves](#auth-gate-must-not-flash-signin-before-session-resolves)
+33. [muscle-stimulus-rebuild-dst-day-iteration](#muscle-stimulus-rebuild-dst-day-iteration)
 
 ---
 
@@ -1523,3 +1524,32 @@ Derive a three-way status from `ProfileState`: `hasLoaded == false` → a neutra
 - `lib/features/profile/application/profile_cubit.dart:287-318` — `hasLoaded` set in both branches
 - `test/app/auth_gate_test.dart` — resolving + cold-start regression tests
 - PR `#107` — fix
+
+---
+
+### muscle-stimulus-rebuild-dst-day-iteration
+
+- **Severity:** High
+- **Status:** Resolved-but-monitor
+- **First observed:** 2026-06-03
+- **Last verified:** 2026-06-03
+- **Area:** other
+
+**Symptom**
+
+After a workout history spanning a daylight-saving spring-forward, the 2D muscle model (Fatigue/Month/All-time) stops reflecting newly logged sets. All-time shows only the oldest (pre-DST) set; Month and Fatigue show nothing for recent sets. Deleting the oldest pre-DST set restores correct behaviour for every newer set.
+
+**Root cause**
+
+`RebuildMuscleStimulusFromWorkoutHistory._buildRecords` keyed its per-day aggregation maps by local-midnight `DateTime` but stepped the day loop with `day.add(const Duration(days: 1))` — a fixed 24 h of elapsed time. Across the EU spring-forward (clocks jump 03:00→04:00, e.g. late March in `Europe/Sofia`) a calendar day is only 23 h long. So the loop variable drifts to 01:00 for every subsequent day, while the map keys are exact local midnights. `dailyStimulusByDate[day]` and `lastSetByDate[day]` both miss, and each post-transition day's stimulus is written as 0 with no `last_set_timestamp`.
+
+**Workaround / fix**
+
+Step the loop with calendar-component arithmetic (`CalendarDay.nextDay`), which constructs `DateTime(y, m, d + 1)` and always re-normalises to local midnight. Use `CalendarDay.calendarDaysBetween` (UTC-normalised) for any day-gap math. Never iterate or measure calendar days with `Duration(days: N)` in production code.
+
+**References**
+
+- `lib/core/utils/calendar_day.dart` — DST-safe helper (introduced by this fix)
+- `lib/domain/usecases/muscle_stimulus/rebuild_muscle_stimulus_from_workout_history.dart` — loop step changed to `CalendarDay.nextDay`
+- `test/core/utils/calendar_day_test.dart` — helper contract tests
+- `test/domain/usecases/muscle_stimulus/rebuild_muscle_stimulus_from_workout_history_test.dart` — rebuild invariant tests
