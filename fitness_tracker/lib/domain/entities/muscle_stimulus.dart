@@ -34,6 +34,11 @@ class MuscleStimulus extends Equatable {
   /// and rows from before the v23 migration default to 0.0.
   final double dailyVolume;
 
+  /// Running fatigue (0–100) as of [lastSetTimestamp]; the read layer applies
+  /// recovery decay to "now". Carry-forward (gap) days store the at-last-set
+  /// value unchanged. Rows from before the v24 migration default to 0.0.
+  final double fatigueScore;
+
   final DateTime createdAt;
   final DateTime updatedAt;
 
@@ -47,6 +52,7 @@ class MuscleStimulus extends Equatable {
     this.lastSetTimestamp,
     this.lastSetStimulus,
     this.dailyVolume = 0.0,
+    this.fatigueScore = 0.0,
     required this.createdAt,
     required this.updatedAt,
   });
@@ -124,6 +130,7 @@ class MuscleStimulus extends Equatable {
     int? lastSetTimestamp,
     double? lastSetStimulus,
     double? dailyVolume,
+    double? fatigueScore,
     DateTime? createdAt,
     DateTime? updatedAt,
   }) {
@@ -137,6 +144,7 @@ class MuscleStimulus extends Equatable {
       lastSetTimestamp: lastSetTimestamp ?? this.lastSetTimestamp,
       lastSetStimulus: lastSetStimulus ?? this.lastSetStimulus,
       dailyVolume: dailyVolume ?? this.dailyVolume,
+      fatigueScore: fatigueScore ?? this.fatigueScore,
       createdAt: createdAt ?? this.createdAt,
       updatedAt: updatedAt ?? this.updatedAt,
     );
@@ -153,6 +161,7 @@ class MuscleStimulus extends Equatable {
     lastSetTimestamp,
     lastSetStimulus,
     dailyVolume,
+    fatigueScore,
     createdAt,
     updatedAt,
   ];

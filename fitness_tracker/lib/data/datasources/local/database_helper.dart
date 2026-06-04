@@ -174,6 +174,7 @@ class DatabaseHelper {
         ${DatabaseTables.stimulusLastSetTimestamp} INTEGER,
         ${DatabaseTables.stimulusLastSetStimulus} REAL,
         ${DatabaseTables.stimulusDailyVolume} REAL NOT NULL DEFAULT 0.0,
+        ${DatabaseTables.stimulusFatigueScore} REAL NOT NULL DEFAULT 0.0,
         ${DatabaseTables.stimulusCreatedAt} TEXT NOT NULL,
         ${DatabaseTables.stimulusUpdatedAt} TEXT NOT NULL,
         UNIQUE(${DatabaseTables.ownerUserId}, ${DatabaseTables.stimulusMuscleGroup}, ${DatabaseTables.stimulusDate})
@@ -550,6 +551,16 @@ class DatabaseHelper {
       await db.execute(
         'ALTER TABLE ${DatabaseTables.muscleStimulus} '
         'ADD COLUMN ${DatabaseTables.stimulusDailyVolume} REAL NOT NULL DEFAULT 0.0',
+      );
+    }
+
+    if (oldVersion < 24) {
+      // Add the running fatigue score (0–100) as-of the last set.
+      // The read layer applies recovery decay to "now"; the rebuild repopulates
+      // on the next launch/sync so no manual backfill is needed.
+      await db.execute(
+        'ALTER TABLE ${DatabaseTables.muscleStimulus} '
+        'ADD COLUMN ${DatabaseTables.stimulusFatigueScore} REAL NOT NULL DEFAULT 0.0',
       );
     }
 

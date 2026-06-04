@@ -5,6 +5,7 @@ import 'package:fitness_tracker/core/enums/data_source_preference.dart';
 import 'package:fitness_tracker/core/utils/calendar_day.dart';
 import 'package:fitness_tracker/domain/entities/muscle_factor.dart';
 import 'package:fitness_tracker/domain/entities/muscle_stimulus.dart';
+import 'package:fitness_tracker/domain/entities/stimulus_calculation_rules.dart';
 import 'package:fitness_tracker/domain/entities/workout_set.dart';
 import 'package:fitness_tracker/domain/repositories/muscle_factor_repository.dart';
 import 'package:fitness_tracker/domain/repositories/muscle_stimulus_repository.dart';
@@ -374,6 +375,282 @@ void main() {
           reason:
               'rebuild must emit exactly one set of records per calendar '
               'day from earliest to today (inclusive)',
+        );
+      },
+    );
+
+    // -------------------------------------------------------------------------
+    // fatigueScore correctness
+    // -------------------------------------------------------------------------
+
+    test(
+      'single set today: fatigueScore == fatigueGain(weight,reps,intensity,factor)',
+      () async {
+        // bench: weight=80, reps=8, intensity=4
+        // mid-chest factor = 0.9
+        // multiplier(4) = 1 + ((4-1)/4)^2 = 1 + (0.75)^2 = 1.5625
+        // gain = 80*8 * 1.5625 * 0.9 / 250 = 640 * 1.5625 * 0.9 / 250
+        //      = 900 / 250 = 3.6
+        final todayMidnight = CalendarDay.startOfDay(fixedToday);
+
+        final expectedGain = StimulusCalculationRules.fatigueGain(
+          weight: 80.0,
+          reps: 8,
+          intensity: 4,
+          muscleFactor: 0.9,
+        );
+
+        final uc = _usecaseWith([
+          WorkoutSet(
+            id: 'bench-today',
+            exerciseId: 'bench',
+            reps: 8,
+            weight: 80,
+            intensity: 4,
+            date: todayMidnight.add(const Duration(hours: 9)),
+            createdAt: todayMidnight.add(const Duration(hours: 9)),
+          ),
+        ]);
+
+        upsertedRecords.clear();
+        final result = await uc(testUserId);
+        expect(result.isRight(), isTrue);
+
+        final todayChest = upsertedRecords.firstWhere(
+          (r) =>
+              r.date == todayMidnight &&
+              r.muscleGroup == stimulus_constants.MuscleStimulus.midChest,
+        );
+        expect(
+          todayChest.fatigueScore,
+          closeTo(expectedGain, 1e-9),
+          reason: 'single set: fatigueScore must equal the raw gain',
+        );
+      },
+    );
+
+    test('two sets on same day: gains sum then cap at 100', () async {
+      // Use very heavy sets to force cap.
+      // weight=1000, reps=100, intensity=5, factor=0.9
+      // multiplier(5)=2.0; gain = 1000*100 * 2.0 * 0.9 / 250 = 720
+      // Two such sets → 720+720=1440, capped at 100.
+      final todayMidnight = CalendarDay.startOfDay(fixedToday);
+
+      // Override bench factors to use factor=0.9 only for mid-chest
+      when(
+        () => muscleFactorRepository.getFactorsForExercise('heavy'),
+      ).thenAnswer(
+        (_) async => const Right(<MuscleFactor>[
+          MuscleFactor(
+            id: 'heavy-chest',
+            exerciseId: 'heavy',
+            muscleGroup: 'mid-chest',
+            factor: 0.9,
+          ),
+        ]),
+      );
+
+      final uc = _usecaseWith([
+        WorkoutSet(
+          id: 'h1',
+          exerciseId: 'heavy',
+          reps: 100,
+          weight: 1000,
+          intensity: 5,
+          date: todayMidnight.add(const Duration(hours: 9)),
+          createdAt: todayMidnight.add(const Duration(hours: 9)),
+        ),
+        WorkoutSet(
+          id: 'h2',
+          exerciseId: 'heavy',
+          reps: 100,
+          weight: 1000,
+          intensity: 5,
+          date: todayMidnight.add(const Duration(hours: 10)),
+          createdAt: todayMidnight.add(const Duration(hours: 10)),
+        ),
+      ]);
+
+      upsertedRecords.clear();
+      await uc(testUserId);
+
+      final todayChest = upsertedRecords.firstWhere(
+        (r) =>
+            r.date == todayMidnight &&
+            r.muscleGroup == stimulus_constants.MuscleStimulus.midChest,
+      );
+      expect(
+        todayChest.fatigueScore,
+        closeTo(100.0, 1e-9),
+        reason: 'combined gain > 100 must cap at 100',
+      );
+    });
+
+    test(
+      'set on day A then day A+3: day A+3 fatigueScore == accumulate(decay(A, 3), gainA3)',
+      () async {
+        final todayMidnight = CalendarDay.startOfDay(fixedToday);
+        final dayA = DateTime(
+          todayMidnight.year,
+          todayMidnight.month,
+          todayMidnight.day - 3,
+        );
+
+        // bench: weight=80, reps=8, intensity=4, mid-chest factor=0.9
+        final gainA = StimulusCalculationRules.fatigueGain(
+          weight: 80.0,
+          reps: 8,
+          intensity: 4,
+          muscleFactor: 0.9,
+        );
+        // After 3 days of decay from dayA to today (dayA+3):
+        final decayedA = StimulusCalculationRules.decayFatigue(gainA, 3);
+        // Today's set adds the same gain again:
+        final expectedToday = StimulusCalculationRules.accumulateFatigue(
+          decayedA,
+          gainA,
+        );
+
+        final uc = _usecaseWith([
+          WorkoutSet(
+            id: 'bench-dayA',
+            exerciseId: 'bench',
+            reps: 8,
+            weight: 80,
+            intensity: 4,
+            date: dayA.add(const Duration(hours: 9)),
+            createdAt: dayA.add(const Duration(hours: 9)),
+          ),
+          WorkoutSet(
+            id: 'bench-today',
+            exerciseId: 'bench',
+            reps: 8,
+            weight: 80,
+            intensity: 4,
+            date: todayMidnight.add(const Duration(hours: 9)),
+            createdAt: todayMidnight.add(const Duration(hours: 9)),
+          ),
+        ]);
+
+        upsertedRecords.clear();
+        final result = await uc(testUserId);
+        expect(result.isRight(), isTrue);
+
+        final dayAChest = upsertedRecords.firstWhere(
+          (r) =>
+              r.date == dayA &&
+              r.muscleGroup == stimulus_constants.MuscleStimulus.midChest,
+        );
+        expect(
+          dayAChest.fatigueScore,
+          closeTo(gainA, 1e-9),
+          reason: 'day A must store the raw at-last-set gain',
+        );
+
+        final todayChest = upsertedRecords.firstWhere(
+          (r) =>
+              r.date == todayMidnight &&
+              r.muscleGroup == stimulus_constants.MuscleStimulus.midChest,
+        );
+        expect(
+          todayChest.fatigueScore,
+          closeTo(expectedToday, 1e-9),
+          reason: 'decay(A,3) then accumulate must match expected value',
+        );
+      },
+    );
+
+    test(
+      'carry-forward (gap) days store the at-last-set fatigueScore unchanged',
+      () async {
+        final todayMidnight = CalendarDay.startOfDay(fixedToday);
+        final pastDay = DateTime(
+          todayMidnight.year,
+          todayMidnight.month,
+          todayMidnight.day - 2,
+        );
+
+        final gain = StimulusCalculationRules.fatigueGain(
+          weight: 80.0,
+          reps: 8,
+          intensity: 4,
+          muscleFactor: 0.9,
+        );
+
+        final uc = _usecaseWith([
+          WorkoutSet(
+            id: 'bench-past',
+            exerciseId: 'bench',
+            reps: 8,
+            weight: 80,
+            intensity: 4,
+            date: pastDay.add(const Duration(hours: 9)),
+            createdAt: pastDay.add(const Duration(hours: 9)),
+          ),
+        ]);
+
+        upsertedRecords.clear();
+        await uc(testUserId);
+
+        final gapDay = DateTime(
+          todayMidnight.year,
+          todayMidnight.month,
+          todayMidnight.day - 1,
+        );
+        final gapChest = upsertedRecords.firstWhere(
+          (r) =>
+              r.date == gapDay &&
+              r.muscleGroup == stimulus_constants.MuscleStimulus.midChest,
+        );
+        // Gap day stores the at-last-set value (no decay applied here).
+        expect(
+          gapChest.fatigueScore,
+          closeTo(gain, 1e-9),
+          reason: 'carry-forward day must carry the at-last-set fatigueScore',
+        );
+      },
+    );
+
+    test(
+      'dailyStimulus and dailyVolume outputs unchanged by fatigue addition',
+      () async {
+        // Verify the refactor has not altered existing outputs.
+        final todayMidnight = CalendarDay.startOfDay(fixedToday);
+        final pastDay = DateTime(
+          todayMidnight.year,
+          todayMidnight.month,
+          todayMidnight.day - 2,
+        );
+
+        final uc = _usecaseWith([
+          WorkoutSet(
+            id: 'bench-past',
+            exerciseId: 'bench',
+            reps: 8,
+            weight: 80,
+            intensity: 4,
+            date: pastDay.add(const Duration(hours: 9)),
+            createdAt: pastDay.add(const Duration(hours: 9)),
+          ),
+        ]);
+
+        upsertedRecords.clear();
+        await uc(testUserId);
+
+        final pastChest = upsertedRecords.firstWhere(
+          (r) =>
+              r.date == pastDay &&
+              r.muscleGroup == stimulus_constants.MuscleStimulus.midChest,
+        );
+        expect(
+          pastChest.dailyVolume,
+          closeTo(576.0, 0.001), // 80*8*0.9
+          reason: 'dailyVolume must be unaffected by fatigue addition',
+        );
+        expect(
+          pastChest.dailyStimulus,
+          greaterThan(0),
+          reason: 'dailyStimulus must be unaffected by fatigue addition',
         );
       },
     );

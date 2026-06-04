@@ -90,7 +90,7 @@ class EnvConfig {
   ///             All-time relative total-volume ranking.
   static const int databaseVersion = int.fromEnvironment(
     'DATABASE_VERSION',
-    defaultValue: 23,
+    defaultValue: 24,
   );
 
   static const bool seedDefaultData = bool.fromEnvironment(
