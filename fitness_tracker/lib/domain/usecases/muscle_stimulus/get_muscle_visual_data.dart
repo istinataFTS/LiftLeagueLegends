@@ -99,7 +99,17 @@ class GetMuscleVisualData {
       for (final muscle in MuscleStimulus.allMuscleGroups) {
         final rowResult = await muscleStimulusRepository
             .getStimulusByMuscleAndDate(muscleGroup: muscle, date: todayStart);
-        final row = rowResult.fold((_) => null, (r) => r);
+
+        // Propagate repository failures — silently treating them as untrained
+        // would hide real errors on the default (fatigue) view.
+        if (rowResult.isLeft()) {
+          return rowResult.fold(
+            (failure) => Left(failure),
+            (_) => throw StateError('unreachable'),
+          );
+        }
+
+        final row = rowResult.getOrElse(() => null);
 
         if (row == null ||
             row.lastSetTimestamp == null ||

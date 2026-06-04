@@ -398,7 +398,11 @@ class MuscleVisualBloc extends Bloc<MuscleVisualEvent, MuscleVisualState> {
   ) async {
     _periodCache.clear();
     _cacheTimestamps.clear();
-    add(LoadMuscleVisualsEvent(_currentPeriod));
+    // Use RefreshVisualsEvent so the reload respects _currentMode: in fatigue
+    // mode it fetches TimePeriod.week; in volume mode it fetches _currentPeriod.
+    // LoadMuscleVisualsEvent(_currentPeriod) would serve volume data while
+    // emitting mode:fatigue, which is an incorrect pairing.
+    add(const RefreshVisualsEvent());
   }
 
   /// Returns `true` when a cache entry exists for [period] scoped to

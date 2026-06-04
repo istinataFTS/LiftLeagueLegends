@@ -309,6 +309,42 @@ void main() {
 
       expect(data[targetMuscle]!.hasTrained, isFalse);
     });
+
+    test(
+      'row with lastSetTimestamp=null → short-circuits to untrained (even with non-zero fatigueScore)',
+      () async {
+        const targetMuscle = stimulus_constants.MuscleStimulus.triceps;
+        stubOtherMuscles(targetMuscle);
+
+        when(
+          () => repository.getStimulusByMuscleAndDate(
+            muscleGroup: targetMuscle,
+            date: todayStart,
+          ),
+        ).thenAnswer(
+          (_) async => Right(
+            stimulus_entity.MuscleStimulus(
+              id: 'triceps-today',
+              ownerUserId: testUserId,
+              muscleGroup: targetMuscle,
+              date: todayStart,
+              dailyStimulus: 0.0,
+              rollingWeeklyLoad: 0.0,
+              lastSetTimestamp: null,
+              fatigueScore: 40.0,
+              createdAt: todayStart,
+              updatedAt: todayStart,
+            ),
+          ),
+        );
+
+        final result = await usecaseWithClock(TimePeriod.week);
+        final data = result.getOrElse(() => throw StateError('expected data'));
+
+        // lastSetTimestamp == null → cannot compute daysSince → untrained
+        expect(data[targetMuscle]!.hasTrained, isFalse);
+      },
+    );
   });
 
   // ---------------------------------------------------------------------------

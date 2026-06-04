@@ -414,12 +414,14 @@ void main() {
 
     group('ClearCacheEvent', () {
       blocTest<MuscleVisualBloc, MuscleVisualState>(
-        'clears cache and triggers LoadMuscleVisualsEvent(_currentPeriod=month)',
+        'clears cache and reloads via RefreshVisualsEvent — '
+        'in fatigue mode fetches week, not month',
         build: buildBloc,
         setUp: () {
-          // ClearCacheEvent dispatches LoadMuscleVisualsEvent(month), not week.
+          // ClearCacheEvent now dispatches RefreshVisualsEvent, which is
+          // mode-aware: fatigue → fetches TimePeriod.week.
           when(
-            () => mockGet(TimePeriod.month),
+            () => mockGet(TimePeriod.week),
           ).thenAnswer((_) async => const Right(_weekData));
         },
         act: (bloc) => bloc.add(const ClearCacheEvent()),
@@ -430,6 +432,7 @@ void main() {
           ),
           _isLoaded(period: TimePeriod.month, mode: MuscleMapMode.fatigue),
         ],
+        verify: (_) => verify(() => mockGet(TimePeriod.week)).called(1),
       );
     });
   });
