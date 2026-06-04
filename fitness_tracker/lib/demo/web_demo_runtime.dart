@@ -1354,6 +1354,33 @@ class WebDemoMuscleStimulusRepository implements MuscleStimulusRepository {
   }
 
   @override
+  Future<Either<Failure, double>> getTotalVolumeForMuscle(
+    String muscleGroup, {
+    DateTime? startDate,
+    DateTime? endDate,
+  }) async {
+    final total = _store.muscleStimulusRecords
+        .where((r) => r.muscleGroup == muscleGroup)
+        .where((r) {
+          if (startDate != null &&
+              r.date.isBefore(
+                DateTime(startDate.year, startDate.month, startDate.day),
+              )) {
+            return false;
+          }
+          if (endDate != null &&
+              r.date.isAfter(
+                DateTime(endDate.year, endDate.month, endDate.day),
+              )) {
+            return false;
+          }
+          return true;
+        })
+        .fold<double>(0.0, (sum, r) => sum + r.dailyVolume);
+    return Right(total);
+  }
+
+  @override
   Future<Either<Failure, void>> deleteOlderThan(DateTime date) async {
     final cutoff = _startOfDay(date);
     _store.muscleStimulusRecords.removeWhere(

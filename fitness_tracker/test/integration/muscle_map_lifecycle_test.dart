@@ -151,6 +151,13 @@ class FakeMuscleStimulusRepository implements MuscleStimulusRepository {
       throw UnimplementedError();
 
   @override
+  Future<Either<Failure, double>> getTotalVolumeForMuscle(
+    String muscleGroup, {
+    DateTime? startDate,
+    DateTime? endDate,
+  }) => throw UnimplementedError();
+
+  @override
   Future<Either<Failure, void>> deleteOlderThan(DateTime date) =>
       throw UnimplementedError();
 

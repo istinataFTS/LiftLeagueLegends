@@ -83,26 +83,31 @@ class RebuildMuscleStimulusFromWorkoutHistory {
 
     final dailyStimulusByDate = <DateTime, Map<String, double>>{};
     final lastSetByDate = <DateTime, Map<String, _StimulusSetMeta>>{};
+    final dailyVolumeByDate = <DateTime, Map<String, double>>{};
+
+    // Memoised factors: at most one DB round-trip per distinct exerciseId.
+    // The same factor map is used to compute both daily_stimulus and
+    // daily_volume so we never fetch factors twice for the same exercise.
+    final factorCache = <String, Map<String, double>>{};
 
     for (final workoutSet in sortedSets) {
-      final stimulusResult = await calculateMuscleStimulus.calculateForSet(
-        exerciseId: workoutSet.exerciseId,
-        sets: 1,
-        intensity: workoutSet.intensity,
-      );
-
-      final muscleStimuli = stimulusResult.fold<Map<String, double>?>(
-        (failure) => null,
-        (value) => value,
-      );
-
-      if (muscleStimuli == null) {
-        return Left(
-          stimulusResult.swap().getOrElse(
-            () => const UnexpectedFailure('Failed to calculate stimulus'),
-          ),
+      // Fetch and cache factors the first time we see each exerciseId.
+      if (!factorCache.containsKey(workoutSet.exerciseId)) {
+        final factorResult = await calculateMuscleStimulus.factorsForExercise(
+          workoutSet.exerciseId,
+        );
+        if (factorResult.isLeft()) {
+          return Left(
+            factorResult.swap().getOrElse(
+              () => const UnexpectedFailure('Failed to get muscle factors'),
+            ),
+          );
+        }
+        factorCache[workoutSet.exerciseId] = factorResult.getOrElse(
+          () => const {},
         );
       }
+      final factors = factorCache[workoutSet.exerciseId]!;
 
       final day = CalendarDay.startOfDay(workoutSet.date);
       final dayStimulus = dailyStimulusByDate.putIfAbsent(
@@ -113,18 +118,33 @@ class RebuildMuscleStimulusFromWorkoutHistory {
         day,
         () => <String, _StimulusSetMeta>{},
       );
+      final dayVolume = dailyVolumeByDate.putIfAbsent(
+        day,
+        () => <String, double>{},
+      );
 
-      for (final entry in muscleStimuli.entries) {
-        dayStimulus[entry.key] = (dayStimulus[entry.key] ?? 0.0) + entry.value;
+      for (final entry in factors.entries) {
+        // Stimulus: identical math to CalculateMuscleStimulus.calculateForSet.
+        final stimulus = StimulusCalculationRules.calculateSetStimulus(
+          sets: 1,
+          intensity: workoutSet.intensity,
+          exerciseFactor: entry.value,
+        );
+        dayStimulus[entry.key] = (dayStimulus[entry.key] ?? 0.0) + stimulus;
 
         final existingMeta = dayLastSet[entry.key];
         if (existingMeta == null ||
             workoutSet.date.millisecondsSinceEpoch >= existingMeta.timestamp) {
           dayLastSet[entry.key] = _StimulusSetMeta(
             timestamp: workoutSet.date.millisecondsSinceEpoch,
-            stimulus: entry.value,
+            stimulus: stimulus,
           );
         }
+
+        // Volume: Σ weight × reps × factor (intensity not part of volume).
+        dayVolume[entry.key] =
+            (dayVolume[entry.key] ?? 0.0) +
+            workoutSet.weight * workoutSet.reps * entry.value;
       }
     }
 
@@ -153,6 +173,7 @@ class RebuildMuscleStimulusFromWorkoutHistory {
       final dayStimulus = dailyStimulusByDate[day] ?? const <String, double>{};
       final dayLastSet =
           lastSetByDate[day] ?? const <String, _StimulusSetMeta>{};
+      final dayVolume = dailyVolumeByDate[day] ?? const <String, double>{};
 
       final musclesForDay = <String>{
         ...previousRollingLoad.keys,
@@ -185,6 +206,8 @@ class RebuildMuscleStimulusFromWorkoutHistory {
             rollingWeeklyLoad: rollingWeeklyLoad,
             lastSetTimestamp: carriedMeta?.timestamp,
             lastSetStimulus: carriedMeta?.stimulus,
+            // Carry-forward (gap) days have no workout — volume stays 0.0.
+            dailyVolume: dayVolume[muscleGroup] ?? 0.0,
             createdAt: day,
             updatedAt: day,
           ),

@@ -29,6 +29,11 @@ class MuscleStimulus extends Equatable {
   /// Used as starting point for decay calculation
   final double? lastSetStimulus;
 
+  /// Per-day, per-muscle training volume (Σ weight×reps×factor) used by
+  /// the Month/All-time relative-volume comparison. Carry-forward (gap) days
+  /// and rows from before the v23 migration default to 0.0.
+  final double dailyVolume;
+
   final DateTime createdAt;
   final DateTime updatedAt;
 
@@ -41,6 +46,7 @@ class MuscleStimulus extends Equatable {
     required this.rollingWeeklyLoad,
     this.lastSetTimestamp,
     this.lastSetStimulus,
+    this.dailyVolume = 0.0,
     required this.createdAt,
     required this.updatedAt,
   });
@@ -117,6 +123,7 @@ class MuscleStimulus extends Equatable {
     double? rollingWeeklyLoad,
     int? lastSetTimestamp,
     double? lastSetStimulus,
+    double? dailyVolume,
     DateTime? createdAt,
     DateTime? updatedAt,
   }) {
@@ -129,6 +136,7 @@ class MuscleStimulus extends Equatable {
       rollingWeeklyLoad: rollingWeeklyLoad ?? this.rollingWeeklyLoad,
       lastSetTimestamp: lastSetTimestamp ?? this.lastSetTimestamp,
       lastSetStimulus: lastSetStimulus ?? this.lastSetStimulus,
+      dailyVolume: dailyVolume ?? this.dailyVolume,
       createdAt: createdAt ?? this.createdAt,
       updatedAt: updatedAt ?? this.updatedAt,
     );
@@ -144,6 +152,7 @@ class MuscleStimulus extends Equatable {
     rollingWeeklyLoad,
     lastSetTimestamp,
     lastSetStimulus,
+    dailyVolume,
     createdAt,
     updatedAt,
   ];

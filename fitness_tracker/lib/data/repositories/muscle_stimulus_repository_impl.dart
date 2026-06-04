@@ -104,6 +104,21 @@ class MuscleStimulusRepositoryImpl implements MuscleStimulusRepository {
   }
 
   @override
+  Future<Either<Failure, double>> getTotalVolumeForMuscle(
+    String muscleGroup, {
+    DateTime? startDate,
+    DateTime? endDate,
+  }) {
+    return RepositoryGuard.run(() async {
+      return localDataSource.getTotalVolumeForMuscle(
+        muscleGroup,
+        startDate: startDate,
+        endDate: endDate,
+      );
+    });
+  }
+
+  @override
   Future<Either<Failure, void>> deleteOlderThan(DateTime date) {
     return RepositoryGuard.run(() async {
       await localDataSource.deleteOlderThan(date);

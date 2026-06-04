@@ -86,7 +86,7 @@ class EnvConfig {
   ///             KNOWN_ISSUES.md#guest-catalog-pk-collision-blocks-initial-sign-in.
   static const int databaseVersion = int.fromEnvironment(
     'DATABASE_VERSION',
-    defaultValue: 22,
+    defaultValue: 23,
   );
 
   static const bool seedDefaultData = bool.fromEnvironment(

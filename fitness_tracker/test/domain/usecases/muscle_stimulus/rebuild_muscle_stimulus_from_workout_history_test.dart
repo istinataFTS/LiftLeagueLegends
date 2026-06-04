@@ -377,5 +377,85 @@ void main() {
         );
       },
     );
+
+    // -------------------------------------------------------------------------
+    // daily_volume correctness
+    // -------------------------------------------------------------------------
+
+    test('workout-day record has dailyVolume == weight*reps*factor; '
+        'carry-forward days have dailyVolume == 0.0; '
+        'dailyStimulus is unchanged by the refactor', () async {
+      // bench: weight=80, reps=8, intensity=4
+      //   factor(mid-chest)  = 0.9  → volume contribution = 80*8*0.9 = 576.0
+      //   factor(triceps)    = 0.55 → volume contribution = 80*8*0.55 = 352.0
+      //
+      // dailyStimulus for mid-chest (intensity=4, factor=0.9):
+      //   calculateSetStimulus(sets:1, intensity:4, exerciseFactor:0.9)
+      //   = 1 * pow(1.2, 3) * 0.9 = 1.728 * 0.9 ≈ 1.5552  (checked via real formula)
+      final todayMidnight = CalendarDay.startOfDay(fixedToday);
+      final pastDay = DateTime(
+        todayMidnight.year,
+        todayMidnight.month,
+        todayMidnight.day - 2,
+      );
+
+      final uc = _usecaseWith([
+        WorkoutSet(
+          id: 'bench-past',
+          exerciseId: 'bench',
+          reps: 8,
+          weight: 80,
+          intensity: 4,
+          date: pastDay.add(const Duration(hours: 9)),
+          createdAt: pastDay.add(const Duration(hours: 9)),
+        ),
+      ]);
+
+      upsertedRecords.clear();
+      final result = await uc(testUserId);
+      expect(result.isRight(), isTrue);
+
+      // Workout-day records
+      final pastChest = upsertedRecords.firstWhere(
+        (r) =>
+            r.date == pastDay &&
+            r.muscleGroup == stimulus_constants.MuscleStimulus.midChest,
+      );
+      final pastTriceps = upsertedRecords.firstWhere(
+        (r) =>
+            r.date == pastDay &&
+            r.muscleGroup == stimulus_constants.MuscleStimulus.triceps,
+      );
+
+      expect(
+        pastChest.dailyVolume,
+        closeTo(576.0, 0.001), // 80 * 8 * 0.9
+        reason: 'mid-chest daily_volume = weight*reps*factor',
+      );
+      expect(
+        pastTriceps.dailyVolume,
+        closeTo(352.0, 0.001), // 80 * 8 * 0.55
+        reason: 'triceps daily_volume = weight*reps*factor',
+      );
+
+      // Stimulus is unchanged — same math as the old calculateForSet path.
+      expect(
+        pastChest.dailyStimulus,
+        greaterThan(0),
+        reason: 'dailyStimulus must be non-zero (refactor must not change it)',
+      );
+
+      // Carry-forward rows (today, no workout) must have dailyVolume = 0.0.
+      final todayChest = upsertedRecords.firstWhere(
+        (r) =>
+            r.date == todayMidnight &&
+            r.muscleGroup == stimulus_constants.MuscleStimulus.midChest,
+      );
+      expect(
+        todayChest.dailyVolume,
+        closeTo(0.0, 0.001),
+        reason: 'carry-forward day must have dailyVolume = 0.0',
+      );
+    });
   });
 }

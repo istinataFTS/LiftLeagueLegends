@@ -255,59 +255,55 @@ class GetMuscleVisualData {
   Future<Either<Failure, Map<String, MuscleVisualData>>>
   _getAllTimeVisualData() async {
     try {
-      final aggregationMode = MuscleVisualContract.aggregationModeForPeriod(
-        TimePeriod.allTime,
+      // All-time: each muscle ranked by its lifetime total volume (Σ
+      // daily_volume) relative to the most-trained muscle.  Previously used
+      // peak single-day daily_stimulus; now uses total volume so heavier,
+      // higher-rep muscles correctly outrank lower-volume muscles.
+      final totals = <String, double>{};
+      for (final m in MuscleStimulus.allMuscleGroups) {
+        totals[m] = (await muscleStimulusRepository.getTotalVolumeForMuscle(
+          m,
+        )).getOrElse(() => 0.0);
+      }
+
+      return Right(
+        _buildRelativeVolumeData(
+          totals,
+          MuscleVisualContract.aggregationModeForPeriod(TimePeriod.allTime),
+        ),
       );
-
-      final visualData = <String, MuscleVisualData>{};
-      double maxStimulusAcrossAll = 0.0;
-
-      for (final muscleGroup in MuscleStimulus.allMuscleGroups) {
-        final maxResult = await muscleStimulusRepository
-            .getMaxStimulusForMuscle(muscleGroup);
-
-        maxResult.fold((_) {}, (maxStimulus) {
-          if (maxStimulus > maxStimulusAcrossAll) {
-            maxStimulusAcrossAll = maxStimulus;
-          }
-        });
-      }
-
-      final threshold = maxStimulusAcrossAll > 0
-          ? maxStimulusAcrossAll
-          : MuscleStimulus.dailyThreshold;
-
-      for (final muscleGroup in MuscleStimulus.allMuscleGroups) {
-        final maxResult = await muscleStimulusRepository
-            .getMaxStimulusForMuscle(muscleGroup);
-
-        visualData[muscleGroup] = maxResult.fold(
-          (_) => MuscleVisualData.untrained(
-            muscleGroup,
-            aggregationMode: aggregationMode,
-          ),
-          (maxStimulus) {
-            if (maxStimulus == 0) {
-              return MuscleVisualData.untrained(
-                muscleGroup,
-                aggregationMode: aggregationMode,
-              );
-            }
-
-            return _buildVisualData(
-              muscleGroup: muscleGroup,
-              stimulus: maxStimulus,
-              threshold: threshold,
-              aggregationMode: aggregationMode,
-            );
-          },
-        );
-      }
-
-      return Right(visualData);
     } catch (e) {
       return Left(UnexpectedFailure('Failed to get all time visual data: $e'));
     }
+  }
+
+  /// Builds a relative-volume map: the muscle with the highest total is
+  /// normalised to 1.0 (red); all others scale proportionally; 0-volume
+  /// muscles render as [MuscleVisualData.untrained] (gray).
+  ///
+  /// Shared by All-time (full history) and Month (calendar-month window).
+  Map<String, MuscleVisualData> _buildRelativeVolumeData(
+    Map<String, double> totalsByMuscle,
+    MuscleVisualAggregationMode mode,
+  ) {
+    final maxTotal = totalsByMuscle.values.fold<double>(
+      0.0,
+      (a, b) => b > a ? b : a,
+    );
+    // Avoid division by zero when no sets have ever been logged.
+    final threshold = maxTotal > 0 ? maxTotal : 1.0;
+
+    return {
+      for (final entry in totalsByMuscle.entries)
+        entry.key: entry.value <= 0
+            ? MuscleVisualData.untrained(entry.key, aggregationMode: mode)
+            : MuscleVisualData.fromStimulus(
+                muscleGroup: entry.key,
+                stimulus: entry.value,
+                threshold: threshold,
+                aggregationMode: mode,
+              ),
+    };
   }
 
   Future<MuscleVisualData> _buildWeekDataWithoutToday({

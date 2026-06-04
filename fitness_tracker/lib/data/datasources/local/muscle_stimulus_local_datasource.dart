@@ -50,6 +50,15 @@ abstract class MuscleStimulusLocalDataSource {
   /// Get maximum daily stimulus ever recorded for a muscle owned by the current user.
   Future<double> getMaxStimulusForMuscle(String muscleGroup);
 
+  /// Sum of [DatabaseTables.stimulusDailyVolume] for [muscleGroup] owned by
+  /// the current user, optionally constrained to [[startDate], [endDate]]
+  /// inclusive (YYYY-MM-DD comparison). Returns 0.0 when no rows match.
+  Future<double> getTotalVolumeForMuscle(
+    String muscleGroup, {
+    DateTime? startDate,
+    DateTime? endDate,
+  });
+
   /// Delete stimulus records older than [date] for the current user.
   Future<void> deleteOlderThan(DateTime date);
 
@@ -275,6 +284,44 @@ class MuscleStimulusLocalDataSourceImpl extends UserScopedLocalDatasource
       return (result.first['max_stimulus'] as num).toDouble();
     } catch (e) {
       throw CacheDatabaseException('Failed to get max stimulus: $e');
+    }
+  }
+
+  @override
+  Future<double> getTotalVolumeForMuscle(
+    String muscleGroup, {
+    DateTime? startDate,
+    DateTime? endDate,
+  }) async {
+    try {
+      final ownerId = await this.ownerId();
+      final db = await databaseHelper.database;
+
+      final where = StringBuffer(
+        '${DatabaseTables.ownerUserId} = ? '
+        'AND ${DatabaseTables.stimulusMuscleGroup} = ?',
+      );
+      final args = <Object?>[ownerId, muscleGroup];
+
+      if (startDate != null) {
+        where.write(' AND ${DatabaseTables.stimulusDate} >= ?');
+        args.add(MuscleStimulusModel.formatDateForDb(startDate));
+      }
+      if (endDate != null) {
+        where.write(' AND ${DatabaseTables.stimulusDate} <= ?');
+        args.add(MuscleStimulusModel.formatDateForDb(endDate));
+      }
+
+      final rows = await db.rawQuery(
+        'SELECT SUM(${DatabaseTables.stimulusDailyVolume}) AS total '
+        'FROM ${DatabaseTables.muscleStimulus} WHERE $where',
+        args,
+      );
+
+      final v = rows.first['total'];
+      return v == null ? 0.0 : (v as num).toDouble();
+    } catch (e) {
+      throw CacheDatabaseException('Failed to get total volume: $e');
     }
   }
 
