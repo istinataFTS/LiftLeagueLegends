@@ -5,6 +5,7 @@ import '../../../core/enums/data_source_preference.dart';
 import '../../../core/errors/failures.dart';
 import '../../../core/time/clock.dart';
 import '../../../core/time/system_clock.dart';
+import '../../../core/utils/calendar_day.dart';
 import '../../entities/muscle_stimulus.dart';
 import '../../entities/stimulus_calculation_rules.dart';
 import '../../entities/workout_set.dart';
@@ -103,7 +104,7 @@ class RebuildMuscleStimulusFromWorkoutHistory {
         );
       }
 
-      final day = _startOfDay(workoutSet.date);
+      final day = CalendarDay.startOfDay(workoutSet.date);
       final dayStimulus = dailyStimulusByDate.putIfAbsent(
         day,
         () => <String, double>{},
@@ -127,19 +128,27 @@ class RebuildMuscleStimulusFromWorkoutHistory {
       }
     }
 
-    final earliestDay = _startOfDay(sortedSets.first.date);
-    final latestWorkoutDay = _startOfDay(sortedSets.last.date);
-    final today = _startOfDay(_clock.now());
+    final earliestDay = CalendarDay.startOfDay(sortedSets.first.date);
+    final latestWorkoutDay = CalendarDay.startOfDay(sortedSets.last.date);
+    final today = CalendarDay.startOfDay(_clock.now());
     final finalDay = latestWorkoutDay.isAfter(today) ? latestWorkoutDay : today;
 
     final records = <MuscleStimulus>[];
     final previousRollingLoad = <String, double>{};
     final latestSetMeta = <String, _StimulusSetMeta>{};
 
+    // Step with CalendarDay.nextDay (component-based) rather than
+    // `day.add(const Duration(days: 1))` (elapsed-time-based).  Across a
+    // DST spring-forward a calendar day is only 23 h long, so the 24-h
+    // Duration would land the loop variable at 01:00 instead of midnight.
+    // The per-day aggregation maps are keyed by local midnight, so a 01:00
+    // key never matches and every post-transition day's stimulus silently
+    // collapses to 0.  Component arithmetic always re-normalises to midnight.
+    // See KNOWN_ISSUES.md #muscle-stimulus-rebuild-dst-day-iteration.
     for (
       DateTime day = earliestDay;
       !day.isAfter(finalDay);
-      day = day.add(const Duration(days: 1))
+      day = CalendarDay.nextDay(day)
     ) {
       final dayStimulus = dailyStimulusByDate[day] ?? const <String, double>{};
       final dayLastSet =
@@ -194,8 +203,4 @@ class _StimulusSetMeta {
 
   final int timestamp;
   final double stimulus;
-}
-
-DateTime _startOfDay(DateTime value) {
-  return DateTime(value.year, value.month, value.day);
 }
