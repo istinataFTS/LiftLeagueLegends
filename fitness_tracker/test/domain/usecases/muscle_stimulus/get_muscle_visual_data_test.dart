@@ -10,6 +10,8 @@ import 'package:fitness_tracker/domain/usecases/muscle_stimulus/get_muscle_visua
 import 'package:flutter_test/flutter_test.dart';
 import 'package:mocktail/mocktail.dart';
 
+import '../../../integration/support/fake_clock.dart';
+
 class MockMuscleStimulusRepository extends Mock
     implements MuscleStimulusRepository {}
 
@@ -430,5 +432,133 @@ void main() {
         );
       },
     );
+  });
+
+  // ---------------------------------------------------------------------------
+  // Month: current calendar month, relative total-volume ranking
+  // ---------------------------------------------------------------------------
+  //
+  // Fixed clock: 2026-06-15. Month window: [2026-06-01, 2026-06-15] inclusive.
+  // Scenario: quads has 8 000 in-month volume (maximum), lats has 1 600 (20 %),
+  // all others 0.
+
+  group('Month relative total-volume ranking', () {
+    // Fixed clock for deterministic calendar-month boundaries.
+    final fixedNow = DateTime(2026, 6, 15);
+    final monthStart = DateTime(2026, 6, 1);
+    final todayStart = DateTime(2026, 6, 15);
+
+    late GetMuscleVisualData usecaseWithClock;
+
+    setUp(() {
+      usecaseWithClock = GetMuscleVisualData(
+        repository,
+        clock: FakeClock(fixedNow),
+      );
+
+      for (final m in stimulus_constants.MuscleStimulus.allMuscleGroups) {
+        double volume = 0.0;
+        if (m == stimulus_constants.MuscleStimulus.quads) volume = 8000.0;
+        if (m == stimulus_constants.MuscleStimulus.lats) volume = 1600.0;
+
+        when(
+          () => repository.getTotalVolumeForMuscle(
+            m,
+            startDate: monthStart,
+            endDate: todayStart,
+          ),
+        ).thenAnswer((_) async => Right(volume));
+      }
+    });
+
+    test('most-trained muscle (quads) reaches maximum bucket', () async {
+      final result = await usecaseWithClock(TimePeriod.month);
+      final data = result.getOrElse(() => throw StateError('expected data'));
+
+      expect(
+        data[stimulus_constants.MuscleStimulus.quads]!.bucket,
+        MuscleVisualBucket.maximum,
+        reason: 'highest in-month volume must be maximum/red',
+      );
+      expect(data[stimulus_constants.MuscleStimulus.quads]!.hasTrained, isTrue);
+    });
+
+    test(
+      'lightly-trained muscle (lats, 20 % of max) is trained and not maximum',
+      () async {
+        final result = await usecaseWithClock(TimePeriod.month);
+        final data = result.getOrElse(() => throw StateError('expected data'));
+
+        final lats = data[stimulus_constants.MuscleStimulus.lats]!;
+        expect(lats.hasTrained, isTrue);
+        expect(
+          lats.bucket,
+          isNot(MuscleVisualBucket.maximum),
+          reason: '20 %% of max must not be the maximum bucket',
+        );
+      },
+    );
+
+    test('untrained muscles render as untrained (gray)', () async {
+      final result = await usecaseWithClock(TimePeriod.month);
+      final data = result.getOrElse(() => throw StateError('expected data'));
+
+      final untrainedMuscles = stimulus_constants.MuscleStimulus.allMuscleGroups
+          .where(
+            (m) =>
+                m != stimulus_constants.MuscleStimulus.quads &&
+                m != stimulus_constants.MuscleStimulus.lats,
+          )
+          .toList();
+
+      for (final m in untrainedMuscles) {
+        expect(
+          data[m]!.hasTrained,
+          isFalse,
+          reason: '$m has 0 in-month volume and must render as untrained',
+        );
+      }
+    });
+
+    test(
+      'window bounds are [firstOfMonth, today] — repository called with correct dates',
+      () async {
+        await usecaseWithClock(TimePeriod.month);
+
+        // Verify every muscle was queried with the calendar-month window, not
+        // trailing-30-day or any other window.
+        for (final m in stimulus_constants.MuscleStimulus.allMuscleGroups) {
+          verify(
+            () => repository.getTotalVolumeForMuscle(
+              m,
+              startDate: monthStart,
+              endDate: todayStart,
+            ),
+          ).called(1);
+        }
+      },
+    );
+
+    test('all-zero month → all muscles untrained', () async {
+      // Override to zero for all
+      for (final m in stimulus_constants.MuscleStimulus.allMuscleGroups) {
+        when(
+          () => repository.getTotalVolumeForMuscle(
+            m,
+            startDate: monthStart,
+            endDate: todayStart,
+          ),
+        ).thenAnswer((_) async => const Right(0.0));
+      }
+
+      final result = await usecaseWithClock(TimePeriod.month);
+      final data = result.getOrElse(() => throw StateError('expected data'));
+
+      expect(
+        data.values.every((d) => !d.hasTrained),
+        isTrue,
+        reason: 'no in-month sets → every muscle untrained/gray',
+      );
+    });
   });
 }

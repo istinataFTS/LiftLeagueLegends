@@ -4,6 +4,7 @@ import '../../../core/constants/muscle_stimulus_constants.dart';
 import '../../../core/errors/failures.dart';
 import '../../../core/time/clock.dart';
 import '../../../core/time/system_clock.dart';
+import '../../../core/utils/calendar_day.dart';
 import '../../entities/muscle_visual_data.dart';
 import '../../entities/time_period.dart';
 import '../../muscle_visual/muscle_visual_contract.dart';
@@ -208,45 +209,26 @@ class GetMuscleVisualData {
   Future<Either<Failure, Map<String, MuscleVisualData>>>
   _getMonthVisualData() async {
     try {
-      final today = _clock.now();
-      final todayStart = DateTime(today.year, today.month, today.day);
-      final monthAgo = todayStart.subtract(const Duration(days: 30));
-      final aggregationMode = MuscleVisualContract.aggregationModeForPeriod(
-        TimePeriod.month,
-      );
+      final now = _clock.now();
+      // Calendar-month window: 1st of month (local midnight) → today (inclusive).
+      final monthStart = DateTime(now.year, now.month, 1);
+      final todayStart = CalendarDay.startOfDay(now);
 
-      final visualData = <String, MuscleVisualData>{};
-
-      for (final muscleGroup in MuscleStimulus.allMuscleGroups) {
-        final stimulusResult = await muscleStimulusRepository
-            .getStimulusByDateRange(
-              muscleGroup: muscleGroup,
-              startDate: monthAgo,
-              endDate: todayStart,
-            );
-
-        visualData[muscleGroup] = stimulusResult.fold(
-          (_) => MuscleVisualData.untrained(
-            muscleGroup,
-            aggregationMode: aggregationMode,
-          ),
-          (stimulusList) {
-            final monthlyStimulus = stimulusList.fold<double>(
-              0.0,
-              (sum, stimulus) => sum + stimulus.dailyStimulus,
-            );
-
-            return _buildVisualData(
-              muscleGroup: muscleGroup,
-              stimulus: monthlyStimulus,
-              threshold: MuscleStimulus.monthlyThreshold,
-              aggregationMode: aggregationMode,
-            );
-          },
-        );
+      final totals = <String, double>{};
+      for (final m in MuscleStimulus.allMuscleGroups) {
+        totals[m] = (await muscleStimulusRepository.getTotalVolumeForMuscle(
+          m,
+          startDate: monthStart,
+          endDate: todayStart,
+        )).getOrElse(() => 0.0);
       }
 
-      return Right(visualData);
+      return Right(
+        _buildRelativeVolumeData(
+          totals,
+          MuscleVisualContract.aggregationModeForPeriod(TimePeriod.month),
+        ),
+      );
     } catch (e) {
       return Left(UnexpectedFailure('Failed to get month visual data: $e'));
     }
