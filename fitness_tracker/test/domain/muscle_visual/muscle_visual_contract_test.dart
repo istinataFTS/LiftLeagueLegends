@@ -3,6 +3,93 @@ import 'package:fitness_tracker/domain/muscle_visual/muscle_visual_contract.dart
 import 'package:flutter_test/flutter_test.dart';
 
 void main() {
+  group('MuscleVisualContract.classifyFatigue — band boundaries', () {
+    const mode = MuscleVisualAggregationMode.rollingWeeklyLoad;
+
+    test('fatigue 19 → empty/gray, hasTrained false', () {
+      final r = MuscleVisualContract.classifyFatigue(
+        muscleGroup: 'abs',
+        fatigue: 19.0,
+        aggregationMode: mode,
+      );
+      expect(r.bucket, MuscleVisualBucket.empty);
+      expect(r.coverageState, MuscleVisualCoverageState.empty);
+      expect(r.hasTrained, isFalse);
+    });
+
+    test('fatigue 20 → light/green, hasTrained true', () {
+      final r = MuscleVisualContract.classifyFatigue(
+        muscleGroup: 'abs',
+        fatigue: 20.0,
+        aggregationMode: mode,
+      );
+      expect(r.bucket, MuscleVisualBucket.light);
+      expect(r.hasTrained, isTrue);
+      expect(r.coverageState, MuscleVisualCoverageState.partial);
+    });
+
+    test('fatigue 40 → moderate/yellow', () {
+      final r = MuscleVisualContract.classifyFatigue(
+        muscleGroup: 'abs',
+        fatigue: 40.0,
+        aggregationMode: mode,
+      );
+      expect(r.bucket, MuscleVisualBucket.moderate);
+      expect(r.hasTrained, isTrue);
+    });
+
+    test('fatigue 60 → heavy/orange', () {
+      final r = MuscleVisualContract.classifyFatigue(
+        muscleGroup: 'abs',
+        fatigue: 60.0,
+        aggregationMode: mode,
+      );
+      expect(r.bucket, MuscleVisualBucket.heavy);
+      expect(r.hasTrained, isTrue);
+    });
+
+    test('fatigue 80 → maximum/red', () {
+      final r = MuscleVisualContract.classifyFatigue(
+        muscleGroup: 'abs',
+        fatigue: 80.0,
+        aggregationMode: mode,
+      );
+      expect(r.bucket, MuscleVisualBucket.maximum);
+      expect(r.hasTrained, isTrue);
+    });
+
+    test('fatigue 100 → maximum/red + full coverage', () {
+      final r = MuscleVisualContract.classifyFatigue(
+        muscleGroup: 'abs',
+        fatigue: 100.0,
+        aggregationMode: mode,
+      );
+      expect(r.bucket, MuscleVisualBucket.maximum);
+      expect(r.coverageState, MuscleVisualCoverageState.full);
+      expect(r.normalizedIntensity, 1.0);
+    });
+
+    test('threshold is always 100 and overflowAmount is 0', () {
+      final r = MuscleVisualContract.classifyFatigue(
+        muscleGroup: 'abs',
+        fatigue: 75.0,
+        aggregationMode: mode,
+      );
+      expect(r.threshold, 100.0);
+      expect(r.overflowAmount, 0.0);
+    });
+
+    test('fatigue above 100 clamps to 100', () {
+      final r = MuscleVisualContract.classifyFatigue(
+        muscleGroup: 'abs',
+        fatigue: 150.0,
+        aggregationMode: mode,
+      );
+      expect(r.stimulus, 100.0);
+      expect(r.normalizedIntensity, 1.0);
+    });
+  });
+
   group('MuscleVisualContract.visibleSurfacesFor', () {
     test('returns front surface for front-only muscle', () {
       final result = MuscleVisualContract.visibleSurfacesFor('abs');

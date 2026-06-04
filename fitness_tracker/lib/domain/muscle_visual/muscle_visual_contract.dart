@@ -143,4 +143,50 @@ class MuscleVisualContract {
 
     return MuscleVisualCoverageState.partial;
   }
+
+  /// Classifies a 0–100 fatigue value into the locked band buckets.
+  /// < 20 → empty (recovered/gray); [20,40) light/green; [40,60) moderate/yellow;
+  /// [60,80) heavy/orange; >= 80 maximum/red.
+  static MuscleVisualComputationResult classifyFatigue({
+    required String muscleGroup,
+    required double fatigue,
+    required MuscleVisualAggregationMode aggregationMode,
+  }) {
+    final f = fatigue.clamp(0.0, 100.0);
+    final normalized = f / 100.0;
+    final hasTrained = normalized >= MuscleStimulus.fatigueBandMild;
+    final bucket = _fatigueBucket(normalized);
+    final coverage = !hasTrained
+        ? MuscleVisualCoverageState.empty
+        : (normalized >= 1.0
+              ? MuscleVisualCoverageState.full
+              : MuscleVisualCoverageState.partial);
+    return MuscleVisualComputationResult(
+      stimulus: f,
+      threshold: 100.0,
+      normalizedIntensity: normalized,
+      overflowAmount: 0.0,
+      hasTrained: hasTrained,
+      bucket: bucket,
+      coverageState: coverage,
+      aggregationMode: aggregationMode,
+      visibleSurfaces: visibleSurfacesFor(muscleGroup),
+    );
+  }
+
+  static MuscleVisualBucket _fatigueBucket(double normalized) {
+    if (normalized < MuscleStimulus.fatigueBandMild) {
+      return MuscleVisualBucket.empty;
+    }
+    if (normalized < MuscleStimulus.fatigueBandModerate) {
+      return MuscleVisualBucket.light;
+    }
+    if (normalized < MuscleStimulus.fatigueBandHigh) {
+      return MuscleVisualBucket.moderate;
+    }
+    if (normalized < MuscleStimulus.fatigueBandSevere) {
+      return MuscleVisualBucket.heavy;
+    }
+    return MuscleVisualBucket.maximum;
+  }
 }

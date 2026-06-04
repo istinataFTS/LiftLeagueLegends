@@ -195,6 +195,22 @@ class MuscleStimulus {
   static const double colorThresholdOrange = 0.70;
   static const double colorThresholdRed = 0.70;
 
+  // ==================== FATIGUE MODEL (0–100) ====================
+  /// Divisor that maps raw exercise stress to the 0–100 fatigue scale.
+  static const double fatigueNormalizationConstant = 250.0;
+
+  /// Recovery decay coefficients: fatigue *= e^(-(linear*t + quadratic*t^2)), t in days.
+  static const double fatigueDecayLinearCoeff = 0.25;
+  static const double fatigueDecayQuadraticCoeff = 0.06;
+
+  /// Fatigue band lower bounds on the **normalized** 0..1 scale (fatigue/100):
+  /// < mild → recovered (gray); [mild,moderate) → green; [moderate,high) → yellow;
+  /// [high,severe) → orange; >= severe → red.
+  static const double fatigueBandMild = 0.20;
+  static const double fatigueBandModerate = 0.40;
+  static const double fatigueBandHigh = 0.60;
+  static const double fatigueBandSevere = 0.80;
+
   // ==================== VALIDATION & HELPER METHODS ====================
 
   static bool isValidMuscleGroup(String muscleGroup) {

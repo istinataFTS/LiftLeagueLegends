@@ -147,4 +147,45 @@ class StimulusCalculationRules {
   static bool validateExerciseFactor(double factor) {
     return factor >= 0.0 && factor <= 1.0;
   }
+
+  // ==================== FATIGUE MODEL PRIMITIVES ====================
+
+  /// 1 + ((clampedIntensity - 1) / 4)^2, intensity clamped to [1,5].
+  /// Warm-up (logged intensity 0) is treated as 1 (lowest), matching the formula's domain.
+  static double fatigueIntensityMultiplier(int intensity) {
+    final c = intensity.clamp(1, 5);
+    final x = (c - 1) / 4.0;
+    return 1.0 + x * x;
+  }
+
+  /// Fatigue contributed by one set to one muscle (before accumulation/decay).
+  /// volumeLoad = weight*reps; stress = volumeLoad * intensityMultiplier * muscleFactor;
+  /// gain = stress / NORMALIZATION_CONSTANT. Bodyweight (weight==0) → 0.
+  static double fatigueGain({
+    required double weight,
+    required int reps,
+    required int intensity,
+    required double muscleFactor,
+  }) {
+    final volumeLoad = weight * reps;
+    final stress =
+        volumeLoad * fatigueIntensityMultiplier(intensity) * muscleFactor;
+    return stress / MuscleStimulus.fatigueNormalizationConstant;
+  }
+
+  /// Delayed-recovery decay over [days] elapsed since the last set.
+  /// fatigue * e^(-(0.25*d + 0.06*d^2)); [days] <= 0 returns [fatigue] unchanged.
+  static double decayFatigue(double fatigue, int days) {
+    if (days <= 0) return fatigue;
+    final d = days.toDouble();
+    return fatigue *
+        exp(
+          -(MuscleStimulus.fatigueDecayLinearCoeff * d +
+              MuscleStimulus.fatigueDecayQuadraticCoeff * d * d),
+        );
+  }
+
+  /// Accumulate a new set's gain onto a decayed running value, capped at 100.
+  static double accumulateFatigue(double decayed, double gain) =>
+      (decayed + gain).clamp(0.0, 100.0);
 }
