@@ -84,6 +84,10 @@ class EnvConfig {
   ///             user-scoped tables and removed the guest catalog-init flags from
   ///             app_metadata. Pre-condition to removing guest mode entirely. See
   ///             KNOWN_ISSUES.md#guest-catalog-pk-collision-blocks-initial-sign-in.
+  /// Version 23: Added `daily_volume` (REAL NOT NULL DEFAULT 0.0) to
+  ///             muscle_stimulus. Populated by RebuildMuscleStimulusFromWorkoutHistory
+  ///             (weight×reps×factor per muscle per day); used by GetMuscleVisualData
+  ///             All-time relative total-volume ranking.
   static const int databaseVersion = int.fromEnvironment(
     'DATABASE_VERSION',
     defaultValue: 23,

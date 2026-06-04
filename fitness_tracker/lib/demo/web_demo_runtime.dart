@@ -1370,7 +1370,16 @@ class WebDemoMuscleStimulusRepository implements MuscleStimulusRepository {
           }
           if (endDate != null &&
               r.date.isAfter(
-                DateTime(endDate.year, endDate.month, endDate.day),
+                DateTime(
+                  endDate.year,
+                  endDate.month,
+                  endDate.day,
+                  23,
+                  59,
+                  59,
+                  999,
+                  999,
+                ),
               )) {
             return false;
           }

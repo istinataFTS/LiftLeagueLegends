@@ -107,20 +107,24 @@ class CalculateMuscleStimulus {
   Future<Either<Failure, Map<String, double>>> factorsForExercise(
     String exerciseId,
   ) async {
-    final result = await muscleFactorRepository.getFactorsForExercise(
-      exerciseId,
-    );
-    return result.fold((f) => Left(f), (factors) {
-      if (factors.isEmpty) {
-        AppLogger.warning(
-          'No muscle factors for exerciseId=$exerciseId — '
-          'body map will not update.',
-          category: 'stimulus',
-        );
-        return const Right(<String, double>{});
-      }
-      return Right({for (final f in factors) f.muscleGroup: f.factor});
-    });
+    try {
+      final result = await muscleFactorRepository.getFactorsForExercise(
+        exerciseId,
+      );
+      return result.fold((f) => Left(f), (factors) {
+        if (factors.isEmpty) {
+          AppLogger.warning(
+            'No muscle factors for exerciseId=$exerciseId — '
+            'body map will not update.',
+            category: 'stimulus',
+          );
+          return const Right(<String, double>{});
+        }
+        return Right({for (final f in factors) f.muscleGroup: f.factor});
+      });
+    } catch (e) {
+      return Left(UnexpectedFailure('Failed to get muscle factors: $e'));
+    }
   }
 
   double calculateIntensityFactor(int intensity) {
