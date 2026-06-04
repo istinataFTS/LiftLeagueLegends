@@ -1,6 +1,5 @@
 import 'package:bloc_test/bloc_test.dart';
 import 'package:fitness_tracker/app/startup/app_startup_listener.dart';
-import 'package:fitness_tracker/domain/entities/time_period.dart';
 import 'package:fitness_tracker/features/home/application/home_bloc.dart';
 import 'package:fitness_tracker/features/home/application/muscle_visual_bloc.dart';
 import 'package:fitness_tracker/features/log/log.dart';
@@ -67,19 +66,16 @@ void main() {
     );
   }
 
-  testWidgets(
-    'dispatches LoadMuscleVisualsEvent(TimePeriod.month) on startup',
-    (WidgetTester tester) async {
-      await tester.pumpWidget(buildSubject());
-      await tester.pump(); // allow addPostFrameCallback to fire
+  testWidgets('dispatches ChangeModeEvent(MuscleMapMode.fatigue) on startup', (
+    WidgetTester tester,
+  ) async {
+    await tester.pumpWidget(buildSubject());
+    await tester.pump(); // allow addPostFrameCallback to fire
 
-      verify(
-        () => muscleVisualBloc.add(
-          const LoadMuscleVisualsEvent(TimePeriod.month),
-        ),
-      ).called(1);
-    },
-  );
+    verify(
+      () => muscleVisualBloc.add(const ChangeModeEvent(MuscleMapMode.fatigue)),
+    ).called(1);
+  });
 
   testWidgets(
     'dispatches LoadWeeklySetsEvent and LoadHomeDataEvent on startup',
@@ -102,8 +98,7 @@ void main() {
     await tester.pump();
 
     verify(
-      () =>
-          muscleVisualBloc.add(const LoadMuscleVisualsEvent(TimePeriod.month)),
+      () => muscleVisualBloc.add(const ChangeModeEvent(MuscleMapMode.fatigue)),
     ).called(1);
   });
 }

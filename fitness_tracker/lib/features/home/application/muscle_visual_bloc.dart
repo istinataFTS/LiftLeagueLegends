@@ -160,12 +160,10 @@ class MuscleVisualBloc extends Bloc<MuscleVisualEvent, MuscleVisualState> {
   final Map<(TimePeriod, String), DateTime> _cacheTimestamps =
       <(TimePeriod, String), DateTime>{};
 
-  // Default landing period. Neither Today nor Week is offered in the
-  // user-facing selector (Fatigue covers the live "right now" view), so the
-  // default falls back to Month — the longest-horizon volume view that
-  // still reflects recent training.
+  // Default landing mode is Fatigue — the "right now" muscle state view.
+  // _currentPeriod (month) is the fallback used when the user toggles to Volume.
   TimePeriod _currentPeriod = TimePeriod.month;
-  MuscleMapMode _currentMode = MuscleMapMode.volume;
+  MuscleMapMode _currentMode = MuscleMapMode.fatigue;
 
   /// Resolves the current user id via the shared [CurrentUserIdResolver], so
   /// readers always see the same identifier that writers used. Throws

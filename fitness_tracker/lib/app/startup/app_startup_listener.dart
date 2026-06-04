@@ -1,7 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 
-import '../../domain/entities/time_period.dart';
 import '../../features/home/application/home_bloc.dart';
 import '../../features/home/application/muscle_visual_bloc.dart';
 import '../../features/log/log.dart';
@@ -39,7 +38,7 @@ class _AppStartupListenerState extends State<AppStartupListener> {
     context.read<WorkoutBloc>().add(const LoadWeeklySetsEvent());
     context.read<HomeBloc>().add(LoadHomeDataEvent());
     context.read<MuscleVisualBloc>().add(
-      const LoadMuscleVisualsEvent(TimePeriod.month),
+      const ChangeModeEvent(MuscleMapMode.fatigue),
     );
   }
 

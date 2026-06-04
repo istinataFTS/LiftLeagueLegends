@@ -136,27 +136,6 @@ class MuscleStimulus {
   /// Weekly rolling load decay factor applied each day
   static const double weeklyDecayFactor = 0.6;
 
-  /// Hard ceiling on how many days of accumulated stimulus can still register
-  /// as fatigue. Even with the heaviest possible session, a muscle must be
-  /// shown as fully recovered (gray) by this many days after the last set.
-  ///
-  /// With [weeklyDecayFactor] = 0.6 and a normalized [recoveredThreshold] of
-  /// 0.5 the math already crosses the recovery cutoff well before this point
-  /// (`30/25 * 0.6^6 ≈ 0.056`); this cap is a belt-and-suspenders guarantee
-  /// in case decay/threshold constants are tuned later.
-  static const int maxFatigueDays = 6;
-
-  /// Recovery cutoff expressed on the **normalized** 0..1 scale
-  /// (`rawLoad / threshold`). When the normalized load drops below this
-  /// value the muscle is considered fully recovered and renders as
-  /// untrained (gray) again.
-  ///
-  /// IMPORTANT: never compare this constant against a raw load value —
-  /// the raw `rollingWeeklyLoad` is in stimulus units (~0–30+) while
-  /// this threshold is a ratio. All comparisons must go through
-  /// [NormalizedMuscleLoad.isRecovered] so the units cannot drift.
-  static const double recoveredThreshold = 0.5;
-
   // ==================== INTENSITY LEVELS ====================
 
   static const int minIntensity = 0;
@@ -193,7 +172,6 @@ class MuscleStimulus {
   static const double colorThresholdGreen = 0.20;
   static const double colorThresholdYellow = 0.45;
   static const double colorThresholdOrange = 0.70;
-  static const double colorThresholdRed = 0.70;
 
   // ==================== FATIGUE MODEL (0–100) ====================
   /// Divisor that maps raw exercise stress to the 0–100 fatigue scale.

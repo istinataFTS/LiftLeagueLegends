@@ -6,9 +6,9 @@ import '../../../core/time/clock.dart';
 import '../../../core/time/system_clock.dart';
 import '../../../core/utils/calendar_day.dart';
 import '../../entities/muscle_visual_data.dart';
+import '../../entities/stimulus_calculation_rules.dart';
 import '../../entities/time_period.dart';
 import '../../muscle_visual/muscle_visual_contract.dart';
-import '../../muscle_visual/normalized_muscle_load.dart';
 import '../../repositories/muscle_stimulus_repository.dart';
 
 class GetMuscleVisualData {
@@ -89,120 +89,51 @@ class GetMuscleVisualData {
   Future<Either<Failure, Map<String, MuscleVisualData>>>
   _getWeekVisualData() async {
     try {
-      final today = _clock.now();
-      final todayStart = DateTime(today.year, today.month, today.day);
-      final aggregationMode = MuscleVisualContract.aggregationModeForPeriod(
+      final now = _clock.now();
+      final todayStart = CalendarDay.startOfDay(now);
+      final mode = MuscleVisualContract.aggregationModeForPeriod(
         TimePeriod.week,
       );
+      final visual = <String, MuscleVisualData>{};
 
-      final visualData = <String, MuscleVisualData>{};
+      for (final muscle in MuscleStimulus.allMuscleGroups) {
+        final rowResult = await muscleStimulusRepository
+            .getStimulusByMuscleAndDate(muscleGroup: muscle, date: todayStart);
+        final row = rowResult.fold((_) => null, (r) => r);
 
-      for (final muscleGroup in MuscleStimulus.allMuscleGroups) {
-        final stimulusResult = await muscleStimulusRepository
-            .getStimulusByMuscleAndDate(
-              muscleGroup: muscleGroup,
-              date: todayStart,
-            );
-
-        if (stimulusResult.isLeft()) {
-          visualData[muscleGroup] = MuscleVisualData.untrained(
-            muscleGroup,
-            aggregationMode: aggregationMode,
+        if (row == null ||
+            row.lastSetTimestamp == null ||
+            row.fatigueScore <= 0) {
+          visual[muscle] = MuscleVisualData.untrained(
+            muscle,
+            aggregationMode: mode,
           );
           continue;
         }
 
-        final stimulus = stimulusResult.getOrElse(() => throw StateError(''));
-
-        if (stimulus == null) {
-          visualData[muscleGroup] = await _buildWeekDataWithoutToday(
-            muscleGroup: muscleGroup,
-            todayStart: todayStart,
-          );
-          continue;
-        }
-
-        // For stale rows (row dated in the past — e.g. carried forward by
-        // the rebuild but never refreshed), route through
-        // [NormalizedMuscleLoad] so the recovery cutoff is the single
-        // source of truth. The contract's [classify] only checks
-        // `stimulus > 0`, which would paint a muscle whose decayed load
-        // had dropped to ~zero as still trained.
-        //
-        // Fresh same-day rows render directly. The recovery cutoff is
-        // calibrated for *aged* loads (~50 % of the weekly threshold);
-        // applying it to a brand-new single-set row would hide the
-        // muscle the user just trained, because a single set produces a
-        // rolling load well below the cutoff at day 0.
-        final int daysSince = todayStart
-            .difference(
-              DateTime(
-                stimulus.date.year,
-                stimulus.date.month,
-                stimulus.date.day,
-              ),
-            )
-            .inDays;
-
-        if (daysSince > 0) {
-          final NormalizedMuscleLoad load = NormalizedMuscleLoad(
-            raw: stimulus.rollingWeeklyLoad,
-            threshold: MuscleStimulus.weeklyThreshold,
-          ).decayed(daysSince);
-
-          if (load.isRecovered) {
-            visualData[muscleGroup] = MuscleVisualData.untrained(
-              muscleGroup,
-              aggregationMode: aggregationMode,
-            );
-            continue;
-          }
-
-          visualData[muscleGroup] = _buildVisualData(
-            muscleGroup: muscleGroup,
-            stimulus: load.raw,
-            threshold: load.threshold,
-            aggregationMode: aggregationMode,
-          );
-          continue;
-        }
-
-        // daysSince == 0: today's record exists.
-        //
-        // The rebuild creates carry-forward rows for every muscle through
-        // today, even when the last actual set was many days ago. Those rows
-        // have a correctly-decayed rollingWeeklyLoad, but without a guard
-        // they render as light-green fatigue indefinitely.
-        //
-        // Use lastSetTimestamp to detect carry-forward rows. If the last
-        // actual workout for this muscle was ≥ maxFatigueDays ago, hard-zero
-        // it — the same cutoff applied by NormalizedMuscleLoad.decayed().
-        // Fresh sets logged today (lastSetTimestamp == today) bypass this
-        // check so newly-trained muscles still light up immediately.
-        final int daysSinceLastSet = _daysSinceLastSet(
-          stimulus.lastSetTimestamp,
-          stimulus.date,
+        final lastSetDay = CalendarDay.startOfDay(
+          DateTime.fromMillisecondsSinceEpoch(row.lastSetTimestamp!),
+        );
+        final daysSince = CalendarDay.calendarDaysBetween(
+          lastSetDay,
           todayStart,
         );
-        if (daysSinceLastSet >= MuscleStimulus.maxFatigueDays) {
-          visualData[muscleGroup] = MuscleVisualData.untrained(
-            muscleGroup,
-            aggregationMode: aggregationMode,
-          );
-          continue;
-        }
-
-        visualData[muscleGroup] = _buildVisualData(
-          muscleGroup: muscleGroup,
-          stimulus: stimulus.rollingWeeklyLoad,
-          threshold: MuscleStimulus.weeklyThreshold,
-          aggregationMode: aggregationMode,
+        final current = StimulusCalculationRules.decayFatigue(
+          row.fatigueScore,
+          daysSince,
         );
-      }
 
-      return Right(visualData);
+        visual[muscle] = current <= 0
+            ? MuscleVisualData.untrained(muscle, aggregationMode: mode)
+            : MuscleVisualData.fromFatigue(
+                muscleGroup: muscle,
+                fatigue: current,
+                aggregationMode: mode,
+              );
+      }
+      return Right(visual);
     } catch (e) {
-      return Left(UnexpectedFailure('Failed to get week visual data: $e'));
+      return Left(UnexpectedFailure('Failed to get fatigue visual data: $e'));
     }
   }
 
@@ -288,77 +219,6 @@ class GetMuscleVisualData {
     };
   }
 
-  Future<MuscleVisualData> _buildWeekDataWithoutToday({
-    required String muscleGroup,
-    required DateTime todayStart,
-  }) async {
-    final aggregationMode = MuscleVisualContract.aggregationModeForPeriod(
-      TimePeriod.week,
-    );
-
-    // Look back up to 30 days for the most recent stored record and compute
-    // decayedLoad = storedLoad * 0.6^daysSince (passive time-based decay).
-    final lookbackStart = todayStart.subtract(const Duration(days: 30));
-    final pastRecordsResult = await muscleStimulusRepository
-        .getStimulusByDateRange(
-          muscleGroup: muscleGroup,
-          startDate: lookbackStart,
-          endDate: todayStart.subtract(const Duration(days: 1)),
-        );
-
-    return pastRecordsResult.fold(
-      (_) => MuscleVisualData.untrained(
-        muscleGroup,
-        aggregationMode: aggregationMode,
-      ),
-      (records) {
-        if (records.isEmpty) {
-          return MuscleVisualData.untrained(
-            muscleGroup,
-            aggregationMode: aggregationMode,
-          );
-        }
-
-        // Records are returned DESC by date — first is most recent.
-        final mostRecent = records.first;
-        final daysSince = todayStart
-            .difference(
-              DateTime(
-                mostRecent.date.year,
-                mostRecent.date.month,
-                mostRecent.date.day,
-              ),
-            )
-            .inDays;
-
-        // Route through [NormalizedMuscleLoad] so that both the decay and
-        // the recovery comparison happen in consistent units.  The raw
-        // rollingWeeklyLoad is ~1–30; [MuscleStimulus.recoveredThreshold]
-        // is expressed against the *normalized* 0..1 scale, so comparing
-        // raw to threshold directly would leave muscles "fatigued" for
-        // days after they have actually recovered.
-        final load = NormalizedMuscleLoad(
-          raw: mostRecent.rollingWeeklyLoad,
-          threshold: MuscleStimulus.weeklyThreshold,
-        ).decayed(daysSince);
-
-        if (load.isRecovered) {
-          return MuscleVisualData.untrained(
-            muscleGroup,
-            aggregationMode: aggregationMode,
-          );
-        }
-
-        return _buildVisualData(
-          muscleGroup: muscleGroup,
-          stimulus: load.raw,
-          threshold: load.threshold,
-          aggregationMode: aggregationMode,
-        );
-      },
-    );
-  }
-
   MuscleVisualData _buildVisualData({
     required String muscleGroup,
     required double stimulus,
@@ -371,29 +231,6 @@ class GetMuscleVisualData {
       threshold: threshold,
       aggregationMode: aggregationMode,
     );
-  }
-
-  /// Returns how many full calendar days have elapsed between [todayStart] and
-  /// the date of the last actual set for this muscle, using [lastSetTimestamp]
-  /// when available and falling back to [stimulusDate] otherwise.
-  static int _daysSinceLastSet(
-    int? lastSetTimestamp,
-    DateTime stimulusDate,
-    DateTime todayStart,
-  ) {
-    final DateTime lastSetDay;
-    if (lastSetTimestamp != null) {
-      final raw = DateTime.fromMillisecondsSinceEpoch(lastSetTimestamp);
-      lastSetDay = DateTime(raw.year, raw.month, raw.day);
-    } else {
-      lastSetDay = DateTime(
-        stimulusDate.year,
-        stimulusDate.month,
-        stimulusDate.day,
-      );
-    }
-    final int days = todayStart.difference(lastSetDay).inDays;
-    return days < 0 ? 0 : days;
   }
 
   Future<Either<Failure, Map<String, MuscleVisualData>>>

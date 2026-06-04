@@ -110,220 +110,205 @@ void main() {
     },
   );
 
-  test(
-    'week view classifies a week-old moderate load as recovered — '
-    'regression guard for the Lats-are-always-fatigued bug at the use-case level',
-    () async {
-      // This is the cross-layer counterpart to the NormalizedMuscleLoad unit
-      // test: it verifies the fix survives inside GetMuscleVisualData's
-      // _buildWeekDataWithoutToday codepath, where the bug originally lived.
-      final today = DateTime.now();
-      final todayStart = DateTime(today.year, today.month, today.day);
-      final yesterday = todayStart.subtract(const Duration(days: 1));
-      final lookbackStart = todayStart.subtract(const Duration(days: 30));
-      final staleRecordDate = todayStart.subtract(const Duration(days: 7));
+  // ---------------------------------------------------------------------------
+  // Fatigue path (TimePeriod.week → new 0–100 fatigue model)
+  // ---------------------------------------------------------------------------
+  //
+  // Fixed clock: 2026-06-15. The rebuild guarantees a today row for every
+  // ever-trained muscle, so getStimulusByMuscleAndDate(today) is the only
+  // repository call the new path makes.
 
-      // Today: no stimulus records for any muscle — forces every muscle
-      // through _buildWeekDataWithoutToday.
-      for (final String muscleGroup
-          in stimulus_constants.MuscleStimulus.allMuscleGroups) {
+  group('Fatigue path (TimePeriod.week)', () {
+    final fixedNow = DateTime(2026, 6, 15);
+    final todayStart = DateTime(2026, 6, 15);
+
+    late GetMuscleVisualData usecaseWithClock;
+
+    setUp(() {
+      usecaseWithClock = GetMuscleVisualData(
+        repository,
+        clock: FakeClock(fixedNow),
+      );
+    });
+
+    /// Stubs every non-target muscle to return Right(null).
+    void stubOtherMuscles(String targetMuscle) {
+      for (final m in stimulus_constants.MuscleStimulus.allMuscleGroups) {
+        if (m == targetMuscle) continue;
         when(
           () => repository.getStimulusByMuscleAndDate(
-            muscleGroup: muscleGroup,
+            muscleGroup: m,
             date: todayStart,
           ),
         ).thenAnswer((_) async => const Right(null));
-
-        // Past 30 days: lats has a 7-day-old moderate load (raw=20,
-        // threshold=25).  After `0.6^7 ≈ 0.028` decay the normalized load
-        // sits at ~0.022, well below the 0.5 recovery cutoff, so the map
-        // must render lats as untrained.  A raw-vs-normalized regression
-        // would compare the ~0.56 raw decayed value against 0.5 and
-        // incorrectly leave lats fatigued.
-        if (muscleGroup == stimulus_constants.MuscleStimulus.lats) {
-          when(
-            () => repository.getStimulusByDateRange(
-              muscleGroup: muscleGroup,
-              startDate: lookbackStart,
-              endDate: yesterday,
-            ),
-          ).thenAnswer(
-            (_) async => Right(<stimulus_entity.MuscleStimulus>[
-              stimulus_entity.MuscleStimulus(
-                id: 'lats-stale',
-                ownerUserId: testUserId,
-                muscleGroup: muscleGroup,
-                date: staleRecordDate,
-                dailyStimulus: 0,
-                rollingWeeklyLoad: 20.0,
-                createdAt: staleRecordDate,
-                updatedAt: staleRecordDate,
-              ),
-            ]),
-          );
-        } else {
-          when(
-            () => repository.getStimulusByDateRange(
-              muscleGroup: muscleGroup,
-              startDate: lookbackStart,
-              endDate: yesterday,
-            ),
-          ).thenAnswer(
-            (_) async => const Right(<stimulus_entity.MuscleStimulus>[]),
-          );
-        }
       }
+    }
 
-      final result = await usecase(TimePeriod.week);
-      final visualData = result.getOrElse(
-        () => throw StateError('expected data'),
-      );
-      final lats = visualData[stimulus_constants.MuscleStimulus.lats]!;
+    test(
+      'fatigue_score=70, lastSetTimestamp=today → current≈70 → heavy bucket (orange)',
+      () async {
+        const targetMuscle = stimulus_constants.MuscleStimulus.quads;
+        stubOtherMuscles(targetMuscle);
 
-      expect(
-        lats.hasTrained,
-        isFalse,
-        reason:
-            'a 7-day-old moderate load must decay below the recovery cutoff; '
-            'a unit-mismatch regression would leave lats permanently fatigued',
-      );
-    },
-  );
-
-  test('week view renders a fresh today-row directly without applying the '
-      'recovery short-circuit — guards against hiding muscles the user just '
-      'trained', () async {
-    // Regression for the "Volume/Week + Fatigue both empty after logging"
-    // bug: a single fresh set produces a rolling weekly load well below
-    // 0.5 * weeklyThreshold (12.5). If the today-branch applies the
-    // recovery cutoff to *fresh* rows it hides the muscle the user just
-    // trained. The cutoff is meant for aged rows only, so a row dated
-    // today (daysSince == 0) must render directly.
-    final today = DateTime.now();
-    final todayStart = DateTime(today.year, today.month, today.day);
-
-    for (final String muscleGroup
-        in stimulus_constants.MuscleStimulus.allMuscleGroups) {
-      if (muscleGroup == stimulus_constants.MuscleStimulus.lats) {
         when(
           () => repository.getStimulusByMuscleAndDate(
-            muscleGroup: muscleGroup,
+            muscleGroup: targetMuscle,
             date: todayStart,
           ),
         ).thenAnswer(
           (_) async => Right(
             stimulus_entity.MuscleStimulus(
-              id: 'lats-today-fresh',
+              id: 'quads-today',
               ownerUserId: testUserId,
-              muscleGroup: muscleGroup,
+              muscleGroup: targetMuscle,
               date: todayStart,
-              dailyStimulus: 4.0,
-              // Below 0.5 * weeklyThreshold (12.5). Old behaviour would
-              // hide this; the fix renders it because daysSince == 0.
-              rollingWeeklyLoad: 4.0,
+              dailyStimulus: 0.0,
+              rollingWeeklyLoad: 0.0,
+              lastSetTimestamp: todayStart.millisecondsSinceEpoch,
+              fatigueScore: 70.0,
               createdAt: todayStart,
               updatedAt: todayStart,
             ),
           ),
         );
-      } else {
-        when(
-          () => repository.getStimulusByMuscleAndDate(
-            muscleGroup: muscleGroup,
-            date: todayStart,
-          ),
-        ).thenAnswer((_) async => const Right(null));
-        when(
-          () => repository.getStimulusByDateRange(
-            muscleGroup: muscleGroup,
-            startDate: any(named: 'startDate'),
-            endDate: any(named: 'endDate'),
-          ),
-        ).thenAnswer(
-          (_) async => const Right(<stimulus_entity.MuscleStimulus>[]),
-        );
-      }
-    }
 
-    final result = await usecase(TimePeriod.week);
-    final visualData = result.getOrElse(
-      () => throw StateError('expected data'),
+        final result = await usecaseWithClock(TimePeriod.week);
+        final data = result.getOrElse(() => throw StateError('expected data'));
+        final quads = data[targetMuscle]!;
+
+        // daysSince = 0 → decayFatigue(70, 0) = 70 → 70/100 = 0.7 → [0.6,0.8) → heavy
+        expect(quads.hasTrained, isTrue);
+        expect(quads.bucket, MuscleVisualBucket.heavy);
+      },
     );
 
-    final lats = visualData[stimulus_constants.MuscleStimulus.lats]!;
-    expect(
-      lats.hasTrained,
-      isTrue,
-      reason:
-          'a fresh today-row must render even when its rolling load is '
-          'below the recovery cutoff — the cutoff is calibrated for aged '
-          'loads, not for the first set of the day',
-    );
-    expect(lats.totalStimulus, 4.0);
-  });
+    test(
+      'fatigue_score=70, lastSetTimestamp=2 days ago → decayed to ~33 → light bucket (green)',
+      () async {
+        const targetMuscle = stimulus_constants.MuscleStimulus.lats;
+        final twoDaysAgo = DateTime(2026, 6, 13);
+        stubOtherMuscles(targetMuscle);
 
-  test('week view applies decay to a stale-dated today-branch row using '
-      'days-since-the-row-date', () async {
-    // If a stimulus row is dated several days in the past (e.g. the rebuild
-    // never ran or a future regression stops propagating rows forward),
-    // the today-branch must still age the load by `today - row.date` and
-    // hand off to isRecovered. With raw=20 and 5 days of decay
-    // (0.6^5 ≈ 0.0778) the normalized load drops to ~0.062 — well under
-    // the 0.5 cutoff.
-    final today = DateTime.now();
-    final todayStart = DateTime(today.year, today.month, today.day);
-    final fiveDaysAgo = todayStart.subtract(const Duration(days: 5));
-
-    for (final String muscleGroup
-        in stimulus_constants.MuscleStimulus.allMuscleGroups) {
-      if (muscleGroup == stimulus_constants.MuscleStimulus.midChest) {
         when(
           () => repository.getStimulusByMuscleAndDate(
-            muscleGroup: muscleGroup,
+            muscleGroup: targetMuscle,
             date: todayStart,
           ),
         ).thenAnswer(
           (_) async => Right(
             stimulus_entity.MuscleStimulus(
-              id: 'chest-stale-today',
+              id: 'lats-today',
               ownerUserId: testUserId,
-              muscleGroup: muscleGroup,
-              date: fiveDaysAgo,
+              muscleGroup: targetMuscle,
+              date: todayStart,
               dailyStimulus: 0.0,
-              rollingWeeklyLoad: 20.0,
-              createdAt: fiveDaysAgo,
-              updatedAt: fiveDaysAgo,
+              rollingWeeklyLoad: 0.0,
+              lastSetTimestamp: twoDaysAgo.millisecondsSinceEpoch,
+              fatigueScore: 70.0,
+              createdAt: todayStart,
+              updatedAt: todayStart,
             ),
           ),
         );
-      } else {
+
+        final result = await usecaseWithClock(TimePeriod.week);
+        final data = result.getOrElse(() => throw StateError('expected data'));
+        final lats = data[targetMuscle]!;
+
+        // daysSince = 2 → 70 * exp(-(0.25*2 + 0.06*4)) = 70 * exp(-0.74) ≈ 33.4
+        // 33.4/100 = 0.334 → [0.2, 0.4) → light
+        expect(lats.hasTrained, isTrue);
+        expect(lats.bucket, MuscleVisualBucket.light);
+      },
+    );
+
+    test(
+      'fatigue_score=10 (below 20 band) → hasTrained false (recovered/gray)',
+      () async {
+        const targetMuscle = stimulus_constants.MuscleStimulus.biceps;
+        stubOtherMuscles(targetMuscle);
+
         when(
           () => repository.getStimulusByMuscleAndDate(
-            muscleGroup: muscleGroup,
+            muscleGroup: targetMuscle,
+            date: todayStart,
+          ),
+        ).thenAnswer(
+          (_) async => Right(
+            stimulus_entity.MuscleStimulus(
+              id: 'biceps-today',
+              ownerUserId: testUserId,
+              muscleGroup: targetMuscle,
+              date: todayStart,
+              dailyStimulus: 0.0,
+              rollingWeeklyLoad: 0.0,
+              lastSetTimestamp: todayStart.millisecondsSinceEpoch,
+              fatigueScore: 10.0,
+              createdAt: todayStart,
+              updatedAt: todayStart,
+            ),
+          ),
+        );
+
+        final result = await usecaseWithClock(TimePeriod.week);
+        final data = result.getOrElse(() => throw StateError('expected data'));
+
+        // 10/100 = 0.10 < 0.20 (fatigueBandMild) → hasTrained = false
+        expect(data[targetMuscle]!.hasTrained, isFalse);
+      },
+    );
+
+    test('no row for muscle (Right(null)) → untrained/gray', () async {
+      for (final m in stimulus_constants.MuscleStimulus.allMuscleGroups) {
+        when(
+          () => repository.getStimulusByMuscleAndDate(
+            muscleGroup: m,
             date: todayStart,
           ),
         ).thenAnswer((_) async => const Right(null));
-        when(
-          () => repository.getStimulusByDateRange(
-            muscleGroup: muscleGroup,
-            startDate: any(named: 'startDate'),
-            endDate: any(named: 'endDate'),
-          ),
-        ).thenAnswer(
-          (_) async => const Right(<stimulus_entity.MuscleStimulus>[]),
-        );
       }
-    }
 
-    final result = await usecase(TimePeriod.week);
-    final visualData = result.getOrElse(
-      () => throw StateError('expected data'),
-    );
+      final result = await usecaseWithClock(TimePeriod.week);
+      final data = result.getOrElse(() => throw StateError('expected data'));
 
-    expect(
-      visualData[stimulus_constants.MuscleStimulus.midChest]!.hasTrained,
-      isFalse,
-    );
+      expect(
+        data.values.every((d) => !d.hasTrained),
+        isTrue,
+        reason: 'no rows → every muscle untrained',
+      );
+    });
+
+    test('row with fatigueScore=0 → short-circuits to untrained', () async {
+      const targetMuscle = stimulus_constants.MuscleStimulus.triceps;
+      stubOtherMuscles(targetMuscle);
+
+      when(
+        () => repository.getStimulusByMuscleAndDate(
+          muscleGroup: targetMuscle,
+          date: todayStart,
+        ),
+      ).thenAnswer(
+        (_) async => Right(
+          stimulus_entity.MuscleStimulus(
+            id: 'triceps-today',
+            ownerUserId: testUserId,
+            muscleGroup: targetMuscle,
+            date: todayStart,
+            dailyStimulus: 0.0,
+            rollingWeeklyLoad: 0.0,
+            lastSetTimestamp: todayStart.millisecondsSinceEpoch,
+            fatigueScore: 0.0,
+            createdAt: todayStart,
+            updatedAt: todayStart,
+          ),
+        ),
+      );
+
+      final result = await usecaseWithClock(TimePeriod.week);
+      final data = result.getOrElse(() => throw StateError('expected data'));
+
+      expect(data[targetMuscle]!.hasTrained, isFalse);
+    });
   });
 
   // ---------------------------------------------------------------------------
