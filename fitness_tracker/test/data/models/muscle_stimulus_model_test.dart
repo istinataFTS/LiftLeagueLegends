@@ -9,6 +9,7 @@ void main() {
     DateTime? createdAt,
     DateTime? updatedAt,
     double dailyVolume = 0.0,
+    double fatigueScore = 0.0,
   }) {
     final d = createdAt ?? baseDate;
     return MuscleStimulusModel(
@@ -19,6 +20,7 @@ void main() {
       dailyStimulus: 5.0,
       rollingWeeklyLoad: 12.0,
       dailyVolume: dailyVolume,
+      fatigueScore: fatigueScore,
       createdAt: d,
       updatedAt: updatedAt ?? d,
     );
@@ -116,6 +118,45 @@ void main() {
       final entity = buildModel(dailyVolume: 999.0);
       final fromEntity = MuscleStimulusModel.fromEntity(entity);
       expect(fromEntity.dailyVolume, closeTo(999.0, 0.001));
+    });
+  });
+
+  group('MuscleStimulusModel fatigueScore', () {
+    test('toMap / fromMap round-trips a non-zero fatigueScore', () {
+      final model = buildModel(fatigueScore: 42.5);
+      final roundTripped = MuscleStimulusModel.fromMap(model.toMap());
+      expect(roundTripped.fatigueScore, closeTo(42.5, 0.001));
+    });
+
+    test(
+      'fromMap tolerates a missing fatigue_score key (legacy row → 0.0)',
+      () {
+        final map = buildModel().toMap()
+          ..remove(DatabaseTables.stimulusFatigueScore);
+        final parsed = MuscleStimulusModel.fromMap(map);
+        expect(parsed.fatigueScore, closeTo(0.0, 0.001));
+      },
+    );
+
+    test('toJson / fromJson round-trips a non-zero fatigueScore', () {
+      final model = buildModel(fatigueScore: 78.3);
+      final roundTripped = MuscleStimulusModel.fromJson(model.toJson());
+      expect(roundTripped.fatigueScore, closeTo(78.3, 0.001));
+    });
+
+    test(
+      'fromJson tolerates a missing fatigueScore key (legacy JSON → 0.0)',
+      () {
+        final json = buildModel().toJson()..remove('fatigueScore');
+        final parsed = MuscleStimulusModel.fromJson(json);
+        expect(parsed.fatigueScore, closeTo(0.0, 0.001));
+      },
+    );
+
+    test('fromEntity preserves fatigueScore', () {
+      final entity = buildModel(fatigueScore: 55.0);
+      final fromEntity = MuscleStimulusModel.fromEntity(entity);
+      expect(fromEntity.fatigueScore, closeTo(55.0, 0.001));
     });
   });
 }

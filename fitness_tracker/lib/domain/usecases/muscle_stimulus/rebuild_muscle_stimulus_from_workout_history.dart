@@ -84,6 +84,7 @@ class RebuildMuscleStimulusFromWorkoutHistory {
     final dailyStimulusByDate = <DateTime, Map<String, double>>{};
     final lastSetByDate = <DateTime, Map<String, _StimulusSetMeta>>{};
     final dailyVolumeByDate = <DateTime, Map<String, double>>{};
+    final dailyFatigueGainByDate = <DateTime, Map<String, double>>{};
 
     // Memoised factors: at most one DB round-trip per distinct exerciseId.
     // The same factor map is used to compute both daily_stimulus and
@@ -122,6 +123,10 @@ class RebuildMuscleStimulusFromWorkoutHistory {
         day,
         () => <String, double>{},
       );
+      final dayFatigueGain = dailyFatigueGainByDate.putIfAbsent(
+        day,
+        () => <String, double>{},
+      );
 
       for (final entry in factors.entries) {
         // Stimulus: identical math to CalculateMuscleStimulus.calculateForSet.
@@ -145,6 +150,16 @@ class RebuildMuscleStimulusFromWorkoutHistory {
         dayVolume[entry.key] =
             (dayVolume[entry.key] ?? 0.0) +
             workoutSet.weight * workoutSet.reps * entry.value;
+
+        // Fatigue: per-set gain accumulated into daily total.
+        dayFatigueGain[entry.key] =
+            (dayFatigueGain[entry.key] ?? 0.0) +
+            StimulusCalculationRules.fatigueGain(
+              weight: workoutSet.weight,
+              reps: workoutSet.reps,
+              intensity: workoutSet.intensity,
+              muscleFactor: entry.value,
+            );
       }
     }
 
@@ -156,6 +171,8 @@ class RebuildMuscleStimulusFromWorkoutHistory {
     final records = <MuscleStimulus>[];
     final previousRollingLoad = <String, double>{};
     final latestSetMeta = <String, _StimulusSetMeta>{};
+    final runningFatigue = <String, double>{};
+    final fatigueLastSetDay = <String, DateTime>{};
 
     // Step with CalendarDay.nextDay (component-based) rather than
     // `day.add(const Duration(days: 1))` (elapsed-time-based).  Across a
@@ -174,6 +191,8 @@ class RebuildMuscleStimulusFromWorkoutHistory {
       final dayLastSet =
           lastSetByDate[day] ?? const <String, _StimulusSetMeta>{};
       final dayVolume = dailyVolumeByDate[day] ?? const <String, double>{};
+      final dayFatigueGain =
+          dailyFatigueGainByDate[day] ?? const <String, double>{};
 
       final musclesForDay = <String>{
         ...previousRollingLoad.keys,
@@ -196,6 +215,23 @@ class RebuildMuscleStimulusFromWorkoutHistory {
 
         final carriedMeta = latestSetMeta[muscleGroup];
 
+        // Fatigue accumulation: decay from last-set day then add today's gain.
+        final gain = dayFatigueGain[muscleGroup] ?? 0.0;
+        if (gain > 0) {
+          final lastDay = fatigueLastSetDay[muscleGroup];
+          final decayed = lastDay == null
+              ? 0.0
+              : StimulusCalculationRules.decayFatigue(
+                  runningFatigue[muscleGroup] ?? 0.0,
+                  CalendarDay.calendarDaysBetween(lastDay, day),
+                );
+          runningFatigue[muscleGroup] =
+              StimulusCalculationRules.accumulateFatigue(decayed, gain);
+          fatigueLastSetDay[muscleGroup] = day;
+        }
+        // Carry-forward days store the at-last-set value (decay applied at read).
+        final fatigueForRow = runningFatigue[muscleGroup] ?? 0.0;
+
         records.add(
           MuscleStimulus(
             id: _uuid.v4(),
@@ -208,6 +244,7 @@ class RebuildMuscleStimulusFromWorkoutHistory {
             lastSetStimulus: carriedMeta?.stimulus,
             // Carry-forward (gap) days have no workout — volume stays 0.0.
             dailyVolume: dayVolume[muscleGroup] ?? 0.0,
+            fatigueScore: fatigueForRow,
             createdAt: day,
             updatedAt: day,
           ),

@@ -88,9 +88,13 @@ class EnvConfig {
   ///             muscle_stimulus. Populated by RebuildMuscleStimulusFromWorkoutHistory
   ///             (weight×reps×factor per muscle per day); used by GetMuscleVisualData
   ///             All-time relative total-volume ranking.
+  /// Version 24: Added `fatigue_score` (REAL NOT NULL DEFAULT 0.0) to
+  ///             muscle_stimulus. Stores running 0–100 fatigue as of the last set;
+  ///             populated by RebuildMuscleStimulusFromWorkoutHistory using delayed-
+  ///             recovery decay accumulation; read-time decay applied by GetMuscleVisualData.
   static const int databaseVersion = int.fromEnvironment(
     'DATABASE_VERSION',
-    defaultValue: 23,
+    defaultValue: 24,
   );
 
   static const bool seedDefaultData = bool.fromEnvironment(
