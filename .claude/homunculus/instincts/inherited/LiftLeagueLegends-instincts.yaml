@@ -1,0 +1,452 @@
+# Instincts generated from https://github.com/istinataFTS/LiftLeagueLegends
+# Generated: 2026-06-04T13:56:56.710Z
+# Version: 2.0
+# NOTE: This file supplements (does not replace) any existing curated instincts.
+# High-confidence manually curated instincts should be preserved alongside these.
+
+---
+id: LiftLeagueLegends-commit-conventional
+trigger: "when writing a commit message"
+confidence: 0.85
+domain: git
+source: repo-analysis
+source_repo: https://github.com/istinataFTS/LiftLeagueLegends
+---
+
+# LiftLeagueLegends Commit Conventional
+
+## Action
+
+Use conventional commit format with prefixes: fix, feat, chore
+
+## Evidence
+
+- 3 commits analyzed
+- Detected conventional commit pattern
+- Examples: fix(stimulus): DST-safe day iteration in muscle-stimulus rebuild, feat(stimulus): add daily_volume projection; All-time ranks by relative total volume
+
+---
+id: LiftLeagueLegends-commit-length
+trigger: "when writing a commit message"
+confidence: 0.6
+domain: git
+source: repo-analysis
+source_repo: https://github.com/istinataFTS/LiftLeagueLegends
+---
+
+# LiftLeagueLegends Commit Length
+
+## Action
+
+Write moderate-length commit messages (~69 characters)
+
+## Evidence
+
+- Average commit message length: 69 chars
+- Based on 3 commits
+
+---
+id: LiftLeagueLegends-naming-files
+trigger: "when creating a new file"
+confidence: 0.8
+domain: code-style
+source: repo-analysis
+source_repo: https://github.com/istinataFTS/LiftLeagueLegends
+---
+
+# LiftLeagueLegends Naming Files
+
+## Action
+
+Use snake_case naming convention
+
+## Evidence
+
+- Analyzed file naming patterns in repository
+- Dominant pattern: snake_case
+
+---
+id: LiftLeagueLegends-import-relative
+trigger: "when importing modules"
+confidence: 0.75
+domain: code-style
+source: repo-analysis
+source_repo: https://github.com/istinataFTS/LiftLeagueLegends
+---
+
+# LiftLeagueLegends Import Relative
+
+## Action
+
+Use relative imports for project files
+
+## Evidence
+
+- Import analysis shows relative import pattern
+- Example: import { x } from '../lib/x'
+
+---
+id: LiftLeagueLegends-export-style
+trigger: "when exporting from a module"
+confidence: 0.7
+domain: code-style
+source: repo-analysis
+source_repo: https://github.com/istinataFTS/LiftLeagueLegends
+---
+
+# LiftLeagueLegends Export Style
+
+## Action
+
+Prefer named exports
+
+## Evidence
+
+- Export pattern analysis
+- Dominant style: named
+
+---
+id: LiftLeagueLegends-test-naming
+trigger: "when creating a test file"
+confidence: 0.85
+domain: testing
+source: repo-analysis
+source_repo: https://github.com/istinataFTS/LiftLeagueLegends
+---
+
+# LiftLeagueLegends Test Naming
+
+## Action
+
+Name test files using the pattern: *.test.ts
+
+## Evidence
+
+- File pattern: *.test.ts
+- Consistent across test files
+
+---
+id: LiftLeagueLegends-test-types
+trigger: "when planning tests for a feature"
+confidence: 0.7
+domain: testing
+source: repo-analysis
+source_repo: https://github.com/istinataFTS/LiftLeagueLegends
+---
+
+# LiftLeagueLegends Test Types
+
+## Action
+
+Write unit, integration tests to match project standards
+
+## Evidence
+
+- Test types detected: unit, integration
+- Coverage config: no
+
+---
+id: LiftLeagueLegends-workflow-feature-development-with-domain-and-test-coverage
+trigger: "when doing feature development with domain and test coverage"
+confidence: 0.55
+domain: workflow
+source: repo-analysis
+source_repo: https://github.com/istinataFTS/LiftLeagueLegends
+---
+
+# LiftLeagueLegends Workflow Feature Development With Domain And Test Coverage
+
+## Action
+
+Follow the feature-development-with-domain-and-test-coverage workflow:
+1. Update or add domain entities and usecases related to the feature.
+2. Modify or extend data models and repositories to support the new feature.
+3. Update data sources to handle new data requirements.
+4. Update configuration or constants as needed.
+5. Implement or update integration points (e.g., demo runtime).
+6. Write or update tests for data sources, models, usecases, and integration.
+7. Update migration or database helper if schema changes are needed.
+
+## Evidence
+
+- Workflow detected from commit patterns
+- Frequency: ~1x per month
+- Files: fitness_tracker/lib/domain/entities/*.dart, fitness_tracker/lib/domain/usecases/**/*.dart, fitness_tracker/lib/domain/repositories/*.dart
+
+---
+id: LiftLeagueLegends-workflow-bugfix-with-targeted-test-update
+trigger: "when doing bugfix with targeted test update"
+confidence: 0.55
+domain: workflow
+source: repo-analysis
+source_repo: https://github.com/istinataFTS/LiftLeagueLegends
+---
+
+# LiftLeagueLegends Workflow Bugfix With Targeted Test Update
+
+## Action
+
+Follow the bugfix-with-targeted-test-update workflow:
+1. Identify and fix the bug in the relevant core utility or usecase file.
+2. Update or add tests to cover the bug scenario.
+3. Document the issue or fix in the known issues log.
+
+## Evidence
+
+- Workflow detected from commit patterns
+- Frequency: ~1x per month
+- Files: fitness_tracker/lib/core/utils/*.dart, fitness_tracker/lib/domain/usecases/**/*.dart, fitness_tracker/test/core/utils/*_test.dart
+
+---
+id: liftleaguelegends-instinct-file-naming
+trigger: "When creating a new file in the codebase."
+confidence: 0.9
+domain: code-style
+source: repo-analysis
+source_repo: istinataFTS/LiftLeagueLegends
+---
+
+# Liftleaguelegends Instinct File Naming
+
+## Action
+
+Name the file using snake_case.
+
+## Evidence
+
+- Pattern in namingConventions.files: snake_case
+
+---
+id: liftleaguelegends-instinct-function-naming
+trigger: "When defining a new function."
+confidence: 0.9
+domain: code-style
+source: repo-analysis
+source_repo: istinataFTS/LiftLeagueLegends
+---
+
+# Liftleaguelegends Instinct Function Naming
+
+## Action
+
+Use camelCase for function names.
+
+## Evidence
+
+- Pattern in namingConventions.functions: camelCase
+
+---
+id: liftleaguelegends-instinct-class-naming
+trigger: "When defining a new class."
+confidence: 0.9
+domain: code-style
+source: repo-analysis
+source_repo: istinataFTS/LiftLeagueLegends
+---
+
+# Liftleaguelegends Instinct Class Naming
+
+## Action
+
+Use PascalCase for class names.
+
+## Evidence
+
+- Pattern in namingConventions.classes: PascalCase
+
+---
+id: liftleaguelegends-instinct-constant-naming
+trigger: "When defining a constant."
+confidence: 0.9
+domain: code-style
+source: repo-analysis
+source_repo: istinataFTS/LiftLeagueLegends
+---
+
+# Liftleaguelegends Instinct Constant Naming
+
+## Action
+
+Use SCREAMING_SNAKE_CASE for constant names.
+
+## Evidence
+
+- Pattern in namingConventions.constants: SCREAMING_SNAKE_CASE
+
+---
+id: liftleaguelegends-instinct-import-style
+trigger: "When importing modules."
+confidence: 0.8
+domain: code-style
+source: repo-analysis
+source_repo: istinataFTS/LiftLeagueLegends
+---
+
+# Liftleaguelegends Instinct Import Style
+
+## Action
+
+Use relative import paths.
+
+## Evidence
+
+- Pattern in importStyle: relative
+
+---
+id: liftleaguelegends-instinct-export-style
+trigger: "When exporting modules."
+confidence: 0.8
+domain: code-style
+source: repo-analysis
+source_repo: istinataFTS/LiftLeagueLegends
+---
+
+# Liftleaguelegends Instinct Export Style
+
+## Action
+
+Use named exports.
+
+## Evidence
+
+- Pattern in exportStyle: named
+
+---
+id: liftleaguelegends-instinct-test-file-pattern
+trigger: "When adding a new test file."
+confidence: 0.9
+domain: testing
+source: repo-analysis
+source_repo: istinataFTS/LiftLeagueLegends
+---
+
+# Liftleaguelegends Instinct Test File Pattern
+
+## Action
+
+Name the test file with a .test.ts suffix.
+
+## Evidence
+
+- Pattern in testing.filePattern: *.test.ts
+
+---
+id: liftleaguelegends-instinct-test-type-coverage
+trigger: "When writing tests for a new or updated feature."
+confidence: 0.8
+domain: testing
+source: repo-analysis
+source_repo: istinataFTS/LiftLeagueLegends
+---
+
+# Liftleaguelegends Instinct Test Type Coverage
+
+## Action
+
+Write both unit and integration tests.
+
+## Evidence
+
+- Pattern in testing.testTypes: unit, integration
+- Workflow feature-development-with-domain-and-test-coverage includes both test types
+
+---
+id: liftleaguelegends-instinct-test-location-mixed
+trigger: "When organizing test files."
+confidence: 0.7
+domain: testing
+source: repo-analysis
+source_repo: istinataFTS/LiftLeagueLegends
+---
+
+# Liftleaguelegends Instinct Test Location Mixed
+
+## Action
+
+Place test files alongside both source and test directories (mixed location).
+
+## Evidence
+
+- Pattern in architecture.folderStructure.testLocation: mixed
+
+---
+id: liftleaguelegends-instinct-commit-format
+trigger: "When writing a commit message."
+confidence: 0.9
+domain: git
+source: repo-analysis
+source_repo: istinataFTS/LiftLeagueLegends
+---
+
+# Liftleaguelegends Instinct Commit Format
+
+## Action
+
+Use conventional commit format with a prefix (fix, feat, chore), optional scope, and a concise description.
+
+## Evidence
+
+- Pattern in commits.type: conventional
+- Examples: fix(stimulus): DST-safe day iteration in muscle-stimulus rebuild
+
+---
+id: liftleaguelegends-instinct-commit-length
+trigger: "When writing a commit message."
+confidence: 0.7
+domain: git
+source: repo-analysis
+source_repo: istinataFTS/LiftLeagueLegends
+---
+
+# Liftleaguelegends Instinct Commit Length
+
+## Action
+
+Keep the commit message concise, around 69 characters on average.
+
+## Evidence
+
+- Pattern in commits.averageLength: 69
+
+---
+id: liftleaguelegends-instinct-feature-workflow
+trigger: "When adding a new calculated metric or feature to the muscle stimulus system."
+confidence: 0.9
+domain: workflow
+source: repo-analysis
+source_repo: istinataFTS/LiftLeagueLegends
+---
+
+# Liftleaguelegends Instinct Feature Workflow
+
+## Action
+
+Follow the feature-development-with-domain-and-test-coverage workflow: update domain entities/usecases, data models/repositories, data sources, configuration/constants, integration points, and write/update comprehensive tests.
+
+## Evidence
+
+- Workflow: feature-development-with-domain-and-test-coverage
+- Files involved: fitness_tracker/lib/domain/entities/*.dart, ...
+- Commit sequence in workflow
+
+---
+id: liftleaguelegends-instinct-bugfix-workflow
+trigger: "When fixing a logic or calculation bug in a utility or usecase."
+confidence: 0.85
+domain: workflow
+source: repo-analysis
+source_repo: istinataFTS/LiftLeagueLegends
+---
+
+# Liftleaguelegends Instinct Bugfix Workflow
+
+## Action
+
+Follow the bugfix-with-targeted-test-update workflow: fix the bug in the relevant file, update/add tests for the scenario, and document the issue/fix in KNOWN_ISSUES.md.
+
+## Evidence
+
+- Workflow: bugfix-with-targeted-test-update
+- Files involved: fitness_tracker/lib/core/utils/*.dart, ...
+- Commit sequence in workflow
+
