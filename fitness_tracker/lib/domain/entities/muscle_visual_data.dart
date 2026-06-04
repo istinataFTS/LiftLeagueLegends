@@ -47,6 +47,30 @@ class MuscleVisualData extends Equatable {
     );
   }
 
+  factory MuscleVisualData.fromFatigue({
+    required String muscleGroup,
+    required double fatigue,
+    required MuscleVisualAggregationMode aggregationMode,
+  }) {
+    final r = MuscleVisualContract.classifyFatigue(
+      muscleGroup: muscleGroup,
+      fatigue: fatigue,
+      aggregationMode: aggregationMode,
+    );
+    return MuscleVisualData(
+      muscleGroup: muscleGroup,
+      totalStimulus: r.stimulus,
+      threshold: r.threshold,
+      visualIntensity: r.normalizedIntensity,
+      bucket: r.bucket,
+      coverageState: r.coverageState,
+      aggregationMode: r.aggregationMode,
+      visibleSurfaces: r.visibleSurfaces,
+      overflowAmount: r.overflowAmount,
+      hasTrained: r.hasTrained,
+    );
+  }
+
   factory MuscleVisualData.fromStimulus({
     required String muscleGroup,
     required double stimulus,
