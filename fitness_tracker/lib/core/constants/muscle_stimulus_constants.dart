@@ -187,7 +187,6 @@ class MuscleStimulus {
 
   static const double dailyThreshold = 8.0;
   static const double weeklyThreshold = 25.0;
-  static const double monthlyThreshold = 90.0;
 
   // ==================== COLOR THRESHOLDS ====================
 
@@ -252,7 +251,6 @@ class MuscleStimulus {
     debugPrint('Visual Thresholds:');
     debugPrint('  Daily: $dailyThreshold');
     debugPrint('  Weekly: $weeklyThreshold');
-    debugPrint('  Monthly: $monthlyThreshold');
     debugPrint('');
     debugPrint('Color Thresholds:');
     debugPrint('  Green: 0.0 - $colorThresholdGreen');
