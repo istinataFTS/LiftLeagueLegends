@@ -7,9 +7,6 @@ abstract final class VoiceSettingsPageKeys {
   static const Key wakeWordSectionKey = ValueKey<String>(
     'voice_settings_wake_word_section',
   );
-  static const Key wakeWordMisconfiguredBannerKey = ValueKey<String>(
-    'voice_settings_wake_word_misconfigured_banner',
-  );
   static const Key wakeWordSamoLevskiKey = ValueKey<String>(
     'voice_settings_wake_word_samo_levski',
   );

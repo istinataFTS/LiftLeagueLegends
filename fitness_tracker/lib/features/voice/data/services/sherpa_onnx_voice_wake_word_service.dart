@@ -357,13 +357,13 @@ Future<String> _extractAsset(String assetPath) async {
       category: 'voice',
     );
     throw VoiceWakeWordException(
-      VoiceWakeWordErrorKind.modelNotFound,
+      VoiceWakeWordErrorKind.modelLoadError,
       'Asset $assetPath not found: $e',
     );
   }
   if (byteData.lengthInBytes == 0) {
     throw VoiceWakeWordException(
-      VoiceWakeWordErrorKind.modelNotFound,
+      VoiceWakeWordErrorKind.modelLoadError,
       'Asset $assetPath is empty — replace with a real model.',
     );
   }

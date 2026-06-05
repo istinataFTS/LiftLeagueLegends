@@ -381,7 +381,7 @@ class VoiceDeleteNutritionLogCommand extends VoiceMutationCommand {
 /// `VoiceRepository` directly. All data access goes through use
 /// cases ([SendVoiceMessage], [GetVoiceBudget], [DeleteVoiceHistory])
 /// and through device service ports ([VoiceSttService], [VoiceTtsService]).
-/// Plugin packages (`speech_to_text`, `flutter_tts`, `porcupine_flutter`,
+/// Plugin packages (`speech_to_text`, `flutter_tts`, `sherpa_onnx`,
 /// `wakelock_plus`) are never imported here — they live only in their
 /// respective service implementations.
 ///

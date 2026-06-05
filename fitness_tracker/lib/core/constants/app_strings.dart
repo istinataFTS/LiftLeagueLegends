@@ -445,10 +445,6 @@ class AppStrings {
   static const String voiceSettingsPageTitle = 'Voice Assistant';
   static const String voiceWakeWordSectionTitle = 'Wake Word';
   static const String voiceWakeWordPreviewTooltip = 'Preview pronunciation';
-  static const String voiceWakeWordMisconfiguredTitle = 'Wake word disabled';
-  static const String voiceWakeWordMisconfiguredBody =
-      'No Picovoice access key is configured. Paste your key into '
-      'dart_defines.json (see dart_defines.example.json) and rebuild.';
   static const String voiceBehaviorSectionTitle = 'Behavior';
   static const String voiceWakeWordArmedTitle = 'Armed while app is open';
   static const String voiceWakeWordArmedSubtitle =
@@ -475,41 +471,9 @@ class AppStrings {
 
   // ── Voice FAB ──────────────────────────────────────────────────────────────
   static const String voiceFabTooltipOpen = 'Open Voice Assistant';
-  static const String voiceFabWakeWordNeedsSetup =
-      'Wake word needs setup. Open Voice settings to add your key.';
-  static const String voiceFabWakeWordNeedsSetupAction = 'Set up';
   static const String voiceFabMicPermissionDenied =
       'Microphone access denied. Enable it in Settings to use the voice assistant.';
   static const String voiceFabMicPermissionOpenSettings = 'Open Settings';
-
-  // ── Voice Settings — Picovoice access key ─────────────────────────────────
-  static const String voicePicovoiceKeySectionTitle = 'Voice Engine Key';
-  static const String voicePicovoiceKeyMissingTitle = 'Wake word disabled';
-  static const String voicePicovoiceKeyMissingSubtitle =
-      'Add a Picovoice access key to enable wake-word detection. '
-      'Get a free key at console.picovoice.ai.';
-  static const String voicePicovoiceKeyPresentTitle =
-      'Wake word key configured';
-  static const String voicePicovoiceKeyPresentSubtitle =
-      'Key stored securely on this device';
-  static const String voicePicovoiceKeySetUpAction = 'Set up key';
-  static const String voicePicovoiceKeyReplaceAction = 'Replace key';
-  static const String voicePicovoiceKeyClearAction = 'Remove key';
-  static const String voicePicovoiceKeyDialogTitle = 'Picovoice access key';
-  static const String voicePicovoiceKeyDialogBody =
-      'Paste your Picovoice Porcupine access key. It is stored only on '
-      'this device, in encrypted secure storage.';
-  static const String voicePicovoiceKeyDialogHint = 'Access key';
-  static const String voicePicovoiceKeyDialogSave = 'Save';
-  static const String voicePicovoiceKeyDialogCancel = 'Cancel';
-  static const String voicePicovoiceKeyClearConfirmTitle = 'Remove voice key?';
-  static const String voicePicovoiceKeyClearConfirmBody =
-      'The wake word will stop working until you set the key again.';
-  static const String voicePicovoiceKeyClearConfirmAction = 'Remove';
-  static const String voicePicovoiceKeySaveSuccess = 'Voice key saved.';
-  static const String voicePicovoiceKeyClearSuccess = 'Voice key removed.';
-  static const String voicePicovoiceKeyEmptyError =
-      'Voice key cannot be empty.';
 
   // ── Profile tile ───────────────────────────────────────────────────────────
   static const String voiceProfileTileTitle = 'Voice Assistant';

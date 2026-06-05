@@ -250,11 +250,11 @@ void main() {
 
   group('failure mapping', () {
     test(
-      'factory throws VoiceWakeWordException(modelNotFound) → rethrown as-is',
+      'factory throws VoiceWakeWordException(modelLoadError) → rethrown as-is',
       () async {
         final svc = SherpaOnnxVoiceWakeWordService(
           kwsFactory: (_) async => throw const VoiceWakeWordException(
-            VoiceWakeWordErrorKind.modelNotFound,
+            VoiceWakeWordErrorKind.modelLoadError,
             'test: asset missing',
           ),
           audioSessionFactory: (_) async =>
@@ -267,7 +267,7 @@ void main() {
             isA<VoiceWakeWordException>().having(
               (e) => e.kind,
               'kind',
-              VoiceWakeWordErrorKind.modelNotFound,
+              VoiceWakeWordErrorKind.modelLoadError,
             ),
           ),
         );
@@ -323,33 +323,28 @@ void main() {
       },
     );
 
-    test('sherpa failures never map to noAccessKey', () async {
-      final services = <SherpaOnnxVoiceWakeWordService>[
-        SherpaOnnxVoiceWakeWordService(
+    test(
+      'generic factory failure maps to engineError (not modelLoadError)',
+      () async {
+        final svc = SherpaOnnxVoiceWakeWordService(
           kwsFactory: (_) async => throw Exception('native init failed'),
           audioSessionFactory: (_) async =>
               AudioSession(stream: const Stream.empty(), stop: () async {}),
-        ),
-        SherpaOnnxVoiceWakeWordService(
-          kwsFactory: (_) async => _FakeKwsHandle(),
-          audioSessionFactory: (_) async => throw Exception('mic unavailable'),
-        ),
-      ];
+        );
 
-      for (final svc in services) {
         await expectLater(
           svc.start(WakeWordPreset.trainer),
           throwsA(
             isA<VoiceWakeWordException>().having(
               (e) => e.kind,
               'kind',
-              isNot(VoiceWakeWordErrorKind.noAccessKey),
+              VoiceWakeWordErrorKind.engineError,
             ),
           ),
         );
         await svc.dispose();
-      }
-    });
+      },
+    );
   });
 
   // ── stop() teardown ────────────────────────────────────────────────────────

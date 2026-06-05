@@ -26,7 +26,7 @@ import 'widgets/voice_workout_mode_banner.dart';
 /// [VoiceSessionStarted] on first build. Manages connectivity and
 /// wake-word subscriptions for the duration the overlay is visible.
 ///
-/// When [openedByWakeWord] is true (the overlay was opened by a Porcupine
+/// When [openedByWakeWord] is true (the overlay was opened by a wake-word
 /// detection, not by the user tapping the FAB), [VoiceListenRequested] is
 /// dispatched on the first post-frame callback so STT starts automatically —
 /// closing the first-fire gap where the user already spoke the wake word

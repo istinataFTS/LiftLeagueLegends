@@ -47,7 +47,7 @@ class VoiceSettings extends Equatable {
 
   const VoiceSettings.defaults() : this();
 
-  /// Which wake-word model the Porcupine engine listens for.
+  /// Which wake-word model the engine listens for.
   final WakeWordPreset wakeWordPreset;
 
   /// When `true`, every voice turn is logged to `voice_sessions` for

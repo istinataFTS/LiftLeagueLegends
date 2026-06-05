@@ -51,17 +51,11 @@ dependencies:
   # Voice bot — runtime permissions (microphone, speech recognition)
   permission_handler: ^11.3.1
 
-  # Voice bot — secure storage for Picovoice access key
-  flutter_secure_storage: ^9.2.4
-
-  # Voice bot — wake-word engine (Picovoice Porcupine, foreground-only)
-  porcupine_flutter: ^3.0.3
-
-  # Required for PorcupineVoiceWakeWordService to extract .ppn assets to a
-  # filesystem path (Porcupine requires file paths, not asset bundle paths).
+  # Required for SherpaOnnxVoiceWakeWordService to extract KWS assets to a
+  # filesystem path (sherpa-onnx requires file paths, not asset bundle paths).
   path_provider: ^2.1.0
 
-  # Voice bot — audio capture used by Porcupine's microphone pipeline
+  # Voice bot — audio capture
   record: ^6.0.0
 
   # Voice bot — wake-word audio preview in Voice Settings (future use)
@@ -116,11 +110,6 @@ flutter:
     - assets/branding/
     - assets/images/
     - assets/images/body/
-    # Wake-word models (Picovoice Porcupine). Zero-byte placeholders until
-    # real .ppn files are obtained from console.picovoice.ai.
-    - assets/wake_words/android/
-    - assets/wake_words/ios/
-    - assets/wake_words/porcupine_params.pv
     # Wake-word model (sherpa-onnx KWS, offline, no access key).
     # int8 zipformer-gigaspeech model + BPE tokens + tokenized keywords.
     - assets/wake_words/kws/
