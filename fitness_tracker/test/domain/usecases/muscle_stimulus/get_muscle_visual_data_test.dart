@@ -224,17 +224,17 @@ void main() {
       },
     );
 
-    // Regression: bodyweight set advances lastSetTimestamp (Friday) but anchor
-    // stays at the last weighted day (Monday).  The read must decay from the
+    // Regression: bodyweight set advances lastSetTimestamp (2026-06-13) but anchor
+    // stays at the last weighted day (2026-06-09).  The read must decay from the
     // anchor (6 days), not lastSetTimestamp (2 days).
     test(
-      'anchor decoupling: fatigueScore=60, anchor=Monday, lastSetTimestamp=Friday, '
-      'today=Sunday → decays from Monday (6 days), not Friday (2 days)',
+      'anchor decoupling: fatigueScore=60, anchor=2026-06-09, lastSetTimestamp=2026-06-13, '
+      'today=2026-06-15 → decays from anchor (6 days), not lastSetTimestamp (2 days)',
       () async {
         const targetMuscle = stimulus_constants.MuscleStimulus.midChest;
-        // Fixed clock: Sunday 2026-06-15. Monday=09, Friday=13.
-        final monday = DateTime(2026, 6, 9);
-        final friday = DateTime(2026, 6, 13);
+        // Fixed clock: 2026-06-15. Anchor=2026-06-09, last-set=2026-06-13.
+        final anchorDay = DateTime(2026, 6, 9);
+        final lastSetDay = DateTime(2026, 6, 13);
         stubOtherMuscles(targetMuscle);
 
         when(
@@ -251,8 +251,8 @@ void main() {
               date: todayStart,
               dailyStimulus: 0.0,
               rollingWeeklyLoad: 0.0,
-              lastSetTimestamp: friday.millisecondsSinceEpoch,
-              fatigueAnchorTimestamp: monday.millisecondsSinceEpoch,
+              lastSetTimestamp: lastSetDay.millisecondsSinceEpoch,
+              fatigueAnchorTimestamp: anchorDay.millisecondsSinceEpoch,
               fatigueScore: 60.0,
               createdAt: todayStart,
               updatedAt: todayStart,
@@ -264,13 +264,13 @@ void main() {
         final data = result.getOrElse(() => throw StateError('expected data'));
         final chest = data[targetMuscle]!;
 
-        // From Monday to Sunday = 6 days.
-        // From Friday to Sunday = 2 days.
+        // From 2026-06-09 to 2026-06-15 = 6 days.
+        // From 2026-06-13 to 2026-06-15 = 2 days.
         // decayFatigue(60, 6) must be used, NOT decayFatigue(60, 2).
         // decayFatigue(60, 2): 60 * exp(-(0.25*2 + 0.06*4)) ≈ 28.6 → light
         // decayFatigue(60, 6): 60 * exp(-(0.25*6 + 0.06*36)) ≈ 3.2 → below mild → untrained
-        // So the regression is: if decay uses anchor(Mon) → hasTrained==false (recovered).
-        //                        if decay uses lastSet(Fri) → hasTrained==true (orange-ish).
+        // So the regression is: if decay uses anchor(2026-06-09) → hasTrained==false (recovered).
+        //                        if decay uses lastSet(2026-06-13) → hasTrained==true (orange-ish).
         expect(
           chest.hasTrained,
           isFalse,
