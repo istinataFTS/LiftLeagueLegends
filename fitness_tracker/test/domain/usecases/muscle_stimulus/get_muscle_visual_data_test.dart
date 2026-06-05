@@ -275,9 +275,9 @@ void main() {
           chest.hasTrained,
           isFalse,
           reason:
-              'decay from anchor (Monday, 6 days) must yield near-zero '
+              'decay from anchor (2026-06-09 / Tuesday, 6 days) must yield near-zero '
               'fatigue → recovered/gray; decaying from lastSetTimestamp '
-              '(Friday, 2 days) would incorrectly show the muscle as trained',
+              '(2026-06-13 / Saturday, 2 days) would incorrectly show the muscle as trained',
         );
       },
     );
