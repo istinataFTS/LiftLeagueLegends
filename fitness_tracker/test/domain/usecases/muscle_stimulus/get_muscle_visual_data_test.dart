@@ -145,7 +145,7 @@ void main() {
     }
 
     test(
-      'fatigue_score=70, lastSetTimestamp=today → current≈70 → heavy bucket (orange)',
+      'fatigue_score=70, fatigueAnchorTimestamp=today → current≈70 → heavy bucket (orange)',
       () async {
         const targetMuscle = stimulus_constants.MuscleStimulus.quads;
         stubOtherMuscles(targetMuscle);
@@ -165,6 +165,7 @@ void main() {
               dailyStimulus: 0.0,
               rollingWeeklyLoad: 0.0,
               lastSetTimestamp: todayStart.millisecondsSinceEpoch,
+              fatigueAnchorTimestamp: todayStart.millisecondsSinceEpoch,
               fatigueScore: 70.0,
               createdAt: todayStart,
               updatedAt: todayStart,
@@ -183,7 +184,7 @@ void main() {
     );
 
     test(
-      'fatigue_score=70, lastSetTimestamp=2 days ago → decayed to ~33 → light bucket (green)',
+      'fatigue_score=70, fatigueAnchorTimestamp=2 days ago → decayed to ~33 → light bucket (green)',
       () async {
         const targetMuscle = stimulus_constants.MuscleStimulus.lats;
         final twoDaysAgo = DateTime(2026, 6, 13);
@@ -204,6 +205,7 @@ void main() {
               dailyStimulus: 0.0,
               rollingWeeklyLoad: 0.0,
               lastSetTimestamp: twoDaysAgo.millisecondsSinceEpoch,
+              fatigueAnchorTimestamp: twoDaysAgo.millisecondsSinceEpoch,
               fatigueScore: 70.0,
               createdAt: todayStart,
               updatedAt: todayStart,
@@ -219,6 +221,64 @@ void main() {
         // 33.4/100 = 0.334 → [0.2, 0.4) → light
         expect(lats.hasTrained, isTrue);
         expect(lats.bucket, MuscleVisualBucket.light);
+      },
+    );
+
+    // Regression: bodyweight set advances lastSetTimestamp (2026-06-13) but anchor
+    // stays at the last weighted day (2026-06-09).  The read must decay from the
+    // anchor (6 days), not lastSetTimestamp (2 days).
+    test(
+      'anchor decoupling: fatigueScore=60, anchor=2026-06-09, lastSetTimestamp=2026-06-13, '
+      'today=2026-06-15 → decays from anchor (6 days), not lastSetTimestamp (2 days)',
+      () async {
+        const targetMuscle = stimulus_constants.MuscleStimulus.midChest;
+        // Fixed clock: 2026-06-15. Anchor=2026-06-09, last-set=2026-06-13.
+        final anchorDay = DateTime(2026, 6, 9);
+        final lastSetDay = DateTime(2026, 6, 13);
+        stubOtherMuscles(targetMuscle);
+
+        when(
+          () => repository.getStimulusByMuscleAndDate(
+            muscleGroup: targetMuscle,
+            date: todayStart,
+          ),
+        ).thenAnswer(
+          (_) async => Right(
+            stimulus_entity.MuscleStimulus(
+              id: 'chest-today',
+              ownerUserId: testUserId,
+              muscleGroup: targetMuscle,
+              date: todayStart,
+              dailyStimulus: 0.0,
+              rollingWeeklyLoad: 0.0,
+              lastSetTimestamp: lastSetDay.millisecondsSinceEpoch,
+              fatigueAnchorTimestamp: anchorDay.millisecondsSinceEpoch,
+              fatigueScore: 60.0,
+              createdAt: todayStart,
+              updatedAt: todayStart,
+            ),
+          ),
+        );
+
+        final result = await usecaseWithClock(TimePeriod.week);
+        final data = result.getOrElse(() => throw StateError('expected data'));
+        final chest = data[targetMuscle]!;
+
+        // From 2026-06-09 to 2026-06-15 = 6 days.
+        // From 2026-06-13 to 2026-06-15 = 2 days.
+        // decayFatigue(60, 6) must be used, NOT decayFatigue(60, 2).
+        // decayFatigue(60, 2): 60 * exp(-(0.25*2 + 0.06*4)) ≈ 28.6 → light
+        // decayFatigue(60, 6): 60 * exp(-(0.25*6 + 0.06*36)) ≈ 3.2 → below mild → untrained
+        // So the regression is: if decay uses anchor(2026-06-09) → hasTrained==false (recovered).
+        //                        if decay uses lastSet(2026-06-13) → hasTrained==true (orange-ish).
+        expect(
+          chest.hasTrained,
+          isFalse,
+          reason:
+              'decay from anchor (Monday, 6 days) must yield near-zero '
+              'fatigue → recovered/gray; decaying from lastSetTimestamp '
+              '(Friday, 2 days) would incorrectly show the muscle as trained',
+        );
       },
     );
 
@@ -243,6 +303,7 @@ void main() {
               dailyStimulus: 0.0,
               rollingWeeklyLoad: 0.0,
               lastSetTimestamp: todayStart.millisecondsSinceEpoch,
+              fatigueAnchorTimestamp: todayStart.millisecondsSinceEpoch,
               fatigueScore: 10.0,
               createdAt: todayStart,
               updatedAt: todayStart,
@@ -297,6 +358,7 @@ void main() {
             dailyStimulus: 0.0,
             rollingWeeklyLoad: 0.0,
             lastSetTimestamp: todayStart.millisecondsSinceEpoch,
+            fatigueAnchorTimestamp: todayStart.millisecondsSinceEpoch,
             fatigueScore: 0.0,
             createdAt: todayStart,
             updatedAt: todayStart,
@@ -311,7 +373,8 @@ void main() {
     });
 
     test(
-      'row with lastSetTimestamp=null → short-circuits to untrained (even with non-zero fatigueScore)',
+      'row with fatigueAnchorTimestamp=null → short-circuits to untrained '
+      '(even with non-zero fatigueScore and non-null lastSetTimestamp)',
       () async {
         const targetMuscle = stimulus_constants.MuscleStimulus.triceps;
         stubOtherMuscles(targetMuscle);
@@ -330,7 +393,8 @@ void main() {
               date: todayStart,
               dailyStimulus: 0.0,
               rollingWeeklyLoad: 0.0,
-              lastSetTimestamp: null,
+              lastSetTimestamp: todayStart.millisecondsSinceEpoch,
+              fatigueAnchorTimestamp: null,
               fatigueScore: 40.0,
               createdAt: todayStart,
               updatedAt: todayStart,
@@ -341,7 +405,7 @@ void main() {
         final result = await usecaseWithClock(TimePeriod.week);
         final data = result.getOrElse(() => throw StateError('expected data'));
 
-        // lastSetTimestamp == null → cannot compute daysSince → untrained
+        // fatigueAnchorTimestamp == null → no accumulated fatigue → untrained
         expect(data[targetMuscle]!.hasTrained, isFalse);
       },
     );

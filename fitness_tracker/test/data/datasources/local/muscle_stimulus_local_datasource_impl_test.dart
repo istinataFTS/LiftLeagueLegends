@@ -68,6 +68,7 @@ void main() {
         ${DatabaseTables.stimulusLastSetStimulus} REAL,
         ${DatabaseTables.stimulusDailyVolume} REAL NOT NULL DEFAULT 0.0,
         ${DatabaseTables.stimulusFatigueScore} REAL NOT NULL DEFAULT 0.0,
+        ${DatabaseTables.stimulusFatigueAnchorTs} INTEGER,
         ${DatabaseTables.stimulusCreatedAt} TEXT NOT NULL,
         ${DatabaseTables.stimulusUpdatedAt} TEXT NOT NULL,
         UNIQUE(${DatabaseTables.ownerUserId}, ${DatabaseTables.stimulusMuscleGroup}, ${DatabaseTables.stimulusDate})

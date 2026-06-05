@@ -112,7 +112,7 @@ class GetMuscleVisualData {
         final row = rowResult.getOrElse(() => null);
 
         if (row == null ||
-            row.lastSetTimestamp == null ||
+            row.fatigueAnchorTimestamp == null ||
             row.fatigueScore <= 0) {
           visual[muscle] = MuscleVisualData.untrained(
             muscle,
@@ -121,11 +121,11 @@ class GetMuscleVisualData {
           continue;
         }
 
-        final lastSetDay = CalendarDay.startOfDay(
-          DateTime.fromMillisecondsSinceEpoch(row.lastSetTimestamp!),
+        final anchorDay = CalendarDay.startOfDay(
+          DateTime.fromMillisecondsSinceEpoch(row.fatigueAnchorTimestamp!),
         );
         final daysSince = CalendarDay.calendarDaysBetween(
-          lastSetDay,
+          anchorDay,
           todayStart,
         );
         final current = StimulusCalculationRules.decayFatigue(
