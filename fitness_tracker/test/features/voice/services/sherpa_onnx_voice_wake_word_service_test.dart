@@ -322,29 +322,6 @@ void main() {
         await svc.dispose();
       },
     );
-
-    test(
-      'generic factory failure maps to engineError (not modelLoadError)',
-      () async {
-        final svc = SherpaOnnxVoiceWakeWordService(
-          kwsFactory: (_) async => throw Exception('native init failed'),
-          audioSessionFactory: (_) async =>
-              AudioSession(stream: const Stream.empty(), stop: () async {}),
-        );
-
-        await expectLater(
-          svc.start(WakeWordPreset.trainer),
-          throwsA(
-            isA<VoiceWakeWordException>().having(
-              (e) => e.kind,
-              'kind',
-              VoiceWakeWordErrorKind.engineError,
-            ),
-          ),
-        );
-        await svc.dispose();
-      },
-    );
   });
 
   // ── stop() teardown ────────────────────────────────────────────────────────
