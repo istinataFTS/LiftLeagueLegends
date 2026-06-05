@@ -10,6 +10,7 @@ void main() {
     DateTime? updatedAt,
     double dailyVolume = 0.0,
     double fatigueScore = 0.0,
+    int? fatigueAnchorTimestamp,
   }) {
     final d = createdAt ?? baseDate;
     return MuscleStimulusModel(
@@ -21,6 +22,7 @@ void main() {
       rollingWeeklyLoad: 12.0,
       dailyVolume: dailyVolume,
       fatigueScore: fatigueScore,
+      fatigueAnchorTimestamp: fatigueAnchorTimestamp,
       createdAt: d,
       updatedAt: updatedAt ?? d,
     );
@@ -157,6 +159,60 @@ void main() {
       final entity = buildModel(fatigueScore: 55.0);
       final fromEntity = MuscleStimulusModel.fromEntity(entity);
       expect(fromEntity.fatigueScore, closeTo(55.0, 0.001));
+    });
+  });
+
+  group('MuscleStimulusModel fatigueAnchorTimestamp', () {
+    final anchorMs = DateTime(2026, 6, 2).millisecondsSinceEpoch;
+
+    test('toMap / fromMap round-trips a non-null fatigueAnchorTimestamp', () {
+      final model = buildModel(fatigueAnchorTimestamp: anchorMs);
+      final roundTripped = MuscleStimulusModel.fromMap(model.toMap());
+      expect(roundTripped.fatigueAnchorTimestamp, anchorMs);
+    });
+
+    test(
+      'fromMap tolerates a missing fatigue_anchor_ts key (legacy row → null)',
+      () {
+        final map = buildModel(fatigueAnchorTimestamp: anchorMs).toMap()
+          ..remove(DatabaseTables.stimulusFatigueAnchorTs);
+        final parsed = MuscleStimulusModel.fromMap(map);
+        expect(parsed.fatigueAnchorTimestamp, isNull);
+      },
+    );
+
+    test('fromMap null fatigue_anchor_ts survives as null', () {
+      final map = buildModel().toMap();
+      final parsed = MuscleStimulusModel.fromMap(map);
+      expect(parsed.fatigueAnchorTimestamp, isNull);
+    });
+
+    test('toJson / fromJson round-trips a non-null fatigueAnchorTimestamp', () {
+      final model = buildModel(fatigueAnchorTimestamp: anchorMs);
+      final roundTripped = MuscleStimulusModel.fromJson(model.toJson());
+      expect(roundTripped.fatigueAnchorTimestamp, anchorMs);
+    });
+
+    test(
+      'fromJson tolerates a missing fatigueAnchorTimestamp key (legacy JSON → null)',
+      () {
+        final json = buildModel(fatigueAnchorTimestamp: anchorMs).toJson()
+          ..remove('fatigueAnchorTimestamp');
+        final parsed = MuscleStimulusModel.fromJson(json);
+        expect(parsed.fatigueAnchorTimestamp, isNull);
+      },
+    );
+
+    test('fromEntity preserves fatigueAnchorTimestamp', () {
+      final entity = buildModel(fatigueAnchorTimestamp: anchorMs);
+      final fromEntity = MuscleStimulusModel.fromEntity(entity);
+      expect(fromEntity.fatigueAnchorTimestamp, anchorMs);
+    });
+
+    test('fromEntity preserves null fatigueAnchorTimestamp', () {
+      final entity = buildModel();
+      final fromEntity = MuscleStimulusModel.fromEntity(entity);
+      expect(fromEntity.fatigueAnchorTimestamp, isNull);
     });
   });
 }

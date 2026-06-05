@@ -175,6 +175,7 @@ class DatabaseHelper {
         ${DatabaseTables.stimulusLastSetStimulus} REAL,
         ${DatabaseTables.stimulusDailyVolume} REAL NOT NULL DEFAULT 0.0,
         ${DatabaseTables.stimulusFatigueScore} REAL NOT NULL DEFAULT 0.0,
+        ${DatabaseTables.stimulusFatigueAnchorTs} INTEGER,
         ${DatabaseTables.stimulusCreatedAt} TEXT NOT NULL,
         ${DatabaseTables.stimulusUpdatedAt} TEXT NOT NULL,
         UNIQUE(${DatabaseTables.ownerUserId}, ${DatabaseTables.stimulusMuscleGroup}, ${DatabaseTables.stimulusDate})
@@ -561,6 +562,16 @@ class DatabaseHelper {
       await db.execute(
         'ALTER TABLE ${DatabaseTables.muscleStimulus} '
         'ADD COLUMN ${DatabaseTables.stimulusFatigueScore} REAL NOT NULL DEFAULT 0.0',
+      );
+    }
+
+    if (oldVersion < 25) {
+      // Add the fatigue decay anchor: epoch-ms (local midnight) of the last
+      // day this muscle's fatigue actually accumulated (gain > 0).  NULL until
+      // RebuildMuscleStimulusFromWorkoutHistory repopulates on next launch/sync.
+      await db.execute(
+        'ALTER TABLE ${DatabaseTables.muscleStimulus} '
+        'ADD COLUMN ${DatabaseTables.stimulusFatigueAnchorTs} INTEGER',
       );
     }
 

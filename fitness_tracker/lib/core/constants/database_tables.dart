@@ -80,6 +80,7 @@ class DatabaseTables {
   static const String stimulusLastSetStimulus = 'last_set_stimulus';
   static const String stimulusDailyVolume = 'daily_volume';
   static const String stimulusFatigueScore = 'fatigue_score';
+  static const String stimulusFatigueAnchorTs = 'fatigue_anchor_ts';
   static const String stimulusCreatedAt = 'created_at';
   static const String stimulusUpdatedAt = 'updated_at';
 

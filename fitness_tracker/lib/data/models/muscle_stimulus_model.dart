@@ -14,6 +14,7 @@ class MuscleStimulusModel extends MuscleStimulus {
     super.lastSetStimulus,
     super.dailyVolume = 0.0,
     super.fatigueScore = 0.0,
+    super.fatigueAnchorTimestamp,
     required super.createdAt,
     required super.updatedAt,
   });
@@ -31,6 +32,7 @@ class MuscleStimulusModel extends MuscleStimulus {
       lastSetStimulus: stimulus.lastSetStimulus,
       dailyVolume: stimulus.dailyVolume,
       fatigueScore: stimulus.fatigueScore,
+      fatigueAnchorTimestamp: stimulus.fatigueAnchorTimestamp,
       createdAt: stimulus.createdAt,
       updatedAt: stimulus.updatedAt,
     );
@@ -55,6 +57,9 @@ class MuscleStimulusModel extends MuscleStimulus {
       // Tolerate legacy rows from before v24 that lack this column (null → 0.0).
       fatigueScore:
           (map[DatabaseTables.stimulusFatigueScore] as num?)?.toDouble() ?? 0.0,
+      // Tolerate legacy rows from before v25 that lack this column (null → null).
+      fatigueAnchorTimestamp:
+          map[DatabaseTables.stimulusFatigueAnchorTs] as int?,
       createdAt: parseStorageDate(
         map[DatabaseTables.stimulusCreatedAt] as String,
       ),
@@ -80,6 +85,7 @@ class MuscleStimulusModel extends MuscleStimulus {
       DatabaseTables.stimulusLastSetStimulus: lastSetStimulus,
       DatabaseTables.stimulusDailyVolume: dailyVolume,
       DatabaseTables.stimulusFatigueScore: fatigueScore,
+      DatabaseTables.stimulusFatigueAnchorTs: fatigueAnchorTimestamp,
       DatabaseTables.stimulusCreatedAt: createdAt.toStorageIso(),
       DatabaseTables.stimulusUpdatedAt: updatedAt.toStorageIso(),
     };
@@ -112,6 +118,7 @@ class MuscleStimulusModel extends MuscleStimulus {
       lastSetStimulus: (json['lastSetStimulus'] as num?)?.toDouble(),
       dailyVolume: (json['dailyVolume'] as num?)?.toDouble() ?? 0.0,
       fatigueScore: (json['fatigueScore'] as num?)?.toDouble() ?? 0.0,
+      fatigueAnchorTimestamp: json['fatigueAnchorTimestamp'] as int?,
       createdAt: parseStorageDate(json['createdAt'] as String),
       updatedAt: parseStorageDate(json['updatedAt'] as String),
     );
@@ -130,6 +137,7 @@ class MuscleStimulusModel extends MuscleStimulus {
       'lastSetStimulus': lastSetStimulus,
       'dailyVolume': dailyVolume,
       'fatigueScore': fatigueScore,
+      'fatigueAnchorTimestamp': fatigueAnchorTimestamp,
       'createdAt': createdAt.toStorageIso(),
       'updatedAt': updatedAt.toStorageIso(),
     };

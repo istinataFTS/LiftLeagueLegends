@@ -39,6 +39,13 @@ class MuscleStimulus extends Equatable {
   /// value unchanged. Rows from before the v24 migration default to 0.0.
   final double fatigueScore;
 
+  /// Epoch-ms (local midnight) of the last day this muscle's [fatigueScore]
+  /// was accumulated (a gain > 0 day). The fatigue read decays [fatigueScore]
+  /// from this anchor — NOT from [lastSetTimestamp], which a later zero-gain
+  /// (e.g. bodyweight) set can advance independently. null ⇒ never accumulated
+  /// fatigue (rows from before v25 migration, or bodyweight-only history).
+  final int? fatigueAnchorTimestamp;
+
   final DateTime createdAt;
   final DateTime updatedAt;
 
@@ -53,6 +60,7 @@ class MuscleStimulus extends Equatable {
     this.lastSetStimulus,
     this.dailyVolume = 0.0,
     this.fatigueScore = 0.0,
+    this.fatigueAnchorTimestamp,
     required this.createdAt,
     required this.updatedAt,
   });
@@ -131,6 +139,7 @@ class MuscleStimulus extends Equatable {
     double? lastSetStimulus,
     double? dailyVolume,
     double? fatigueScore,
+    int? fatigueAnchorTimestamp,
     DateTime? createdAt,
     DateTime? updatedAt,
   }) {
@@ -145,6 +154,8 @@ class MuscleStimulus extends Equatable {
       lastSetStimulus: lastSetStimulus ?? this.lastSetStimulus,
       dailyVolume: dailyVolume ?? this.dailyVolume,
       fatigueScore: fatigueScore ?? this.fatigueScore,
+      fatigueAnchorTimestamp:
+          fatigueAnchorTimestamp ?? this.fatigueAnchorTimestamp,
       createdAt: createdAt ?? this.createdAt,
       updatedAt: updatedAt ?? this.updatedAt,
     );
@@ -162,6 +173,7 @@ class MuscleStimulus extends Equatable {
     lastSetStimulus,
     dailyVolume,
     fatigueScore,
+    fatigueAnchorTimestamp,
     createdAt,
     updatedAt,
   ];

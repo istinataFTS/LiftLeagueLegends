@@ -245,6 +245,8 @@ class RebuildMuscleStimulusFromWorkoutHistory {
             // Carry-forward (gap) days have no workout — volume stays 0.0.
             dailyVolume: dayVolume[muscleGroup] ?? 0.0,
             fatigueScore: fatigueForRow,
+            fatigueAnchorTimestamp:
+                fatigueLastSetDay[muscleGroup]?.millisecondsSinceEpoch,
             createdAt: day,
             updatedAt: day,
           ),

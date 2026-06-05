@@ -656,6 +656,186 @@ void main() {
     );
 
     // -------------------------------------------------------------------------
+    // fatigueAnchorTimestamp correctness (Plan-1 regression)
+    // -------------------------------------------------------------------------
+
+    test(
+      'weighted set day A then bodyweight set day A+N: anchor stays at dayA, '
+      'lastSetTimestamp advances to A+N',
+      () async {
+        // This is the core regression for the bodyweight/zero-gain anchor bug.
+        // bench (weight=80): gain > 0 → anchor advances to dayA.
+        // bodyweight-push (weight=0): gain == 0 → anchor must NOT advance.
+        // lastSetTimestamp advances on any set, so it should be at dayA+4.
+        final todayMidnight = CalendarDay.startOfDay(fixedToday);
+        final dayA = DateTime(
+          todayMidnight.year,
+          todayMidnight.month,
+          todayMidnight.day - 4,
+        );
+        final dayAplus4 = todayMidnight; // "today"
+
+        when(
+          () => muscleFactorRepository.getFactorsForExercise('bw-push'),
+        ).thenAnswer(
+          (_) async => const Right(<MuscleFactor>[
+            MuscleFactor(
+              id: 'bw-chest',
+              exerciseId: 'bw-push',
+              muscleGroup: 'mid-chest',
+              factor: 0.9,
+            ),
+          ]),
+        );
+
+        final uc = _usecaseWith([
+          // Weighted set on dayA
+          WorkoutSet(
+            id: 'bench-dayA',
+            exerciseId: 'bench',
+            reps: 8,
+            weight: 80,
+            intensity: 4,
+            date: dayA.add(const Duration(hours: 9)),
+            createdAt: dayA.add(const Duration(hours: 9)),
+          ),
+          // Bodyweight set on dayA+4 (weight == 0 → fatigueGain == 0)
+          WorkoutSet(
+            id: 'bw-push-today',
+            exerciseId: 'bw-push',
+            reps: 20,
+            weight: 0,
+            intensity: 3,
+            date: dayAplus4.add(const Duration(hours: 10)),
+            createdAt: dayAplus4.add(const Duration(hours: 10)),
+          ),
+        ]);
+
+        upsertedRecords.clear();
+        final result = await uc(testUserId);
+        expect(result.isRight(), isTrue);
+
+        final todayChest = upsertedRecords.firstWhere(
+          (r) =>
+              r.date == dayAplus4 &&
+              r.muscleGroup == stimulus_constants.MuscleStimulus.midChest,
+        );
+
+        // Anchor must stay at dayA (the last weighted/gain>0 day).
+        expect(
+          todayChest.fatigueAnchorTimestamp,
+          dayA.millisecondsSinceEpoch,
+          reason:
+              'fatigueAnchorTimestamp must not advance on a zero-gain '
+              '(bodyweight) set — it must stay at the last gain>0 day',
+        );
+        // lastSetTimestamp must advance to dayA+4 (any set advances it).
+        expect(
+          todayChest.lastSetTimestamp,
+          isNotNull,
+          reason: 'lastSetTimestamp must be set (any set advances it)',
+        );
+        expect(
+          todayChest.lastSetTimestamp! >=
+              dayAplus4.add(const Duration(hours: 10)).millisecondsSinceEpoch,
+          isTrue,
+          reason:
+              'lastSetTimestamp must be at or after the bodyweight set time',
+        );
+      },
+    );
+
+    test(
+      'weighted-only muscle: fatigueAnchorTimestamp == startOfDay(lastSetDate)',
+      () async {
+        final todayMidnight = CalendarDay.startOfDay(fixedToday);
+        final pastDay = DateTime(
+          todayMidnight.year,
+          todayMidnight.month,
+          todayMidnight.day - 1,
+        );
+
+        final uc = _usecaseWith([
+          WorkoutSet(
+            id: 'bench-past',
+            exerciseId: 'bench',
+            reps: 8,
+            weight: 80,
+            intensity: 4,
+            date: pastDay.add(const Duration(hours: 9)),
+            createdAt: pastDay.add(const Duration(hours: 9)),
+          ),
+        ]);
+
+        upsertedRecords.clear();
+        await uc(testUserId);
+
+        final pastChest = upsertedRecords.firstWhere(
+          (r) =>
+              r.date == pastDay &&
+              r.muscleGroup == stimulus_constants.MuscleStimulus.midChest,
+        );
+        expect(
+          pastChest.fatigueAnchorTimestamp,
+          pastDay.millisecondsSinceEpoch,
+          reason: 'for weighted-only muscle, anchor == midnight of the set day',
+        );
+      },
+    );
+
+    test(
+      'bodyweight-only muscle: fatigueScore == 0.0 and fatigueAnchorTimestamp == null',
+      () async {
+        // weight=0 throughout → fatigueGain always 0 → anchor never set.
+        final todayMidnight = CalendarDay.startOfDay(fixedToday);
+
+        when(
+          () => muscleFactorRepository.getFactorsForExercise('bw-only'),
+        ).thenAnswer(
+          (_) async => const Right(<MuscleFactor>[
+            MuscleFactor(
+              id: 'bw-only-chest',
+              exerciseId: 'bw-only',
+              muscleGroup: 'mid-chest',
+              factor: 0.9,
+            ),
+          ]),
+        );
+
+        final uc = _usecaseWith([
+          WorkoutSet(
+            id: 'bw-set',
+            exerciseId: 'bw-only',
+            reps: 20,
+            weight: 0,
+            intensity: 3,
+            date: todayMidnight.add(const Duration(hours: 9)),
+            createdAt: todayMidnight.add(const Duration(hours: 9)),
+          ),
+        ]);
+
+        upsertedRecords.clear();
+        await uc(testUserId);
+
+        final todayChest = upsertedRecords.firstWhere(
+          (r) =>
+              r.date == todayMidnight &&
+              r.muscleGroup == stimulus_constants.MuscleStimulus.midChest,
+        );
+        expect(
+          todayChest.fatigueScore,
+          closeTo(0.0, 1e-9),
+          reason: 'bodyweight-only: fatigueScore must be 0',
+        );
+        expect(
+          todayChest.fatigueAnchorTimestamp,
+          isNull,
+          reason: 'bodyweight-only: fatigueAnchorTimestamp must be null',
+        );
+      },
+    );
+
+    // -------------------------------------------------------------------------
     // daily_volume correctness
     // -------------------------------------------------------------------------
 

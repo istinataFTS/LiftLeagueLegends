@@ -92,9 +92,14 @@ class EnvConfig {
   ///             muscle_stimulus. Stores running 0–100 fatigue as of the last set;
   ///             populated by RebuildMuscleStimulusFromWorkoutHistory using delayed-
   ///             recovery decay accumulation; read-time decay applied by GetMuscleVisualData.
+  /// Version 25: Added `fatigue_anchor_ts` (INTEGER nullable) to muscle_stimulus.
+  ///             Epoch-ms (local midnight) of the last day fatigue actually
+  ///             accumulated (gain > 0). Decouples the fatigue decay anchor from
+  ///             last_set_timestamp so bodyweight/zero-gain sets cannot
+  ///             artificially advance the anchor and under-decay fatigue.
   static const int databaseVersion = int.fromEnvironment(
     'DATABASE_VERSION',
-    defaultValue: 24,
+    defaultValue: 25,
   );
 
   static const bool seedDefaultData = bool.fromEnvironment(
