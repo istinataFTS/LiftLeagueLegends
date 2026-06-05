@@ -69,6 +69,7 @@ dependencies:
 
   # Voice bot — screen-on during Workout Mode
   wakelock_plus: ^1.2.10
+  sherpa_onnx: ^1.13.2
 
 dev_dependencies:
   flutter_test:
@@ -120,3 +121,6 @@ flutter:
     - assets/wake_words/android/
     - assets/wake_words/ios/
     - assets/wake_words/porcupine_params.pv
+    # Wake-word model (sherpa-onnx KWS, offline, no access key).
+    # int8 zipformer-gigaspeech model + BPE tokens + tokenized keywords.
+    - assets/wake_words/kws/
