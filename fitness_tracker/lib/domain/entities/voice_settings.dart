@@ -2,9 +2,8 @@ import 'package:equatable/equatable.dart';
 
 import '../../core/constants/voice_constants.dart';
 
-/// Curated wake-word presets. Each one is a Picovoice Porcupine model
-/// bundled with the app. The Porcupine engine (wired up in C-4) picks
-/// the right `.ppn` file for the selected preset.
+/// Curated wake-word presets. Each maps to a distinct wake phrase recognised
+/// by the on-device wake-word engine (see [VoiceWakeWordService]).
 enum WakeWordPreset { samoLevski, trainer, thomas }
 
 extension WakeWordPresetLabel on WakeWordPreset {
@@ -18,6 +17,16 @@ extension WakeWordPresetLabel on WakeWordPreset {
         return 'Thomas';
     }
   }
+}
+
+extension WakeWordPresetPhrase on WakeWordPreset {
+  /// The exact spoken phrase the KWS model is trained to spot, upper-cased to
+  /// match the de-tokenized `KeywordResult.keyword` sherpa returns.
+  String get wakePhrase => switch (this) {
+    WakeWordPreset.samoLevski => 'SAMO LEVSKI',
+    WakeWordPreset.trainer => 'TRAINER',
+    WakeWordPreset.thomas => 'THOMAS',
+  };
 }
 
 /// Voice-bot preferences. **All fields are device-local**, persisted via
