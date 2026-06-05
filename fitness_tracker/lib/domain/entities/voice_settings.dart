@@ -2,8 +2,8 @@ import 'package:equatable/equatable.dart';
 
 import '../../core/constants/voice_constants.dart';
 
-/// Curated wake-word presets. Each one corresponds to a BPE-tokenized phrase
-/// in the sherpa-onnx KWS model bundled under `assets/wake_words/kws/`.
+/// Curated wake-word presets. Each maps to a distinct wake phrase recognised
+/// by the on-device wake-word engine (see [VoiceWakeWordService]).
 enum WakeWordPreset { samoLevski, trainer, thomas }
 
 extension WakeWordPresetLabel on WakeWordPreset {

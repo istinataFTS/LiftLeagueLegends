@@ -5,7 +5,7 @@ for the `sherpa-onnx-kws-zipformer-gigaspeech-3.3M-2024-01-01` model.
 
 ## Current phrases (`keywords_raw.txt` equivalent)
 
-```
+```text
 SAMO LEVSKI
 TRAINER
 THOMAS

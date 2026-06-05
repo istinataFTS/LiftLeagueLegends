@@ -323,12 +323,32 @@ void main() {
       },
     );
 
-    test('noAccessKey is never thrown by SherpaOnnxVoiceWakeWordService', () {
-      // Documents the invariant: sherpa has no key, so noAccessKey must not
-      // be emitted.  The test cases above cover all failure paths and none
-      // produce noAccessKey.
-      const kinds = VoiceWakeWordErrorKind.values;
-      expect(kinds, contains(VoiceWakeWordErrorKind.noAccessKey));
+    test('sherpa failures never map to noAccessKey', () async {
+      final services = <SherpaOnnxVoiceWakeWordService>[
+        SherpaOnnxVoiceWakeWordService(
+          kwsFactory: (_) async => throw Exception('native init failed'),
+          audioSessionFactory: (_) async =>
+              AudioSession(stream: const Stream.empty(), stop: () async {}),
+        ),
+        SherpaOnnxVoiceWakeWordService(
+          kwsFactory: (_) async => _FakeKwsHandle(),
+          audioSessionFactory: (_) async => throw Exception('mic unavailable'),
+        ),
+      ];
+
+      for (final svc in services) {
+        await expectLater(
+          svc.start(WakeWordPreset.trainer),
+          throwsA(
+            isA<VoiceWakeWordException>().having(
+              (e) => e.kind,
+              'kind',
+              isNot(VoiceWakeWordErrorKind.noAccessKey),
+            ),
+          ),
+        );
+        await svc.dispose();
+      }
     });
   });
 
