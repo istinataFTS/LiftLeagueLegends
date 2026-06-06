@@ -213,6 +213,20 @@ class SherpaOnnxVoiceWakeWordService implements VoiceWakeWordService {
   final _detectedController = StreamController<WakeWordPreset>.broadcast();
   final _errorController = StreamController<VoiceWakeWordException>.broadcast();
 
+  // Serialises start()/stop() so concurrent callers (VoiceFab initState,
+  // app-resume, settings BlocListener, overlay-close re-arm) cannot run two
+  // overlapping audio sessions. Each public call enqueues behind the previous
+  // op; the dedup guard then sees a settled _running/_activePreset.
+  Future<void> _opChain = Future<void>.value();
+
+  Future<T> _enqueue<T>(Future<T> Function() op) {
+    final next = _opChain.then((_) => op());
+    // Keep the chain alive whether or not THIS op throws; the caller still
+    // sees the real result/error via `next`.
+    _opChain = next.then((_) {}, onError: (_) {});
+    return next;
+  }
+
   // ── VoiceWakeWordService interface ──────────────────────────────────────────
 
   @override
@@ -225,9 +239,23 @@ class SherpaOnnxVoiceWakeWordService implements VoiceWakeWordService {
   bool get isRunning => _running;
 
   @override
-  Future<void> start(WakeWordPreset preset) async {
-    if (_running && _activePreset == preset) return;
+  Future<void> start(WakeWordPreset preset) => _enqueue(() => _doStart(preset));
+
+  @override
+  Future<void> stop() => _enqueue(_doStop);
+
+  @override
+  Future<void> dispose() async {
     await stop();
+    await _detectedController.close();
+    await _errorController.close();
+  }
+
+  // ── Private operation bodies (called only from _enqueue) ────────────────────
+
+  Future<void> _doStart(WakeWordPreset preset) async {
+    if (_running && _activePreset == preset) return;
+    await _doStop();
 
     KwsHandle handle;
     try {
@@ -284,8 +312,7 @@ class SherpaOnnxVoiceWakeWordService implements VoiceWakeWordService {
     );
   }
 
-  @override
-  Future<void> stop() async {
+  Future<void> _doStop() async {
     if (!_running && _handle == null) return;
     try {
       await _audioSub?.cancel();
@@ -305,13 +332,6 @@ class SherpaOnnxVoiceWakeWordService implements VoiceWakeWordService {
       _running = false;
       _activePreset = null;
     }
-  }
-
-  @override
-  Future<void> dispose() async {
-    await stop();
-    await _detectedController.close();
-    await _errorController.close();
   }
 
   // ── Internal ────────────────────────────────────────────────────────────────
