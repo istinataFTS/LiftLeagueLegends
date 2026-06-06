@@ -44,7 +44,7 @@ Supabase deploy is manual — trigger the `Supabase Deploy` GitHub Action (`work
 
 All config is injected at build time via `--dart-define`. `EnvConfig` (`lib/config/env_config.dart`) is the single source of truth. Supabase is **off by default** (`ENABLE_SUPABASE=false`) — a bare `flutter run` produces a local-only build whose sign-in surface fails with "Remote auth is not configured".
 
-**`dart_defines.json` is gitignored** — it contains secrets (the Picovoice access key) and must never be committed. A `dart_defines.example.json` template is committed instead. On a fresh clone:
+**`dart_defines.json` is gitignored** — it contains secrets and must never be committed. A `dart_defines.example.json` template is committed instead. On a fresh clone:
 
 ```powershell
 copy dart_defines.example.json dart_defines.json   # Windows
@@ -70,11 +70,6 @@ The script errors if `dart_defines.json` is missing. Equivalent raw command: `fl
 | `ENABLE_SUPABASE` | `true` / `false` |
 | `SUPABASE_URL` | Your Supabase project URL |
 | `SUPABASE_ANON_KEY` | Supabase anon/public key |
-| `PICOVOICE_ACCESS_KEY` | Picovoice Console access key (voice wake word) |
-
-> **If you see `VoiceWakeWordException(VoiceWakeWordErrorKind.noAccessKey, …)` in the logs on every app boot,** your `dart_defines.json` still has the placeholder for `PICOVOICE_ACCESS_KEY`. Get a real key from [Picovoice Console](https://console.picovoice.ai/) (free tier is fine), paste it into `dart_defines.json`, and re-run `./scripts/run.ps1`. See `KNOWN_ISSUES.md#voice-picovoice-key-must-ship-via-dart-define` for the long-form rationale.
-
-The `PICOVOICE_ACCESS_KEY` is written into `flutter_secure_storage` by `AppBootstrapper` on every launch. The wake-word engine starts automatically after the write via `VoiceCredentialService.onPicovoiceKeyChanged`. See KNOWN_ISSUES `#voice-picovoice-key-must-ship-via-dart-define`.
 
 ## Platform support
 
@@ -95,7 +90,7 @@ The `PICOVOICE_ACCESS_KEY` is written into `flutter_secure_storage` by `AppBoots
 3. Add a `macos-latest` job to `.github/workflows/flutter-ci.yml` running `flutter build ios --no-codesign` so iOS regressions surface in CI.
 4. Document any iOS-specific quirks in `KNOWN_ISSUES.md` under a new `### iOS` section.
 
-**Cross-platform code in this repo is already written to be iOS-ready** — every voice plugin (`record`, `speech_to_text`, `flutter_tts`, `permission_handler`, `flutter_secure_storage`, `porcupine_flutter`) supports iOS, and all platform-specific behaviour goes through domain-layer abstractions (`VoiceSttService`, `VoiceTtsService`, `VoicePermissionService`, etc.). When iOS scaffolding lands, the voice feature should work without further Dart changes.
+**Cross-platform code in this repo is already written to be iOS-ready** — every voice plugin (`record`, `speech_to_text`, `flutter_tts`, `permission_handler`) supports iOS, and all platform-specific behaviour goes through domain-layer abstractions (`VoiceSttService`, `VoiceTtsService`, `VoicePermissionService`, etc.). When iOS scaffolding lands, the voice feature should work without further Dart changes.
 
 **Platform-specific source files** live under `android/` only. Anything platform-specific belongs in:
 - `android/app/src/main/res/...` — Android resources (icons, themes, strings)
@@ -243,16 +238,16 @@ Three datasources are **exempt** (documented in the base class doc comment): `Ap
 
 ### Local database
 
-SQLite via `sqflite`. Current schema version: **22**. Migration history is documented inline in `EnvConfig.databaseVersion`. Version upgrades are additive; version 15+ rejects incompatible legacy databases rather than destroying data.
+SQLite via `sqflite`. Current schema version: **25**. Migration history is documented inline in `EnvConfig.databaseVersion`. Version upgrades are additive; version 15+ rejects incompatible legacy databases rather than destroying data.
 
 ### Voice bot
 
 The voice feature is split across Flutter (on-device I/O) and a single Supabase Edge Function (LLM):
 
-- **STT** — on-device via `speech_to_text` (`SpeechToTextVoiceSttService`). No server call, no cost. Hard-capped at 15 s per utterance (`VoiceConstants.sttListenTimeout`); raised from 10 s in the voice-foundation PR to accommodate multi-field edit utterances.
+- **STT** — `NetworkAwareVoiceSttService` routes each `listen()` to a remote **Whisper** backend (`voice-transcribe` Supabase edge function, `WhisperVoiceSttService`) when online (better gym-jargon recognition, billed server-side and logged to `voice_usage_log`), and falls back to the on-device `speech_to_text` plugin (`SpeechToTextVoiceSttService`) when offline. Hard-capped at 15 s per utterance (`VoiceConstants.sttListenTimeout`).
 - **LLM** — one Deno Edge Function (`supabase/functions/voice-chat/`) backed by GPT-4o-mini. Receives the transcript + up to 3 turns of history, returns plain text or a structured tool call. Daily cap: $0.50/UTC-day enforced server-side.
 - **TTS** — on-device via `flutter_tts` (`FlutterTtsVoiceTtsService`). No server call, no cost.
-- **Wake word** — on-device Picovoice Porcupine (`PorcupineVoiceWakeWordService`), 3 presets: samoLevski, trainer, thomas.
+- **Wake word** — on-device sherpa-onnx (k2-fsa) keyword spotting (`SherpaOnnxVoiceWakeWordService`), offline, **no access key**; 3 presets (samoLevski / trainer / thomas) bundled as a tokenised `keywords.txt` over the `sherpa-onnx-kws-zipformer-gigaspeech` int8 model under `assets/wake_words/kws/`.
 - **`VoiceBloc`** (`features/voice/application/`) orchestrates the full STT → chat → TTS sequence and owns the tool dispatcher. Tool calls are dispatched to existing blocs (`WorkoutBloc`, `NutritionLogBloc`, `HistoryBloc`) — never to repositories directly.
 - **Shared backend modules** live in `supabase/functions/_shared/` (budget enforcement, OpenAI chat wrapper, cost accounting). All LLM calls are logged to `voice_usage_log`, including failures (`status=<error_code>`, `cost_usd=0`).
 - `OPENAI_API_KEY` lives exclusively as a Supabase function secret — it is never present in Flutter client code.

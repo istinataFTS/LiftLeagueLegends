@@ -523,30 +523,25 @@ Do **not** revert to the old approach of closing the session on `error_no_match`
 - **Severity:** Medium
 - **Status:** Resolved-but-monitor
 - **First observed:** 2026-05-23
-- **Last verified:** 2026-05-25
+- **Last verified:** 2026-06-06
 - **Area:** voice
 
 **Symptom**
 
-Wake-word detection never activates on a fresh install. The VoiceFab logs `VoiceWakeWordException(VoiceWakeWordErrorKind.noAccessKey, Picovoice access key not configured.)` on every app launch and resume, and the user has no visible cue that they need to act.
+Wake-word detection never activates on a fresh install. The VoiceFab logged `VoiceWakeWordException(VoiceWakeWordErrorKind.noAccessKey, Picovoice access key not configured.)` on every app launch and resume, and the user had no visible cue that they needed to act.
 
 **Root cause**
 
-The Picovoice Porcupine access key is a per-device secret that lives exclusively in `flutter_secure_storage` (key `voice.picovoice_access_key`). `PorcupineVoiceWakeWordService.start()` throws `VoiceWakeWordErrorKind.noAccessKey` when no value is present. The key must ship out-of-band rather than being entered at runtime.
+The Picovoice Porcupine access key was a per-device secret that lived exclusively in `flutter_secure_storage` (key `voice.picovoice_access_key`). `PorcupineVoiceWakeWordService.start()` threw `VoiceWakeWordErrorKind.noAccessKey` when no value was present.
 
 **Workaround / fix**
 
-The key ships via `--dart-define=PICOVOICE_ACCESS_KEY=<key>` at build time (stored in the gitignored `dart_defines.json`; template at `dart_defines.example.json`). `AppBootstrapper._seedPicovoiceKeyFromEnvIfNeeded` writes the dart-define value into secure storage on every launch, overwriting if the value has changed. `VoiceCredentialService.onPicovoiceKeyChanged` (sync broadcast stream) fires after the write; `VoiceFab` subscribes and calls `_startWakeWordIfArmed()` so the engine starts without a restart. See `[voice-picovoice-key-must-ship-via-dart-define](#voice-picovoice-key-must-ship-via-dart-define)` for the gitignore and CI setup.
+Resolved: Picovoice/Porcupine removed. Wake word now uses `SherpaOnnxVoiceWakeWordService` (offline, no credentials, Apache-2.0). No access key, no secure-storage machinery, no `VoiceCredentialService`. The `noAccessKey` error kind no longer exists. See PR that merged `chore/remove-picovoice`.
 
 **References**
 
-- `lib/config/env_config.dart` — `EnvConfig.picovoiceAccessKey` dart-define binding
-- `lib/app/bootstrap/app_bootstrapper.dart` — `_seedPicovoiceKeyFromEnvIfNeeded`
-- `lib/domain/services/voice_credential_service.dart` — `onPicovoiceKeyChanged` contract
-- `lib/features/voice/data/services/secure_storage_voice_credential_service.dart` — sync broadcast stream implementation
-- `lib/features/voice/presentation/widgets/voice_fab.dart` — `_listenToCredentialChanges`
-- `dart_defines.example.json` — template with `PICOVOICE_ACCESS_KEY` placeholder
-- `test/features/voice/services/voice_credential_service_test.dart` — stream contract tests
+- `lib/features/voice/data/services/sherpa_onnx_voice_wake_word_service.dart` — replacement engine
+- `lib/injection/modules/register_voice_module.dart` — `SherpaOnnxVoiceWakeWordService` registration
 
 ---
 
@@ -555,38 +550,26 @@ The key ships via `--dart-define=PICOVOICE_ACCESS_KEY=<key>` at build time (stor
 - **Severity:** High
 - **Status:** Resolved-but-monitor
 - **First observed:** 2026-05-25
-- **Last verified:** 2026-05-31
+- **Last verified:** 2026-06-06
 - **Area:** voice
 
 **Symptom**
 
-Wake-word engine never starts on a fresh install or CI build. `PorcupineVoiceWakeWordService.start()` throws `VoiceWakeWordErrorKind.noAccessKey` because `flutter_secure_storage` has no Picovoice key. There is no user-facing setup UI to recover.
+Wake-word engine never started on a fresh install or CI build. `PorcupineVoiceWakeWordService.start()` threw `VoiceWakeWordErrorKind.noAccessKey` because `flutter_secure_storage` had no Picovoice key.
 
 **Root cause**
 
-The Picovoice Porcupine access key is a per-app-registration credential — a single key covers all installs of the app but must not be committed to version control. The old approach (user enters the key in a settings screen) was both a poor UX and unnecessary: the key is fixed per app registration and belongs in the build configuration, not in the user's hands. `dart_defines.json` was previously committed to the repo and did not contain `PICOVOICE_ACCESS_KEY`, so every fresh install was missing the key.
+The Picovoice Porcupine access key was a per-app-registration credential that could not be committed to version control. Every fresh install was missing the key because there was no automatic seeding path until `AppBootstrapper._seedPicovoiceKeyFromEnvIfNeeded` was introduced.
 
 **Workaround / fix**
 
-1. `dart_defines.json` is now **gitignored**. Copy `dart_defines.example.json` → `dart_defines.json` and fill in your real `PICOVOICE_ACCESS_KEY` before running the app.
-2. CI builds inject the key via a repository secret: `PICOVOICE_ACCESS_KEY` → `dart_defines.json` at build time.
-3. `AppBootstrapper._seedPicovoiceKeyFromEnvIfNeeded` writes the dart-define value into secure storage on every launch, overwriting stale values.
-4. `VoiceCredentialService.onPicovoiceKeyChanged` emits immediately after the write; `VoiceFab._listenToCredentialChanges` calls `_startWakeWordIfArmed()` so the engine starts within the same post-frame cycle as the seed — no restart required.
-5. `VoiceOverlayPage.openedByWakeWord: true` auto-dispatches `VoiceListenRequested` on first frame when opened by a wake-word event, closing the first-fire gap where STT was not started automatically.
-6. **Loud surfacing (2026-05-26):** the bootstrapper now detects the unfilled `<paste-...>` placeholder and logs an `error`-level message that names the env var, points at `dart_defines.example.json`, and cites this anchor. Any stale placeholder previously written to secure storage is wiped on startup so `VoiceCredentialService.isWakeWordConfigured()` returns the truth. The Voice Settings page renders a warning banner above the wake-word picker when the key isn't configured — a developer can no longer waste a debug cycle on this without a clear signal in both the terminal and the UI.
+Resolved: Picovoice/Porcupine removed entirely. Wake word now uses `SherpaOnnxVoiceWakeWordService` (offline, Apache-2.0, no access key, no dart-define, no secure-storage seeding). The `PICOVOICE_ACCESS_KEY` dart-define and the `VoiceCredentialService` / `AppBootstrapper` seeder are gone. `dart_defines.json` / `dart_defines.example.json` no longer contain this key. No developer action required on fresh clones.
 
 **References**
 
-- `dart_defines.example.json` — committed template with `PICOVOICE_ACCESS_KEY` placeholder
-- `.gitignore` — `dart_defines.json` exclusion rule
-- `lib/config/env_config.dart` — `EnvConfig.picovoiceAccessKey` dart-define binding
-- `lib/app/bootstrap/app_bootstrapper.dart` — `_seedPicovoiceKeyFromEnvIfNeeded`
-- `lib/domain/services/voice_credential_service.dart` — `onPicovoiceKeyChanged` + `dispose()`
-- `lib/features/voice/data/services/secure_storage_voice_credential_service.dart` — sync broadcast stream, `isWakeWordConfigured()` placeholder-aware check
-- `lib/features/voice/presentation/widgets/voice_fab.dart` — `_listenToCredentialChanges`, `_openOverlay(openedByWakeWord:)`
-- `lib/features/voice/presentation/voice_overlay_page.dart` — `openedByWakeWord` flag
-- `lib/features/voice/presentation/voice_settings_page.dart` — `_WakeWordMisconfiguredBanner` warning surface
-- `lib/injection/modules/register_voice_module.dart` — `dispose:` hook on `VoiceCredentialService`
+- `lib/features/voice/data/services/sherpa_onnx_voice_wake_word_service.dart` — replacement engine
+- `assets/wake_words/kws/` — bundled KWS model assets (sherpa-onnx-kws-zipformer-gigaspeech int8)
+- `dart_defines.example.json` — `PICOVOICE_ACCESS_KEY` row removed
 
 ---
 
