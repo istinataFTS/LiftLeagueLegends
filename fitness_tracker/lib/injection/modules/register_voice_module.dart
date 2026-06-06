@@ -1,4 +1,3 @@
-import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import 'package:get_it/get_it.dart';
 
 import '../../core/network/network_status_service.dart';
@@ -12,7 +11,6 @@ import '../../data/repositories/voice_repository_impl.dart';
 import '../../domain/repositories/app_settings_repository.dart';
 import '../../domain/repositories/meal_repository.dart';
 import '../../domain/repositories/voice_repository.dart';
-import '../../domain/services/voice_credential_service.dart';
 import '../../domain/services/voice_permission_service.dart';
 import '../../domain/services/voice_stt_service.dart';
 import '../../domain/services/voice_tts_service.dart';
@@ -39,8 +37,7 @@ import '../../features/voice/data/parser/matchers/workout_set_matchers.dart';
 import '../../features/voice/data/services/flutter_tts_voice_tts_service.dart';
 import '../../features/voice/data/services/network_aware_voice_stt_service.dart';
 import '../../features/voice/data/services/permission_handler_voice_permission_service.dart';
-import '../../features/voice/data/services/porcupine_voice_wake_word_service.dart';
-import '../../features/voice/data/services/secure_storage_voice_credential_service.dart';
+import '../../features/voice/data/services/sherpa_onnx_voice_wake_word_service.dart';
 import '../../features/voice/data/services/speech_to_text_voice_stt_service.dart';
 import '../../features/voice/data/services/whisper_voice_stt_service.dart';
 
@@ -50,22 +47,6 @@ import '../../features/voice/data/services/whisper_voice_stt_service.dart';
 /// (it owns `AppSettingsCubit`, `AppSettingsRepository`, and
 /// `NetworkStatusService`). The injection bootstrap enforces this order.
 void registerVoiceModule(GetIt sl) {
-  // ── Secure storage (shared with VoiceCredentialService) ────────────────
-  // Only register if not already present (e.g. if another module added it).
-  if (!sl.isRegistered<FlutterSecureStorage>()) {
-    sl.registerLazySingleton<FlutterSecureStorage>(
-      () => const FlutterSecureStorage(),
-    );
-  }
-
-  // ── Voice credential service ───────────────────────────────────────────
-  // Registered with a dispose hook so the change-notification stream is
-  // closed when the container is reset (e.g. between integration tests).
-  sl.registerLazySingleton<VoiceCredentialService>(
-    () => SecureStorageVoiceCredentialService(sl<FlutterSecureStorage>()),
-    dispose: (s) => s.dispose(),
-  );
-
   // ── Microphone permission service ──────────────────────────────────────
   sl.registerLazySingleton<VoicePermissionService>(
     () => const PermissionHandlerVoicePermissionService(),
@@ -92,11 +73,11 @@ void registerVoiceModule(GetIt sl) {
   sl.registerLazySingleton<VoiceTtsService>(FlutterTtsVoiceTtsService.new);
 
   // ── Wake-word engine ───────────────────────────────────────────────────
-  // Lazy singleton: Porcupine holds the microphone and must not be
-  // torn down/re-created per overlay instance. VoiceFab manages lifecycle
+  // Lazy singleton: holds the microphone and must not be torn down /
+  // re-created per overlay instance. VoiceFab manages lifecycle
   // (start on resume, stop on background).
   sl.registerLazySingleton<VoiceWakeWordService>(
-    () => PorcupineVoiceWakeWordService(credentialService: sl()),
+    SherpaOnnxVoiceWakeWordService.new,
   );
 
   // ── Wakelock service ───────────────────────────────────────────────────

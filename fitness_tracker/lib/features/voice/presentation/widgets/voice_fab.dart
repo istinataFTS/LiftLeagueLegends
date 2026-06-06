@@ -8,7 +8,6 @@ import '../../../../core/logging/app_logger.dart';
 import '../../../../core/themes/app_theme.dart';
 import '../../../../domain/entities/app_session.dart';
 import '../../../../domain/entities/voice_settings.dart';
-import '../../../../domain/services/voice_credential_service.dart';
 import '../../../../domain/services/voice_permission_service.dart';
 import '../../../../domain/services/voice_wake_word_service.dart';
 import '../../../../injection/injection_container.dart';
@@ -19,9 +18,9 @@ import '../voice_overlay_page.dart';
 /// Persistent floating action button that opens the voice overlay and
 /// manages the wake-word engine lifecycle.
 ///
-/// Implements [WidgetsBindingObserver] so Porcupine is automatically stopped
-/// when the app goes to the background (foreground-only mic policy) and
-/// restarted on resume.
+/// Implements [WidgetsBindingObserver] so the wake-word engine is automatically
+/// stopped when the app goes to the background (foreground-only mic policy)
+/// and restarted on resume.
 ///
 /// Only reachable above the auth gate — every visible instance has an
 /// authenticated session.
@@ -46,14 +45,8 @@ class _VoiceFabState extends State<VoiceFab>
   /// rule because the type does not end in `Bloc`/`Cubit`.
   late final VoiceWakeWordService _wakeWordService;
 
-  /// Credential service — subscribed to detect when the Picovoice key is
-  /// written by the bootstrap seeder so the wake-word engine can be started
-  /// without a manual app restart or page navigation.
-  late final VoiceCredentialService _credentialService;
-
   StreamSubscription<WakeWordPreset>? _wakeWordSub;
   StreamSubscription<VoiceWakeWordException>? _wakeWordErrorSub;
-  StreamSubscription<void>? _credentialChangeSub;
   bool _overlayOpen = false;
 
   @override
@@ -61,7 +54,6 @@ class _VoiceFabState extends State<VoiceFab>
     super.initState();
     WidgetsBinding.instance.addObserver(this);
     _wakeWordService = sl<VoiceWakeWordService>();
-    _credentialService = sl<VoiceCredentialService>();
 
     _pulseController = AnimationController(
       vsync: this,
@@ -78,7 +70,6 @@ class _VoiceFabState extends State<VoiceFab>
 
     _listenToWakeWordStream();
     _listenToWakeWordErrors();
-    _listenToCredentialChanges();
     _startWakeWordIfArmed();
   }
 
@@ -87,7 +78,6 @@ class _VoiceFabState extends State<VoiceFab>
     WidgetsBinding.instance.removeObserver(this);
     _wakeWordSub?.cancel();
     _wakeWordErrorSub?.cancel();
-    _credentialChangeSub?.cancel();
     unawaited(_wakeWordService.stop());
     _pulseController.dispose();
     super.dispose();
@@ -145,19 +135,6 @@ class _VoiceFabState extends State<VoiceFab>
     });
   }
 
-  /// Watches [VoiceCredentialService.onPicovoiceKeyChanged] so the wake-word
-  /// engine is started the moment the bootstrap seeder writes the key on
-  /// first launch — without requiring a manual page navigation or restart.
-  void _listenToCredentialChanges() {
-    _credentialChangeSub = _credentialService.onPicovoiceKeyChanged.listen((_) {
-      AppLogger.debug(
-        'VoiceFab: Picovoice key changed — retrying wake word start.',
-        category: 'voice',
-      );
-      _startWakeWordIfArmed();
-    });
-  }
-
   void _onWakeWordFired() {
     if (!mounted) return;
     if (_overlayOpen) return; // Overlay handles the listen trigger itself
@@ -202,7 +179,7 @@ class _VoiceFabState extends State<VoiceFab>
     setState(() => _overlayOpen = true);
 
     // Release the mic from the wake-word engine before the overlay's STT
-    // tries to acquire it. Porcupine holds the mic continuously while armed;
+    // tries to acquire it. The wake-word engine holds the mic continuously while armed;
     // on Android the recorder will silently fail to capture any audio if
     // another listener already owns the input stream. Stopping here, and
     // restarting after the overlay closes, keeps the two paths from racing.

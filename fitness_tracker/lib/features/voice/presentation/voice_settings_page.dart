@@ -5,7 +5,6 @@ import '../../../core/constants/app_strings.dart';
 import '../../../core/constants/voice_constants.dart';
 import '../../../core/themes/app_theme.dart';
 import '../../../domain/entities/voice_settings.dart';
-import '../../../domain/services/voice_credential_service.dart';
 import '../../../domain/services/voice_tts_service.dart';
 import '../../../injection/injection_container.dart';
 import '../application/voice_settings_cubit.dart';
@@ -25,13 +24,6 @@ class VoiceSettingsPage extends StatefulWidget {
 }
 
 class _VoiceSettingsPageState extends State<VoiceSettingsPage> {
-  // Cached at mount time so the FutureBuilder doesn't re-issue the secure-
-  // storage read on every cubit rebuild. The value can only change between
-  // app launches (the key is seeded from a dart-define), so a snapshot is
-  // sufficient for the lifetime of this page.
-  late final Future<bool> _isWakeWordConfiguredFuture =
-      sl<VoiceCredentialService>().isWakeWordConfigured();
-
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -50,17 +42,6 @@ class _VoiceSettingsPageState extends State<VoiceSettingsPage> {
             children: <Widget>[
               // ── Wake Word ─────────────────────────────────────────────
               const _SectionHeader(AppStrings.voiceWakeWordSectionTitle),
-              FutureBuilder<bool>(
-                future: _isWakeWordConfiguredFuture,
-                builder: (context, snapshot) {
-                  // Until the secure-storage read resolves, render nothing —
-                  // showing then hiding the banner would be a flash of noise.
-                  if (!snapshot.hasData || snapshot.data == true) {
-                    return const SizedBox.shrink();
-                  }
-                  return const _WakeWordMisconfiguredBanner();
-                },
-              ),
               _WakeWordPicker(
                 selected: settings.wakeWordPreset,
                 onSelect: cubit.setWakeWordPreset,
@@ -249,65 +230,6 @@ class _SectionHeader extends StatelessWidget {
           fontSize: 11,
           fontWeight: FontWeight.w700,
           letterSpacing: 1.2,
-        ),
-      ),
-    );
-  }
-}
-
-// ---------------------------------------------------------------------------
-// Wake word misconfiguration banner
-// ---------------------------------------------------------------------------
-
-class _WakeWordMisconfiguredBanner extends StatelessWidget {
-  const _WakeWordMisconfiguredBanner();
-
-  @override
-  Widget build(BuildContext context) {
-    return Padding(
-      key: VoiceSettingsPageKeys.wakeWordMisconfiguredBannerKey,
-      padding: const EdgeInsets.fromLTRB(16, 4, 16, 8),
-      child: Container(
-        padding: const EdgeInsets.all(12),
-        decoration: BoxDecoration(
-          color: AppTheme.errorRed.withAlpha(38),
-          borderRadius: BorderRadius.circular(8),
-          border: Border.all(color: AppTheme.errorRed.withAlpha(120)),
-        ),
-        child: Row(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: const <Widget>[
-            Icon(
-              Icons.warning_amber_rounded,
-              color: AppTheme.errorRed,
-              size: 20,
-            ),
-            SizedBox(width: 12),
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: <Widget>[
-                  Text(
-                    AppStrings.voiceWakeWordMisconfiguredTitle,
-                    style: TextStyle(
-                      color: AppTheme.textLight,
-                      fontWeight: FontWeight.w600,
-                      fontSize: 14,
-                    ),
-                  ),
-                  SizedBox(height: 4),
-                  Text(
-                    AppStrings.voiceWakeWordMisconfiguredBody,
-                    style: TextStyle(
-                      color: AppTheme.textDim,
-                      fontSize: 12,
-                      height: 1.35,
-                    ),
-                  ),
-                ],
-              ),
-            ),
-          ],
         ),
       ),
     );

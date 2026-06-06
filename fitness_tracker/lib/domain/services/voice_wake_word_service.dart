@@ -5,10 +5,9 @@ import '../../../../domain/entities/voice_settings.dart' show WakeWordPreset;
 // ---------------------------------------------------------------------------
 
 enum VoiceWakeWordErrorKind {
-  noAccessKey, // Picovoice key absent from secure storage
-  modelNotFound, // .ppn or .pv asset file missing or zero-bytes
-  engineError, // Porcupine runtime error
-  audioError, // Microphone access failure
+  modelLoadError, // bundled KWS model assets missing or zero-bytes
+  engineError, // wake-word engine runtime error
+  audioError, // microphone access failure
 }
 
 class VoiceWakeWordException implements Exception {
@@ -27,8 +26,8 @@ class VoiceWakeWordException implements Exception {
 
 /// Abstract port for wake-word detection.
 ///
-/// C-4 provides [PorcupineVoiceWakeWordService]. Tests can inject a simple
-/// stream-controller fake without touching Porcupine native code.
+/// Implemented by [SherpaOnnxVoiceWakeWordService] (offline, no credentials).
+/// Tests can inject a simple stream-controller fake without touching native code.
 abstract class VoiceWakeWordService {
   /// Broadcast stream that emits the active [WakeWordPreset] each time the
   /// wake word is detected. Never errors — runtime errors are emitted on
@@ -45,11 +44,8 @@ abstract class VoiceWakeWordService {
   /// Start wake-word detection for [preset]. Stops any currently running
   /// engine first (idempotent if already running the same preset).
   ///
-  /// Throws [VoiceWakeWordException] with kind [VoiceWakeWordErrorKind.noAccessKey]
-  /// if no Picovoice access key is found in secure storage.
-  ///
-  /// Throws [VoiceWakeWordException] with kind [VoiceWakeWordErrorKind.modelNotFound]
-  /// if the `.ppn` or `.pv` asset for [preset] is missing or zero-bytes.
+  /// Throws [VoiceWakeWordException] with kind [VoiceWakeWordErrorKind.modelLoadError]
+  /// if the bundled KWS model assets for [preset] are missing or zero-bytes.
   Future<void> start(WakeWordPreset preset);
 
   /// Stop wake-word detection and release the microphone.

@@ -12,7 +12,7 @@ import 'package:flutter_test/flutter_test.dart';
 /// Pure-Dart test double for [VoiceWakeWordService].
 ///
 /// Lets tests drive the detection stream and error stream without any
-/// Porcupine native binaries. The same pattern is used by [VoiceFab]
+/// native binaries. The same pattern is used by [VoiceFab]
 /// and [VoiceOverlayPage] in widget tests.
 class _FakeWakeWordService implements VoiceWakeWordService {
   final StreamController<WakeWordPreset> _detectedController =
@@ -69,8 +69,7 @@ void main() {
       expect(
         VoiceWakeWordErrorKind.values,
         containsAll(<VoiceWakeWordErrorKind>[
-          VoiceWakeWordErrorKind.noAccessKey,
-          VoiceWakeWordErrorKind.modelNotFound,
+          VoiceWakeWordErrorKind.modelLoadError,
           VoiceWakeWordErrorKind.engineError,
           VoiceWakeWordErrorKind.audioError,
         ]),
@@ -82,17 +81,17 @@ void main() {
 
   group('VoiceWakeWordException', () {
     test('toString includes kind', () {
-      const ex = VoiceWakeWordException(VoiceWakeWordErrorKind.noAccessKey);
-      expect(ex.toString(), contains('noAccessKey'));
+      const ex = VoiceWakeWordException(VoiceWakeWordErrorKind.modelLoadError);
+      expect(ex.toString(), contains('modelLoadError'));
     });
 
     test('toString includes optional message when provided', () {
       const ex = VoiceWakeWordException(
-        VoiceWakeWordErrorKind.modelNotFound,
-        'trainer_android.ppn is zero bytes',
+        VoiceWakeWordErrorKind.modelLoadError,
+        'keywords.txt is zero bytes',
       );
-      expect(ex.toString(), contains('modelNotFound'));
-      expect(ex.toString(), contains('trainer_android.ppn'));
+      expect(ex.toString(), contains('modelLoadError'));
+      expect(ex.toString(), contains('keywords.txt'));
     });
 
     test('message is null by default', () {
