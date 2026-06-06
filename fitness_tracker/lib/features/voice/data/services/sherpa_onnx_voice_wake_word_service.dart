@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'dart:convert';
 import 'dart:io';
 import 'dart:typed_data';
 
@@ -45,6 +46,51 @@ class AudioSession {
 typedef AudioSessionFactory = Future<AudioSession> Function(RecordConfig cfg);
 
 // ---------------------------------------------------------------------------
+// Config builder (pure Dart — no native calls; unit-testable)
+// ---------------------------------------------------------------------------
+
+/// Builds the [sherpa_onnx.KeywordSpotterConfig] for the in-memory keywords
+/// buffer path.
+///
+/// CRITICAL: sherpa-onnx's C-api reconstructs the keywords as
+/// `std::string(keywords_buf, keywords_buf_size)`. When `keywords_buf_size`
+/// is left at its default of 0 the buffer is read as an empty string and
+/// engine creation fails with "Please provide either a keywords-file or the
+/// keywords-buf". [keywordsBufSize] must therefore be set to the UTF-8 byte
+/// length of [keywordsBuf]. A trailing newline is appended so the buffer
+/// matches the one-keyword-per-line file format the parser expects.
+///
+/// Constructing the config objects is pure Dart — no native code runs until
+/// [sherpa_onnx.KeywordSpotter] is instantiated — so this is unit-testable
+/// without the ONNX runtime.
+sherpa_onnx.KeywordSpotterConfig buildKeywordSpotterConfig({
+  required String encoderPath,
+  required String decoderPath,
+  required String joinerPath,
+  required String tokensPath,
+  required String keywordsBuf,
+}) {
+  final keywords = keywordsBuf.endsWith('\n') ? keywordsBuf : '$keywordsBuf\n';
+  final modelCfg = sherpa_onnx.OnlineModelConfig(
+    transducer: sherpa_onnx.OnlineTransducerModelConfig(
+      encoder: encoderPath,
+      decoder: decoderPath,
+      joiner: joinerPath,
+    ),
+    tokens: tokensPath,
+    numThreads: 1,
+    debug: false,
+  );
+  return sherpa_onnx.KeywordSpotterConfig(
+    model: modelCfg,
+    keywordsBuf: keywords,
+    keywordsBufSize: utf8.encode(keywords).length,
+    keywordsScore: 1.0,
+    keywordsThreshold: 0.25,
+  );
+}
+
+// ---------------------------------------------------------------------------
 // Real KwsHandle implementation
 // ---------------------------------------------------------------------------
 
@@ -66,21 +112,12 @@ class _RealKwsHandle implements KwsHandle {
       sherpa_onnx.initBindings();
       _bindingsReady = true;
     }
-    final modelCfg = sherpa_onnx.OnlineModelConfig(
-      transducer: sherpa_onnx.OnlineTransducerModelConfig(
-        encoder: encoderPath,
-        decoder: decoderPath,
-        joiner: joinerPath,
-      ),
-      tokens: tokensPath,
-      numThreads: 1,
-      debug: false,
-    );
-    final cfg = sherpa_onnx.KeywordSpotterConfig(
-      model: modelCfg,
+    final cfg = buildKeywordSpotterConfig(
+      encoderPath: encoderPath,
+      decoderPath: decoderPath,
+      joinerPath: joinerPath,
+      tokensPath: tokensPath,
       keywordsBuf: keywordsBuf,
-      keywordsScore: 1.0,
-      keywordsThreshold: 0.25,
     );
     final spotter = sherpa_onnx.KeywordSpotter(cfg);
     final stream = spotter.createStream();

@@ -6,6 +6,7 @@ import 'package:fitness_tracker/domain/entities/voice_settings.dart'
 import 'package:fitness_tracker/domain/services/voice_wake_word_service.dart';
 import 'package:fitness_tracker/features/voice/data/services/sherpa_onnx_voice_wake_word_service.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'dart:convert';
 
 // ---------------------------------------------------------------------------
 // Test doubles
@@ -91,6 +92,49 @@ SherpaOnnxVoiceWakeWordService _makeService({
 // ---------------------------------------------------------------------------
 
 void main() {
+  // ── keyword spotter config (regression: keywordsBufSize must be set) ─────────
+
+  group('buildKeywordSpotterConfig', () {
+    test('sets keywordsBufSize to the UTF-8 byte length of the buffer', () {
+      final cfg = buildKeywordSpotterConfig(
+        encoderPath: 'enc',
+        decoderPath: 'dec',
+        joinerPath: 'join',
+        tokensPath: 'tok',
+        keywordsBuf: '▁TRA IN ER',
+      );
+      // Regression guard: a zero size makes the sherpa-onnx C-api read the
+      // buffer as empty and fail with "Please provide either a keywords-file
+      // or the keywords-buf".
+      expect(cfg.keywordsBufSize, greaterThan(0));
+      expect(cfg.keywordsBufSize, utf8.encode(cfg.keywordsBuf).length);
+    });
+
+    test('appends a trailing newline when missing', () {
+      final cfg = buildKeywordSpotterConfig(
+        encoderPath: 'enc',
+        decoderPath: 'dec',
+        joinerPath: 'join',
+        tokensPath: 'tok',
+        keywordsBuf: '▁TH OM AS',
+      );
+      expect(cfg.keywordsBuf.endsWith('\n'), isTrue);
+      expect(cfg.keywordsBufSize, utf8.encode(cfg.keywordsBuf).length);
+    });
+
+    test('does not double the trailing newline', () {
+      final cfg = buildKeywordSpotterConfig(
+        encoderPath: 'enc',
+        decoderPath: 'dec',
+        joinerPath: 'join',
+        tokensPath: 'tok',
+        keywordsBuf: '▁SA MO ▁LE V S K I\n',
+      );
+      expect(cfg.keywordsBuf.endsWith('\n\n'), isFalse);
+      expect(cfg.keywordsBufSize, utf8.encode(cfg.keywordsBuf).length);
+    });
+  });
+
   // ── isRunning lifecycle ─────────────────────────────────────────────────────
 
   group('isRunning lifecycle', () {
