@@ -337,25 +337,31 @@ class SherpaOnnxVoiceWakeWordService implements VoiceWakeWordService {
     Object? firstError;
     StackTrace? firstSt;
 
+    // Null each field BEFORE awaiting/calling so a thrown exception never
+    // leaves a stale reference that the early-return guard would then skip on
+    // the next _doStop() call.
     try {
-      await _audioSub?.cancel();
+      final sub = _audioSub;
       _audioSub = null;
+      await sub?.cancel();
     } catch (e, st) {
       firstError = e;
       firstSt = st;
     }
 
     try {
-      await _stopAudio?.call();
+      final stopFn = _stopAudio;
       _stopAudio = null;
+      await stopFn?.call();
     } catch (e, st) {
       firstError ??= e;
       firstSt ??= st;
     }
 
     try {
-      _handle?.free();
+      final handle = _handle;
       _handle = null;
+      handle?.free();
     } catch (e, st) {
       firstError ??= e;
       firstSt ??= st;
