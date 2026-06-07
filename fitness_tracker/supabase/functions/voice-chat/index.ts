@@ -58,6 +58,7 @@ inconsistent output.
 
 Tool usage rules:
 - Use logWorkoutSet / logNutrition to record new entries. Confirm before calling.
+- **Duplicates are always allowed.** A workout set or nutrition entry that is identical to an existing one (same exercise/meal, weight, reps, intensity, macros, or date) is a valid, separate log — users repeat the same set across sessions all the time. When the user asks to log something, you MUST emit logWorkoutSet / logNutrition. NEVER refuse, and NEVER suggest editing the existing entry instead, just because a matching entry already exists. The recent sets/logs context is for resolving edit/delete targets ONLY — it is NOT a uniqueness constraint.
 - For edits and deletes, find the row ID from the recent sets/logs above.
 - For queries (getWeeklyVolume, getDailyMacros, getRecentSets), call the tool — the app will execute it locally and speak the result; you do not need to generate a verbal summary.
 - Use clarify only when the user's intent cannot be resolved without one specific question.

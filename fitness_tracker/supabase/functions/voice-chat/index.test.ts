@@ -537,6 +537,17 @@ Deno.test("buildSystemPrompt: contains TOOL CALL CONTRACT section", () => {
   assertEquals(prompt.includes("NON-NEGOTIABLE"), true);
 });
 
+Deno.test("buildSystemPrompt: contains the allow-duplicates rule", () => {
+  const prompt = buildSystemPrompt({
+    currentDate: "2026-06-06",
+    weightUnit: "kg",
+    recentSets: [],
+    recentNutritionLogs: [],
+  });
+  assertEquals(prompt.includes("Duplicates are always allowed"), true);
+  assertEquals(prompt.includes("NOT a uniqueness constraint"), true);
+});
+
 Deno.test("buildSystemPrompt: contains never-reveal id rule", () => {
   const prompt = buildSystemPrompt({
     currentDate: "2026-05-13",

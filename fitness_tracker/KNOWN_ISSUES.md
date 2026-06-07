@@ -70,23 +70,24 @@ Numbered steps or a short paragraph. State what to do and what *not* to do.
 7. [timestamps-must-round-trip-as-utc-not-naive-local](#timestamps-must-round-trip-as-utc-not-naive-local)
 
 ### Voice
-7. [voice-stt-hard-cap-bounds-per-utterance-cost](#voice-stt-hard-cap-bounds-per-utterance-cost)
-8. [voice-edge-function-must-have-30s-http-timeout](#voice-edge-function-must-have-30s-http-timeout)
-9. [voice-daily-cost-cap-is-server-side-only](#voice-daily-cost-cap-is-server-side-only)
-10. [voice-fab-is-disabled-not-hidden-for-guests](#voice-fab-is-disabled-not-hidden-for-guests)
-11. [voice-stt-no-match-is-not-an-error](#voice-stt-no-match-is-not-an-error)
-12. [voice-wake-word-requires-picovoice-key-in-secure-storage](#voice-wake-word-requires-picovoice-key-in-secure-storage)
-13. [voice-stt-samsung-no-match-terminates-recogniser](#voice-stt-samsung-no-match-terminates-recogniser)
-14. [voice-picovoice-key-must-ship-via-dart-define](#voice-picovoice-key-must-ship-via-dart-define)
-15. [voice-context-keys-must-be-camelcase](#voice-context-keys-must-be-camelcase)
-16. [voice-openai-api-key-must-be-supabase-secret](#voice-openai-api-key-must-be-supabase-secret)
-17. [voice-mic-permission-must-be-requested-before-overlay](#voice-mic-permission-must-be-requested-before-overlay)
-18. [voice-whisper-is-the-default-stt-backend](#voice-whisper-is-the-default-stt-backend)
-19. [voice-transcribe-must-deploy-with-openai-secret-and-cors](#voice-transcribe-must-deploy-with-openai-secret-and-cors)
-20. [voice-phantom-success-spoken-before-persistence-completes](#voice-phantom-success-spoken-before-persistence-completes)
-21. [voice-overlay-and-shell-use-different-voicebloc-instances](#voice-overlay-and-shell-use-different-voicebloc-instances)
-22. [voice-bot-must-never-surface-internal-ids](#voice-bot-must-never-surface-internal-ids)
-23. [voice-wake-word-engine-must-serialize-and-retry-mic-acquire](#voice-wake-word-engine-must-serialize-and-retry-mic-acquire)
+1. [voice-stt-hard-cap-bounds-per-utterance-cost](#voice-stt-hard-cap-bounds-per-utterance-cost)
+2. [voice-edge-function-must-have-30s-http-timeout](#voice-edge-function-must-have-30s-http-timeout)
+3. [voice-daily-cost-cap-is-server-side-only](#voice-daily-cost-cap-is-server-side-only)
+4. [voice-fab-is-disabled-not-hidden-for-guests](#voice-fab-is-disabled-not-hidden-for-guests)
+5. [voice-stt-no-match-is-not-an-error](#voice-stt-no-match-is-not-an-error)
+6. [voice-wake-word-requires-picovoice-key-in-secure-storage](#voice-wake-word-requires-picovoice-key-in-secure-storage)
+7. [voice-stt-samsung-no-match-terminates-recogniser](#voice-stt-samsung-no-match-terminates-recogniser)
+8. [voice-picovoice-key-must-ship-via-dart-define](#voice-picovoice-key-must-ship-via-dart-define)
+9. [voice-context-keys-must-be-camelcase](#voice-context-keys-must-be-camelcase)
+10. [voice-openai-api-key-must-be-supabase-secret](#voice-openai-api-key-must-be-supabase-secret)
+11. [voice-mic-permission-must-be-requested-before-overlay](#voice-mic-permission-must-be-requested-before-overlay)
+12. [voice-whisper-is-the-default-stt-backend](#voice-whisper-is-the-default-stt-backend)
+13. [voice-transcribe-must-deploy-with-openai-secret-and-cors](#voice-transcribe-must-deploy-with-openai-secret-and-cors)
+14. [voice-phantom-success-spoken-before-persistence-completes](#voice-phantom-success-spoken-before-persistence-completes)
+15. [voice-overlay-and-shell-use-different-voicebloc-instances](#voice-overlay-and-shell-use-different-voicebloc-instances)
+16. [voice-bot-must-never-surface-internal-ids](#voice-bot-must-never-surface-internal-ids)
+17. [voice-wake-word-engine-must-serialize-and-retry-mic-acquire](#voice-wake-word-engine-must-serialize-and-retry-mic-acquire)
+18. [voice-bot-must-log-duplicate-sets](#voice-bot-must-log-duplicate-sets)
 
 ### Database
 11. [sqflite-version-15-rejects-incompatible-legacy-databases](#sqflite-version-15-rejects-incompatible-legacy-databases)
@@ -812,6 +813,34 @@ When asked about logged data (e.g. "what are my latest workout sets"), the voice
 - `supabase/functions/voice-chat/index.ts` — `SYSTEM_PROMPT_TEMPLATE`, `sanitizeAssistantText`
 - `supabase/functions/voice-chat/index.test.ts` — sanitizer tests
 - PR `#NN` — fix
+
+---
+
+### voice-bot-must-log-duplicate-sets
+
+- **Severity:** Critical
+- **Status:** Resolved-but-monitor
+- **First observed:** 2026-06-06
+- **Last verified:** 2026-06-06
+- **Area:** voice
+
+**Symptom**
+
+The bot refuses to log a workout set or nutrition entry that is identical to an existing one (same exercise, weight, reps, intensity, or meal/macros). Instead of logging, it says "You have already logged this — would you like to edit that entry instead?" Even when the user insists, no entry is created.
+
+**Root cause**
+
+No dedup logic exists in the code: `VoiceBloc._buildWorkoutSet` always mints a fresh `Uuid().v4()` and never compares against existing rows; `_shared/tools.ts` `logWorkoutSet` has no uniqueness clause; the persistence layer accepts duplicate rows without error. The refusal is purely model-invented behaviour: `SYSTEM_PROMPT_TEMPLATE` injects the user's recent sets via `{{recent_sets}}`, and `gpt-4o-mini` "helpfully" decided to refuse and redirect — returning prose instead of a `logWorkoutSet` tool call — because the prompt contained no statement that duplicates are explicitly allowed.
+
+**Workaround / fix**
+
+Add an explicit allow-duplicates rule to `SYSTEM_PROMPT_TEMPLATE` in the "Tool usage rules:" block: "Duplicates are always allowed … The recent sets/logs context is for resolving edit/delete targets ONLY — it is NOT a uniqueness constraint." Do **not** add any dedup or uniqueness logic anywhere in the client or server — duplicates are a valid user requirement. After merging, the `voice-chat` Edge Function must be redeployed (`Supabase Deploy` GitHub Action, target `functions`) for the prompt change to take effect.
+
+**References**
+
+- `supabase/functions/voice-chat/index.ts` — `SYSTEM_PROMPT_TEMPLATE`, "Tool usage rules:" block
+- `supabase/functions/_shared/tools.ts:9` — `logWorkoutSet.description` (no uniqueness constraint)
+- `lib/features/voice/application/voice_bloc.dart:1272` — `_buildWorkoutSet` always mints a fresh UUID
 
 ---
 
