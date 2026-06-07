@@ -371,7 +371,7 @@ class SherpaOnnxVoiceWakeWordService implements VoiceWakeWordService {
         stackTrace: firstSt,
         category: 'voice',
       );
-      Error.throwWithStackTrace(firstError!, firstSt!);
+      Error.throwWithStackTrace(firstError, firstSt ?? StackTrace.empty);
     }
   }
 
