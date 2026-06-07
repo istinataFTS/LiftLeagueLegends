@@ -329,23 +329,49 @@ class SherpaOnnxVoiceWakeWordService implements VoiceWakeWordService {
 
   Future<void> _doStop() async {
     if (!_running && _handle == null) return;
+    // Attempt every cleanup step independently so a failure in one does not
+    // leave the recorder or native handle alive and leaked.  State is always
+    // cleared so the dedup guard in _doStart sees a settled _running value.
+    // The first captured error is reThrown so _enqueue callers (and their
+    // .catchError handlers) see real failures instead of silent success.
+    Object? firstError;
+    StackTrace? firstSt;
+
     try {
       await _audioSub?.cancel();
       _audioSub = null;
+    } catch (e, st) {
+      firstError = e;
+      firstSt = st;
+    }
+
+    try {
       await _stopAudio?.call();
       _stopAudio = null;
+    } catch (e, st) {
+      firstError ??= e;
+      firstSt ??= st;
+    }
+
+    try {
       _handle?.free();
       _handle = null;
     } catch (e, st) {
+      firstError ??= e;
+      firstSt ??= st;
+    }
+
+    _running = false;
+    _activePreset = null;
+
+    if (firstError != null) {
       AppLogger.warning(
         'SherpaOnnxVoiceWakeWordService: error on stop',
-        error: e,
-        stackTrace: st,
+        error: firstError,
+        stackTrace: firstSt,
         category: 'voice',
       );
-    } finally {
-      _running = false;
-      _activePreset = null;
+      Error.throwWithStackTrace(firstError!, firstSt!);
     }
   }
 
