@@ -209,14 +209,15 @@ class SherpaOnnxVoiceWakeWordService implements VoiceWakeWordService {
   StreamSubscription<Uint8List>? _audioSub;
   bool _running = false;
   WakeWordPreset? _activePreset;
+  bool _disposed = false;
 
   final _detectedController = StreamController<WakeWordPreset>.broadcast();
   final _errorController = StreamController<VoiceWakeWordException>.broadcast();
 
-  // Serialises start()/stop() so concurrent callers (VoiceFab initState,
-  // app-resume, settings BlocListener, overlay-close re-arm) cannot run two
-  // overlapping audio sessions. Each public call enqueues behind the previous
-  // op; the dedup guard then sees a settled _running/_activePreset.
+  // Serialises start()/stop()/dispose() so concurrent callers (VoiceFab
+  // initState, app-resume, settings BlocListener, overlay-close re-arm) cannot
+  // run two overlapping audio sessions. Each public call enqueues behind the
+  // previous op; the dedup guard then sees a settled _running/_activePreset.
   Future<void> _opChain = Future<void>.value();
 
   Future<T> _enqueue<T>(Future<T> Function() op) {
@@ -239,16 +240,30 @@ class SherpaOnnxVoiceWakeWordService implements VoiceWakeWordService {
   bool get isRunning => _running;
 
   @override
-  Future<void> start(WakeWordPreset preset) => _enqueue(() => _doStart(preset));
+  Future<void> start(WakeWordPreset preset) {
+    if (_disposed) {
+      return Future<void>.error(
+        StateError('SherpaOnnxVoiceWakeWordService has been disposed'),
+      );
+    }
+    return _enqueue(() => _doStart(preset));
+  }
 
   @override
-  Future<void> stop() => _enqueue(_doStop);
+  Future<void> stop() => _disposed ? Future<void>.value() : _enqueue(_doStop);
 
   @override
-  Future<void> dispose() async {
-    await stop();
-    await _detectedController.close();
-    await _errorController.close();
+  Future<void> dispose() {
+    if (_disposed) return Future<void>.value();
+    _disposed = true;
+    // Enqueue dispose as a terminal op so any already-queued start/stop drains
+    // first; the controller closes happen inside the queue, preventing a racing
+    // start() from writing to a closed stream after disposal.
+    return _enqueue(() async {
+      await _doStop();
+      await _detectedController.close();
+      await _errorController.close();
+    });
   }
 
   // ── Private operation bodies (called only from _enqueue) ────────────────────

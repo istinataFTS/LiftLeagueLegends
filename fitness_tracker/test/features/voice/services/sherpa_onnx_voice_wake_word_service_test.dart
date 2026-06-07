@@ -416,6 +416,34 @@ void main() {
       await svc.dispose();
     });
 
+    test('concurrent start then dispose leaves service stopped', () async {
+      int factoryCalls = 0;
+      int audioCalls = 0;
+      final handle = _FakeKwsHandle();
+      final audioSource = _FakeAudioSource();
+      final svc = SherpaOnnxVoiceWakeWordService(
+        kwsFactory: (_) async {
+          factoryCalls++;
+          return handle;
+        },
+        audioSessionFactory: (_) {
+          audioCalls++;
+          return audioSource.session;
+        },
+      );
+
+      // start enqueues first; dispose enqueues behind it as a terminal op.
+      final startFuture = svc.start(WakeWordPreset.trainer);
+      final disposeFuture = svc.dispose();
+      await Future.wait([startFuture, disposeFuture]);
+
+      expect(svc.isRunning, isFalse);
+      expect(handle.freed, isTrue);
+      // Factory and audio invoked exactly once — no post-dispose side effects.
+      expect(factoryCalls, 1);
+      expect(audioCalls, 1);
+    });
+
     test('start(samePreset) twice sequentially still idempotent', () async {
       int factoryCalls = 0;
       final audioSource = _FakeAudioSource();
