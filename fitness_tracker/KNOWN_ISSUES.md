@@ -86,6 +86,7 @@ Numbered steps or a short paragraph. State what to do and what *not* to do.
 20. [voice-phantom-success-spoken-before-persistence-completes](#voice-phantom-success-spoken-before-persistence-completes)
 21. [voice-overlay-and-shell-use-different-voicebloc-instances](#voice-overlay-and-shell-use-different-voicebloc-instances)
 22. [voice-bot-must-never-surface-internal-ids](#voice-bot-must-never-surface-internal-ids)
+23. [voice-wake-word-engine-must-serialize-and-retry-mic-acquire](#voice-wake-word-engine-must-serialize-and-retry-mic-acquire)
 
 ### Database
 11. [sqflite-version-15-rejects-incompatible-legacy-databases](#sqflite-version-15-rejects-incompatible-legacy-databases)
@@ -811,6 +812,34 @@ When asked about logged data (e.g. "what are my latest workout sets"), the voice
 - `supabase/functions/voice-chat/index.ts` — `SYSTEM_PROMPT_TEMPLATE`, `sanitizeAssistantText`
 - `supabase/functions/voice-chat/index.test.ts` — sanitizer tests
 - PR `#NN` — fix
+
+---
+
+### voice-wake-word-engine-must-serialize-and-retry-mic-acquire
+
+- **Severity:** High
+- **Status:** Resolved-but-monitor
+- **First observed:** 2026-06-06
+- **Last verified:** 2026-06-06
+- **Area:** voice
+
+**Symptom**
+
+Wake word stops responding after a voice turn (wake word → STT → TTS → overlay closed). Recovered only by changing the preset in Settings. Intermittent; "after a couple of tries it worked."
+
+**Root cause**
+
+Two compounding bugs. (1) `start()` and `stop()` were unserialised: the dedup guard `if (_running && _activePreset == preset) return` was checked before either call settled `_running`, so two concurrent callers (e.g. `VoiceFab.initState` and the `BlocListener` firing close together) both passed the guard, both opened an `AudioRecorder` stream, and the second assignment orphaned the first recorder — leaving the engine "running" with a dead subscription. Device log showed the `started for preset` line twice back-to-back. (2) Re-arm on overlay close called `start()` immediately after the Whisper STT recorder released the mic; on Android the OS may not have freed the `AudioRecord` yet, causing `startStream` to throw. The FAB's `.catchError` logged and gave up with no retry, leaving the engine permanently off until the user changed the preset (which triggered a fresh `start()`).
+
+**Workaround / fix**
+
+Serialise via a single-slot op queue (`_opChain` + `_enqueue<T>`) inside `SherpaOnnxVoiceWakeWordService` so `start()`, `stop()`, and `dispose()` never interleave. `dispose()` is a terminal enqueued op that closes the stream controllers inside the queue. Retry mic acquisition up to `VoiceConstants.wakeWordMicAcquireMaxAttempts` times with `VoiceConstants.wakeWordMicAcquireRetryDelay` backoff before surfacing `audioError`. Do **not** add retries or serialisation in `VoiceFab` — the service owns this contract.
+
+**References**
+
+- `lib/features/voice/data/services/sherpa_onnx_voice_wake_word_service.dart` — `_opChain`, `_enqueue`, `_doStart` retry loop
+- `lib/features/voice/presentation/widgets/voice_fab.dart:104` — `_startWakeWordIfArmed` (unchanged; service handles retries)
+- `lib/core/constants/voice_constants.dart` — `wakeWordMicAcquireMaxAttempts`, `wakeWordMicAcquireRetryDelay`
 
 ---
 

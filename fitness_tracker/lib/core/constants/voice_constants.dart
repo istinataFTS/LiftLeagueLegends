@@ -106,4 +106,23 @@ abstract final class VoiceConstants {
   /// Sample rate for the recording. 16 kHz is Whisper's optimal input — the
   /// server downsamples anything higher anyway. Mono.
   static const int whisperAudioSampleRate = 16000;
+
+  // ───────────────────────────────────────────────────────────────────────
+  // Wake word (sherpa-onnx KWS) — mic re-arm
+  // ───────────────────────────────────────────────────────────────────────
+
+  /// Max attempts to acquire the microphone when (re)arming the wake-word
+  /// engine. The wake-word recorder and the Whisper STT recorder both use the
+  /// `record` plugin; on Android the OS may not have released the AudioRecord
+  /// from a just-finished STT turn by the time `VoiceFab` re-arms the wake word
+  /// on overlay close. Retrying a few times bridges that release gap so the
+  /// engine reliably comes back instead of silently staying off.
+  static const int wakeWordMicAcquireMaxAttempts = 3;
+
+  /// Backoff between microphone-acquire attempts when (re)arming the wake-word
+  /// engine. Short enough to stay imperceptible; long enough for the platform
+  /// to release the recorder from the prior STT session.
+  static const Duration wakeWordMicAcquireRetryDelay = Duration(
+    milliseconds: 250,
+  );
 }
