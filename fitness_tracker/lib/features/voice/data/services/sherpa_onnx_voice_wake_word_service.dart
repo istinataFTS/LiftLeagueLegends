@@ -209,9 +209,24 @@ class SherpaOnnxVoiceWakeWordService implements VoiceWakeWordService {
   StreamSubscription<Uint8List>? _audioSub;
   bool _running = false;
   WakeWordPreset? _activePreset;
+  bool _disposed = false;
 
   final _detectedController = StreamController<WakeWordPreset>.broadcast();
   final _errorController = StreamController<VoiceWakeWordException>.broadcast();
+
+  // Serialises start()/stop()/dispose() so concurrent callers (VoiceFab
+  // initState, app-resume, settings BlocListener, overlay-close re-arm) cannot
+  // run two overlapping audio sessions. Each public call enqueues behind the
+  // previous op; the dedup guard then sees a settled _running/_activePreset.
+  Future<void> _opChain = Future<void>.value();
+
+  Future<T> _enqueue<T>(Future<T> Function() op) {
+    final next = _opChain.then((_) => op());
+    // Keep the chain alive whether or not THIS op throws; the caller still
+    // sees the real result/error via `next`.
+    _opChain = next.then((_) {}, onError: (_) {});
+    return next;
+  }
 
   // ── VoiceWakeWordService interface ──────────────────────────────────────────
 
@@ -225,9 +240,37 @@ class SherpaOnnxVoiceWakeWordService implements VoiceWakeWordService {
   bool get isRunning => _running;
 
   @override
-  Future<void> start(WakeWordPreset preset) async {
+  Future<void> start(WakeWordPreset preset) {
+    if (_disposed) {
+      return Future<void>.error(
+        StateError('SherpaOnnxVoiceWakeWordService has been disposed'),
+      );
+    }
+    return _enqueue(() => _doStart(preset));
+  }
+
+  @override
+  Future<void> stop() => _disposed ? Future<void>.value() : _enqueue(_doStop);
+
+  @override
+  Future<void> dispose() {
+    if (_disposed) return Future<void>.value();
+    _disposed = true;
+    // Enqueue dispose as a terminal op so any already-queued start/stop drains
+    // first; the controller closes happen inside the queue, preventing a racing
+    // start() from writing to a closed stream after disposal.
+    return _enqueue(() async {
+      await _doStop();
+      await _detectedController.close();
+      await _errorController.close();
+    });
+  }
+
+  // ── Private operation bodies (called only from _enqueue) ────────────────────
+
+  Future<void> _doStart(WakeWordPreset preset) async {
     if (_running && _activePreset == preset) return;
-    await stop();
+    await _doStop();
 
     KwsHandle handle;
     try {
@@ -284,34 +327,58 @@ class SherpaOnnxVoiceWakeWordService implements VoiceWakeWordService {
     );
   }
 
-  @override
-  Future<void> stop() async {
+  Future<void> _doStop() async {
     if (!_running && _handle == null) return;
+    // Attempt every cleanup step independently so a failure in one does not
+    // leave the recorder or native handle alive and leaked.  State is always
+    // cleared so the dedup guard in _doStart sees a settled _running value.
+    // The first captured error is reThrown so _enqueue callers (and their
+    // .catchError handlers) see real failures instead of silent success.
+    Object? firstError;
+    StackTrace? firstSt;
+
+    // Null each field BEFORE awaiting/calling so a thrown exception never
+    // leaves a stale reference that the early-return guard would then skip on
+    // the next _doStop() call.
     try {
-      await _audioSub?.cancel();
+      final sub = _audioSub;
       _audioSub = null;
-      await _stopAudio?.call();
-      _stopAudio = null;
-      _handle?.free();
-      _handle = null;
+      await sub?.cancel();
     } catch (e, st) {
+      firstError = e;
+      firstSt = st;
+    }
+
+    try {
+      final stopFn = _stopAudio;
+      _stopAudio = null;
+      await stopFn?.call();
+    } catch (e, st) {
+      firstError ??= e;
+      firstSt ??= st;
+    }
+
+    try {
+      final handle = _handle;
+      _handle = null;
+      handle?.free();
+    } catch (e, st) {
+      firstError ??= e;
+      firstSt ??= st;
+    }
+
+    _running = false;
+    _activePreset = null;
+
+    if (firstError != null) {
       AppLogger.warning(
         'SherpaOnnxVoiceWakeWordService: error on stop',
-        error: e,
-        stackTrace: st,
+        error: firstError,
+        stackTrace: firstSt,
         category: 'voice',
       );
-    } finally {
-      _running = false;
-      _activePreset = null;
+      Error.throwWithStackTrace(firstError, firstSt ?? StackTrace.empty);
     }
-  }
-
-  @override
-  Future<void> dispose() async {
-    await stop();
-    await _detectedController.close();
-    await _errorController.close();
   }
 
   // ── Internal ────────────────────────────────────────────────────────────────

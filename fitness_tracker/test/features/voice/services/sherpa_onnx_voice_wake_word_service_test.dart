@@ -368,6 +368,101 @@ void main() {
     );
   });
 
+  // ── Serialization (concurrent start/stop) ─────────────────────────────────
+
+  group('serialization (concurrent start/stop)', () {
+    test('concurrent start(samePreset) builds the engine once', () async {
+      int factoryCalls = 0;
+      int audioCalls = 0;
+      final audio1 = _FakeAudioSource();
+      final audio2 = _FakeAudioSource();
+      final svc = SherpaOnnxVoiceWakeWordService(
+        kwsFactory: (_) async {
+          factoryCalls++;
+          return _FakeKwsHandle();
+        },
+        audioSessionFactory: (_) {
+          audioCalls++;
+          return audioCalls == 1 ? audio1.session : audio2.session;
+        },
+      );
+
+      // Fire both starts without awaiting the first — regression for bug A.
+      final f1 = svc.start(WakeWordPreset.trainer);
+      final f2 = svc.start(WakeWordPreset.trainer);
+      await Future.wait([f1, f2]);
+
+      // Serialization + dedup guard: only one audio session ever created.
+      expect(factoryCalls, 1);
+      expect(audioCalls, 1);
+      expect(svc.isRunning, isTrue);
+
+      await svc.dispose();
+    });
+
+    test('concurrent start then stop resolves deterministically', () async {
+      final handle = _FakeKwsHandle();
+      final audioSource = _FakeAudioSource();
+      final svc = _makeService(handle: handle, audioSource: audioSource);
+
+      // stop() enqueues behind start() — terminal state must be stopped.
+      final startFuture = svc.start(WakeWordPreset.trainer);
+      final stopFuture = svc.stop();
+      await Future.wait([startFuture, stopFuture]);
+
+      expect(svc.isRunning, isFalse);
+      expect(handle.freed, isTrue);
+
+      await svc.dispose();
+    });
+
+    test('concurrent start then dispose leaves service stopped', () async {
+      int factoryCalls = 0;
+      int audioCalls = 0;
+      final handle = _FakeKwsHandle();
+      final audioSource = _FakeAudioSource();
+      final svc = SherpaOnnxVoiceWakeWordService(
+        kwsFactory: (_) async {
+          factoryCalls++;
+          return handle;
+        },
+        audioSessionFactory: (_) {
+          audioCalls++;
+          return audioSource.session;
+        },
+      );
+
+      // start enqueues first; dispose enqueues behind it as a terminal op.
+      final startFuture = svc.start(WakeWordPreset.trainer);
+      final disposeFuture = svc.dispose();
+      await Future.wait([startFuture, disposeFuture]);
+
+      expect(svc.isRunning, isFalse);
+      expect(handle.freed, isTrue);
+      // Factory and audio invoked exactly once — no post-dispose side effects.
+      expect(factoryCalls, 1);
+      expect(audioCalls, 1);
+    });
+
+    test('start(samePreset) twice sequentially still idempotent', () async {
+      int factoryCalls = 0;
+      final audioSource = _FakeAudioSource();
+      final svc = SherpaOnnxVoiceWakeWordService(
+        kwsFactory: (_) async {
+          factoryCalls++;
+          return _FakeKwsHandle();
+        },
+        audioSessionFactory: (_) => audioSource.session,
+      );
+
+      await svc.start(WakeWordPreset.trainer);
+      await svc.start(WakeWordPreset.trainer);
+      expect(factoryCalls, 1);
+
+      await svc.dispose();
+    });
+  });
+
   // ── stop() teardown ────────────────────────────────────────────────────────
 
   group('stop teardown', () {
