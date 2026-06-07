@@ -8,6 +8,7 @@ import 'package:path_provider/path_provider.dart';
 import 'package:record/record.dart';
 import 'package:sherpa_onnx/sherpa_onnx.dart' as sherpa_onnx;
 
+import '../../../../core/constants/voice_constants.dart';
 import '../../../../core/logging/app_logger.dart';
 import '../../../../domain/entities/voice_settings.dart'
     show WakeWordPreset, WakeWordPresetPhrase;
@@ -198,11 +199,14 @@ class SherpaOnnxVoiceWakeWordService implements VoiceWakeWordService {
   SherpaOnnxVoiceWakeWordService({
     KwsHandleFactory? kwsFactory,
     AudioSessionFactory? audioSessionFactory,
+    Future<void> Function(Duration)? sleep,
   }) : _kwsFactory = kwsFactory ?? _defaultKwsHandleFactory,
-       _audioSessionFactory = audioSessionFactory ?? _defaultAudioSession;
+       _audioSessionFactory = audioSessionFactory ?? _defaultAudioSession,
+       _sleep = sleep ?? Future<void>.delayed;
 
   final KwsHandleFactory _kwsFactory;
   final AudioSessionFactory _audioSessionFactory;
+  final Future<void> Function(Duration) _sleep;
 
   KwsHandle? _handle;
   Future<void> Function()? _stopAudio;
@@ -290,33 +294,50 @@ class SherpaOnnxVoiceWakeWordService implements VoiceWakeWordService {
       );
     }
 
-    try {
-      final session = await _audioSessionFactory(
-        RecordConfig(
-          encoder: AudioEncoder.pcm16bits,
-          sampleRate: 16000,
-          numChannels: 1,
-        ),
-      );
-      _stopAudio = session.stop;
-      _audioSub = session.stream.listen(
-        _onAudioFrame,
-        onError: _onAudioError,
-        cancelOnError: false,
-      );
-    } catch (e, st) {
-      AppLogger.warning(
-        'SherpaOnnxVoiceWakeWordService: audio capture failed',
-        error: e,
-        stackTrace: st,
-        category: 'voice',
-      );
-      handle.free();
-      throw VoiceWakeWordException(
-        VoiceWakeWordErrorKind.audioError,
-        'Failed to start audio capture: $e',
-      );
+    AudioSession? session;
+    VoiceWakeWordException? lastError;
+    for (
+      var attempt = 1;
+      attempt <= VoiceConstants.wakeWordMicAcquireMaxAttempts;
+      attempt++
+    ) {
+      try {
+        session = await _audioSessionFactory(
+          const RecordConfig(
+            encoder: AudioEncoder.pcm16bits,
+            sampleRate: 16000,
+            numChannels: 1,
+          ),
+        );
+        break;
+      } catch (e, st) {
+        lastError = VoiceWakeWordException(
+          VoiceWakeWordErrorKind.audioError,
+          'Failed to start audio capture (attempt $attempt/'
+          '${VoiceConstants.wakeWordMicAcquireMaxAttempts}): $e',
+        );
+        AppLogger.warning(
+          'SherpaOnnxVoiceWakeWordService: mic acquire failed '
+          '(attempt $attempt/${VoiceConstants.wakeWordMicAcquireMaxAttempts})',
+          error: e,
+          stackTrace: st,
+          category: 'voice',
+        );
+        if (attempt < VoiceConstants.wakeWordMicAcquireMaxAttempts) {
+          await _sleep(VoiceConstants.wakeWordMicAcquireRetryDelay);
+        }
+      }
     }
+    if (session == null) {
+      handle.free();
+      throw lastError!;
+    }
+    _stopAudio = session.stop;
+    _audioSub = session.stream.listen(
+      _onAudioFrame,
+      onError: _onAudioError,
+      cancelOnError: false,
+    );
 
     _handle = handle;
     _running = true;

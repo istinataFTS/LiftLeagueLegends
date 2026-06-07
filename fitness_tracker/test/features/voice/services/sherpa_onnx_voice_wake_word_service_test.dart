@@ -1,6 +1,7 @@
 import 'dart:async';
 import 'dart:typed_data';
 
+import 'package:fitness_tracker/core/constants/voice_constants.dart';
 import 'package:fitness_tracker/domain/entities/voice_settings.dart'
     show WakeWordPreset, WakeWordPresetPhrase;
 import 'package:fitness_tracker/domain/services/voice_wake_word_service.dart';
@@ -347,9 +348,11 @@ void main() {
     test(
       'audio session factory throws → VoiceWakeWordException(audioError)',
       () async {
+        // sleep seam prevents real backoff from inflating test runtime.
         final svc = SherpaOnnxVoiceWakeWordService(
           kwsFactory: (_) async => _FakeKwsHandle(),
           audioSessionFactory: (_) async => throw Exception('mic unavailable'),
+          sleep: (_) async {},
         );
 
         await expectLater(
@@ -362,6 +365,66 @@ void main() {
             ),
           ),
         );
+
+        await svc.dispose();
+      },
+    );
+  });
+
+  // ── Mic-acquire retry ──────────────────────────────────────────────────────
+
+  group('mic-acquire retry', () {
+    test('recovers when the mic is free on the 2nd attempt', () async {
+      // Regression test for bug B: transient mic-still-held failure on re-arm
+      // should not permanently kill the wake word engine.
+      int audioCalls = 0;
+      final handle = _FakeKwsHandle();
+      final audioSource = _FakeAudioSource();
+      final svc = SherpaOnnxVoiceWakeWordService(
+        kwsFactory: (_) async => handle,
+        audioSessionFactory: (_) {
+          audioCalls++;
+          if (audioCalls == 1) throw Exception('AudioRecord not released yet');
+          return audioSource.session;
+        },
+        sleep: (_) async {},
+      );
+
+      await svc.start(WakeWordPreset.trainer);
+
+      expect(svc.isRunning, isTrue);
+      expect(audioCalls, 2);
+
+      await svc.dispose();
+    });
+
+    test(
+      'gives up after wakeWordMicAcquireMaxAttempts and throws audioError',
+      () async {
+        int audioCalls = 0;
+        final handle = _FakeKwsHandle();
+        final svc = SherpaOnnxVoiceWakeWordService(
+          kwsFactory: (_) async => handle,
+          audioSessionFactory: (_) async {
+            audioCalls++;
+            throw Exception('mic busy');
+          },
+          sleep: (_) async {},
+        );
+
+        await expectLater(
+          svc.start(WakeWordPreset.trainer),
+          throwsA(
+            isA<VoiceWakeWordException>().having(
+              (e) => e.kind,
+              'kind',
+              VoiceWakeWordErrorKind.audioError,
+            ),
+          ),
+        );
+
+        expect(audioCalls, VoiceConstants.wakeWordMicAcquireMaxAttempts);
+        expect(handle.freed, isTrue);
 
         await svc.dispose();
       },
