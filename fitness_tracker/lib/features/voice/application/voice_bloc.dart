@@ -1623,7 +1623,18 @@ class VoiceBloc extends Bloc<VoiceEvent, VoiceState>
     VoiceConfirmationCancelled event,
     Emitter<VoiceState> emit,
   ) {
-    emit(state.copyWith(clearPendingConfirmation: true));
+    // Reset to idle so the overlay mic button (gated on `status == idle`) is
+    // tappable again and the wake engine can re-arm. Mirrors the accept path,
+    // which also ends at idle. Without this, status stays `awaitingConfirmation`
+    // and the bot is unreachable until the overlay is closed.
+    // See KNOWN_ISSUES.md #voice-confirmation-cancel-leaves-bot-unresponsive.
+    emit(
+      state.copyWith(
+        status: VoiceStatus.idle,
+        clearPendingConfirmation: true,
+        clearTranscript: true,
+      ),
+    );
   }
 
   Future<void> _onWorkoutModeToggled(

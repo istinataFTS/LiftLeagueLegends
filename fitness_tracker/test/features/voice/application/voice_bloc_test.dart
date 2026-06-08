@@ -2160,6 +2160,7 @@ void main() {
       ),
       seed: () => const VoiceState(
         sessionId: 'sid',
+        status: VoiceStatus.awaitingConfirmation,
         pendingConfirmation: VoiceToolCall(
           id: 'call-1',
           toolName: 'logWorkoutSet',
@@ -2169,13 +2170,45 @@ void main() {
       ),
       act: (bloc) => bloc.add(const VoiceConfirmationCancelled()),
       expect: () => [
-        isA<VoiceState>().having(
-          (s) => s.pendingConfirmation,
-          'pendingConfirmation',
-          isNull,
-        ),
+        isA<VoiceState>()
+            .having((s) => s.pendingConfirmation, 'pendingConfirmation', isNull)
+            .having((s) => s.status, 'status', VoiceStatus.idle),
       ],
     );
+
+    test('cancel returns to idle so a new listen can start', () async {
+      final stt = FakeVoiceSttService();
+      final bloc = _makeBloc(
+        sendVoiceMessage: sendVoiceMessage,
+        getVoiceBudget: getBudget,
+        deleteVoiceHistory: deleteHistory,
+        appSettingsRepository: settingsRepo,
+        stt: stt,
+      );
+
+      bloc.emit(
+        const VoiceState(
+          sessionId: 'sid',
+          status: VoiceStatus.awaitingConfirmation,
+          pendingConfirmation: VoiceToolCall(
+            id: 'call-1',
+            toolName: 'logWorkoutSet',
+            displaySummary: 'Log Bench Press',
+            args: {},
+          ),
+        ),
+      );
+
+      bloc.add(const VoiceConfirmationCancelled());
+      await Future<void>.delayed(const Duration(milliseconds: 10));
+      expect(bloc.state.status, VoiceStatus.idle);
+
+      bloc.add(const VoiceListenRequested());
+      await Future<void>.delayed(const Duration(milliseconds: 10));
+      expect(bloc.state.status, VoiceStatus.listening);
+
+      await bloc.close();
+    });
   });
 
   // =========================================================================
