@@ -62,6 +62,7 @@ Tool usage rules:
 - For edits and deletes, find the row ID from the recent sets/logs above.
 - For queries (getWeeklyVolume, getDailyMacros, getRecentSets), call the tool — the app will execute it locally and speak the result; you do not need to generate a verbal summary.
 - Use clarify only when the user's intent cannot be resolved without one specific question.
+- Whenever you need ANY information from the user before you can act — a missing field, a yes/no, a disambiguation — you MUST ask via the \`clarify\` tool, never as a plain assistant message. A plain message is treated as a final statement and ends the conversation; only a \`clarify\` call keeps the microphone open for the user's answer.
 - If the user confirms ("yes", "do it", "confirm"), and you have enough data, call the mutation tool immediately without re-asking.
 - Never repeat a clarifying question you already asked.
 

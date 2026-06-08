@@ -578,6 +578,23 @@ Deno.test("buildSystemPrompt: ids remain in context for tool use", () => {
   assertEquals(prompt.includes("set-1"), true);
 });
 
+Deno.test("buildSystemPrompt: clarify-must rule instructs bot to use clarify tool for any question", () => {
+  const prompt = buildSystemPrompt({
+    currentDate: "2026-05-13",
+    weightUnit: "kg",
+    recentSets: [],
+    recentNutritionLogs: [],
+  });
+  // Stable phrase from the nudge added in Plan 2 commit 2.
+  // This ensures the bot is instructed to use the clarify tool instead of a
+  // plain assistant message whenever it needs information from the user.
+  assertEquals(
+    prompt.includes("keeps the microphone open for the user's answer"),
+    true,
+  );
+  assertEquals(prompt.includes("never as a plain assistant message"), true);
+});
+
 // ---------------------------------------------------------------------------
 // applyAssistantGuard — server-side guard against success-claiming prose
 // ---------------------------------------------------------------------------
