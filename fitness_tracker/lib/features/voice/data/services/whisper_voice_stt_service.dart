@@ -45,6 +45,13 @@ class WhisperVoiceSttService implements VoiceSttService {
   bool _cancelled = false;
   bool _firstAmplitudeLogged = false;
 
+  /// True once any amplitude sample crossed [VoiceConstants.whisperSilenceAmplitudeDbfs]
+  /// during this recording. When it stays false the clip is silence-only and
+  /// must NOT be uploaded — Whisper hallucinates canned phrases (e.g.
+  /// "For more information visit www.FEMA.gov") on silent audio.
+  /// See KNOWN_ISSUES.md #voice-whisper-hallucinates-on-silent-audio.
+  bool _voiceDetected = false;
+
   /// Log category for all events from this service. Tagged so a developer
   /// running `adb logcat | grep voice/stt/whisper` sees the entire recording
   /// + upload lifecycle of one utterance.
@@ -97,6 +104,7 @@ class WhisperVoiceSttService implements VoiceSttService {
     if (controller == null) return;
 
     _firstAmplitudeLogged = false;
+    _voiceDetected = false;
 
     try {
       if (!await _recorder.hasPermission()) {
@@ -162,6 +170,7 @@ class WhisperVoiceSttService implements VoiceSttService {
             }
             final now = DateTime.now();
             if (amp.current > VoiceConstants.whisperSilenceAmplitudeDbfs) {
+              _voiceDetected = true;
               _lastVoiceAt = now;
             } else if (_lastVoiceAt != null) {
               final silenceFor = now.difference(_lastVoiceAt!);
@@ -263,6 +272,24 @@ class WhisperVoiceSttService implements VoiceSttService {
       return;
     }
 
+    if (!shouldTranscribe(
+      voiceDetected: _voiceDetected,
+      byteCount: bytes.length,
+    )) {
+      AppLogger.info(
+        'WhisperVoiceSttService: no voice detected during recording '
+        '(voiceDetected=$_voiceDetected, ${bytes.length} bytes) — '
+        'skipping upload to avoid silence hallucination',
+        category: _logCategory,
+      );
+      _emitError(
+        controller,
+        const VoiceSttException(VoiceSttErrorKind.noSpeech),
+      );
+      await _closeController();
+      return;
+    }
+
     final uploadKb = (bytes.length / 1024).toStringAsFixed(1);
     AppLogger.info(
       'WhisperVoiceSttService: uploading $uploadKb KB to voice-transcribe',
@@ -347,6 +374,18 @@ class WhisperVoiceSttService implements VoiceSttService {
   }
 
   // ── Helpers ───────────────────────────────────────────────────────────────
+
+  /// Whether a finished recording should be uploaded for transcription.
+  ///
+  /// A clip is uploaded only if (1) at least one amplitude sample crossed the
+  /// voice threshold during recording and (2) the file is non-empty. Silence-
+  /// only clips are dropped to prevent Whisper hallucinating canned phrases on
+  /// silence. Pure so it is unit-testable without the `record` plugin.
+  @visibleForTesting
+  static bool shouldTranscribe({
+    required bool voiceDetected,
+    required int byteCount,
+  }) => voiceDetected && byteCount > 0;
 
   /// Classifies an error from `_remote.transcribe(...)` into the closest
   /// [VoiceSttErrorKind]. The remote layer encodes Edge Function failures as
