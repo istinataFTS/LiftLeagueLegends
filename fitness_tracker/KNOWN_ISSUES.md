@@ -89,6 +89,7 @@ Numbered steps or a short paragraph. State what to do and what *not* to do.
 17. [voice-wake-word-engine-must-serialize-and-retry-mic-acquire](#voice-wake-word-engine-must-serialize-and-retry-mic-acquire)
 18. [voice-bot-must-log-duplicate-sets](#voice-bot-must-log-duplicate-sets)
 19. [voice-confirmation-cancel-leaves-bot-unresponsive](#voice-confirmation-cancel-leaves-bot-unresponsive)
+20. [voice-whisper-hallucinates-on-silent-audio](#voice-whisper-hallucinates-on-silent-audio)
 
 ### Database
 11. [sqflite-version-15-rejects-incompatible-legacy-databases](#sqflite-version-15-rejects-incompatible-legacy-databases)
@@ -898,6 +899,33 @@ Tapping Cancel on the confirmation card leaves the bot unreachable — the in-ov
 - `lib/features/voice/application/voice_bloc.dart` — `_onConfirmationCancelled`
 - `lib/features/voice/presentation/voice_overlay_page.dart:237` — mic-tap `status == idle` gate
 - `test/features/voice/application/voice_bloc_test.dart` — `VoiceConfirmationCancelled` group
+
+---
+
+### voice-whisper-hallucinates-on-silent-audio
+
+- **Severity:** High
+- **Status:** Resolved-but-monitor
+- **First observed:** 2026-06-07
+- **Last verified:** 2026-06-07
+- **Area:** voice
+
+**Symptom**
+
+Waking the bot and immediately tapping Stop (or any near-silent recording) sends a phantom user message such as "For more information visit www.FEMA.gov", which the LLM then answers. The user never spoke.
+
+**Root cause**
+
+`WhisperVoiceSttService` uploaded any non-empty recording — the only gate was `bytes.isEmpty`. A sub-second silence clip is a non-empty ~7 KB m4a, so it was uploaded, and Whisper hallucinates canned phrases on silence. The amplitude monitor already knew no voice was present (`amp.current > whisperSilenceAmplitudeDbfs` never true) but that signal was unused on the upload path.
+
+**Workaround / fix**
+
+Track `_voiceDetected` (set when any amplitude sample crosses the voice threshold; reset at recording start) and gate the upload with the pure helper `WhisperVoiceSttService.shouldTranscribe(voiceDetected:, byteCount:)`. Silence-only clips emit `VoiceSttErrorKind.noSpeech` and skip the upload entirely. Do not gate on `_lastVoiceAt` — it is nulled by `_teardownTimersAndSubscription()` before the gate runs.
+
+**References**
+
+- `lib/features/voice/data/services/whisper_voice_stt_service.dart` — `_voiceDetected`, `shouldTranscribe`, `_stopAndTranscribe`
+- `test/features/voice/services/whisper_voice_stt_service_test.dart` — `shouldTranscribe` group
 
 ---
 
