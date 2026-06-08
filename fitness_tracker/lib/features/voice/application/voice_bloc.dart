@@ -462,6 +462,19 @@ class VoiceBloc extends Bloc<VoiceEvent, VoiceState>
 
   static const _uuid = Uuid();
 
+  /// Mutation tools this client can dispatch AND read back. Must stay in sync
+  /// with the switches in [_dispatchMutationTool] and [_buildReadback]. A
+  /// mutation tool NOT in this set is fail-closed: refused, never confirmed
+  /// (redesign-overview §9).
+  static const Set<String> _knownMutationTools = <String>{
+    'logWorkoutSet',
+    'editWorkoutSet',
+    'deleteWorkoutSet',
+    'logNutrition',
+    'editNutritionLog',
+    'deleteNutritionLog',
+  };
+
   /// Anchored stop-words that end the conversation immediately (redesign-overview
   /// §4), regardless of pending state. "stop the timer" does NOT match because
   /// the pattern is anchored. Overlap with the classifier's cancel set is
@@ -913,6 +926,21 @@ class VoiceBloc extends Bloc<VoiceEvent, VoiceState>
         if (refreshBudget) _refreshBudget();
 
       case VoiceChatMutationCall(:final toolCall):
+        if (!_knownMutationTools.contains(toolCall.toolName)) {
+          // Fail-closed: refuse unknown mutations; never present a confirmable
+          // card or auto-listen (redesign-overview §9).
+          _consecutiveRelistens = 0;
+          emit(
+            state.copyWith(
+              status: VoiceStatus.speaking,
+              messages: updatedMessages,
+            ),
+          );
+          await _speak(AppStrings.voiceSpokenUnsupportedAction);
+          emit(state.copyWith(status: VoiceStatus.idle));
+          if (refreshBudget) _refreshBudget();
+          return;
+        }
         final weightUnit = await _readWeightUnit();
         final readback = _buildReadback(toolCall, weightUnit);
         // Set pendingConfirmation in the SAME emit as `speaking` (NOT via a
@@ -1366,9 +1394,9 @@ class VoiceBloc extends Bloc<VoiceEvent, VoiceState>
         );
 
       default:
-        // Unknown tool — fall back to the displaySummary so the user still
-        // hears *something* before the card appears.
-        return 'I heard: ${tc.displaySummary}. Confirm or cancel.';
+        // Unreachable while _knownMutationTools is maintained correctly, but
+        // hardened here so it can never silently confirm an unknown tool.
+        return AppStrings.voiceSpokenUnsupportedAction;
     }
   }
 

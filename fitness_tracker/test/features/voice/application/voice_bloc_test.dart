@@ -3665,4 +3665,136 @@ void main() {
       await bloc.close();
     });
   });
+
+  // ---------------------------------------------------------------------------
+  // Fail-closed unknown mutation (Commit 7)
+  // ---------------------------------------------------------------------------
+
+  group('fail-closed unknown mutation', () {
+    test('unknown tool speaks unsupported-action, no pendingConfirmation, '
+        'no auto-listen, ends at idle', () async {
+      when(
+        () => sendVoiceMessage(
+          userMessage: any(named: 'userMessage'),
+          sessionId: any(named: 'sessionId'),
+          history: any(named: 'history'),
+          settings: any(named: 'settings'),
+          weightUnit: any(named: 'weightUnit'),
+          recentSets: any(named: 'recentSets'),
+          recentNutritionLogs: any(named: 'recentNutritionLogs'),
+        ),
+      ).thenAnswer(
+        (_) async => const Right(
+          VoiceChatMutationCall(
+            toolCall: VoiceToolCall(
+              id: 'call-unknown',
+              toolName: 'deleteExercise',
+              displaySummary: 'Delete exercise',
+              args: {},
+            ),
+          ),
+        ),
+      );
+
+      final tts = FakeVoiceTtsService();
+      final bloc = _makeBloc(
+        sendVoiceMessage: sendVoiceMessage,
+        getVoiceBudget: getBudget,
+        deleteVoiceHistory: deleteHistory,
+        appSettingsRepository: settingsRepo,
+        tts: tts,
+        stt: sharedStt,
+      );
+
+      bloc.add(
+        VoiceSessionStarted(
+          const AppSession(
+            user: AppUser(id: 'u1', email: 'a@b.com'),
+          ),
+        ),
+      );
+      await Future<void>.delayed(const Duration(milliseconds: 50));
+      bloc.add(const VoiceSendMessage('delete my bench press exercise'));
+      await Future<void>.delayed(const Duration(milliseconds: 250));
+
+      expect(
+        tts.spokenHistory,
+        contains(AppStrings.voiceSpokenUnsupportedAction),
+      );
+      expect(bloc.state.pendingConfirmation, isNull);
+      expect(bloc.state.status, VoiceStatus.idle);
+      // No continuation listen — sharedStt should not have been invoked
+      expect(sharedStt.isListening, isFalse);
+
+      await bloc.close();
+    });
+
+    test('known mutation (logWorkoutSet) still produces readback and sets '
+        'pendingConfirmation (commit-4 behavior intact)', () async {
+      _setupBenchLookup(exerciseLookup);
+
+      when(
+        () => sendVoiceMessage(
+          userMessage: any(named: 'userMessage'),
+          sessionId: any(named: 'sessionId'),
+          history: any(named: 'history'),
+          settings: any(named: 'settings'),
+          weightUnit: any(named: 'weightUnit'),
+          recentSets: any(named: 'recentSets'),
+          recentNutritionLogs: any(named: 'recentNutritionLogs'),
+        ),
+      ).thenAnswer(
+        (_) async => const Right(
+          VoiceChatMutationCall(
+            toolCall: VoiceToolCall(
+              id: 'call-known',
+              toolName: 'logWorkoutSet',
+              displaySummary: 'Log Bench Press 80 kg × 8',
+              args: {
+                'exerciseName': 'Bench Press',
+                'exerciseId': 'ex-bench',
+                'reps': 8,
+                'weight': 80.0,
+              },
+            ),
+          ),
+        ),
+      );
+
+      final tts = FakeVoiceTtsService();
+      final bloc = _makeBloc(
+        sendVoiceMessage: sendVoiceMessage,
+        getVoiceBudget: getBudget,
+        deleteVoiceHistory: deleteHistory,
+        appSettingsRepository: settingsRepo,
+        exerciseLookup: exerciseLookup,
+        getSetsByDateRange: getSetsByDateRange,
+        getLogsForDate: getLogsForDate,
+        getDailyMacros: getDailyMacros,
+        tts: tts,
+      );
+
+      bloc.add(
+        VoiceSessionStarted(
+          const AppSession(
+            user: AppUser(id: 'u1', email: 'a@b.com'),
+          ),
+        ),
+      );
+      await Future<void>.delayed(const Duration(milliseconds: 50));
+      bloc.add(const VoiceSendMessage('log bench 80 by 8'));
+      await Future<void>.delayed(const Duration(milliseconds: 250));
+
+      // Known mutation: confirmation card set, readback spoken (not "can't do that yet").
+      expect(bloc.state.pendingConfirmation, isNotNull);
+      expect(bloc.state.pendingConfirmation!.toolName, 'logWorkoutSet');
+      expect(tts.spokenHistory.any((s) => s.contains('Bench Press')), isTrue);
+      expect(
+        tts.spokenHistory,
+        isNot(contains(AppStrings.voiceSpokenUnsupportedAction)),
+      );
+
+      await bloc.close();
+    });
+  });
 }

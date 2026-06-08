@@ -565,6 +565,7 @@ class AppStrings {
       "That took too long. Please try again.";
   static const String voiceSpokenMutationTimedOut =
       "I couldn't confirm whether that saved. Please check the History tab.";
+  static const String voiceSpokenUnsupportedAction = "I can't do that yet.";
 
   // ── Voice Whisper (remote STT) display messages ──────────────────────────
   static const String voiceWhisperErrorRecording =
