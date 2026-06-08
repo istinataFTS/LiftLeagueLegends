@@ -88,6 +88,7 @@ Numbered steps or a short paragraph. State what to do and what *not* to do.
 16. [voice-bot-must-never-surface-internal-ids](#voice-bot-must-never-surface-internal-ids)
 17. [voice-wake-word-engine-must-serialize-and-retry-mic-acquire](#voice-wake-word-engine-must-serialize-and-retry-mic-acquire)
 18. [voice-bot-must-log-duplicate-sets](#voice-bot-must-log-duplicate-sets)
+19. [voice-confirmation-cancel-leaves-bot-unresponsive](#voice-confirmation-cancel-leaves-bot-unresponsive)
 
 ### Database
 11. [sqflite-version-15-rejects-incompatible-legacy-databases](#sqflite-version-15-rejects-incompatible-legacy-databases)
@@ -869,6 +870,34 @@ Serialise via a single-slot op queue (`_opChain` + `_enqueue<T>`) inside `Sherpa
 - `lib/features/voice/data/services/sherpa_onnx_voice_wake_word_service.dart` — `_opChain`, `_enqueue`, `_doStart` retry loop
 - `lib/features/voice/presentation/widgets/voice_fab.dart:104` — `_startWakeWordIfArmed` (unchanged; service handles retries)
 - `lib/core/constants/voice_constants.dart` — `wakeWordMicAcquireMaxAttempts`, `wakeWordMicAcquireRetryDelay`
+
+---
+
+### voice-confirmation-cancel-leaves-bot-unresponsive
+
+- **Severity:** High
+- **Status:** Resolved-but-monitor
+- **First observed:** 2026-06-07
+- **Last verified:** 2026-06-07
+- **Area:** voice
+
+**Symptom**
+
+Tapping Cancel on the confirmation card leaves the bot unreachable — the in-overlay mic button does nothing and the wake word does not work — until the overlay is closed and reopened.
+
+**Root cause**
+
+`_onConfirmationCancelled` cleared the pending card but never reset `status`, leaving it at `VoiceStatus.awaitingConfirmation`. The overlay mic tap is gated `status == idle`, so it became a no-op; the wake engine is off while the overlay is open. The accept path resets to idle; cancel did not.
+
+**Workaround / fix**
+
+`_onConfirmationCancelled` now emits `status: VoiceStatus.idle` (with `clearPendingConfirmation` + `clearTranscript`), mirroring the accept path. Re-engaging via the mic tap works again. (Full wake-word-while-overlay-open is addressed by the Plan 2 wake-engine-at-idle change.)
+
+**References**
+
+- `lib/features/voice/application/voice_bloc.dart` — `_onConfirmationCancelled`
+- `lib/features/voice/presentation/voice_overlay_page.dart:237` — mic-tap `status == idle` gate
+- `test/features/voice/application/voice_bloc_test.dart` — `VoiceConfirmationCancelled` group
 
 ---
 
