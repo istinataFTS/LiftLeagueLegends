@@ -7,10 +7,18 @@ sealed class VoiceChatResult {
 }
 
 /// LLM returned a plain text message — speak and add to conversation.
-/// Also used when the LLM calls the `clarify` pseudo-tool; the datasource
-/// extracts the question and wraps it as a text response.
+/// A final statement; ends the turn and returns to [VoiceStatus.idle].
 final class VoiceChatTextResponse extends VoiceChatResult {
   const VoiceChatTextResponse({required this.message});
+  final VoiceMessage message;
+}
+
+/// LLM asked a clarifying question (the `clarify` tool). Spoken to the user,
+/// then the conversation auto-re-listens for the answer — distinct from
+/// [VoiceChatTextResponse], which is a final statement that ends the turn.
+/// See redesign-overview.md §3.
+final class VoiceChatClarifyResponse extends VoiceChatResult {
+  const VoiceChatClarifyResponse({required this.message});
   final VoiceMessage message;
 }
 

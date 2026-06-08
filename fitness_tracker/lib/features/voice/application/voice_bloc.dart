@@ -65,7 +65,15 @@ class VoiceSessionStarted extends VoiceEvent {
 /// stream emitted by the [VoiceSttService] and forwards the final
 /// transcript as a [VoiceSendMessage].
 class VoiceListenRequested extends VoiceEvent {
-  const VoiceListenRequested();
+  const VoiceListenRequested({this.isContinuation = false});
+
+  /// True when the bloc itself re-opens the mic mid-conversation (after a
+  /// clarify question or a confirmation readback). Bypasses the busy-guard so
+  /// the machine transitions speaking→listening directly. See Plan 2 §2.1.
+  final bool isContinuation;
+
+  @override
+  List<Object?> get props => <Object?>[isContinuation];
 }
 
 /// Stops an in-progress STT session gracefully (the final partial
@@ -497,6 +505,18 @@ class VoiceBloc extends Bloc<VoiceEvent, VoiceState>
 
   StreamSubscription<VoiceSttResult>? _sttSubscription;
 
+  /// Bounds runaway auto-re-listen loops (redesign-overview §4). Incremented
+  /// by [_speakThenListen] on each continuation re-listen; reset on every
+  /// user-initiated listen and on every endpoint. At the cap the conversation
+  /// ends instead of re-listening.
+  int _consecutiveRelistens = 0;
+
+  /// True when the current STT session was opened as a continuation (bot
+  /// re-opened the mic after a clarify question or confirmation readback).
+  /// Used to decide whether a forwarded transcript should reset
+  /// [_consecutiveRelistens] — only user-initiated listens reset the counter.
+  bool _currentListenIsContinuation = false;
+
   // ---------------------------------------------------------------------------
   // Session lifecycle
   // ---------------------------------------------------------------------------
@@ -507,6 +527,8 @@ class VoiceBloc extends Bloc<VoiceEvent, VoiceState>
     // (the exercise library is static) — it is NOT reset here.
     _cachedWorkoutSets = <WorkoutSet>[];
     _cachedNutritionLogs = <NutritionLog>[];
+    _consecutiveRelistens = 0;
+    _currentListenIsContinuation = false;
     emit(
       state.copyWith(
         sessionId: _uuid.v4(),
@@ -526,7 +548,8 @@ class VoiceBloc extends Bloc<VoiceEvent, VoiceState>
     VoiceListenRequested event,
     Emitter<VoiceState> emit,
   ) async {
-    if (_rejectBusy()) return;
+    if (!event.isContinuation && _rejectBusy()) return;
+    _currentListenIsContinuation = event.isContinuation;
     _ensureSessionId(emit);
 
     try {
@@ -660,6 +683,11 @@ class VoiceBloc extends Bloc<VoiceEvent, VoiceState>
       return;
     }
 
+    // A user-initiated (non-continuation) listen represents a fresh
+    // conversation start — reset the relisten ceiling so the next
+    // clarify/confirm loop has the full budget.
+    if (!_currentListenIsContinuation) _consecutiveRelistens = 0;
+
     emit(
       state.copyWith(status: VoiceStatus.transcribing, liveTranscript: text),
     );
@@ -787,10 +815,17 @@ class VoiceBloc extends Bloc<VoiceEvent, VoiceState>
     bool refreshBudget = true,
   }) async {
     switch (result) {
+      case VoiceChatClarifyResponse(:final message):
+        final withReply = <VoiceMessage>[...updatedMessages, message];
+        emit(state.copyWith(status: VoiceStatus.speaking, messages: withReply));
+        await _speakThenListen(message.content, emit);
+        if (refreshBudget) _refreshBudget();
+
       case VoiceChatTextResponse(:final message):
         final withReply = <VoiceMessage>[...updatedMessages, message];
         emit(state.copyWith(status: VoiceStatus.speaking, messages: withReply));
         await _speak(message.content);
+        _consecutiveRelistens = 0;
         emit(state.copyWith(status: VoiceStatus.idle));
         if (refreshBudget) _refreshBudget();
 
@@ -823,6 +858,7 @@ class VoiceBloc extends Bloc<VoiceEvent, VoiceState>
         final withReply = <VoiceMessage>[...updatedMessages, assistantMsg];
         emit(state.copyWith(status: VoiceStatus.speaking, messages: withReply));
         await _speak(spoken);
+        _consecutiveRelistens = 0;
         emit(state.copyWith(status: VoiceStatus.idle));
         if (refreshBudget) _refreshBudget();
     }
@@ -841,6 +877,25 @@ class VoiceBloc extends Bloc<VoiceEvent, VoiceState>
     await _tts.setVolume(settings.ttsVolume);
     await _tts.setSpeechRate(settings.ttsSpeechRate);
     await _tts.speak(text);
+  }
+
+  /// Speaks [text], then re-opens the mic for the user's reply. The single
+  /// "speak → re-listen" primitive shared by clarify-relisten and (Plan 2
+  /// commit 4) confirmation-relisten — redesign-overview.md §5 H3. The
+  /// listen-start earcon plays inside [_onListenRequested] (Plan 1 WI-3) and
+  /// is NOT replayed here.
+  ///
+  /// Enforces [VoiceConstants.maxConsecutiveRelistens]: if the ceiling is
+  /// reached, the conversation ends at [VoiceStatus.idle] instead.
+  Future<void> _speakThenListen(String text, Emitter<VoiceState> emit) async {
+    await _speak(text);
+    if (_consecutiveRelistens >= VoiceConstants.maxConsecutiveRelistens) {
+      _consecutiveRelistens = 0;
+      emit(state.copyWith(status: VoiceStatus.idle));
+      return;
+    }
+    _consecutiveRelistens++;
+    add(const VoiceListenRequested(isContinuation: true));
   }
 
   /// Trims `messages` to the last [VoiceConstants.maxHistoryTurns]

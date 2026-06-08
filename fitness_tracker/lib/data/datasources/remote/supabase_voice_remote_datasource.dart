@@ -2,6 +2,7 @@ import 'dart:async';
 import 'dart:convert';
 import 'dart:typed_data';
 
+import 'package:flutter/foundation.dart' show visibleForTesting;
 import 'package:http/http.dart' as http;
 import 'package:supabase_flutter/supabase_flutter.dart';
 
@@ -89,7 +90,7 @@ class SupabaseVoiceRemoteDataSource implements VoiceRemoteDataSource {
     }
 
     final json = jsonDecode(response.body) as Map<String, dynamic>;
-    return _parseResult(json);
+    return parseResult(json);
   }
 
   // ---------------------------------------------------------------------------
@@ -230,7 +231,12 @@ class SupabaseVoiceRemoteDataSource implements VoiceRemoteDataSource {
   // Result parser
   // ---------------------------------------------------------------------------
 
-  VoiceChatResult _parseResult(Map<String, dynamic> json) {
+  /// Parses the JSON payload from `voice-chat` into a typed [VoiceChatResult].
+  /// Exposed as `@visibleForTesting` static so the parse logic can be unit-
+  /// tested without spinning up an HTTP server (mirrors the `shouldTranscribe`
+  /// pattern from [WhisperVoiceSttService]).
+  @visibleForTesting
+  static VoiceChatResult parseResult(Map<String, dynamic> json) {
     final kind = json['kind'] as String?;
 
     if (kind == 'tool_call') {
@@ -241,10 +247,11 @@ class SupabaseVoiceRemoteDataSource implements VoiceRemoteDataSource {
       final args =
           (tc['arguments'] as Map<String, dynamic>?) ?? <String, dynamic>{};
 
-      // clarify → plain text spoken question
+      // clarify → spoken question that KEEPS the conversation alive (re-listen)
       if (toolName == 'clarify') {
-        final question = args['question'] as String? ?? '';
-        return VoiceChatTextResponse(
+        final raw = args['question'];
+        final question = raw is String ? raw : raw?.toString() ?? '';
+        return VoiceChatClarifyResponse(
           message: VoiceMessage(
             role: VoiceRole.assistant,
             content: question,
@@ -296,7 +303,10 @@ class SupabaseVoiceRemoteDataSource implements VoiceRemoteDataSource {
   /// Builds the human-readable summary shown on [VoiceConfirmationCard].
   /// Built from LLM-provided args only — never issues a DB read.
   /// Falls back to the tool name if args are incomplete (defensive).
-  String _buildDisplaySummary(String toolName, Map<String, dynamic> args) {
+  static String _buildDisplaySummary(
+    String toolName,
+    Map<String, dynamic> args,
+  ) {
     switch (toolName) {
       case 'logWorkoutSet':
         final exercise = args['exerciseName'] as String? ?? 'Exercise';
