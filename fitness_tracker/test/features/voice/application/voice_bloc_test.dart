@@ -2177,6 +2177,147 @@ void main() {
   });
 
   // -------------------------------------------------------------------------
+  // clarify re-listen (Plan 2 commit 1)
+  // -------------------------------------------------------------------------
+
+  group('clarify re-listen', () {
+    const clarifyQuestion = 'How many reps?';
+
+    void stubClarify() {
+      when(
+        () => sendVoiceMessage(
+          userMessage: any(named: 'userMessage'),
+          sessionId: any(named: 'sessionId'),
+          history: any(named: 'history'),
+          settings: any(named: 'settings'),
+          weightUnit: any(named: 'weightUnit'),
+          recentSets: any(named: 'recentSets'),
+          recentNutritionLogs: any(named: 'recentNutritionLogs'),
+        ),
+      ).thenAnswer(
+        (_) async => Right(
+          VoiceChatClarifyResponse(
+            message: VoiceMessage(
+              role: VoiceRole.assistant,
+              content: clarifyQuestion,
+              createdAt: _now,
+            ),
+          ),
+        ),
+      );
+    }
+
+    test(
+      'VoiceChatClarifyResponse: speaks question then enters continuation listening',
+      () async {
+        stubClarify();
+        final stt = FakeVoiceSttService();
+        final tts = FakeVoiceTtsService();
+        final bloc = _makeBloc(
+          sendVoiceMessage: sendVoiceMessage,
+          getVoiceBudget: getBudget,
+          deleteVoiceHistory: deleteHistory,
+          appSettingsRepository: settingsRepo,
+          stt: stt,
+          tts: tts,
+        );
+
+        bloc.add(VoiceSessionStarted(authSession()));
+        await Future<void>.delayed(const Duration(milliseconds: 50));
+        bloc.add(const VoiceSendMessage('log bench'));
+        await Future<void>.delayed(const Duration(milliseconds: 150));
+
+        expect(tts.lastSpoken, clarifyQuestion);
+        expect(bloc.state.status, VoiceStatus.listening);
+        expect(bloc.state.pendingConfirmation, isNull);
+        await bloc.close();
+      },
+    );
+
+    test('VoiceChatTextResponse: ends at idle without re-listening', () async {
+      const reply = 'Got it.';
+      when(
+        () => sendVoiceMessage(
+          userMessage: any(named: 'userMessage'),
+          sessionId: any(named: 'sessionId'),
+          history: any(named: 'history'),
+          settings: any(named: 'settings'),
+          weightUnit: any(named: 'weightUnit'),
+          recentSets: any(named: 'recentSets'),
+          recentNutritionLogs: any(named: 'recentNutritionLogs'),
+        ),
+      ).thenAnswer(
+        (_) async => Right(
+          VoiceChatTextResponse(
+            message: VoiceMessage(
+              role: VoiceRole.assistant,
+              content: reply,
+              createdAt: _now,
+            ),
+          ),
+        ),
+      );
+
+      final tts = FakeVoiceTtsService();
+      final bloc = _makeBloc(
+        sendVoiceMessage: sendVoiceMessage,
+        getVoiceBudget: getBudget,
+        deleteVoiceHistory: deleteHistory,
+        appSettingsRepository: settingsRepo,
+        tts: tts,
+      );
+
+      bloc.add(VoiceSessionStarted(authSession()));
+      await Future<void>.delayed(const Duration(milliseconds: 50));
+      bloc.add(const VoiceSendMessage('log bench 80 by 8'));
+      await Future<void>.delayed(const Duration(milliseconds: 150));
+
+      expect(tts.lastSpoken, reply);
+      expect(bloc.state.status, VoiceStatus.idle);
+      await bloc.close();
+    });
+
+    test(
+      'ceiling: ${VoiceConstants.maxConsecutiveRelistens} continuation clarifies end at idle',
+      () async {
+        stubClarify();
+        final stt = FakeVoiceSttService();
+        final tts = FakeVoiceTtsService();
+        final bloc = _makeBloc(
+          sendVoiceMessage: sendVoiceMessage,
+          getVoiceBudget: getBudget,
+          deleteVoiceHistory: deleteHistory,
+          appSettingsRepository: settingsRepo,
+          stt: stt,
+          tts: tts,
+        );
+
+        bloc.add(VoiceSessionStarted(authSession()));
+        await Future<void>.delayed(const Duration(milliseconds: 50));
+
+        // Initial user-initiated send — resets ceiling counter.
+        bloc.add(const VoiceSendMessage('log bench'));
+        await Future<void>.delayed(const Duration(milliseconds: 150));
+        // clarify #1 fired → counter = 1 → continuation listen open.
+
+        // Each emitFinal drives the continuation listen. The listen is NOT
+        // user-initiated, so the counter is NOT reset between iterations —
+        // it accumulates until it hits [VoiceConstants.maxConsecutiveRelistens].
+        for (var i = 0; i < VoiceConstants.maxConsecutiveRelistens; i++) {
+          stt.emitFinal('response $i');
+          await Future<void>.delayed(const Duration(milliseconds: 150));
+        }
+
+        // After maxConsecutiveRelistens continuation clarifies the next
+        // _speakThenListen call hits the ceiling and emits idle instead of
+        // re-listening.
+        expect(bloc.state.status, VoiceStatus.idle);
+        await bloc.close();
+      },
+    );
+  });
+
+  // -------------------------------------------------------------------------
   // VoiceConfirmationCancelled -- no dispatch, clears card
   // -------------------------------------------------------------------------
 

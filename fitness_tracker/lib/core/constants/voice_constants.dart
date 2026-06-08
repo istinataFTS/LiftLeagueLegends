@@ -150,4 +150,15 @@ abstract final class VoiceConstants {
   /// HIGHER = more likely to trigger. Raised from 1.0 to 1.5 to strengthen
   /// short-keyword detection without flooding false positives.
   static const double wakeWordKeywordsScore = 1.5;
+
+  // ───────────────────────────────────────────────────────────────────────
+  // Continuous conversation
+  // ───────────────────────────────────────────────────────────────────────
+
+  /// Hard ceiling on consecutive auto-re-listens (from continuation turns)
+  /// without the user initiating a fresh listen. Bounds a misfiring
+  /// clarify/confirm loop so it cannot run forever or drain the mic.
+  /// Reset on every user-initiated listen and every endpoint.
+  /// Redesign-overview §4.
+  static const int maxConsecutiveRelistens = 5;
 }
