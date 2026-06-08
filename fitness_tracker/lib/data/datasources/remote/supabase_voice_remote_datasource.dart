@@ -249,7 +249,8 @@ class SupabaseVoiceRemoteDataSource implements VoiceRemoteDataSource {
 
       // clarify → spoken question that KEEPS the conversation alive (re-listen)
       if (toolName == 'clarify') {
-        final question = args['question'] as String? ?? '';
+        final raw = args['question'];
+        final question = raw is String ? raw : raw?.toString() ?? '';
         return VoiceChatClarifyResponse(
           message: VoiceMessage(
             role: VoiceRole.assistant,

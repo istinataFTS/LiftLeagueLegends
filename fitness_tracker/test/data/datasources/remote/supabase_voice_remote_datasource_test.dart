@@ -67,5 +67,15 @@ void main() {
       final clarify = result as VoiceChatClarifyResponse;
       expect(clarify.message.content, '');
     });
+
+    test('clarify with non-string question coerces via toString()', () {
+      final result = SupabaseVoiceRemoteDataSource.parseResult(
+        _toolCall('clarify', {'question': 42}),
+      );
+
+      expect(result, isA<VoiceChatClarifyResponse>());
+      final clarify = result as VoiceChatClarifyResponse;
+      expect(clarify.message.content, '42');
+    });
   });
 }
