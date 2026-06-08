@@ -708,6 +708,7 @@ class VoiceBloc extends Bloc<VoiceEvent, VoiceState>
     if (_stopWordPattern.hasMatch(text)) {
       _consecutiveRelistens = 0;
       _awaitingUserReply = false;
+      _repromptedThisTurn = false;
       emit(
         state.copyWith(
           status: VoiceStatus.idle,
@@ -776,6 +777,7 @@ class VoiceBloc extends Bloc<VoiceEvent, VoiceState>
     // state and surface the error as usual.
     _consecutiveRelistens = 0;
     _awaitingUserReply = false;
+    _repromptedThisTurn = false;
 
     final uiMessage = _sttErrorMessage(event.kind);
     final spokenMessage = _sttSpokenMessage(event.kind);
@@ -874,6 +876,7 @@ class VoiceBloc extends Bloc<VoiceEvent, VoiceState>
       // so a new user-initiated listen starts fresh (redesign-overview §6).
       _consecutiveRelistens = 0;
       _awaitingUserReply = false;
+      _repromptedThisTurn = false;
       emit(
         state.copyWith(
           status: VoiceStatus.error,

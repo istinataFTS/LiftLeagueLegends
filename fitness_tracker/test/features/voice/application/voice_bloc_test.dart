@@ -2743,8 +2743,7 @@ void main() {
     );
 
     test(
-      'budget failure mid-conversation: error state, no relisten; pending-confirm '
-      'dispatch still works',
+      'budget failure mid-conversation: transitions to error, no relisten',
       () async {
         // First call: budget exceeded.
         var callCount = 0;
