@@ -672,17 +672,21 @@ class VoiceBloc extends Bloc<VoiceEvent, VoiceState>
       return;
     }
 
-    // Confirmation pending: classify the utterance and handle cancel now.
-    // Confirm and correction are wired in commit 4; for now they fall through
-    // to the existing send-to-LLM path (preserving today's behavior exactly).
+    // Confirmation pending: classify the utterance and route accordingly.
     if (state.pendingConfirmation != null) {
       final kind = VoiceReplyClassifier.classify(text);
-      if (kind == VoiceReplyKind.cancel) {
-        emit(state.copyWith(clearTranscript: true));
-        add(const VoiceConfirmationCancelled());
-        return;
+      switch (kind) {
+        case VoiceReplyKind.confirm:
+          emit(state.copyWith(clearTranscript: true));
+          add(const VoiceConfirmationAccepted());
+          return;
+        case VoiceReplyKind.cancel:
+          emit(state.copyWith(clearTranscript: true));
+          add(const VoiceConfirmationCancelled());
+          return;
+        case VoiceReplyKind.correction:
+          break; // fall through to the normal send-to-LLM path below
       }
-      // confirm / correction: fall through to send-to-LLM path (commit 4).
     }
 
     // A user-initiated (non-continuation) listen represents a fresh
@@ -737,6 +741,12 @@ class VoiceBloc extends Bloc<VoiceEvent, VoiceState>
     );
 
     final updatedMessages = <VoiceMessage>[...state.messages, userMsg];
+    // H1 (redesign-overview §5): a forwarded turn supersedes any pending
+    // confirmation. Clear it now; the new result re-sets it ONLY if it is
+    // itself a mutation (the VoiceChatMutationCall case re-adds it).
+    if (state.pendingConfirmation != null) {
+      emit(state.copyWith(clearPendingConfirmation: true));
+    }
     emit(
       state.copyWith(
         status: VoiceStatus.thinking,
@@ -824,23 +834,22 @@ class VoiceBloc extends Bloc<VoiceEvent, VoiceState>
         if (refreshBudget) _refreshBudget();
 
       case VoiceChatMutationCall(:final toolCall):
-        // Don't add to messages yet; the confirmation card drives the next step.
-        // Speak a deterministic readback FIRST so the user can verify
-        // STT-parsed values by ear before the confirmation card appears.
-        // The readback string is built locally from toolCall.args — the LLM
-        // cannot influence its contents, eliminating the class of attack
-        // where the assistant message says one thing and the tool_call args
-        // say another.
         final weightUnit = await _readWeightUnit();
         final readback = _buildReadback(toolCall, weightUnit);
+        // Set pendingConfirmation in the SAME emit as `speaking` (NOT via a
+        // queued VoicePendingConfirmationSet event) so the card is visible
+        // during the readback and ordering is deterministic. Speak the local
+        // readback then re-open the mic for voice yes/no (overview §4 H3).
+        // During the confirm listen: status=listening, pendingConfirmation set
+        // (overview §7: card off the field, listening off the status).
         emit(
           state.copyWith(
             status: VoiceStatus.speaking,
             messages: updatedMessages,
+            pendingConfirmation: toolCall,
           ),
         );
-        await _speak(readback);
-        add(VoicePendingConfirmationSet(toolCall));
+        await _speakThenListen(readback, emit);
 
       case VoiceChatQueryCall(:final toolName, :final args):
         final spoken = await _executeQueryTool(toolName, args);

@@ -2318,6 +2318,257 @@ void main() {
   });
 
   // -------------------------------------------------------------------------
+  // Verbal confirm (Plan 2 commit 4)
+  // -------------------------------------------------------------------------
+
+  group('verbal confirm', () {
+    VoiceChatMutationCall benchMutation() => VoiceChatMutationCall(
+      toolCall: VoiceToolCall(
+        id: 'call-bench',
+        toolName: 'logWorkoutSet',
+        displaySummary: 'Log Bench Press 80 × 8',
+        args: <String, dynamic>{
+          'exerciseName': 'Bench Press',
+          'weight': 80,
+          'reps': 8,
+          'intensity': 3,
+        },
+      ),
+    );
+
+    void stubMutation() {
+      when(
+        () => sendVoiceMessage(
+          userMessage: any(named: 'userMessage'),
+          sessionId: any(named: 'sessionId'),
+          history: any(named: 'history'),
+          settings: any(named: 'settings'),
+          weightUnit: any(named: 'weightUnit'),
+          recentSets: any(named: 'recentSets'),
+          recentNutritionLogs: any(named: 'recentNutritionLogs'),
+        ),
+      ).thenAnswer((_) async => Right(benchMutation()));
+    }
+
+    test(
+      'voice "yes" dispatches mutation without calling LLM a second time',
+      () async {
+        stubMutation();
+        final stt = FakeVoiceSttService();
+        final tts = FakeVoiceTtsService();
+        final lookup = _defaultExerciseLookup();
+        _setupBenchLookup(lookup);
+
+        final bloc = _makeBloc(
+          sendVoiceMessage: sendVoiceMessage,
+          getVoiceBudget: getBudget,
+          deleteVoiceHistory: deleteHistory,
+          appSettingsRepository: settingsRepo,
+          stt: stt,
+          tts: tts,
+          exerciseLookup: lookup,
+          getSetsByDateRange: getSetsByDateRange,
+          getLogsForDate: getLogsForDate,
+        );
+
+        final dispatchedEffects = <VoiceMutationCommand>[];
+        final sub = bloc.effects.listen((e) {
+          if (e is VoiceMutationCommand) {
+            dispatchedEffects.add(e);
+            if (!e.completer.isCompleted) {
+              e.completer.complete(const VoiceMutationSuccess());
+            }
+          }
+        });
+
+        bloc.add(VoiceSessionStarted(authSession()));
+        await Future<void>.delayed(const Duration(milliseconds: 50));
+
+        // Initial message → LLM returns mutation → auto-listens for confirm.
+        bloc.add(const VoiceSendMessage('log bench 80 by 8'));
+        await Future<void>.delayed(const Duration(milliseconds: 150));
+
+        expect(bloc.state.status, VoiceStatus.listening);
+        expect(bloc.state.pendingConfirmation, isNotNull);
+
+        // "yes" must dispatch the mutation locally — NOT call the LLM.
+        stt.emitFinal('yes');
+        await Future<void>.delayed(const Duration(milliseconds: 200));
+
+        expect(dispatchedEffects.length, 1);
+        // LLM called exactly once (for the original command, not for "yes").
+        verify(
+          () => sendVoiceMessage(
+            userMessage: any(named: 'userMessage'),
+            sessionId: any(named: 'sessionId'),
+            history: any(named: 'history'),
+            settings: any(named: 'settings'),
+            weightUnit: any(named: 'weightUnit'),
+            recentSets: any(named: 'recentSets'),
+            recentNutritionLogs: any(named: 'recentNutritionLogs'),
+          ),
+        ).called(1);
+
+        await sub.cancel();
+        await bloc.close();
+      },
+    );
+
+    test(
+      '"yes but make it 8 reps" is a correction — forwarded to LLM, not confirmed',
+      () async {
+        var llmCallCount = 0;
+        when(
+          () => sendVoiceMessage(
+            userMessage: any(named: 'userMessage'),
+            sessionId: any(named: 'sessionId'),
+            history: any(named: 'history'),
+            settings: any(named: 'settings'),
+            weightUnit: any(named: 'weightUnit'),
+            recentSets: any(named: 'recentSets'),
+            recentNutritionLogs: any(named: 'recentNutritionLogs'),
+          ),
+        ).thenAnswer((_) async {
+          llmCallCount++;
+          return Right(benchMutation());
+        });
+
+        final stt = FakeVoiceSttService();
+        final lookup = _defaultExerciseLookup();
+        _setupBenchLookup(lookup);
+
+        final bloc = _makeBloc(
+          sendVoiceMessage: sendVoiceMessage,
+          getVoiceBudget: getBudget,
+          deleteVoiceHistory: deleteHistory,
+          appSettingsRepository: settingsRepo,
+          stt: stt,
+          exerciseLookup: lookup,
+          getSetsByDateRange: getSetsByDateRange,
+          getLogsForDate: getLogsForDate,
+        );
+
+        final sub = bloc.effects.listen((e) {
+          if (e is VoiceMutationCommand && !e.completer.isCompleted) {
+            e.completer.complete(const VoiceMutationSuccess());
+          }
+        });
+
+        bloc.add(VoiceSessionStarted(authSession()));
+        await Future<void>.delayed(const Duration(milliseconds: 50));
+
+        // First message → mutation A.
+        bloc.add(const VoiceSendMessage('log bench 80 by 8'));
+        await Future<void>.delayed(const Duration(milliseconds: 150));
+        expect(bloc.state.pendingConfirmation, isNotNull);
+
+        // Correction — extra data means it falls through to LLM, not confirm.
+        stt.emitFinal('yes but make it 8 reps');
+        await Future<void>.delayed(const Duration(milliseconds: 200));
+
+        // LLM called twice: once for the command, once for the correction.
+        expect(llmCallCount, 2);
+        // New mutation from the correction re-sets pendingConfirmation.
+        expect(bloc.state.pendingConfirmation, isNotNull);
+
+        await sub.cancel();
+        await bloc.close();
+      },
+    );
+
+    test('H1: correction → clarify result leaves pendingConfirmation null; '
+        '"yes" does not dispatch stale mutation', () async {
+      var llmCallCount = 0;
+      when(
+        () => sendVoiceMessage(
+          userMessage: any(named: 'userMessage'),
+          sessionId: any(named: 'sessionId'),
+          history: any(named: 'history'),
+          settings: any(named: 'settings'),
+          weightUnit: any(named: 'weightUnit'),
+          recentSets: any(named: 'recentSets'),
+          recentNutritionLogs: any(named: 'recentNutritionLogs'),
+        ),
+      ).thenAnswer((_) async {
+        llmCallCount++;
+        if (llmCallCount == 1) return Right(benchMutation());
+        if (llmCallCount == 2) {
+          return Right(
+            VoiceChatClarifyResponse(
+              message: VoiceMessage(
+                role: VoiceRole.assistant,
+                content: 'How many reps?',
+                createdAt: _now,
+              ),
+            ),
+          );
+        }
+        // 3rd call: "yes" forwarded as plain user turn → text → idle.
+        return Right(
+          VoiceChatTextResponse(
+            message: VoiceMessage(
+              role: VoiceRole.assistant,
+              content: 'Done.',
+              createdAt: _now,
+            ),
+          ),
+        );
+      });
+
+      final stt = FakeVoiceSttService();
+      final lookup = _defaultExerciseLookup();
+      _setupBenchLookup(lookup);
+
+      final dispatchedMutations = <VoiceMutationCommand>[];
+      final bloc = _makeBloc(
+        sendVoiceMessage: sendVoiceMessage,
+        getVoiceBudget: getBudget,
+        deleteVoiceHistory: deleteHistory,
+        appSettingsRepository: settingsRepo,
+        stt: stt,
+        exerciseLookup: lookup,
+        getSetsByDateRange: getSetsByDateRange,
+        getLogsForDate: getLogsForDate,
+      );
+
+      final sub = bloc.effects.listen((e) {
+        if (e is VoiceMutationCommand) {
+          dispatchedMutations.add(e);
+          if (!e.completer.isCompleted) {
+            e.completer.complete(const VoiceMutationSuccess());
+          }
+        }
+      });
+
+      bloc.add(VoiceSessionStarted(authSession()));
+      await Future<void>.delayed(const Duration(milliseconds: 50));
+
+      // First message → mutation A → auto-listens for confirm.
+      bloc.add(const VoiceSendMessage('log bench 80 by 8'));
+      await Future<void>.delayed(const Duration(milliseconds: 150));
+      expect(bloc.state.pendingConfirmation, isNotNull);
+
+      // Correction → H1 clears pending A → LLM returns clarify (not mutation).
+      stt.emitFinal('make it 10 reps');
+      await Future<void>.delayed(const Duration(milliseconds: 200));
+
+      // H1: clarify result does NOT re-set pendingConfirmation.
+      expect(bloc.state.pendingConfirmation, isNull);
+      expect(llmCallCount, 2);
+
+      // "yes" in a clarify-listen context has no pending confirmation →
+      // forwarded to LLM as a plain user turn; stale mutation A not dispatched.
+      stt.emitFinal('yes');
+      await Future<void>.delayed(const Duration(milliseconds: 200));
+
+      expect(dispatchedMutations, isEmpty);
+
+      await sub.cancel();
+      await bloc.close();
+    });
+  });
+
+  // -------------------------------------------------------------------------
   // VoiceConfirmationCancelled -- no dispatch, clears card
   // -------------------------------------------------------------------------
 
@@ -2621,66 +2872,70 @@ void main() {
   // =========================================================================
 
   group('spoken readback (pre-confirmation)', () {
-    test('logWorkoutSet: readback spoken BEFORE pendingConfirmation is set; '
-        'status transitions to awaitingConfirmation', () async {
-      _setupBenchLookup(exerciseLookup);
-      final tts = FakeVoiceTtsService();
+    test(
+      'logWorkoutSet: readback spoken BEFORE pendingConfirmation is set; '
+      'status transitions to listening (auto-listen for voice confirm)',
+      () async {
+        _setupBenchLookup(exerciseLookup);
+        final tts = FakeVoiceTtsService();
 
-      when(
-        () => sendVoiceMessage(
-          userMessage: any(named: 'userMessage'),
-          sessionId: any(named: 'sessionId'),
-          history: any(named: 'history'),
-          settings: any(named: 'settings'),
-          weightUnit: any(named: 'weightUnit'),
-          recentSets: any(named: 'recentSets'),
-          recentNutritionLogs: any(named: 'recentNutritionLogs'),
-        ),
-      ).thenAnswer(
-        (_) async => Right(
-          VoiceChatMutationCall(
-            toolCall: _mutationToolCall('logWorkoutSet', {
-              'exerciseName': 'Bench Press',
-              'exerciseId': 'ex-bench',
-              'reps': 8,
-              'weight': 80.0,
-            }),
+        when(
+          () => sendVoiceMessage(
+            userMessage: any(named: 'userMessage'),
+            sessionId: any(named: 'sessionId'),
+            history: any(named: 'history'),
+            settings: any(named: 'settings'),
+            weightUnit: any(named: 'weightUnit'),
+            recentSets: any(named: 'recentSets'),
+            recentNutritionLogs: any(named: 'recentNutritionLogs'),
           ),
-        ),
-      );
+        ).thenAnswer(
+          (_) async => Right(
+            VoiceChatMutationCall(
+              toolCall: _mutationToolCall('logWorkoutSet', {
+                'exerciseName': 'Bench Press',
+                'exerciseId': 'ex-bench',
+                'reps': 8,
+                'weight': 80.0,
+              }),
+            ),
+          ),
+        );
 
-      final bloc = _makeBloc(
-        sendVoiceMessage: sendVoiceMessage,
-        getVoiceBudget: getBudget,
-        deleteVoiceHistory: deleteHistory,
-        appSettingsRepository: settingsRepo,
-        exerciseLookup: exerciseLookup,
-        getSetsByDateRange: getSetsByDateRange,
-        getLogsForDate: getLogsForDate,
-        getDailyMacros: getDailyMacros,
-        tts: tts,
-      );
+        final bloc = _makeBloc(
+          sendVoiceMessage: sendVoiceMessage,
+          getVoiceBudget: getBudget,
+          deleteVoiceHistory: deleteHistory,
+          appSettingsRepository: settingsRepo,
+          exerciseLookup: exerciseLookup,
+          getSetsByDateRange: getSetsByDateRange,
+          getLogsForDate: getLogsForDate,
+          getDailyMacros: getDailyMacros,
+          tts: tts,
+        );
 
-      bloc.add(VoiceSessionStarted(authSession()));
-      await Future<void>.delayed(const Duration(milliseconds: 50));
-      bloc.add(const VoiceSendMessage('log bench 80 by 8'));
-      await Future<void>.delayed(const Duration(milliseconds: 250));
+        bloc.add(VoiceSessionStarted(authSession()));
+        await Future<void>.delayed(const Duration(milliseconds: 50));
+        bloc.add(const VoiceSendMessage('log bench 80 by 8'));
+        await Future<void>.delayed(const Duration(milliseconds: 250));
 
-      // Readback was spoken at least once.
-      expect(tts.spokenHistory, isNotEmpty);
-      final readback = tts.spokenHistory.first;
-      expect(readback, contains('Bench Press'));
-      expect(readback, contains('80'));
-      expect(readback, contains('8 reps'));
-      expect(readback, contains('kilograms'));
-      expect(readback, contains('Confirm or cancel'));
+        // Readback was spoken at least once.
+        expect(tts.spokenHistory, isNotEmpty);
+        final readback = tts.spokenHistory.first;
+        expect(readback, contains('Bench Press'));
+        expect(readback, contains('80'));
+        expect(readback, contains('8 reps'));
+        expect(readback, contains('kilograms'));
+        expect(readback, contains('Confirm or cancel'));
 
-      // Pending confirmation now set; status awaitingConfirmation.
-      expect(bloc.state.pendingConfirmation, isNotNull);
-      expect(bloc.state.status, VoiceStatus.awaitingConfirmation);
+        // Pending confirmation now set; status is listening (auto-listen for
+        // voice confirm — overview §7: card off field, listening off status).
+        expect(bloc.state.pendingConfirmation, isNotNull);
+        expect(bloc.state.status, VoiceStatus.listening);
 
-      await bloc.close();
-    });
+        await bloc.close();
+      },
+    );
 
     test('readback uses pounds when WeightUnit.pounds is configured', () async {
       _setupBenchLookup(exerciseLookup);
@@ -2900,8 +3155,10 @@ void main() {
       );
       await Future<void>.delayed(const Duration(milliseconds: 100));
 
-      // Was forwarded to the LLM (no early cancel).
-      expect(bloc.state.pendingConfirmation, isNotNull);
+      // Was forwarded to the LLM as a correction (not dispatched via the cancel
+      // path). H1 (redesign-overview §5) clears pendingConfirmation when any
+      // turn is forwarded, so null here is correct.
+      expect(bloc.state.pendingConfirmation, isNull);
       verify(
         () => sendVoiceMessage(
           userMessage: 'cancel my membership',
