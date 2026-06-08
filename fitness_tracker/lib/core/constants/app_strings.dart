@@ -554,6 +554,8 @@ class AppStrings {
       "My network is off. Please check your connection.";
   static const String voiceSpokenNoSpeech =
       "Repeat, please — I did not hear anything.";
+  static const String voiceSpokenReprompt =
+      "Sorry, I didn't catch that — could you say it again?";
   static const String voiceSpokenBudgetExceeded =
       "I have hit today's voice budget. "
       "Please try again tomorrow, or use the app directly.";

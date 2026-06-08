@@ -462,6 +462,15 @@ class VoiceBloc extends Bloc<VoiceEvent, VoiceState>
 
   static const _uuid = Uuid();
 
+  /// Anchored stop-words that end the conversation immediately (redesign-overview
+  /// §4), regardless of pending state. "stop the timer" does NOT match because
+  /// the pattern is anchored. Overlap with the classifier's cancel set is
+  /// intentional — a bare "stop"/"cancel" ends the conversation unconditionally.
+  static final RegExp _stopWordPattern = RegExp(
+    r"^(stop|done|that's all|thats all|that's it|thats it|nevermind|never mind|cancel)$",
+    caseSensitive: false,
+  );
+
   final SendVoiceMessage _sendVoiceMessage;
   final GetVoiceBudget _getVoiceBudget;
   final DeleteVoiceHistory _deleteVoiceHistory;
@@ -518,6 +527,16 @@ class VoiceBloc extends Bloc<VoiceEvent, VoiceState>
   /// [_consecutiveRelistens] — only user-initiated listens reset the counter.
   bool _currentListenIsContinuation = false;
 
+  /// True after the bot asked something and re-opened the mic (clarify or
+  /// confirmation). Lets a single silence trigger one local re-prompt
+  /// (redesign-overview §6) instead of ending immediately.
+  bool _awaitingUserReply = false;
+
+  /// Guards the one-re-prompt-per-turn rule: flipped to true once the
+  /// re-prompt fires. Cleared when the awaitingUserReply cycle ends or the
+  /// session restarts.
+  bool _repromptedThisTurn = false;
+
   // ---------------------------------------------------------------------------
   // Session lifecycle
   // ---------------------------------------------------------------------------
@@ -530,6 +549,8 @@ class VoiceBloc extends Bloc<VoiceEvent, VoiceState>
     _cachedNutritionLogs = <NutritionLog>[];
     _consecutiveRelistens = 0;
     _currentListenIsContinuation = false;
+    _awaitingUserReply = false;
+    _repromptedThisTurn = false;
     emit(
       state.copyWith(
         sessionId: _uuid.v4(),
@@ -651,10 +672,10 @@ class VoiceBloc extends Bloc<VoiceEvent, VoiceState>
     }
   }
 
-  void _onTranscriptReceived(
+  Future<void> _onTranscriptReceived(
     VoiceTranscriptReceived event,
     Emitter<VoiceState> emit,
-  ) {
+  ) async {
     // Partial result — show live in the overlay but don't transition state.
     if (!event.isFinal) {
       emit(state.copyWith(liveTranscript: event.transcript));
@@ -668,7 +689,33 @@ class VoiceBloc extends Bloc<VoiceEvent, VoiceState>
 
     final text = event.transcript.trim();
     if (text.isEmpty) {
+      // During a live continuous turn, offer one local re-prompt before ending
+      // (redesign-overview §6).
+      if (_awaitingUserReply && !_repromptedThisTurn) {
+        _repromptedThisTurn = true;
+        await _speakThenListen(AppStrings.voiceSpokenReprompt, emit);
+        return;
+      }
+      _consecutiveRelistens = 0;
+      _awaitingUserReply = false;
       emit(state.copyWith(status: VoiceStatus.idle, clearTranscript: true));
+      return;
+    }
+
+    // Endpoint stop-words (redesign-overview §4) — anchored so "stop the timer"
+    // does not end the conversation. Checked before the pendingConfirmation
+    // block so an explicit stop always wins, even mid-confirmation.
+    if (_stopWordPattern.hasMatch(text)) {
+      _consecutiveRelistens = 0;
+      _awaitingUserReply = false;
+      _repromptedThisTurn = false;
+      emit(
+        state.copyWith(
+          status: VoiceStatus.idle,
+          clearTranscript: true,
+          clearPendingConfirmation: true,
+        ),
+      );
       return;
     }
 
@@ -693,6 +740,9 @@ class VoiceBloc extends Bloc<VoiceEvent, VoiceState>
     // conversation start — reset the relisten ceiling so the next
     // clarify/confirm loop has the full budget.
     if (!_currentListenIsContinuation) _consecutiveRelistens = 0;
+    // Forwarding a real transcript ends the awaitingUserReply cycle.
+    _awaitingUserReply = false;
+    _repromptedThisTurn = false;
 
     emit(
       state.copyWith(status: VoiceStatus.transcribing, liveTranscript: text),
@@ -700,12 +750,34 @@ class VoiceBloc extends Bloc<VoiceEvent, VoiceState>
     add(VoiceSendMessage(text));
   }
 
-  void _onTranscriptFailed(
+  Future<void> _onTranscriptFailed(
     VoiceTranscriptFailed event,
     Emitter<VoiceState> emit,
-  ) {
+  ) async {
     _sttSubscription?.cancel();
     _sttSubscription = null;
+
+    // noSpeech during a live continuous turn: re-prompt once then end quietly
+    // at idle — do not surface an error (redesign-overview §6).
+    if (event.kind == VoiceSttErrorKind.noSpeech && _awaitingUserReply) {
+      if (!_repromptedThisTurn) {
+        _repromptedThisTurn = true;
+        await _speakThenListen(AppStrings.voiceSpokenReprompt, emit);
+        return;
+      }
+      // Second noSpeech after the re-prompt — end the conversation quietly.
+      _consecutiveRelistens = 0;
+      _awaitingUserReply = false;
+      _repromptedThisTurn = false;
+      emit(state.copyWith(status: VoiceStatus.idle, clearTranscript: true));
+      return;
+    }
+
+    // All other errors (and noSpeech outside a continuous turn): reset loop
+    // state and surface the error as usual.
+    _consecutiveRelistens = 0;
+    _awaitingUserReply = false;
+    _repromptedThisTurn = false;
 
     final uiMessage = _sttErrorMessage(event.kind);
     final spokenMessage = _sttSpokenMessage(event.kind);
@@ -800,6 +872,11 @@ class VoiceBloc extends Bloc<VoiceEvent, VoiceState>
         error: failure,
       );
       final spokenMessage = _spokenMessageFor(failure);
+      // Any chat failure ends the loop — reset continuous-conversation counters
+      // so a new user-initiated listen starts fresh (redesign-overview §6).
+      _consecutiveRelistens = 0;
+      _awaitingUserReply = false;
+      _repromptedThisTurn = false;
       emit(
         state.copyWith(
           status: VoiceStatus.error,
@@ -830,6 +907,8 @@ class VoiceBloc extends Bloc<VoiceEvent, VoiceState>
         emit(state.copyWith(status: VoiceStatus.speaking, messages: withReply));
         await _speak(message.content);
         _consecutiveRelistens = 0;
+        _awaitingUserReply = false;
+        _repromptedThisTurn = false;
         emit(state.copyWith(status: VoiceStatus.idle));
         if (refreshBudget) _refreshBudget();
 
@@ -862,6 +941,8 @@ class VoiceBloc extends Bloc<VoiceEvent, VoiceState>
         emit(state.copyWith(status: VoiceStatus.speaking, messages: withReply));
         await _speak(spoken);
         _consecutiveRelistens = 0;
+        _awaitingUserReply = false;
+        _repromptedThisTurn = false;
         emit(state.copyWith(status: VoiceStatus.idle));
         if (refreshBudget) _refreshBudget();
     }
@@ -898,6 +979,7 @@ class VoiceBloc extends Bloc<VoiceEvent, VoiceState>
       return;
     }
     _consecutiveRelistens++;
+    _awaitingUserReply = true;
     add(const VoiceListenRequested(isContinuation: true));
   }
 

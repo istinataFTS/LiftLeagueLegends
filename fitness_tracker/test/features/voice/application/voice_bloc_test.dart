@@ -2569,6 +2569,228 @@ void main() {
   });
 
   // -------------------------------------------------------------------------
+  // Conversation endpoints — stop-words, silence re-prompt, budget
+  // -------------------------------------------------------------------------
+
+  group('conversation endpoints', () {
+    VoiceChatMutationCall benchMutation() => VoiceChatMutationCall(
+      toolCall: VoiceToolCall(
+        id: 'call-ep',
+        toolName: 'logWorkoutSet',
+        displaySummary: 'Log Bench Press 80 × 8',
+        args: <String, dynamic>{
+          'exerciseName': 'Bench Press',
+          'weight': 80,
+          'reps': 8,
+          'intensity': 3,
+        },
+      ),
+    );
+
+    void stubMutation() {
+      when(
+        () => sendVoiceMessage(
+          userMessage: any(named: 'userMessage'),
+          sessionId: any(named: 'sessionId'),
+          history: any(named: 'history'),
+          settings: any(named: 'settings'),
+          weightUnit: any(named: 'weightUnit'),
+          recentSets: any(named: 'recentSets'),
+          recentNutritionLogs: any(named: 'recentNutritionLogs'),
+        ),
+      ).thenAnswer((_) async => Right(benchMutation()));
+    }
+
+    test(
+      'stop-word "stop" mid-confirmation: ends at idle, pending cleared',
+      () async {
+        stubMutation();
+        final stt = FakeVoiceSttService();
+        final tts = FakeVoiceTtsService();
+        final lookup = _defaultExerciseLookup();
+        _setupBenchLookup(lookup);
+
+        final bloc = _makeBloc(
+          sendVoiceMessage: sendVoiceMessage,
+          getVoiceBudget: getBudget,
+          deleteVoiceHistory: deleteHistory,
+          appSettingsRepository: settingsRepo,
+          stt: stt,
+          tts: tts,
+          exerciseLookup: lookup,
+          getSetsByDateRange: getSetsByDateRange,
+          getLogsForDate: getLogsForDate,
+        );
+
+        final sub = bloc.effects.listen((e) {
+          if (e is VoiceMutationCommand && !e.completer.isCompleted) {
+            e.completer.complete(const VoiceMutationSuccess());
+          }
+        });
+
+        bloc.add(VoiceSessionStarted(authSession()));
+        await Future<void>.delayed(const Duration(milliseconds: 50));
+
+        // Mutation readback → auto-listen (pendingConfirmation set).
+        bloc.add(const VoiceSendMessage('log bench 80 by 8'));
+        await Future<void>.delayed(const Duration(milliseconds: 150));
+
+        expect(bloc.state.pendingConfirmation, isNotNull);
+        expect(bloc.state.status, VoiceStatus.listening);
+
+        // "stop" should end the conversation and clear the pending card.
+        stt.emitFinal('stop');
+        await Future<void>.delayed(const Duration(milliseconds: 100));
+
+        expect(bloc.state.status, VoiceStatus.idle);
+        expect(bloc.state.pendingConfirmation, isNull);
+
+        await sub.cancel();
+        await bloc.close();
+      },
+    );
+
+    test(
+      'noSpeech while awaiting reply: re-prompts once then ends at idle',
+      () async {
+        stubMutation();
+        final stt = FakeVoiceSttService();
+        final tts = FakeVoiceTtsService();
+        final lookup = _defaultExerciseLookup();
+        _setupBenchLookup(lookup);
+
+        final bloc = _makeBloc(
+          sendVoiceMessage: sendVoiceMessage,
+          getVoiceBudget: getBudget,
+          deleteVoiceHistory: deleteHistory,
+          appSettingsRepository: settingsRepo,
+          stt: stt,
+          tts: tts,
+          exerciseLookup: lookup,
+          getSetsByDateRange: getSetsByDateRange,
+          getLogsForDate: getLogsForDate,
+        );
+
+        final sub = bloc.effects.listen((e) {
+          if (e is VoiceMutationCommand && !e.completer.isCompleted) {
+            e.completer.complete(const VoiceMutationSuccess());
+          }
+        });
+
+        bloc.add(VoiceSessionStarted(authSession()));
+        await Future<void>.delayed(const Duration(milliseconds: 50));
+
+        // Mutation → auto-listen (awaiting confirmation).
+        bloc.add(const VoiceSendMessage('log bench 80 by 8'));
+        await Future<void>.delayed(const Duration(milliseconds: 150));
+
+        expect(bloc.state.status, VoiceStatus.listening);
+
+        // First silence: re-prompt fires and mic re-opens.
+        stt.emitError(VoiceSttErrorKind.noSpeech);
+        await Future<void>.delayed(const Duration(milliseconds: 150));
+
+        expect(tts.spokenHistory.last, AppStrings.voiceSpokenReprompt);
+        expect(bloc.state.status, VoiceStatus.listening);
+
+        // Second silence: conversation ends quietly at idle (no error surfaced).
+        stt.emitError(VoiceSttErrorKind.noSpeech);
+        await Future<void>.delayed(const Duration(milliseconds: 100));
+
+        expect(bloc.state.status, VoiceStatus.idle);
+
+        await sub.cancel();
+        await bloc.close();
+      },
+    );
+
+    test(
+      'noSpeech cold listen (not awaiting reply): error immediately, no re-prompt',
+      () async {
+        final stt = FakeVoiceSttService();
+        final tts = FakeVoiceTtsService();
+        final bloc = _makeBloc(
+          sendVoiceMessage: sendVoiceMessage,
+          getVoiceBudget: getBudget,
+          deleteVoiceHistory: deleteHistory,
+          appSettingsRepository: settingsRepo,
+          stt: stt,
+          tts: tts,
+        );
+
+        bloc.add(VoiceSessionStarted(authSession()));
+        await Future<void>.delayed(const Duration(milliseconds: 50));
+        bloc.add(const VoiceListenRequested());
+        await Future<void>.delayed(const Duration(milliseconds: 50));
+
+        expect(bloc.state.status, VoiceStatus.listening);
+        final preSpeakCount = tts.speakCount;
+
+        // Cold noSpeech — not inside a continuous turn.
+        stt.emitError(VoiceSttErrorKind.noSpeech);
+        await Future<void>.delayed(const Duration(milliseconds: 100));
+
+        // Error state, not idle. No re-prompt spoken.
+        expect(bloc.state.status, VoiceStatus.error);
+        // The only speak is the error message — NOT voiceSpokenReprompt.
+        expect(
+          tts.spokenHistory.sublist(preSpeakCount),
+          isNot(contains(AppStrings.voiceSpokenReprompt)),
+        );
+
+        await bloc.close();
+      },
+    );
+
+    test(
+      'budget failure mid-conversation: transitions to error, no relisten',
+      () async {
+        // First call: budget exceeded.
+        var callCount = 0;
+        when(
+          () => sendVoiceMessage(
+            userMessage: any(named: 'userMessage'),
+            sessionId: any(named: 'sessionId'),
+            history: any(named: 'history'),
+            settings: any(named: 'settings'),
+            weightUnit: any(named: 'weightUnit'),
+            recentSets: any(named: 'recentSets'),
+            recentNutritionLogs: any(named: 'recentNutritionLogs'),
+          ),
+        ).thenAnswer((_) async {
+          callCount++;
+          return const Left(ServerFailure('BUDGET_EXCEEDED'));
+        });
+
+        final stt = FakeVoiceSttService();
+        final tts = FakeVoiceTtsService();
+        final bloc = _makeBloc(
+          sendVoiceMessage: sendVoiceMessage,
+          getVoiceBudget: getBudget,
+          deleteVoiceHistory: deleteHistory,
+          appSettingsRepository: settingsRepo,
+          stt: stt,
+          tts: tts,
+        );
+
+        bloc.add(VoiceSessionStarted(authSession()));
+        await Future<void>.delayed(const Duration(milliseconds: 50));
+
+        bloc.add(const VoiceSendMessage('log bench 80 by 8'));
+        await Future<void>.delayed(const Duration(milliseconds: 150));
+
+        // Chat call failed with budget → error state.
+        expect(bloc.state.status, VoiceStatus.error);
+        // No relisten (no listening state entered after error).
+        expect(stt.isListening, isFalse);
+        expect(callCount, 1);
+
+        await bloc.close();
+      },
+    );
+  });
+
+  // -------------------------------------------------------------------------
   // VoiceConfirmationCancelled -- no dispatch, clears card
   // -------------------------------------------------------------------------
 
@@ -3174,34 +3396,27 @@ void main() {
     });
 
     blocTest<VoiceBloc, VoiceState>(
-      'cancel word with NO pending confirmation is treated as a normal '
-      'message (does NOT short-circuit)',
-      build: () {
-        when(
-          () => sendVoiceMessage(
-            userMessage: any(named: 'userMessage'),
-            sessionId: any(named: 'sessionId'),
-            history: any(named: 'history'),
-            settings: any(named: 'settings'),
-            weightUnit: any(named: 'weightUnit'),
-            recentSets: any(named: 'recentSets'),
-            recentNutritionLogs: any(named: 'recentNutritionLogs'),
-          ),
-        ).thenAnswer((_) async => Right(_assistantResult('ok')));
-        return _makeBloc(
-          sendVoiceMessage: sendVoiceMessage,
-          getVoiceBudget: getBudget,
-          deleteVoiceHistory: deleteHistory,
-          appSettingsRepository: settingsRepo,
-        );
-      },
-      seed: () => const VoiceState(sessionId: 'sid'),
+      'cancel word with NO pending confirmation is a stop-word — ends at idle, '
+      'NOT forwarded to LLM (commit 5: stop-words fire unconditionally)',
+      build: () => _makeBloc(
+        sendVoiceMessage: sendVoiceMessage,
+        getVoiceBudget: getBudget,
+        deleteVoiceHistory: deleteHistory,
+        appSettingsRepository: settingsRepo,
+      ),
+      // Seed with listening so the idle transition is observable (bloc
+      // deduplicates identical consecutive states — idle→idle emits nothing).
+      seed: () =>
+          const VoiceState(sessionId: 'sid', status: VoiceStatus.listening),
       act: (bloc) => bloc.add(
         const VoiceTranscriptReceived(transcript: 'cancel', isFinal: true),
       ),
-      verify: (_) => verify(
+      expect: () => <VoiceState>[
+        const VoiceState(sessionId: 'sid', status: VoiceStatus.idle),
+      ],
+      verify: (_) => verifyNever(
         () => sendVoiceMessage(
-          userMessage: 'cancel',
+          userMessage: any(named: 'userMessage'),
           sessionId: any(named: 'sessionId'),
           history: any(named: 'history'),
           settings: any(named: 'settings'),
@@ -3209,7 +3424,7 @@ void main() {
           recentSets: any(named: 'recentSets'),
           recentNutritionLogs: any(named: 'recentNutritionLogs'),
         ),
-      ).called(1),
+      ),
     );
   });
 
