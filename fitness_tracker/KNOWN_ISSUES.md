@@ -91,6 +91,7 @@ Numbered steps or a short paragraph. State what to do and what *not* to do.
 19. [voice-confirmation-cancel-leaves-bot-unresponsive](#voice-confirmation-cancel-leaves-bot-unresponsive)
 20. [voice-whisper-hallucinates-on-silent-audio](#voice-whisper-hallucinates-on-silent-audio)
 21. [voice-wake-word-keyword-miss-rate](#voice-wake-word-keyword-miss-rate)
+22. [voice-wake-word-engine-stops-when-overlay-opens](#voice-wake-word-engine-stops-when-overlay-opens)
 
 ### Database
 11. [sqflite-version-15-rejects-incompatible-legacy-databases](#sqflite-version-15-rejects-incompatible-legacy-databases)
@@ -955,6 +956,36 @@ Short keywords (2–3 BPE tokens) provide little acoustic evidence for streaming
 - `lib/core/constants/voice_constants.dart` — `wakeWordKeywordsThreshold`, `wakeWordKeywordsScore`
 - `lib/features/voice/data/services/sherpa_onnx_voice_wake_word_service.dart` — `buildKeywordSpotterConfig`
 - `test/features/voice/services/sherpa_onnx_voice_wake_word_service_test.dart` — `buildKeywordSpotterConfig` group
+
+---
+
+### voice-wake-word-engine-stops-when-overlay-opens
+
+- **Severity:** Medium
+- **Status:** Resolved-but-monitor
+- **First observed:** 2026-06-07
+- **Last verified:** 2026-06-08
+- **Area:** voice
+
+**Symptom**
+
+With the voice overlay open and the bot at idle, saying the wake word did nothing. The bot could only be re-triggered by tapping the in-overlay mic button. The overlay had to be closed and reopened for the wake word to work again.
+
+**Root cause**
+
+`VoiceFab._openOverlay` stopped the wake engine before pushing the overlay (required for the mic handoff — both the wake recorder and the STT recorder use the `record` plugin and cannot simultaneously hold the mic on Android). The engine was only re-armed on overlay close, so it was off for the entire overlay session. The overlay's `_subscribeToWakeWord` subscription was wired correctly but never received events because the engine was not running.
+
+**Workaround / fix**
+
+Gate the wake engine on voice status rather than overlay visibility. A `BlocListener<VoiceBloc, VoiceState>` added to `_VoiceOverlayView.build` (Plan 2 commit 6) starts the engine when status transitions to `idle` and stops it when status leaves `idle`. A `postFrameCallback` in `_VoiceOverlayViewState.initState` handles the initial idle state (the FAB stops the engine before the overlay opens; the BlocListener only fires on transitions, not on first build). The FAB's pre-open stop and post-close re-arm are unchanged — the two owners do not overlap: FAB manages the engine while the overlay is closed, the BlocListener manages it while the overlay is open. Mic handoff between the wake recorder and the STT recorder continues to be bridged by `wakeWordMicAcquireMaxAttempts` / `wakeWordMicAcquireRetryDelay`.
+
+**References**
+
+- `lib/features/voice/presentation/voice_overlay_page.dart` — `_armWakeEngineForOverlay`, `BlocListener` in `_VoiceOverlayView.build`
+- `lib/features/voice/presentation/widgets/voice_fab.dart:157` — `_openOverlay` (unchanged; mic handoff stop stays)
+- `lib/core/constants/voice_constants.dart` — `wakeWordMicAcquireMaxAttempts`, `wakeWordMicAcquireRetryDelay`
+- `test/features/voice/presentation/voice_overlay_page_test.dart` — wake engine lifecycle group
+- redesign-overview.md §8; Plan 2 §2.2, commit 6
 
 ---
 

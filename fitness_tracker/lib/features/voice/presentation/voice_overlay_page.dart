@@ -13,6 +13,7 @@ import '../../../domain/entities/voice_settings.dart' show WakeWordPreset;
 import '../../../domain/services/voice_wake_word_service.dart';
 import '../../../injection/injection_container.dart';
 import '../application/voice_bloc.dart';
+import '../application/voice_settings_cubit.dart';
 import 'voice_overlay_keys.dart';
 import 'widgets/voice_budget_indicator.dart';
 import 'widgets/voice_confirmation_card.dart';
@@ -93,6 +94,7 @@ class _VoiceOverlayViewState extends State<_VoiceOverlayView> {
     _checkInitialConnectivity();
     _subscribeToConnectivity();
     _subscribeToWakeWord();
+    _armWakeEngineForOverlay();
     if (widget.openedByWakeWord) {
       // Auto-start STT on first frame: the user has already spoken the wake
       // word and expects the assistant to be listening immediately.
@@ -146,110 +148,149 @@ class _VoiceOverlayViewState extends State<_VoiceOverlayView> {
     });
   }
 
+  // ── Wake engine (overlay-open period) ──────────────────────────────────────
+
+  /// Arms the wake engine for the initial idle state when the overlay opens.
+  ///
+  /// The FAB stops the engine before pushing the overlay (mic handoff); this
+  /// postFrameCallback restarts it if the bot is already at idle when the
+  /// overlay first renders. Subsequent idle↔active transitions are handled by
+  /// the [BlocListener] in [build] (redesign-overview §8, Plan 2 §2.2).
+  void _armWakeEngineForOverlay() {
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted) return;
+      final settings = context.read<VoiceSettingsCubit>().state;
+      if (!settings.wakeWordArmedInForeground) return;
+      if (context.read<VoiceBloc>().state.status == VoiceStatus.idle) {
+        unawaited(sl<VoiceWakeWordService>().start(settings.wakeWordPreset));
+      }
+    });
+  }
+
   // ── Build ───────────────────────────────────────────────────────────────────
 
   @override
   Widget build(BuildContext context) {
-    return BlocBuilder<VoiceBloc, VoiceState>(
-      builder: (context, state) {
-        final VoiceBloc bloc = context.read<VoiceBloc>();
-
-        return Scaffold(
-          key: VoiceOverlayKeys.overlayPageKey,
-          backgroundColor: AppTheme.backgroundDark,
-          body: SafeArea(
-            child: Column(
-              children: <Widget>[
-                // ── Workout Mode banner (top, only when active) ──────────
-                if (state.isWorkoutModeActive)
-                  VoiceWorkoutModeBanner(
-                    onToggle: () =>
-                        bloc.add(const VoiceWorkoutModeToggled(active: false)),
-                  ),
-
-                // ── Header ───────────────────────────────────────────────
-                _OverlayHeader(
-                  onClose: () => Navigator.of(context).pop(),
-                  onSettings: () => _openSettings(context),
-                ),
-
-                // ── Budget indicator ─────────────────────────────────────
-                const VoiceBudgetIndicator(
-                  key: VoiceOverlayKeys.budgetIndicatorKey,
-                ),
-
-                // ── Transcript + confirmation card ───────────────────────
-                Expanded(
-                  child: Column(
-                    children: <Widget>[
-                      Expanded(
-                        child: VoiceTranscriptList(
-                          messages: state.messages,
-                          liveTranscript: state.status == VoiceStatus.listening
-                              ? state.liveTranscript
-                              : null,
-                        ),
-                      ),
-                      if (state.pendingConfirmation != null)
-                        VoiceConfirmationCard(
-                          toolCall: state.pendingConfirmation!,
-                          onConfirm: () =>
-                              bloc.add(const VoiceConfirmationAccepted()),
-                          onEdit: () {
-                            final summary =
-                                state.pendingConfirmation!.displaySummary;
-                            setState(() {
-                              _editPrefill = summary;
-                              _editController
-                                ..text = summary
-                                ..selection = TextSelection(
-                                  baseOffset: 0,
-                                  extentOffset: summary.length,
-                                );
-                            });
-                            bloc.add(const VoiceConfirmationCancelled());
-                          },
-                          onCancel: () =>
-                              bloc.add(const VoiceConfirmationCancelled()),
-                        )
-                      else if (_editPrefill != null)
-                        _VoiceEditBar(
-                          controller: _editController,
-                          onSend: (text) {
-                            final trimmed = text.trim();
-                            if (trimmed.isEmpty) return;
-                            setState(() => _editPrefill = null);
-                            bloc.add(VoiceSendMessage(trimmed));
-                          },
-                          onDiscard: () => setState(() {
-                            _editPrefill = null;
-                            _editController.clear();
-                          }),
-                        ),
-                    ],
-                  ),
-                ),
-
-                // ── Status / action panel ─────────────────────────────────
-                VoiceOverlayStatusView(
-                  status: state.status,
-                  isWorkoutModeActive: state.isWorkoutModeActive,
-                  onMicTap: () => state.status == VoiceStatus.idle
-                      ? bloc.add(const VoiceListenRequested())
-                      : null,
-                  onStopListening: () =>
-                      bloc.add(const VoiceListenStopRequested()),
-                  onInterrupt: () => bloc.add(const VoiceListenStopRequested()),
-                  onRetry: () => bloc.add(const VoiceListenRequested()),
-                  onWorkoutModeToggle: () => bloc.add(
-                    VoiceWorkoutModeToggled(active: !state.isWorkoutModeActive),
-                  ),
-                ),
-              ],
-            ),
-          ),
-        );
+    return BlocListener<VoiceBloc, VoiceState>(
+      listenWhen: (prev, curr) => prev.status != curr.status,
+      listener: (context, state) {
+        final wake = sl<VoiceWakeWordService>();
+        final settings = context.read<VoiceSettingsCubit>().state;
+        if (state.status == VoiceStatus.idle &&
+            settings.wakeWordArmedInForeground) {
+          // Re-arm while idle so the user can re-wake without tapping (bug #4).
+          unawaited(wake.start(settings.wakeWordPreset));
+        } else {
+          // Any active/transitional state needs the mic for STT — release it.
+          unawaited(wake.stop());
+        }
       },
+      child: BlocBuilder<VoiceBloc, VoiceState>(
+        builder: (context, state) {
+          final VoiceBloc bloc = context.read<VoiceBloc>();
+
+          return Scaffold(
+            key: VoiceOverlayKeys.overlayPageKey,
+            backgroundColor: AppTheme.backgroundDark,
+            body: SafeArea(
+              child: Column(
+                children: <Widget>[
+                  // ── Workout Mode banner (top, only when active) ──────────
+                  if (state.isWorkoutModeActive)
+                    VoiceWorkoutModeBanner(
+                      onToggle: () => bloc.add(
+                        const VoiceWorkoutModeToggled(active: false),
+                      ),
+                    ),
+
+                  // ── Header ───────────────────────────────────────────────
+                  _OverlayHeader(
+                    onClose: () => Navigator.of(context).pop(),
+                    onSettings: () => _openSettings(context),
+                  ),
+
+                  // ── Budget indicator ─────────────────────────────────────
+                  const VoiceBudgetIndicator(
+                    key: VoiceOverlayKeys.budgetIndicatorKey,
+                  ),
+
+                  // ── Transcript + confirmation card ───────────────────────
+                  Expanded(
+                    child: Column(
+                      children: <Widget>[
+                        Expanded(
+                          child: VoiceTranscriptList(
+                            messages: state.messages,
+                            liveTranscript:
+                                state.status == VoiceStatus.listening
+                                ? state.liveTranscript
+                                : null,
+                          ),
+                        ),
+                        if (state.pendingConfirmation != null)
+                          VoiceConfirmationCard(
+                            toolCall: state.pendingConfirmation!,
+                            onConfirm: () =>
+                                bloc.add(const VoiceConfirmationAccepted()),
+                            onEdit: () {
+                              final summary =
+                                  state.pendingConfirmation!.displaySummary;
+                              setState(() {
+                                _editPrefill = summary;
+                                _editController
+                                  ..text = summary
+                                  ..selection = TextSelection(
+                                    baseOffset: 0,
+                                    extentOffset: summary.length,
+                                  );
+                              });
+                              bloc.add(const VoiceConfirmationCancelled());
+                            },
+                            onCancel: () =>
+                                bloc.add(const VoiceConfirmationCancelled()),
+                          )
+                        else if (_editPrefill != null)
+                          _VoiceEditBar(
+                            controller: _editController,
+                            onSend: (text) {
+                              final trimmed = text.trim();
+                              if (trimmed.isEmpty) return;
+                              setState(() => _editPrefill = null);
+                              bloc.add(VoiceSendMessage(trimmed));
+                            },
+                            onDiscard: () => setState(() {
+                              _editPrefill = null;
+                              _editController.clear();
+                            }),
+                          ),
+                      ],
+                    ),
+                  ),
+
+                  // ── Status / action panel ─────────────────────────────────
+                  VoiceOverlayStatusView(
+                    status: state.status,
+                    isWorkoutModeActive: state.isWorkoutModeActive,
+                    onMicTap: () => state.status == VoiceStatus.idle
+                        ? bloc.add(const VoiceListenRequested())
+                        : null,
+                    onStopListening: () =>
+                        bloc.add(const VoiceListenStopRequested()),
+                    onInterrupt: () =>
+                        bloc.add(const VoiceListenStopRequested()),
+                    onRetry: () => bloc.add(const VoiceListenRequested()),
+                    onWorkoutModeToggle: () => bloc.add(
+                      VoiceWorkoutModeToggled(
+                        active: !state.isWorkoutModeActive,
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          );
+        },
+      ),
     );
   }
 
