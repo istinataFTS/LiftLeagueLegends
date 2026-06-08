@@ -86,8 +86,8 @@ sherpa_onnx.KeywordSpotterConfig buildKeywordSpotterConfig({
     model: modelCfg,
     keywordsBuf: keywords,
     keywordsBufSize: utf8.encode(keywords).length,
-    keywordsScore: 1.0,
-    keywordsThreshold: 0.25,
+    keywordsScore: VoiceConstants.wakeWordKeywordsScore,
+    keywordsThreshold: VoiceConstants.wakeWordKeywordsThreshold,
   );
 }
 

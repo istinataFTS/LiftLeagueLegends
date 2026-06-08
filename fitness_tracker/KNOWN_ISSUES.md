@@ -90,6 +90,7 @@ Numbered steps or a short paragraph. State what to do and what *not* to do.
 18. [voice-bot-must-log-duplicate-sets](#voice-bot-must-log-duplicate-sets)
 19. [voice-confirmation-cancel-leaves-bot-unresponsive](#voice-confirmation-cancel-leaves-bot-unresponsive)
 20. [voice-whisper-hallucinates-on-silent-audio](#voice-whisper-hallucinates-on-silent-audio)
+21. [voice-wake-word-keyword-miss-rate](#voice-wake-word-keyword-miss-rate)
 
 ### Database
 11. [sqflite-version-15-rejects-incompatible-legacy-databases](#sqflite-version-15-rejects-incompatible-legacy-databases)
@@ -926,6 +927,34 @@ Track `_voiceDetected` (set when any amplitude sample crosses the voice threshol
 
 - `lib/features/voice/data/services/whisper_voice_stt_service.dart` — `_voiceDetected`, `shouldTranscribe`, `_stopAndTranscribe`
 - `test/features/voice/services/whisper_voice_stt_service_test.dart` — `shouldTranscribe` group
+
+---
+
+### voice-wake-word-keyword-miss-rate
+
+- **Severity:** Medium
+- **Status:** Active
+- **First observed:** 2026-06-07
+- **Last verified:** 2026-06-07
+- **Area:** voice
+
+**Symptom**
+
+With the engine correctly armed and the mic streaming a clear signal, the sherpa-onnx KWS frequently fails to spot a short wake phrase ("Thomas", "Trainer") — often needing several repetitions, occasionally missing entirely. Confirmed on-device: two consecutive "Thomas" attempts produced no detection; the third matched.
+
+**Root cause**
+
+Short keywords (2–3 BPE tokens) provide little acoustic evidence for streaming KWS. The engine, mic, and audio pipeline are healthy — this is recognition sensitivity, not a lifecycle or mic bug.
+
+**Workaround / fix**
+
+`keywordsThreshold` lowered 0.25 → `VoiceConstants.wakeWordKeywordsThreshold` (0.20) and `keywordsScore` raised 1.0 → `VoiceConstants.wakeWordKeywordsScore` (1.5). Both are now in `VoiceConstants` and wired through `buildKeywordSpotterConfig`. The longer "Samo Levski" preset is the most reliable and is recommended for users who miss wake-word fires frequently. Values may need further on-device tuning; watch for false positives if the threshold is lowered further. Status stays Active because tuning is empirical and ongoing.
+
+**References**
+
+- `lib/core/constants/voice_constants.dart` — `wakeWordKeywordsThreshold`, `wakeWordKeywordsScore`
+- `lib/features/voice/data/services/sherpa_onnx_voice_wake_word_service.dart` — `buildKeywordSpotterConfig`
+- `test/features/voice/services/sherpa_onnx_voice_wake_word_service_test.dart` — `buildKeywordSpotterConfig` group
 
 ---
 
