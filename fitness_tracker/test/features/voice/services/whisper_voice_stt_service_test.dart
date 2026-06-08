@@ -142,30 +142,45 @@ void main() {
   });
 
   group('shouldTranscribe', () {
-    test('no voice detected, non-empty bytes → false (silence clip, the FEMA case)', () {
-      expect(
-        WhisperVoiceSttService.shouldTranscribe(voiceDetected: false, byteCount: 7100),
-        isFalse,
-      );
-    });
+    test(
+      'no voice detected, non-empty bytes → false (silence clip, the FEMA case)',
+      () {
+        expect(
+          WhisperVoiceSttService.shouldTranscribe(
+            voiceDetected: false,
+            byteCount: 7100,
+          ),
+          isFalse,
+        );
+      },
+    );
 
     test('no voice detected, zero bytes → false', () {
       expect(
-        WhisperVoiceSttService.shouldTranscribe(voiceDetected: false, byteCount: 0),
+        WhisperVoiceSttService.shouldTranscribe(
+          voiceDetected: false,
+          byteCount: 0,
+        ),
         isFalse,
       );
     });
 
     test('voice detected, zero bytes → false (defensive)', () {
       expect(
-        WhisperVoiceSttService.shouldTranscribe(voiceDetected: true, byteCount: 0),
+        WhisperVoiceSttService.shouldTranscribe(
+          voiceDetected: true,
+          byteCount: 0,
+        ),
         isFalse,
       );
     });
 
     test('voice detected, non-empty bytes → true', () {
       expect(
-        WhisperVoiceSttService.shouldTranscribe(voiceDetected: true, byteCount: 5000),
+        WhisperVoiceSttService.shouldTranscribe(
+          voiceDetected: true,
+          byteCount: 5000,
+        ),
         isTrue,
       );
     });

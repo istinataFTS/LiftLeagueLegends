@@ -272,7 +272,10 @@ class WhisperVoiceSttService implements VoiceSttService {
       return;
     }
 
-    if (!shouldTranscribe(voiceDetected: _voiceDetected, byteCount: bytes.length)) {
+    if (!shouldTranscribe(
+      voiceDetected: _voiceDetected,
+      byteCount: bytes.length,
+    )) {
       AppLogger.info(
         'WhisperVoiceSttService: no voice detected during recording '
         '(voiceDetected=$_voiceDetected, ${bytes.length} bytes) — '
