@@ -134,4 +134,20 @@ abstract final class VoiceConstants {
   /// the microphone opens anyway. Keeps the pre-listen delay imperceptible
   /// while guaranteeing a stuck audio player never hangs a voice turn.
   static const Duration earconMaxDuration = Duration(milliseconds: 600);
+
+  // ───────────────────────────────────────────────────────────────────────
+  // Wake word (sherpa-onnx KWS) — recognition sensitivity
+  // ───────────────────────────────────────────────────────────────────────
+
+  /// sherpa-onnx KWS detection threshold. A keyword fires when its score
+  /// exceeds this value. LOWER = more sensitive (more detections, more false
+  /// positives). Lowered from the sherpa default 0.25 to 0.20 to cut misses
+  /// on short wake phrases ("Thomas", "Trainer"). Device-tuned — see
+  /// KNOWN_ISSUES.md #voice-wake-word-keyword-miss-rate.
+  static const double wakeWordKeywordsThreshold = 0.20;
+
+  /// sherpa-onnx KWS boosting score added to keyword tokens during decoding.
+  /// HIGHER = more likely to trigger. Raised from 1.0 to 1.5 to strengthen
+  /// short-keyword detection without flooding false positives.
+  static const double wakeWordKeywordsScore = 1.5;
 }

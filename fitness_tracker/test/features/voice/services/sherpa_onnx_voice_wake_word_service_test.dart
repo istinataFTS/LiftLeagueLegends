@@ -134,6 +134,24 @@ void main() {
       expect(cfg.keywordsBuf.endsWith('\n\n'), isFalse);
       expect(cfg.keywordsBufSize, utf8.encode(cfg.keywordsBuf).length);
     });
+
+    test(
+      'buildKeywordSpotterConfig uses tuned threshold/score from constants',
+      () {
+        final cfg = buildKeywordSpotterConfig(
+          encoderPath: 'e',
+          decoderPath: 'd',
+          joinerPath: 'j',
+          tokensPath: 't',
+          keywordsBuf: '▁TH OM AS',
+        );
+        expect(cfg.keywordsThreshold, VoiceConstants.wakeWordKeywordsThreshold);
+        expect(cfg.keywordsScore, VoiceConstants.wakeWordKeywordsScore);
+        // Regression guard for PR #120: buf size must equal the UTF-8 byte
+        // length of the (newline-terminated) keywords buffer, not 0.
+        expect(cfg.keywordsBufSize, greaterThan(0));
+      },
+    );
   });
 
   // ── isRunning lifecycle ─────────────────────────────────────────────────────
