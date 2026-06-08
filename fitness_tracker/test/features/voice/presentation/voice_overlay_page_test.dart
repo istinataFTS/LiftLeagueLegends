@@ -213,6 +213,7 @@ void main() {
       tester,
     ) async {
       final stateCtrl = StreamController<VoiceState>.broadcast();
+      addTearDown(stateCtrl.close);
       whenListen(voiceBloc, stateCtrl.stream, initialState: const VoiceState());
 
       await tester.pumpWidget(buildSubject());
@@ -226,6 +227,7 @@ void main() {
 
     testWidgets('re-arms engine when status returns to idle', (tester) async {
       final stateCtrl = StreamController<VoiceState>.broadcast();
+      addTearDown(stateCtrl.close);
       whenListen(voiceBloc, stateCtrl.stream, initialState: const VoiceState());
 
       await tester.pumpWidget(buildSubject());

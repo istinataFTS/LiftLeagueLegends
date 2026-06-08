@@ -964,7 +964,7 @@ Short keywords (2–3 BPE tokens) provide little acoustic evidence for streaming
 - **Severity:** Medium
 - **Status:** Resolved-but-monitor
 - **First observed:** 2026-06-07
-- **Last verified:** 2026-06-09
+- **Last verified:** 2026-06-08
 - **Area:** voice
 
 **Symptom**
