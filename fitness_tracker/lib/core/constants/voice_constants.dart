@@ -125,4 +125,13 @@ abstract final class VoiceConstants {
   static const Duration wakeWordMicAcquireRetryDelay = Duration(
     milliseconds: 250,
   );
+
+  // ───────────────────────────────────────────────────────────────────────
+  // Earcon (non-speech audio cues)
+  // ───────────────────────────────────────────────────────────────────────
+
+  /// Upper bound on how long the "listening started" earcon may block before
+  /// the microphone opens anyway. Keeps the pre-listen delay imperceptible
+  /// while guaranteeing a stuck audio player never hangs a voice turn.
+  static const Duration earconMaxDuration = Duration(milliseconds: 600);
 }

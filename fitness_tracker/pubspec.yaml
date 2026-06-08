@@ -113,3 +113,5 @@ flutter:
     # Wake-word model (sherpa-onnx KWS, offline, no access key).
     # int8 zipformer-gigaspeech model + BPE tokens + tokenized keywords.
     - assets/wake_words/kws/
+    # Short audio cues played by JustAudioVoiceEarconService.
+    - assets/audio/

@@ -24,6 +24,7 @@ import '../../../domain/entities/voice_settings.dart';
 import '../../../domain/entities/voice_tool_call.dart';
 import '../../../domain/entities/workout_set.dart';
 import '../../../domain/repositories/app_settings_repository.dart';
+import '../../../domain/services/voice_earcon_service.dart';
 import '../../../domain/services/voice_stt_service.dart';
 import '../../../domain/services/voice_tts_service.dart';
 import '../../../domain/services/voice_wake_word_service.dart';
@@ -397,6 +398,7 @@ class VoiceBloc extends Bloc<VoiceEvent, VoiceState>
     required DeleteVoiceHistory deleteVoiceHistory,
     required VoiceSttService sttService,
     required VoiceTtsService ttsService,
+    required VoiceEarconService earconService,
     required AppSettingsRepository appSettingsRepository,
     required VoiceSettings Function() currentVoiceSettings,
     required NetworkStatusService networkStatusService,
@@ -416,6 +418,7 @@ class VoiceBloc extends Bloc<VoiceEvent, VoiceState>
        _deleteVoiceHistory = deleteVoiceHistory,
        _stt = sttService,
        _tts = ttsService,
+       _earcon = earconService,
        _appSettingsRepository = appSettingsRepository,
        _currentVoiceSettings = currentVoiceSettings,
        _networkStatusService = networkStatusService,
@@ -455,6 +458,7 @@ class VoiceBloc extends Bloc<VoiceEvent, VoiceState>
   final DeleteVoiceHistory _deleteVoiceHistory;
   final VoiceSttService _stt;
   final VoiceTtsService _tts;
+  final VoiceEarconService _earcon;
   final AppSettingsRepository _appSettingsRepository;
 
   /// Injected as a callback so the bloc reads the *current* settings
@@ -559,6 +563,12 @@ class VoiceBloc extends Bloc<VoiceEvent, VoiceState>
         clearTranscript: true,
       ),
     );
+
+    // Audible "your turn" cue before the mic opens. Best-effort and bounded
+    // (the service never throws and self-caps), so it cannot block or break the
+    // turn. Centralized here so wake-word, FAB-tap, and (Plan 2) auto-relisten
+    // turns all get the same feedback.
+    await _earcon.playListenStart();
 
     await _sttSubscription?.cancel();
     _sttSubscription = _stt

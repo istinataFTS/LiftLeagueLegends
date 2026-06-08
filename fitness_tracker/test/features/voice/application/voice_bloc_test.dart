@@ -30,6 +30,7 @@ import 'package:fitness_tracker/domain/usecases/workout_sets/get_sets_by_date_ra
 import 'package:fitness_tracker/domain/usecases/workout_sets/get_weekly_sets.dart';
 import 'package:fitness_tracker/features/voice/application/voice_bloc.dart';
 import 'package:fitness_tracker/features/voice/application/voice_mutation_outcome.dart';
+import 'package:fitness_tracker/domain/services/voice_earcon_service.dart';
 import 'package:fitness_tracker/domain/services/voice_stt_service.dart';
 import 'package:fitness_tracker/domain/services/voice_tts_service.dart';
 import 'package:fitness_tracker/domain/services/voice_wake_word_service.dart';
@@ -92,6 +93,18 @@ class FakeVoiceTtsService implements VoiceTtsService {
   @override
   Future<void> setSpeechRate(double rate) async {
     lastSpeechRate = rate;
+  }
+
+  @override
+  Future<void> dispose() async {}
+}
+
+class FakeVoiceEarconService implements VoiceEarconService {
+  int playCount = 0;
+
+  @override
+  Future<void> playListenStart() async {
+    playCount++;
   }
 
   @override
@@ -299,6 +312,7 @@ VoiceBloc _makeBloc({
   required AppSettingsRepository appSettingsRepository,
   VoiceTtsService? tts,
   VoiceSttService? stt,
+  VoiceEarconService? earcon,
   NetworkStatusService? networkStatus,
   VoiceWakeWordService? wakeWord,
   WakelockService? wakelock,
@@ -318,6 +332,7 @@ VoiceBloc _makeBloc({
     deleteVoiceHistory: deleteVoiceHistory,
     sttService: stt ?? FakeVoiceSttService(),
     ttsService: tts ?? FakeVoiceTtsService(),
+    earconService: earcon ?? FakeVoiceEarconService(),
     appSettingsRepository: appSettingsRepository,
     currentVoiceSettings: () => settings,
     networkStatusService: networkStatus ?? FakeNetworkStatusService(),
@@ -775,6 +790,22 @@ void main() {
         ).called(1);
       },
     );
+
+    test('plays the listen-start earcon when a listen begins', () async {
+      final earcon = FakeVoiceEarconService();
+      final bloc = _makeBloc(
+        sendVoiceMessage: sendVoiceMessage,
+        getVoiceBudget: getBudget,
+        deleteVoiceHistory: deleteHistory,
+        appSettingsRepository: settingsRepo,
+        earcon: earcon,
+      );
+      bloc.emit(const VoiceState(sessionId: 'sid'));
+      bloc.add(const VoiceListenRequested());
+      await Future<void>.delayed(const Duration(milliseconds: 20));
+      expect(earcon.playCount, 1);
+      await bloc.close();
+    });
   });
 
   group('VoiceConversationCleared', () {

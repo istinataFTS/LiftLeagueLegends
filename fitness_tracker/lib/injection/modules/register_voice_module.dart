@@ -11,6 +11,7 @@ import '../../data/repositories/voice_repository_impl.dart';
 import '../../domain/repositories/app_settings_repository.dart';
 import '../../domain/repositories/meal_repository.dart';
 import '../../domain/repositories/voice_repository.dart';
+import '../../domain/services/voice_earcon_service.dart';
 import '../../domain/services/voice_permission_service.dart';
 import '../../domain/services/voice_stt_service.dart';
 import '../../domain/services/voice_tts_service.dart';
@@ -35,6 +36,7 @@ import '../../features/voice/data/parser/matchers/nutrition_matchers.dart';
 import '../../features/voice/data/parser/matchers/query_matchers.dart';
 import '../../features/voice/data/parser/matchers/workout_set_matchers.dart';
 import '../../features/voice/data/services/flutter_tts_voice_tts_service.dart';
+import '../../features/voice/data/services/just_audio_voice_earcon_service.dart';
 import '../../features/voice/data/services/network_aware_voice_stt_service.dart';
 import '../../features/voice/data/services/permission_handler_voice_permission_service.dart';
 import '../../features/voice/data/services/sherpa_onnx_voice_wake_word_service.dart';
@@ -71,6 +73,9 @@ void registerVoiceModule(GetIt sl) {
     ),
   );
   sl.registerLazySingleton<VoiceTtsService>(FlutterTtsVoiceTtsService.new);
+
+  // ── Earcon player (non-speech cues; owns a just_audio AudioPlayer) ──────
+  sl.registerLazySingleton<VoiceEarconService>(JustAudioVoiceEarconService.new);
 
   // ── Wake-word engine ───────────────────────────────────────────────────
   // Lazy singleton: holds the microphone and must not be torn down /
@@ -163,6 +168,7 @@ void registerVoiceModule(GetIt sl) {
       currentVoiceSettings: () =>
           sl<AppSettingsCubit>().state.settings.voiceSettings,
       networkStatusService: sl<NetworkStatusService>(),
+      earconService: sl<VoiceEarconService>(),
       wakeWordService: sl<VoiceWakeWordService>(),
       wakelockService: sl<WakelockService>(),
       getSetsByDateRange: sl<GetSetsByDateRange>(),

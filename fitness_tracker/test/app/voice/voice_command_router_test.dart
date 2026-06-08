@@ -10,6 +10,7 @@ import 'package:fitness_tracker/domain/entities/voice_budget.dart';
 import 'package:fitness_tracker/domain/entities/voice_settings.dart';
 import 'package:fitness_tracker/domain/entities/workout_set.dart';
 import 'package:fitness_tracker/domain/repositories/app_settings_repository.dart';
+import 'package:fitness_tracker/domain/services/voice_earcon_service.dart';
 import 'package:fitness_tracker/domain/services/voice_stt_service.dart';
 import 'package:fitness_tracker/domain/services/voice_tts_service.dart';
 import 'package:fitness_tracker/domain/services/voice_wake_word_service.dart';
@@ -173,6 +174,14 @@ class _FakeWakelock implements WakelockService {
   Future<void> disable() async {}
 }
 
+class _FakeEarcon implements VoiceEarconService {
+  @override
+  Future<void> playListenStart() async {}
+
+  @override
+  Future<void> dispose() async {}
+}
+
 // ---------------------------------------------------------------------------
 // Builder helpers
 // ---------------------------------------------------------------------------
@@ -192,6 +201,7 @@ VoiceBloc _buildVoiceBloc() {
     deleteVoiceHistory: _MockDeleteVoiceHistory(),
     sttService: _FakeStt(),
     ttsService: _FakeTts(),
+    earconService: _FakeEarcon(),
     appSettingsRepository: settings,
     currentVoiceSettings: () => const VoiceSettings.defaults(),
     networkStatusService: _FakeNetworkStatus(),
