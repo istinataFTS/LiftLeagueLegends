@@ -7,6 +7,7 @@ import 'package:uuid/uuid.dart';
 import '../../../core/bloc/bloc_effects_mixin.dart';
 import '../../../core/constants/app_strings.dart';
 import 'voice_mutation_outcome.dart';
+import 'voice_reply_classifier.dart';
 import '../../../core/constants/muscle_stimulus_constants.dart';
 import '../../../core/constants/voice_constants.dart';
 import '../../../core/errors/failures.dart';
@@ -671,16 +672,17 @@ class VoiceBloc extends Bloc<VoiceEvent, VoiceState>
       return;
     }
 
-    // Verbal-cancel: if a confirmation is pending AND the user said only a
-    // cancel word (anchored ^…$ — does not match "cancel my membership"),
-    // dismiss the confirmation locally without round-tripping to the LLM.
-    // Verbal-confirm is intentionally out of scope; the visual Accept button
-    // handles confirm.
-    if (state.pendingConfirmation != null &&
-        _verbalCancelPattern.hasMatch(text)) {
-      emit(state.copyWith(clearTranscript: true));
-      add(const VoiceConfirmationCancelled());
-      return;
+    // Confirmation pending: classify the utterance and handle cancel now.
+    // Confirm and correction are wired in commit 4; for now they fall through
+    // to the existing send-to-LLM path (preserving today's behavior exactly).
+    if (state.pendingConfirmation != null) {
+      final kind = VoiceReplyClassifier.classify(text);
+      if (kind == VoiceReplyKind.cancel) {
+        emit(state.copyWith(clearTranscript: true));
+        add(const VoiceConfirmationCancelled());
+        return;
+      }
+      // confirm / correction: fall through to send-to-LLM path (commit 4).
     }
 
     // A user-initiated (non-continuation) listen represents a fresh
@@ -693,14 +695,6 @@ class VoiceBloc extends Bloc<VoiceEvent, VoiceState>
     );
     add(VoiceSendMessage(text));
   }
-
-  /// Matches a transcript that is *only* a cancel word (case-insensitive,
-  /// trimmed). Anchored ^…$ so "cancel my membership" or "no thanks, I want X"
-  /// do NOT cancel a pending confirmation.
-  static final RegExp _verbalCancelPattern = RegExp(
-    r'^(cancel|nevermind|never mind|no|stop)$',
-    caseSensitive: false,
-  );
 
   void _onTranscriptFailed(
     VoiceTranscriptFailed event,
