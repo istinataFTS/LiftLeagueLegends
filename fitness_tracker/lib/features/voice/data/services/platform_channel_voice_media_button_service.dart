@@ -25,23 +25,16 @@ class PlatformChannelVoiceMediaButtonService
   StreamSubscription<Object?>? _eventSub;
   bool _isRunning = false;
 
-  /// Latest desired running state. Toggled synchronously by [start]/[stop]
-  /// so a `stop` requested mid-`start` is observed once the in-flight
-  /// method-channel call completes.
-  bool _desiredRunning = false;
+  /// FIFO queue of pending transition requests. Each entry carries its own
+  /// desired running state and completer, so a superseded request still
+  /// resolves once the drain reaches it — it cannot be stranded by a later
+  /// opposite call coalescing the queue away.
+  final List<({bool desired, Completer<void> completer})> _queue =
+      <({bool desired, Completer<void> completer})>[];
 
-  /// Chain of pending transitions. Serializes start/stop so they cannot
-  /// race on the native session.
-  Future<void> _transition = Future<void>.value();
-
-  /// Completers waiting for the next successful native `start` to land.
-  /// Each [start] call enqueues its own completer so callers observe their
-  /// own requested transition rather than the latest coalesced state.
-  final List<Completer<void>> _pendingStart = <Completer<void>>[];
-
-  /// Completers waiting for the next successful native `stop` to land
-  /// (or for the session to already be inactive when [stop] was called).
-  final List<Completer<void>> _pendingStop = <Completer<void>>[];
+  /// Non-null while [_drainQueue] is iterating. Prevents duplicate drains
+  /// when [start]/[stop] are called while a drain is already in flight.
+  Future<void>? _draining;
 
   PlatformChannelVoiceMediaButtonService({
     MethodChannel? methodChannel,
@@ -68,82 +61,53 @@ class PlatformChannelVoiceMediaButtonService
   bool get isRunning => _isRunning;
 
   @override
-  Future<void> start() {
-    _desiredRunning = true;
-    final completer = Completer<void>();
-    _pendingStart.add(completer);
-    _transition = _reconcile(_transition);
-    return completer.future;
-  }
+  Future<void> start() => _enqueue(desired: true);
 
   @override
-  Future<void> stop() {
-    _desiredRunning = false;
+  Future<void> stop() => _enqueue(desired: false);
+
+  Future<void> _enqueue({required bool desired}) {
     final completer = Completer<void>();
-    _pendingStop.add(completer);
-    _transition = _reconcile(_transition);
+    _queue.add((desired: desired, completer: completer));
+    _draining ??= _drainQueue();
     return completer.future;
   }
 
-  /// Drives the native session toward [_desiredRunning] after [previous]
-  /// completes. After each native call, only the completers queued for
-  /// that specific transition resolve — so an `await start()` followed by
-  /// a `stop()` sees `isRunning == true` on its own completion, not the
-  /// later coalesced state.
-  Future<void> _reconcile(Future<void> previous) async {
-    await previous;
-    while (true) {
-      // Already at the desired state — drain any matching no-op waiters
-      // (e.g. start() when already running, stop() when already stopped).
-      if (_desiredRunning == _isRunning) {
-        _drain(_desiredRunning ? _pendingStart : _pendingStop);
-        return;
-      }
-      final desired = _desiredRunning;
-      try {
-        if (desired) {
-          await _methodChannel.invokeMethod<void>('start');
-          _isRunning = true;
-          _drain(_pendingStart);
-        } else {
-          await _methodChannel.invokeMethod<void>('stop');
-          _isRunning = false;
-          _drain(_pendingStop);
+  /// Drains [_queue] in order, issuing one native call per state change.
+  /// A request whose desired state already matches [_isRunning] completes
+  /// without a native call (no-op fast path); requests that flip the state
+  /// invoke the method channel and complete on success / fail on error.
+  Future<void> _drainQueue() async {
+    try {
+      while (_queue.isNotEmpty) {
+        final req = _queue.removeAt(0);
+        if (req.desired == _isRunning) {
+          if (!req.completer.isCompleted) req.completer.complete();
+          continue;
         }
-      } catch (error, stackTrace) {
-        AppLogger.warning(
-          'PlatformChannelVoiceMediaButtonService: failed to '
-          '${desired ? "start" : "stop"}',
-          error: error,
-          category: _logCategory,
-        );
-        _drainWithError(
-          desired ? _pendingStart : _pendingStop,
-          error,
-          stackTrace,
-        );
-        return;
+        try {
+          if (req.desired) {
+            await _methodChannel.invokeMethod<void>('start');
+            _isRunning = true;
+          } else {
+            await _methodChannel.invokeMethod<void>('stop');
+            _isRunning = false;
+          }
+          if (!req.completer.isCompleted) req.completer.complete();
+        } catch (error, stackTrace) {
+          AppLogger.warning(
+            'PlatformChannelVoiceMediaButtonService: failed to '
+            '${req.desired ? "start" : "stop"}',
+            error: error,
+            category: _logCategory,
+          );
+          if (!req.completer.isCompleted) {
+            req.completer.completeError(error, stackTrace);
+          }
+        }
       }
-    }
-  }
-
-  void _drain(List<Completer<void>> queue) {
-    final pending = List<Completer<void>>.of(queue);
-    queue.clear();
-    for (final c in pending) {
-      if (!c.isCompleted) c.complete();
-    }
-  }
-
-  void _drainWithError(
-    List<Completer<void>> queue,
-    Object error,
-    StackTrace stackTrace,
-  ) {
-    final pending = List<Completer<void>>.of(queue);
-    queue.clear();
-    for (final c in pending) {
-      if (!c.isCompleted) c.completeError(error, stackTrace);
+    } finally {
+      _draining = null;
     }
   }
 

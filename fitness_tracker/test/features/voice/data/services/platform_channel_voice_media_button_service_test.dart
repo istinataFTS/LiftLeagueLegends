@@ -120,6 +120,38 @@ void main() {
       },
     );
 
+    test(
+      'synchronous start then stop at idle — both futures resolve',
+      () async {
+        final startFut = service.start();
+        final stopFut = service.stop();
+
+        await startFut;
+        await stopFut;
+
+        // Both calls honoured FIFO: native start then native stop.
+        expect(methodCalls, ['start', 'stop']);
+        expect(service.isRunning, isFalse);
+      },
+    );
+
+    test(
+      'synchronous stop then start when running — both futures resolve',
+      () async {
+        await service.start();
+        methodCalls.clear();
+
+        final stopFut = service.stop();
+        final startFut = service.start();
+
+        await stopFut;
+        await startFut;
+
+        expect(methodCalls, ['stop', 'start']);
+        expect(service.isRunning, isTrue);
+      },
+    );
+
     test('stop requested during in-flight start still tears down', () async {
       final startGate = Completer<void>();
       TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
