@@ -1,5 +1,3 @@
-import 'dart:io';
-
 import 'package:get_it/get_it.dart';
 
 import '../../core/network/network_status_service.dart';
@@ -39,13 +37,13 @@ import '../../features/voice/data/parser/matchers/nutrition_matchers.dart';
 import '../../features/voice/data/parser/matchers/query_matchers.dart';
 import '../../features/voice/data/parser/matchers/workout_set_matchers.dart';
 import '../../features/voice/data/services/flutter_tts_voice_tts_service.dart';
-import '../../features/voice/data/services/noop_voice_media_button_service.dart';
-import '../../features/voice/data/services/platform_channel_voice_media_button_service.dart';
 import '../../features/voice/data/services/just_audio_voice_earcon_service.dart';
 import '../../features/voice/data/services/network_aware_voice_stt_service.dart';
 import '../../features/voice/data/services/permission_handler_voice_permission_service.dart';
 import '../../features/voice/data/services/sherpa_onnx_voice_wake_word_service.dart';
 import '../../features/voice/data/services/speech_to_text_voice_stt_service.dart';
+import '../../features/voice/data/services/voice_media_button_factory.dart'
+    if (dart.library.io) '../../features/voice/data/services/voice_media_button_factory_io.dart';
 import '../../features/voice/data/services/whisper_voice_stt_service.dart';
 
 /// Wires up the voice feature.
@@ -91,13 +89,13 @@ void registerVoiceModule(GetIt sl) {
   );
 
   // ── Media-button (headphone tap-to-wake) service ───────────────────────
-  // Android: native MediaSessionCompat forwards headset/BT presses.
-  // Other platforms: no-op (stream never emits). Lifecycle mirrors the
-  // wake-word engine — started/stopped in VoiceFab (Plan 3 commit 2).
+  // Platform selection is handled by the conditional-import factory:
+  // Android → PlatformChannelVoiceMediaButtonService (native MediaSession);
+  // all other platforms → NoopVoiceMediaButtonService (stream never emits).
+  // Lifecycle mirrors the wake-word engine — started/stopped in VoiceFab
+  // (Plan 3 commit 2).
   sl.registerLazySingleton<VoiceMediaButtonService>(
-    () => Platform.isAndroid
-        ? PlatformChannelVoiceMediaButtonService()
-        : NoopVoiceMediaButtonService(),
+    createVoiceMediaButtonService,
   );
 
   // ── Wakelock service ───────────────────────────────────────────────────
