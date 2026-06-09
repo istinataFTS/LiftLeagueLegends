@@ -43,3 +43,9 @@ android {
 flutter {
     source = "../.."
 }
+
+dependencies {
+    // MediaSessionCompat — receive headset/Bluetooth media-button presses so a
+    // single tap can wake the voice bot (Plan 3). Foreground-only; no service.
+    implementation("androidx.media:media:1.7.0")
+}

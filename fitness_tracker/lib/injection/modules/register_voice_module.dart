@@ -12,6 +12,7 @@ import '../../domain/repositories/app_settings_repository.dart';
 import '../../domain/repositories/meal_repository.dart';
 import '../../domain/repositories/voice_repository.dart';
 import '../../domain/services/voice_earcon_service.dart';
+import '../../domain/services/voice_media_button_service.dart';
 import '../../domain/services/voice_permission_service.dart';
 import '../../domain/services/voice_stt_service.dart';
 import '../../domain/services/voice_tts_service.dart';
@@ -41,6 +42,8 @@ import '../../features/voice/data/services/network_aware_voice_stt_service.dart'
 import '../../features/voice/data/services/permission_handler_voice_permission_service.dart';
 import '../../features/voice/data/services/sherpa_onnx_voice_wake_word_service.dart';
 import '../../features/voice/data/services/speech_to_text_voice_stt_service.dart';
+import '../../features/voice/data/services/voice_media_button_factory.dart'
+    if (dart.library.io) '../../features/voice/data/services/voice_media_button_factory_io.dart';
 import '../../features/voice/data/services/whisper_voice_stt_service.dart';
 
 /// Wires up the voice feature.
@@ -83,6 +86,16 @@ void registerVoiceModule(GetIt sl) {
   // (start on resume, stop on background).
   sl.registerLazySingleton<VoiceWakeWordService>(
     SherpaOnnxVoiceWakeWordService.new,
+  );
+
+  // ── Media-button (headphone tap-to-wake) service ───────────────────────
+  // Platform selection is handled by the conditional-import factory:
+  // Android → PlatformChannelVoiceMediaButtonService (native MediaSession);
+  // all other platforms → NoopVoiceMediaButtonService (stream never emits).
+  // Lifecycle mirrors the wake-word engine — started/stopped in VoiceFab
+  // (Plan 3 commit 2).
+  sl.registerLazySingleton<VoiceMediaButtonService>(
+    createVoiceMediaButtonService,
   );
 
   // ── Wakelock service ───────────────────────────────────────────────────
