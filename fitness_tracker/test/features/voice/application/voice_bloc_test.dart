@@ -2323,6 +2323,119 @@ void main() {
   });
 
   // -------------------------------------------------------------------------
+  // getTrainingDays
+  // -------------------------------------------------------------------------
+
+  group('getTrainingDays query', () {
+    test('speaks count of distinct training days and ends at idle', () async {
+      final localSets = MockGetSetsByDateRange();
+      final day1 = DateTime(2026, 6, 9);
+      final day2 = DateTime(2026, 6, 11);
+      when(
+        () => localSets(
+          startDate: any(named: 'startDate'),
+          endDate: any(named: 'endDate'),
+          muscleGroup: any(named: 'muscleGroup'),
+          limit: any(named: 'limit'),
+        ),
+      ).thenAnswer(
+        (_) async => Right([
+          WorkoutSet(
+            id: 'set-1',
+            exerciseId: 'ex-bench',
+            reps: 8,
+            weight: 80,
+            date: day1,
+            createdAt: day1,
+          ),
+          WorkoutSet(
+            id: 'set-2',
+            exerciseId: 'ex-bench',
+            reps: 6,
+            weight: 85,
+            date: day1,
+            createdAt: day1,
+          ),
+          WorkoutSet(
+            id: 'set-3',
+            exerciseId: 'ex-squat',
+            reps: 5,
+            weight: 100,
+            date: day2,
+            createdAt: day2,
+          ),
+        ]),
+      );
+
+      final tts = FakeVoiceTtsService();
+      final bloc = _makeBloc(
+        sendVoiceMessage: sendVoiceMessage,
+        getVoiceBudget: getBudget,
+        deleteVoiceHistory: deleteHistory,
+        appSettingsRepository: settingsRepo,
+        exerciseLookup: exerciseLookup,
+        getSetsByDateRange: localSets,
+        getLogsForDate: getLogsForDate,
+        getDailyMacros: getDailyMacros,
+        tts: tts,
+      );
+
+      await runQueryFlow(
+        bloc: bloc,
+        sendVoiceMessage: sendVoiceMessage,
+        toolName: 'getTrainingDays',
+        args: const {'startDate': '2026-06-09', 'endDate': '2026-06-11'},
+        session: authSession(),
+      );
+
+      // 3 sets but only 2 distinct days → count = 2
+      expect(
+        tts.lastSpoken,
+        equals(AppStrings.voiceQueryTrainingDaysResult(2)),
+      );
+      expect(bloc.state.pendingConfirmation, isNull);
+      expect(bloc.state.status, VoiceStatus.idle);
+      await bloc.close();
+    });
+
+    test('empty period speaks voiceQueryNoTrainingDays', () async {
+      final localSets = MockGetSetsByDateRange();
+      when(
+        () => localSets(
+          startDate: any(named: 'startDate'),
+          endDate: any(named: 'endDate'),
+          muscleGroup: any(named: 'muscleGroup'),
+          limit: any(named: 'limit'),
+        ),
+      ).thenAnswer((_) async => const Right(<WorkoutSet>[]));
+
+      final tts = FakeVoiceTtsService();
+      final bloc = _makeBloc(
+        sendVoiceMessage: sendVoiceMessage,
+        getVoiceBudget: getBudget,
+        deleteVoiceHistory: deleteHistory,
+        appSettingsRepository: settingsRepo,
+        exerciseLookup: exerciseLookup,
+        getSetsByDateRange: localSets,
+        getLogsForDate: getLogsForDate,
+        getDailyMacros: getDailyMacros,
+        tts: tts,
+      );
+
+      await runQueryFlow(
+        bloc: bloc,
+        sendVoiceMessage: sendVoiceMessage,
+        toolName: 'getTrainingDays',
+        args: const {},
+        session: authSession(),
+      );
+
+      expect(tts.lastSpoken, equals(AppStrings.voiceQueryNoTrainingDays));
+      await bloc.close();
+    });
+  });
+
+  // -------------------------------------------------------------------------
   // clarify -- ambiguous input returns a clarifying question
   // -------------------------------------------------------------------------
 

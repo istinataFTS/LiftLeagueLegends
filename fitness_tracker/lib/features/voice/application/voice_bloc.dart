@@ -1601,6 +1601,8 @@ class VoiceBloc extends Bloc<VoiceEvent, VoiceState>
           return await _queryDailyNutritionLog(args);
         case 'getWorkoutForDay':
           return await _queryWorkoutForDay(args);
+        case 'getTrainingDays':
+          return await _queryTrainingDays(args);
         default:
           AppLogger.warning('VoiceBloc: unknown query tool: $toolName');
           return AppStrings.voiceSpokenGenericError;
@@ -1625,7 +1627,7 @@ class VoiceBloc extends Bloc<VoiceEvent, VoiceState>
         ? _parseIsoDate(startDateStr) ?? _startOfCurrentWeek()
         : _startOfCurrentWeek();
     final end = endDateStr != null
-        ? _parseIsoDate(endDateStr) ?? DateTime.now()
+        ? _endOfDay(_parseIsoDate(endDateStr) ?? DateTime.now())
         : DateTime.now();
 
     final result = await _getSetsByDateRange(
@@ -1708,7 +1710,10 @@ class VoiceBloc extends Bloc<VoiceEvent, VoiceState>
     final day = dateStr != null
         ? _parseIsoDate(dateStr) ?? DateTime.now()
         : DateTime.now();
-    final result = await _getSetsByDateRange(startDate: day, endDate: day);
+    final result = await _getSetsByDateRange(
+      startDate: day,
+      endDate: _endOfDay(day),
+    );
     return result.fold((_) => AppStrings.voiceQueryWorkoutForDayUnavailable, (
       sets,
     ) {
@@ -1720,6 +1725,27 @@ class VoiceBloc extends Bloc<VoiceEvent, VoiceState>
           })
           .join('. ');
       return AppStrings.voiceQueryWorkoutForDayResult(lines);
+    });
+  }
+
+  Future<String> _queryTrainingDays(Map<String, dynamic> args) async {
+    final startDateStr = args['startDate'] as String?;
+    final endDateStr = args['endDate'] as String?;
+    final start = startDateStr != null
+        ? _parseIsoDate(startDateStr) ?? _startOfCurrentWeek()
+        : _startOfCurrentWeek();
+    final end = endDateStr != null
+        ? _endOfDay(_parseIsoDate(endDateStr) ?? DateTime.now())
+        : DateTime.now();
+    final result = await _getSetsByDateRange(startDate: start, endDate: end);
+    return result.fold((_) => AppStrings.voiceQueryTrainingDaysUnavailable, (
+      sets,
+    ) {
+      final distinctDays = sets
+          .map((s) => DateTime(s.date.year, s.date.month, s.date.day))
+          .toSet();
+      if (distinctDays.isEmpty) return AppStrings.voiceQueryNoTrainingDays;
+      return AppStrings.voiceQueryTrainingDaysResult(distinctDays.length);
     });
   }
 
@@ -1925,6 +1951,13 @@ class VoiceBloc extends Bloc<VoiceEvent, VoiceState>
   /// [ExerciseLookup] cache, or the raw ID string as a fallback.
   String _exerciseNameForId(String exerciseId) =>
       _exerciseLookup.nameForId(exerciseId);
+
+  /// Returns the last microsecond of [d]'s calendar day (local time).
+  /// Use as the `endDate` bound whenever a parsed ISO date-only string is
+  /// used with [_getSetsByDateRange] — avoids missing sets that carry a time
+  /// component (e.g. logged via [DateTime.now]).
+  DateTime _endOfDay(DateTime d) =>
+      DateTime(d.year, d.month, d.day, 23, 59, 59, 999, 999);
 
   /// Parses an ISO `yyyy-MM-dd` date string into a [DateTime].
   /// Returns null if the string is malformed.

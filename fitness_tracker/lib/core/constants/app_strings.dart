@@ -635,6 +635,13 @@ class AppStrings {
       'No sets were logged on that day.';
   static String voiceQueryWorkoutForDayResult(String lines) =>
       'On that day you did: $lines.';
+  static const String voiceQueryTrainingDaysUnavailable =
+      'I could not retrieve your training days right now.';
+  static const String voiceQueryNoTrainingDays =
+      'No training days found in that period.';
+  static String voiceQueryTrainingDaysResult(int count) => count == 1
+      ? 'You trained 1 day in that period.'
+      : 'You trained $count days in that period.';
 
   // ── Voice offline coordinator strings ────────────────────────────────────
   static const String voiceOfflineUnrecognized =

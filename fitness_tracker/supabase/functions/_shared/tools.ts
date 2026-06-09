@@ -271,6 +271,27 @@ const getDailyNutritionLog: ToolDefinition = {
   },
 };
 
+const getTrainingDays: ToolDefinition = {
+  name: "getTrainingDays",
+  description:
+    "Count (and optionally name) the distinct days the user trained in a period. " +
+    'Use for "how many days did I train this week / this month".',
+  parameters: {
+    type: "object",
+    properties: {
+      startDate: {
+        type: "string",
+        description: "ISO yyyy-MM-dd. Defaults to start of this week.",
+      },
+      endDate: {
+        type: "string",
+        description: "ISO yyyy-MM-dd. Defaults to today.",
+      },
+    },
+    required: [],
+  },
+};
+
 const getWorkoutForDay: ToolDefinition = {
   name: "getWorkoutForDay",
   description:
@@ -321,6 +342,7 @@ export const TOOL_REGISTRY: ReadonlyArray<ToolDefinition> = [
   getRecentSets,
   getDailyNutritionLog,
   getWorkoutForDay,
+  getTrainingDays,
   clarify,
 ];
 
@@ -341,4 +363,5 @@ export const QUERY_TOOLS: ReadonlySet<string> = new Set([
   "getRecentSets",
   "getDailyNutritionLog",
   "getWorkoutForDay",
+  "getTrainingDays",
 ]);
