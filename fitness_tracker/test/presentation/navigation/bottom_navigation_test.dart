@@ -13,6 +13,7 @@ import 'package:fitness_tracker/features/log/log.dart';
 import 'package:fitness_tracker/features/profile/application/profile_cubit.dart';
 import 'package:fitness_tracker/features/settings/application/app_settings_cubit.dart';
 import 'package:fitness_tracker/features/settings/presentation/settings_scope.dart';
+import 'package:fitness_tracker/domain/services/voice_media_button_service.dart';
 import 'package:fitness_tracker/domain/services/voice_wake_word_service.dart';
 import 'package:fitness_tracker/features/voice/application/voice_settings_cubit.dart';
 import 'package:fitness_tracker/injection/injection_container.dart';
@@ -89,8 +90,26 @@ class FakeNutritionLogEvent extends Fake implements NutritionLogEvent {}
 class FakeNutritionLogState extends Fake implements NutritionLogState {}
 
 // ---------------------------------------------------------------------------
-// Fake VoiceWakeWordService — no-op, stream-safe, no native binaries.
+// Fake service stubs — no-op, stream-safe, no native binaries.
 // ---------------------------------------------------------------------------
+
+class _FakeVoiceMediaButtonService implements VoiceMediaButtonService {
+  final StreamController<void> _pressCtrl = StreamController<void>.broadcast();
+
+  @override
+  Stream<void> get onMediaButtonPressed => _pressCtrl.stream;
+
+  @override
+  bool get isRunning => false;
+
+  @override
+  Future<void> start() async {}
+
+  @override
+  Future<void> stop() async {}
+
+  Future<void> dispose() => _pressCtrl.close();
+}
 
 class _FakeVoiceWakeWordService implements VoiceWakeWordService {
   final StreamController<WakeWordPreset> _detectedCtrl =
@@ -129,6 +148,7 @@ void main() {
   late MockProfileCubit profileCubit;
   late MockVoiceSettingsCubit voiceSettingsCubit;
   late _FakeVoiceWakeWordService voiceWakeWordService;
+  late _FakeVoiceMediaButtonService voiceMediaButtonService;
   late MockHomeBloc homeBloc;
   late MockMuscleVisualBloc muscleVisualBloc;
   late MockExerciseBloc exerciseBloc;
@@ -159,6 +179,7 @@ void main() {
     profileCubit = MockProfileCubit();
     voiceSettingsCubit = MockVoiceSettingsCubit();
     voiceWakeWordService = _FakeVoiceWakeWordService();
+    voiceMediaButtonService = _FakeVoiceMediaButtonService();
     homeBloc = MockHomeBloc();
     muscleVisualBloc = MockMuscleVisualBloc();
     exerciseBloc = MockExerciseBloc();
@@ -257,18 +278,27 @@ void main() {
     when(() => historyBloc.add(any())).thenReturn(null);
 
     // VoiceFab (rendered by BottomNavigation) reads VoiceWakeWordService
-    // from GetIt in initState; register the fake before each pump.
+    // and VoiceMediaButtonService from GetIt in initState; register fakes
+    // before each pump.
     if (sl.isRegistered<VoiceWakeWordService>()) {
       sl.unregister<VoiceWakeWordService>();
     }
+    if (sl.isRegistered<VoiceMediaButtonService>()) {
+      sl.unregister<VoiceMediaButtonService>();
+    }
     sl.registerSingleton<VoiceWakeWordService>(voiceWakeWordService);
+    sl.registerSingleton<VoiceMediaButtonService>(voiceMediaButtonService);
   });
 
   tearDown(() async {
     if (sl.isRegistered<VoiceWakeWordService>()) {
       sl.unregister<VoiceWakeWordService>();
     }
+    if (sl.isRegistered<VoiceMediaButtonService>()) {
+      sl.unregister<VoiceMediaButtonService>();
+    }
     await voiceWakeWordService.dispose();
+    await voiceMediaButtonService.dispose();
   });
 
   Widget buildSubject() {

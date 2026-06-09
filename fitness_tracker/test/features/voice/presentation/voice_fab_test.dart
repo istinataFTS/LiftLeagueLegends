@@ -5,6 +5,7 @@ import 'package:fitness_tracker/core/constants/app_strings.dart';
 import 'package:fitness_tracker/domain/entities/app_session.dart';
 import 'package:fitness_tracker/domain/entities/app_user.dart';
 import 'package:fitness_tracker/domain/entities/voice_settings.dart';
+import 'package:fitness_tracker/domain/services/voice_media_button_service.dart';
 import 'package:fitness_tracker/domain/services/voice_wake_word_service.dart';
 import 'package:fitness_tracker/features/voice/application/voice_settings_cubit.dart';
 import 'package:fitness_tracker/features/voice/presentation/widgets/voice_fab.dart';
@@ -20,6 +21,27 @@ import 'package:mocktail/mocktail.dart';
 
 class MockVoiceSettingsCubit extends MockCubit<VoiceSettings>
     implements VoiceSettingsCubit {}
+
+class FakeVoiceMediaButtonService implements VoiceMediaButtonService {
+  bool _running = false;
+  final _pressController = StreamController<void>.broadcast();
+
+  @override
+  Stream<void> get onMediaButtonPressed => _pressController.stream;
+
+  @override
+  bool get isRunning => _running;
+
+  @override
+  Future<void> start() async => _running = true;
+
+  @override
+  Future<void> stop() async => _running = false;
+
+  void emitPress() => _pressController.add(null);
+
+  Future<void> dispose() => _pressController.close();
+}
 
 class FakeVoiceWakeWordService implements VoiceWakeWordService {
   bool _running = false;
@@ -79,17 +101,23 @@ Widget _wrap({
 void main() {
   late MockVoiceSettingsCubit settingsCubit;
   late FakeVoiceWakeWordService wakeWordService;
+  late FakeVoiceMediaButtonService mediaButtonService;
 
   final defaultSettings = const VoiceSettings.defaults();
 
   setUp(() {
     settingsCubit = MockVoiceSettingsCubit();
     wakeWordService = FakeVoiceWakeWordService();
+    mediaButtonService = FakeVoiceMediaButtonService();
 
     if (sl.isRegistered<VoiceWakeWordService>()) {
       sl.unregister<VoiceWakeWordService>();
     }
+    if (sl.isRegistered<VoiceMediaButtonService>()) {
+      sl.unregister<VoiceMediaButtonService>();
+    }
     sl.registerSingleton<VoiceWakeWordService>(wakeWordService);
+    sl.registerSingleton<VoiceMediaButtonService>(mediaButtonService);
 
     when(() => settingsCubit.state).thenReturn(defaultSettings);
     whenListen(
@@ -103,7 +131,11 @@ void main() {
     if (sl.isRegistered<VoiceWakeWordService>()) {
       sl.unregister<VoiceWakeWordService>();
     }
+    if (sl.isRegistered<VoiceMediaButtonService>()) {
+      sl.unregister<VoiceMediaButtonService>();
+    }
     await wakeWordService.dispose();
+    await mediaButtonService.dispose();
   });
 
   group('VoiceFab — authenticated user', () {

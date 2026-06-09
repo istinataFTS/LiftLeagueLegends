@@ -8,6 +8,7 @@ import '../../../../core/logging/app_logger.dart';
 import '../../../../core/themes/app_theme.dart';
 import '../../../../domain/entities/app_session.dart';
 import '../../../../domain/entities/voice_settings.dart';
+import '../../../../domain/services/voice_media_button_service.dart';
 import '../../../../domain/services/voice_permission_service.dart';
 import '../../../../domain/services/voice_wake_word_service.dart';
 import '../../../../injection/injection_container.dart';
@@ -45,8 +46,13 @@ class _VoiceFabState extends State<VoiceFab>
   /// rule because the type does not end in `Bloc`/`Cubit`.
   late final VoiceWakeWordService _wakeWordService;
 
+  /// Media-button service is a DI singleton, captured once in [initState].
+  /// Lifecycle mirrors [_wakeWordService] — started/stopped at the same gates.
+  late final VoiceMediaButtonService _mediaButtonService;
+
   StreamSubscription<WakeWordPreset>? _wakeWordSub;
   StreamSubscription<VoiceWakeWordException>? _wakeWordErrorSub;
+  StreamSubscription<void>? _mediaButtonSub;
   bool _overlayOpen = false;
 
   @override
@@ -54,6 +60,7 @@ class _VoiceFabState extends State<VoiceFab>
     super.initState();
     WidgetsBinding.instance.addObserver(this);
     _wakeWordService = sl<VoiceWakeWordService>();
+    _mediaButtonService = sl<VoiceMediaButtonService>();
 
     _pulseController = AnimationController(
       vsync: this,
@@ -70,6 +77,7 @@ class _VoiceFabState extends State<VoiceFab>
 
     _listenToWakeWordStream();
     _listenToWakeWordErrors();
+    _listenToMediaButtonStream();
     _startWakeWordIfArmed();
   }
 
@@ -78,7 +86,9 @@ class _VoiceFabState extends State<VoiceFab>
     WidgetsBinding.instance.removeObserver(this);
     _wakeWordSub?.cancel();
     _wakeWordErrorSub?.cancel();
+    _mediaButtonSub?.cancel();
     unawaited(_wakeWordService.stop());
+    unawaited(_mediaButtonService.stop());
     _pulseController.dispose();
     super.dispose();
   }
@@ -95,6 +105,7 @@ class _VoiceFabState extends State<VoiceFab>
       case AppLifecycleState.detached:
       case AppLifecycleState.hidden:
         unawaited(_wakeWordService.stop());
+        unawaited(_mediaButtonService.stop());
         _stopPulse();
     }
   }
@@ -117,6 +128,7 @@ class _VoiceFabState extends State<VoiceFab>
             category: 'voice',
           );
         });
+    unawaited(_mediaButtonService.start());
   }
 
   void _listenToWakeWordStream() {
@@ -132,6 +144,12 @@ class _VoiceFabState extends State<VoiceFab>
         error: e,
         category: 'voice',
       );
+    });
+  }
+
+  void _listenToMediaButtonStream() {
+    _mediaButtonSub = _mediaButtonService.onMediaButtonPressed.listen((_) {
+      _onWakeWordFired();
     });
   }
 
@@ -197,6 +215,11 @@ class _VoiceFabState extends State<VoiceFab>
       }
       _stopPulse();
     }
+    // Stop the media-button service unconditionally — it can be active even
+    // when the wake-word engine isn't (e.g. wake-word start failed but
+    // media-button start succeeded). Without this, the media session would
+    // leak across the overlay handoff.
+    unawaited(_mediaButtonService.stop());
 
     await Navigator.of(context).push(
       PageRouteBuilder<void>(
@@ -248,6 +271,7 @@ class _VoiceFabState extends State<VoiceFab>
       listener: (context, settings) {
         if (!settings.wakeWordArmedInForeground) {
           _wakeWordService.stop();
+          _mediaButtonService.stop();
           _stopPulse();
         } else {
           _startWakeWordIfArmed();

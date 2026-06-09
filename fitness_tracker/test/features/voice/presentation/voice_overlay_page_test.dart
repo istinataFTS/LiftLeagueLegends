@@ -5,6 +5,7 @@ import 'package:fitness_tracker/core/network/network_status_service.dart';
 import 'package:fitness_tracker/domain/entities/app_session.dart';
 import 'package:fitness_tracker/domain/entities/app_user.dart';
 import 'package:fitness_tracker/domain/entities/voice_settings.dart';
+import 'package:fitness_tracker/domain/services/voice_media_button_service.dart';
 import 'package:fitness_tracker/domain/services/voice_wake_word_service.dart';
 import 'package:fitness_tracker/features/history/history.dart';
 import 'package:fitness_tracker/features/history/presentation/bloc/history_effect.dart';
@@ -38,6 +39,31 @@ class _MockNutritionLogBloc
 
 class _MockHistoryBloc extends MockBloc<HistoryEvent, HistoryState>
     implements HistoryBloc {}
+
+// ---------------------------------------------------------------------------
+// Media button service — records starts/stops and can emit presses
+// ---------------------------------------------------------------------------
+
+class _FakeVoiceMediaButtonService implements VoiceMediaButtonService {
+  bool _running = false;
+  final _pressCtrl = StreamController<void>.broadcast();
+
+  @override
+  Stream<void> get onMediaButtonPressed => _pressCtrl.stream;
+
+  @override
+  bool get isRunning => _running;
+
+  @override
+  Future<void> start() async => _running = true;
+
+  @override
+  Future<void> stop() async => _running = false;
+
+  void emitPress() => _pressCtrl.add(null);
+
+  Future<void> dispose() => _pressCtrl.close();
+}
 
 // ---------------------------------------------------------------------------
 // Wake word service — records every start/stop call
@@ -113,6 +139,7 @@ void main() {
   late _MockVoiceBloc voiceBloc;
   late _MockVoiceSettingsCubit settingsCubit;
   late _TrackingWakeWordService wakeService;
+  late _FakeVoiceMediaButtonService mediaButtonService;
   late _MockWorkoutBloc workoutBloc;
   late _MockNutritionLogBloc nutritionBloc;
   late _MockHistoryBloc historyBloc;
@@ -125,6 +152,7 @@ void main() {
     voiceBloc = _MockVoiceBloc();
     settingsCubit = _MockVoiceSettingsCubit();
     wakeService = _TrackingWakeWordService();
+    mediaButtonService = _FakeVoiceMediaButtonService();
     workoutBloc = _MockWorkoutBloc();
     nutritionBloc = _MockNutritionLogBloc();
     historyBloc = _MockHistoryBloc();
@@ -161,12 +189,16 @@ void main() {
     if (sl.isRegistered<VoiceWakeWordService>()) {
       sl.unregister<VoiceWakeWordService>();
     }
+    if (sl.isRegistered<VoiceMediaButtonService>()) {
+      sl.unregister<VoiceMediaButtonService>();
+    }
     if (sl.isRegistered<NetworkStatusService>()) {
       sl.unregister<NetworkStatusService>();
     }
 
     sl.registerSingleton<VoiceBloc>(voiceBloc);
     sl.registerSingleton<VoiceWakeWordService>(wakeService);
+    sl.registerSingleton<VoiceMediaButtonService>(mediaButtonService);
     sl.registerSingleton<NetworkStatusService>(_FakeNetworkStatus());
   });
 
@@ -174,6 +206,9 @@ void main() {
     if (sl.isRegistered<VoiceBloc>()) sl.unregister<VoiceBloc>();
     if (sl.isRegistered<VoiceWakeWordService>()) {
       sl.unregister<VoiceWakeWordService>();
+    }
+    if (sl.isRegistered<VoiceMediaButtonService>()) {
+      sl.unregister<VoiceMediaButtonService>();
     }
     if (sl.isRegistered<NetworkStatusService>()) {
       sl.unregister<NetworkStatusService>();
@@ -183,6 +218,7 @@ void main() {
     await nutritionEffectsCtrl.close();
     await historyEffectsCtrl.close();
     await wakeService.dispose();
+    await mediaButtonService.dispose();
   });
 
   Widget buildSubject() {
@@ -257,6 +293,38 @@ void main() {
       await tester.pumpAndSettle();
 
       expect(wakeService.calls.where((c) => c == 'start'), isEmpty);
+    });
+  });
+
+  group('VoiceOverlayPage — media button wiring', () {
+    testWidgets('press while idle dispatches VoiceListenRequested', (
+      tester,
+    ) async {
+      await tester.pumpWidget(buildSubject());
+      await tester.pumpAndSettle();
+
+      mediaButtonService.emitPress();
+      await tester.pump();
+
+      verify(() => voiceBloc.add(const VoiceListenRequested())).called(1);
+    });
+
+    testWidgets('press while not idle does not dispatch VoiceListenRequested', (
+      tester,
+    ) async {
+      whenListen(
+        voiceBloc,
+        Stream<VoiceState>.empty(),
+        initialState: const VoiceState(status: VoiceStatus.listening),
+      );
+
+      await tester.pumpWidget(buildSubject());
+      await tester.pumpAndSettle();
+
+      mediaButtonService.emitPress();
+      await tester.pump();
+
+      verifyNever(() => voiceBloc.add(const VoiceListenRequested()));
     });
   });
 }
