@@ -77,13 +77,15 @@ Deno.test("tools: MUTATION_TOOLS contains exactly the 6 mutation tool names", ()
 
 // ── QUERY_TOOLS ──────────────────────────────────────────────────────────────
 
-Deno.test("tools: QUERY_TOOLS contains exactly the 3 query tool names", () => {
+Deno.test("tools: QUERY_TOOLS contains exactly the 5 query tool names", () => {
   const expected = new Set([
     "getWeeklyVolume",
     "getDailyMacros",
     "getRecentSets",
+    "getDailyNutritionLog",
+    "getWorkoutForDay",
   ]);
-  assertEquals(QUERY_TOOLS.size, 3, "QUERY_TOOLS must have exactly 3 entries");
+  assertEquals(QUERY_TOOLS.size, 5, "QUERY_TOOLS must have exactly 5 entries");
   for (const name of expected) {
     assertEquals(
       QUERY_TOOLS.has(name),
@@ -95,11 +97,11 @@ Deno.test("tools: QUERY_TOOLS contains exactly the 3 query tool names", () => {
 
 // ── Registry completeness ────────────────────────────────────────────────────
 
-Deno.test("tools: TOOL_REGISTRY contains exactly 10 tools", () => {
+Deno.test("tools: TOOL_REGISTRY contains exactly 12 tools", () => {
   assertEquals(
     TOOL_REGISTRY.length,
-    10,
-    "TOOL_REGISTRY must have exactly 10 tools",
+    12,
+    "TOOL_REGISTRY must have exactly 12 tools",
   );
 });
 
@@ -178,6 +180,44 @@ Deno.test("tools: clarify requires question", () => {
   const tool = TOOL_REGISTRY.find((t) => t.name === "clarify")!;
   const required = (tool.parameters as { required: string[] }).required;
   assertEquals(required.includes("question"), true);
+});
+
+Deno.test("tools: getWorkoutForDay is registered and in QUERY_TOOLS, not MUTATION_TOOLS", () => {
+  const registryNames = new Set(TOOL_REGISTRY.map((t) => t.name));
+  assertEquals(
+    registryNames.has("getWorkoutForDay"),
+    true,
+    "TOOL_REGISTRY must contain getWorkoutForDay",
+  );
+  assertEquals(
+    QUERY_TOOLS.has("getWorkoutForDay"),
+    true,
+    "QUERY_TOOLS must contain getWorkoutForDay",
+  );
+  assertEquals(
+    MUTATION_TOOLS.has("getWorkoutForDay"),
+    false,
+    "MUTATION_TOOLS must NOT contain getWorkoutForDay",
+  );
+});
+
+Deno.test("tools: getDailyNutritionLog is registered and in QUERY_TOOLS, not MUTATION_TOOLS", () => {
+  const registryNames = new Set(TOOL_REGISTRY.map((t) => t.name));
+  assertEquals(
+    registryNames.has("getDailyNutritionLog"),
+    true,
+    "TOOL_REGISTRY must contain getDailyNutritionLog",
+  );
+  assertEquals(
+    QUERY_TOOLS.has("getDailyNutritionLog"),
+    true,
+    "QUERY_TOOLS must contain getDailyNutritionLog",
+  );
+  assertEquals(
+    MUTATION_TOOLS.has("getDailyNutritionLog"),
+    false,
+    "MUTATION_TOOLS must NOT contain getDailyNutritionLog",
+  );
 });
 
 Deno.test("tools: query tools have no required fields", () => {

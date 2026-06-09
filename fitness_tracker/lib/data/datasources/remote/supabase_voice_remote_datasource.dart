@@ -265,6 +265,8 @@ class SupabaseVoiceRemoteDataSource implements VoiceRemoteDataSource {
         'getWeeklyVolume',
         'getDailyMacros',
         'getRecentSets',
+        'getDailyNutritionLog',
+        'getWorkoutForDay',
       };
       if (queryTools.contains(toolName)) {
         return VoiceChatQueryCall(
