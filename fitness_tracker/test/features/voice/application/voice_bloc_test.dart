@@ -2176,6 +2176,7 @@ void main() {
       expect(tts.lastSpoken?.contains('Chicken'), isTrue);
       expect(tts.lastSpoken?.contains('230'), isTrue);
       expect(bloc.state.pendingConfirmation, isNull);
+      expect(bloc.state.status, VoiceStatus.idle);
       await bloc.close();
     });
 

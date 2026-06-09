@@ -215,8 +215,9 @@ const getWeeklyVolume: ToolDefinition = {
 const getDailyMacros: ToolDefinition = {
   name: "getDailyMacros",
   description:
-    "Retrieve total macros (protein, carbs, fat, calories) logged for a given day. " +
-    'Use when the user asks "what did I eat today", "how many calories yesterday", etc.',
+    "Retrieve aggregated macro totals (protein, carbs, fat, calories) for a given day — NOT individual meals or food listings. " +
+    'Use when the user asks "how many calories today", "total protein yesterday", "what are my macros", etc. ' +
+    "For individual meal/food listings, use getDailyNutritionLog instead.",
   parameters: {
     type: "object",
     properties: {
