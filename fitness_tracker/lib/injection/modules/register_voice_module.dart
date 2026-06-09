@@ -1,3 +1,5 @@
+import 'dart:io';
+
 import 'package:get_it/get_it.dart';
 
 import '../../core/network/network_status_service.dart';
@@ -12,6 +14,7 @@ import '../../domain/repositories/app_settings_repository.dart';
 import '../../domain/repositories/meal_repository.dart';
 import '../../domain/repositories/voice_repository.dart';
 import '../../domain/services/voice_earcon_service.dart';
+import '../../domain/services/voice_media_button_service.dart';
 import '../../domain/services/voice_permission_service.dart';
 import '../../domain/services/voice_stt_service.dart';
 import '../../domain/services/voice_tts_service.dart';
@@ -36,6 +39,8 @@ import '../../features/voice/data/parser/matchers/nutrition_matchers.dart';
 import '../../features/voice/data/parser/matchers/query_matchers.dart';
 import '../../features/voice/data/parser/matchers/workout_set_matchers.dart';
 import '../../features/voice/data/services/flutter_tts_voice_tts_service.dart';
+import '../../features/voice/data/services/noop_voice_media_button_service.dart';
+import '../../features/voice/data/services/platform_channel_voice_media_button_service.dart';
 import '../../features/voice/data/services/just_audio_voice_earcon_service.dart';
 import '../../features/voice/data/services/network_aware_voice_stt_service.dart';
 import '../../features/voice/data/services/permission_handler_voice_permission_service.dart';
@@ -83,6 +88,16 @@ void registerVoiceModule(GetIt sl) {
   // (start on resume, stop on background).
   sl.registerLazySingleton<VoiceWakeWordService>(
     SherpaOnnxVoiceWakeWordService.new,
+  );
+
+  // ── Media-button (headphone tap-to-wake) service ───────────────────────
+  // Android: native MediaSessionCompat forwards headset/BT presses.
+  // Other platforms: no-op (stream never emits). Lifecycle mirrors the
+  // wake-word engine — started/stopped in VoiceFab (Plan 3 commit 2).
+  sl.registerLazySingleton<VoiceMediaButtonService>(
+    () => Platform.isAndroid
+        ? PlatformChannelVoiceMediaButtonService()
+        : NoopVoiceMediaButtonService(),
   );
 
   // ── Wakelock service ───────────────────────────────────────────────────
