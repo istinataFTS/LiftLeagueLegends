@@ -90,6 +90,36 @@ void main() {
       expect(methodCalls.where((m) => m == 'stop'), isEmpty);
     });
 
+    test(
+      'per-call futures complete against their own requested transition',
+      () async {
+        final startGate = Completer<void>();
+        TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
+            .setMockMethodCallHandler(const MethodChannel(methodChannelName), (
+              MethodCall call,
+            ) async {
+              methodCalls.add(call.method);
+              if (call.method == 'start') await startGate.future;
+              return null;
+            });
+
+        final startFut = service.start();
+        await Future<void>.delayed(Duration.zero);
+        final stopFut = service.stop();
+        startGate.complete();
+
+        await startFut;
+        // start's future resolved when the native start landed — at that
+        // moment the session was active. A shared-future design would have
+        // blocked startFut until the coalesced stop also ran, so this would
+        // be false there.
+        expect(service.isRunning, isTrue);
+
+        await stopFut;
+        expect(service.isRunning, isFalse);
+      },
+    );
+
     test('stop requested during in-flight start still tears down', () async {
       final startGate = Completer<void>();
       TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
