@@ -128,7 +128,13 @@ class _VoiceFabState extends State<VoiceFab>
             category: 'voice',
           );
         });
-    unawaited(_mediaButtonService.start());
+    _mediaButtonService.start().catchError((Object e) {
+      AppLogger.warning(
+        'VoiceFab: failed to start media-button service',
+        error: e,
+        category: 'voice',
+      );
+    });
   }
 
   void _listenToWakeWordStream() {
