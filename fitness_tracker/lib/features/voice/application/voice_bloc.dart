@@ -1601,6 +1601,8 @@ class VoiceBloc extends Bloc<VoiceEvent, VoiceState>
           return await _queryDailyNutritionLog(args);
         case 'getWorkoutForDay':
           return await _queryWorkoutForDay(args);
+        case 'getTrainingDays':
+          return await _queryTrainingDays(args);
         default:
           AppLogger.warning('VoiceBloc: unknown query tool: $toolName');
           return AppStrings.voiceSpokenGenericError;
@@ -1720,6 +1722,27 @@ class VoiceBloc extends Bloc<VoiceEvent, VoiceState>
           })
           .join('. ');
       return AppStrings.voiceQueryWorkoutForDayResult(lines);
+    });
+  }
+
+  Future<String> _queryTrainingDays(Map<String, dynamic> args) async {
+    final startDateStr = args['startDate'] as String?;
+    final endDateStr = args['endDate'] as String?;
+    final start = startDateStr != null
+        ? _parseIsoDate(startDateStr) ?? _startOfCurrentWeek()
+        : _startOfCurrentWeek();
+    final end = endDateStr != null
+        ? _parseIsoDate(endDateStr) ?? DateTime.now()
+        : DateTime.now();
+    final result = await _getSetsByDateRange(startDate: start, endDate: end);
+    return result.fold((_) => AppStrings.voiceQueryTrainingDaysUnavailable, (
+      sets,
+    ) {
+      final distinctDays = sets
+          .map((s) => DateTime(s.date.year, s.date.month, s.date.day))
+          .toSet();
+      if (distinctDays.isEmpty) return AppStrings.voiceQueryNoTrainingDays;
+      return AppStrings.voiceQueryTrainingDaysResult(distinctDays.length);
     });
   }
 

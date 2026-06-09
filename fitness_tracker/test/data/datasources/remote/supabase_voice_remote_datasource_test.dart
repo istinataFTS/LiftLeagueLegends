@@ -64,6 +64,16 @@ void main() {
       expect(result, isA<VoiceChatQueryCall>());
     });
 
+    test('getTrainingDays tool_call → VoiceChatQueryCall (not mutation)', () {
+      final result = SupabaseVoiceRemoteDataSource.parseResult(
+        _toolCall('getTrainingDays', {
+          'startDate': '2026-06-03',
+          'endDate': '2026-06-09',
+        }),
+      );
+      expect(result, isA<VoiceChatQueryCall>());
+    });
+
     test('mutation tool_call → VoiceChatMutationCall', () {
       final result = SupabaseVoiceRemoteDataSource.parseResult(
         _toolCall('logWorkoutSet', {
