@@ -92,6 +92,7 @@ Numbered steps or a short paragraph. State what to do and what *not* to do.
 20. [voice-whisper-hallucinates-on-silent-audio](#voice-whisper-hallucinates-on-silent-audio)
 21. [voice-wake-word-keyword-miss-rate](#voice-wake-word-keyword-miss-rate)
 22. [voice-wake-word-engine-stops-when-overlay-opens](#voice-wake-word-engine-stops-when-overlay-opens)
+23. [headphone-tap-to-wake-unreliable-on-airpods-and-when-another-app-holds-media-focus](#headphone-tap-to-wake-unreliable-on-airpods-and-when-another-app-holds-media-focus)
 
 ### Database
 11. [sqflite-version-15-rejects-incompatible-legacy-databases](#sqflite-version-15-rejects-incompatible-legacy-databases)
@@ -986,6 +987,33 @@ Gate the wake engine on voice status rather than overlay visibility. A `BlocList
 - `lib/core/constants/voice_constants.dart` — `wakeWordMicAcquireMaxAttempts`, `wakeWordMicAcquireRetryDelay`
 - `test/features/voice/presentation/voice_overlay_page_test.dart` — wake engine lifecycle group
 - redesign-overview.md §8; Plan 2 §2.2, commit 6
+
+---
+
+### headphone-tap-to-wake-unreliable-on-airpods-and-when-another-app-holds-media-focus
+
+- **Severity:** Low
+- **Status:** Mitigated
+- **First observed:** 2026-06-08
+- **Last verified:** 2026-06-08
+- **Area:** voice
+
+**Symptom**
+
+A single headphone tap sometimes does not wake the bot — notably with AirPods on Android, or when a music app is the active media-button target.
+
+**Root cause**
+
+Android routes media buttons to the app holding the active MediaSession / audio focus; Apple does not expose AirPods tap gestures as standard media buttons off-iOS.
+
+**Workaround / fix**
+
+Keep the app's MediaSession active while the wake word is armed in the foreground (Plan 3). Wake-word remains the reliable fallback. No background service or silent audio is used to force the route (battery/policy cost).
+
+**References**
+
+- `redesign-plan-3-headphone-tap-to-wake.md §0` — known limitations
+- `redesign-overview.md §12` — plan sequencing
 
 ---
 
