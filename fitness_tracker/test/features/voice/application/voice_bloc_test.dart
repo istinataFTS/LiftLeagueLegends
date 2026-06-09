@@ -2119,6 +2119,100 @@ void main() {
   });
 
   // -------------------------------------------------------------------------
+  // getDailyNutritionLog
+  // -------------------------------------------------------------------------
+
+  group('getDailyNutritionLog query', () {
+    test('speaks list of meals with calories and ends at idle', () async {
+      final localLogs = MockGetLogsForDate();
+      when(() => localLogs(any())).thenAnswer(
+        (_) async => Right([
+          NutritionLog(
+            id: 'log-1',
+            mealName: 'Oats',
+            proteinGrams: 10,
+            carbsGrams: 50,
+            fatGrams: 5,
+            calories: 300,
+            loggedAt: _now,
+            createdAt: _now,
+          ),
+          NutritionLog(
+            id: 'log-2',
+            mealName: 'Chicken',
+            proteinGrams: 40,
+            carbsGrams: 0,
+            fatGrams: 8,
+            calories: 230,
+            loggedAt: _now,
+            createdAt: _now,
+          ),
+        ]),
+      );
+
+      final tts = FakeVoiceTtsService();
+      final bloc = _makeBloc(
+        sendVoiceMessage: sendVoiceMessage,
+        getVoiceBudget: getBudget,
+        deleteVoiceHistory: deleteHistory,
+        appSettingsRepository: settingsRepo,
+        exerciseLookup: exerciseLookup,
+        getSetsByDateRange: getSetsByDateRange,
+        getLogsForDate: localLogs,
+        getDailyMacros: getDailyMacros,
+        tts: tts,
+      );
+
+      await runQueryFlow(
+        bloc: bloc,
+        sendVoiceMessage: sendVoiceMessage,
+        toolName: 'getDailyNutritionLog',
+        args: const {'date': '2026-06-09'},
+        session: authSession(),
+      );
+
+      expect(tts.lastSpoken?.contains('Oats'), isTrue);
+      expect(tts.lastSpoken?.contains('300'), isTrue);
+      expect(tts.lastSpoken?.contains('Chicken'), isTrue);
+      expect(tts.lastSpoken?.contains('230'), isTrue);
+      expect(bloc.state.pendingConfirmation, isNull);
+      expect(bloc.state.status, VoiceStatus.idle);
+      await bloc.close();
+    });
+
+    test('empty day speaks voiceQueryNothingLogged', () async {
+      final localLogs = MockGetLogsForDate();
+      when(
+        () => localLogs(any()),
+      ).thenAnswer((_) async => const Right(<NutritionLog>[]));
+
+      final tts = FakeVoiceTtsService();
+      final bloc = _makeBloc(
+        sendVoiceMessage: sendVoiceMessage,
+        getVoiceBudget: getBudget,
+        deleteVoiceHistory: deleteHistory,
+        appSettingsRepository: settingsRepo,
+        exerciseLookup: exerciseLookup,
+        getSetsByDateRange: getSetsByDateRange,
+        getLogsForDate: localLogs,
+        getDailyMacros: getDailyMacros,
+        tts: tts,
+      );
+
+      await runQueryFlow(
+        bloc: bloc,
+        sendVoiceMessage: sendVoiceMessage,
+        toolName: 'getDailyNutritionLog',
+        args: const {},
+        session: authSession(),
+      );
+
+      expect(tts.lastSpoken, equals(AppStrings.voiceQueryNothingLogged));
+      await bloc.close();
+    });
+  });
+
+  // -------------------------------------------------------------------------
   // clarify -- ambiguous input returns a clarifying question
   // -------------------------------------------------------------------------
 

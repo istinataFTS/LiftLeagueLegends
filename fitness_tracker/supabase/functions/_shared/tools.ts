@@ -215,8 +215,9 @@ const getWeeklyVolume: ToolDefinition = {
 const getDailyMacros: ToolDefinition = {
   name: "getDailyMacros",
   description:
-    "Retrieve total macros (protein, carbs, fat, calories) logged for a given day. " +
-    'Use when the user asks "what did I eat today", "how many calories yesterday", etc.',
+    "Retrieve aggregated macro totals (protein, carbs, fat, calories) for a given day — NOT individual meals or food listings. " +
+    'Use when the user asks "how many calories today", "total protein yesterday", "what are my macros", etc. ' +
+    "For individual meal/food listings, use getDailyNutritionLog instead.",
   parameters: {
     type: "object",
     properties: {
@@ -246,6 +247,24 @@ const getRecentSets: ToolDefinition = {
         minimum: 1,
         maximum: 10,
         description: "Max results. Default 5.",
+      },
+    },
+    required: [],
+  },
+};
+
+const getDailyNutritionLog: ToolDefinition = {
+  name: "getDailyNutritionLog",
+  description:
+    "List the individual meals/foods the user logged on a given day (names and calories), " +
+    'NOT just the macro totals. Use when the user asks "what did I eat today / yesterday / on <date>". ' +
+    "For total calories/macros only, use getDailyMacros instead.",
+  parameters: {
+    type: "object",
+    properties: {
+      date: {
+        type: "string",
+        description: "ISO date yyyy-MM-dd. Defaults to today.",
       },
     },
     required: [],
@@ -282,6 +301,7 @@ export const TOOL_REGISTRY: ReadonlyArray<ToolDefinition> = [
   getWeeklyVolume,
   getDailyMacros,
   getRecentSets,
+  getDailyNutritionLog,
   clarify,
 ];
 
@@ -300,4 +320,5 @@ export const QUERY_TOOLS: ReadonlySet<string> = new Set([
   "getWeeklyVolume",
   "getDailyMacros",
   "getRecentSets",
+  "getDailyNutritionLog",
 ]);

@@ -1597,6 +1597,8 @@ class VoiceBloc extends Bloc<VoiceEvent, VoiceState>
           return await _queryDailyMacros(args);
         case 'getRecentSets':
           return await _queryRecentSets(args);
+        case 'getDailyNutritionLog':
+          return await _queryDailyNutritionLog(args);
         default:
           AppLogger.warning('VoiceBloc: unknown query tool: $toolName');
           return AppStrings.voiceSpokenGenericError;
@@ -1679,6 +1681,23 @@ class VoiceBloc extends Bloc<VoiceEvent, VoiceState>
 
       if (calories == 0) return AppStrings.voiceQueryNothingLogged;
       return AppStrings.voiceQueryMacroResult(calories, protein, carbs, fats);
+    });
+  }
+
+  Future<String> _queryDailyNutritionLog(Map<String, dynamic> args) async {
+    final dateStr = args['date'] as String?;
+    final date = dateStr != null
+        ? _parseIsoDate(dateStr) ?? DateTime.now()
+        : DateTime.now();
+    final result = await _getLogsForDate(date);
+    return result.fold((_) => AppStrings.voiceQueryNutritionUnavailable, (
+      logs,
+    ) {
+      if (logs.isEmpty) return AppStrings.voiceQueryNothingLogged;
+      final items = logs
+          .map((l) => '${l.mealName}, ${l.calories.round()} calories')
+          .join('. ');
+      return AppStrings.voiceQueryNutritionLogResult(items);
     });
   }
 
