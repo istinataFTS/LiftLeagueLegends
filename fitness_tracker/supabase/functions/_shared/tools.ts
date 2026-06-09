@@ -252,6 +252,24 @@ const getRecentSets: ToolDefinition = {
   },
 };
 
+const getDailyNutritionLog: ToolDefinition = {
+  name: "getDailyNutritionLog",
+  description:
+    "List the individual meals/foods the user logged on a given day (names and calories), " +
+    'NOT just the macro totals. Use when the user asks "what did I eat today / yesterday / on <date>". ' +
+    "For total calories/macros only, use getDailyMacros instead.",
+  parameters: {
+    type: "object",
+    properties: {
+      date: {
+        type: "string",
+        description: "ISO date yyyy-MM-dd. Defaults to today.",
+      },
+    },
+    required: [],
+  },
+};
+
 // ── Clarify pseudo-tool (client maps to plain text response) ────────────────
 
 const clarify: ToolDefinition = {
@@ -282,6 +300,7 @@ export const TOOL_REGISTRY: ReadonlyArray<ToolDefinition> = [
   getWeeklyVolume,
   getDailyMacros,
   getRecentSets,
+  getDailyNutritionLog,
   clarify,
 ];
 
@@ -300,4 +319,5 @@ export const QUERY_TOOLS: ReadonlySet<string> = new Set([
   "getWeeklyVolume",
   "getDailyMacros",
   "getRecentSets",
+  "getDailyNutritionLog",
 ]);

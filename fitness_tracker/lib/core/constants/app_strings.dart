@@ -627,6 +627,8 @@ class AppStrings {
       'No recent sets found for $exerciseName.';
   static String voiceQueryRecentSetsResult(String lines) =>
       'Most recent sets: $lines.';
+  static String voiceQueryNutritionLogResult(String items) =>
+      'You logged: $items.';
 
   // ── Voice offline coordinator strings ────────────────────────────────────
   static const String voiceOfflineUnrecognized =
