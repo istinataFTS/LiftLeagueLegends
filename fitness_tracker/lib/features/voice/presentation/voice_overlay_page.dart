@@ -10,6 +10,7 @@ import '../../../core/network/network_status_service.dart';
 import '../../../core/themes/app_theme.dart';
 import '../../../domain/entities/app_session.dart';
 import '../../../domain/entities/voice_settings.dart' show WakeWordPreset;
+import '../../../domain/services/voice_media_button_service.dart';
 import '../../../domain/services/voice_wake_word_service.dart';
 import '../../../injection/injection_container.dart';
 import '../application/voice_bloc.dart';
@@ -80,6 +81,7 @@ class _VoiceOverlayView extends StatefulWidget {
 class _VoiceOverlayViewState extends State<_VoiceOverlayView> {
   StreamSubscription<bool>? _connectivitySub;
   StreamSubscription<WakeWordPreset>? _wakeWordSub;
+  StreamSubscription<void>? _mediaButtonSub;
 
   /// Non-null while the user is correcting a pending confirmation via the
   /// edit bar. Set to the [VoiceToolCall.displaySummary] when Edit is tapped;
@@ -94,6 +96,7 @@ class _VoiceOverlayViewState extends State<_VoiceOverlayView> {
     _checkInitialConnectivity();
     _subscribeToConnectivity();
     _subscribeToWakeWord();
+    _subscribeToMediaButton();
     _armWakeEngineForOverlay();
     if (widget.openedByWakeWord) {
       // Auto-start STT on first frame: the user has already spoken the wake
@@ -109,6 +112,7 @@ class _VoiceOverlayViewState extends State<_VoiceOverlayView> {
   void dispose() {
     _connectivitySub?.cancel();
     _wakeWordSub?.cancel();
+    _mediaButtonSub?.cancel();
     _editController.dispose();
     super.dispose();
   }
@@ -148,6 +152,18 @@ class _VoiceOverlayViewState extends State<_VoiceOverlayView> {
     });
   }
 
+  void _subscribeToMediaButton() {
+    _mediaButtonSub = sl<VoiceMediaButtonService>().onMediaButtonPressed.listen(
+      (_) {
+        if (!mounted) return;
+        final bloc = context.read<VoiceBloc>();
+        if (bloc.state.status == VoiceStatus.idle) {
+          bloc.add(const VoiceListenRequested());
+        }
+      },
+    );
+  }
+
   // ── Wake engine (overlay-open period) ──────────────────────────────────────
 
   /// Arms the wake engine for the initial idle state when the overlay opens.
@@ -163,6 +179,7 @@ class _VoiceOverlayViewState extends State<_VoiceOverlayView> {
       if (!settings.wakeWordArmedInForeground) return;
       if (context.read<VoiceBloc>().state.status == VoiceStatus.idle) {
         unawaited(sl<VoiceWakeWordService>().start(settings.wakeWordPreset));
+        unawaited(sl<VoiceMediaButtonService>().start());
       }
     });
   }
@@ -175,14 +192,17 @@ class _VoiceOverlayViewState extends State<_VoiceOverlayView> {
       listenWhen: (prev, curr) => prev.status != curr.status,
       listener: (context, state) {
         final wake = sl<VoiceWakeWordService>();
+        final mediaButton = sl<VoiceMediaButtonService>();
         final settings = context.read<VoiceSettingsCubit>().state;
         if (state.status == VoiceStatus.idle &&
             settings.wakeWordArmedInForeground) {
           // Re-arm while idle so the user can re-wake without tapping (bug #4).
           unawaited(wake.start(settings.wakeWordPreset));
+          unawaited(mediaButton.start());
         } else {
           // Any active/transitional state needs the mic for STT — release it.
           unawaited(wake.stop());
+          unawaited(mediaButton.stop());
         }
       },
       child: BlocBuilder<VoiceBloc, VoiceState>(

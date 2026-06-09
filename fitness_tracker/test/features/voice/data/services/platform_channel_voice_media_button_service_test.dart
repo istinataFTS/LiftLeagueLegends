@@ -90,6 +90,95 @@ void main() {
       expect(methodCalls.where((m) => m == 'stop'), isEmpty);
     });
 
+    test(
+      'per-call futures complete against their own requested transition',
+      () async {
+        final startGate = Completer<void>();
+        TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
+            .setMockMethodCallHandler(const MethodChannel(methodChannelName), (
+              MethodCall call,
+            ) async {
+              methodCalls.add(call.method);
+              if (call.method == 'start') await startGate.future;
+              return null;
+            });
+
+        final startFut = service.start();
+        await Future<void>.delayed(Duration.zero);
+        final stopFut = service.stop();
+        startGate.complete();
+
+        await startFut;
+        // start's future resolved when the native start landed — at that
+        // moment the session was active. A shared-future design would have
+        // blocked startFut until the coalesced stop also ran, so this would
+        // be false there.
+        expect(service.isRunning, isTrue);
+
+        await stopFut;
+        expect(service.isRunning, isFalse);
+      },
+    );
+
+    test(
+      'synchronous start then stop at idle — both futures resolve',
+      () async {
+        final startFut = service.start();
+        final stopFut = service.stop();
+
+        await startFut;
+        await stopFut;
+
+        // Both calls honoured FIFO: native start then native stop.
+        expect(methodCalls, ['start', 'stop']);
+        expect(service.isRunning, isFalse);
+      },
+    );
+
+    test(
+      'synchronous stop then start when running — both futures resolve',
+      () async {
+        await service.start();
+        methodCalls.clear();
+
+        final stopFut = service.stop();
+        final startFut = service.start();
+
+        await stopFut;
+        await startFut;
+
+        expect(methodCalls, ['stop', 'start']);
+        expect(service.isRunning, isTrue);
+      },
+    );
+
+    test('stop requested during in-flight start still tears down', () async {
+      final startGate = Completer<void>();
+      TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
+          .setMockMethodCallHandler(const MethodChannel(methodChannelName), (
+            MethodCall call,
+          ) async {
+            methodCalls.add(call.method);
+            if (call.method == 'start') await startGate.future;
+            return null;
+          });
+
+      final startFut = service.start();
+      await Future<void>.delayed(Duration.zero);
+      // start has been invoked on the channel but is still pending.
+      expect(methodCalls, ['start']);
+      expect(service.isRunning, isFalse);
+
+      // stop is requested while start is mid-flight — must still tear down.
+      final stopFut = service.stop();
+      startGate.complete();
+      await startFut;
+      await stopFut;
+
+      expect(methodCalls, ['start', 'stop']);
+      expect(service.isRunning, isFalse);
+    });
+
     test('onMediaButtonPressed emits when event channel fires', () async {
       final emitted = <void>[];
       final sub = service.onMediaButtonPressed.listen((_) => emitted.add(null));
