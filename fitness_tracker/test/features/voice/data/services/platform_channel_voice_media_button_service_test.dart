@@ -90,6 +90,33 @@ void main() {
       expect(methodCalls.where((m) => m == 'stop'), isEmpty);
     });
 
+    test('stop requested during in-flight start still tears down', () async {
+      final startGate = Completer<void>();
+      TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
+          .setMockMethodCallHandler(const MethodChannel(methodChannelName), (
+            MethodCall call,
+          ) async {
+            methodCalls.add(call.method);
+            if (call.method == 'start') await startGate.future;
+            return null;
+          });
+
+      final startFut = service.start();
+      await Future<void>.delayed(Duration.zero);
+      // start has been invoked on the channel but is still pending.
+      expect(methodCalls, ['start']);
+      expect(service.isRunning, isFalse);
+
+      // stop is requested while start is mid-flight — must still tear down.
+      final stopFut = service.stop();
+      startGate.complete();
+      await startFut;
+      await stopFut;
+
+      expect(methodCalls, ['start', 'stop']);
+      expect(service.isRunning, isFalse);
+    });
+
     test('onMediaButtonPressed emits when event channel fires', () async {
       final emitted = <void>[];
       final sub = service.onMediaButtonPressed.listen((_) => emitted.add(null));

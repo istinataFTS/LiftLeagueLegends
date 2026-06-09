@@ -25,6 +25,15 @@ class PlatformChannelVoiceMediaButtonService
   StreamSubscription<Object?>? _eventSub;
   bool _isRunning = false;
 
+  /// Latest desired running state. Toggled synchronously by [start]/[stop]
+  /// so a `stop` requested mid-`start` is observed once the in-flight
+  /// method-channel call completes.
+  bool _desiredRunning = false;
+
+  /// Chain of pending transitions. Serializes start/stop so they cannot
+  /// race on the native session.
+  Future<void> _transition = Future<void>.value();
+
   PlatformChannelVoiceMediaButtonService({
     MethodChannel? methodChannel,
     EventChannel? eventChannel,
@@ -50,33 +59,42 @@ class PlatformChannelVoiceMediaButtonService
   bool get isRunning => _isRunning;
 
   @override
-  Future<void> start() async {
-    if (_isRunning) return;
-    try {
-      await _methodChannel.invokeMethod<void>('start');
-      _isRunning = true;
-    } catch (error) {
-      AppLogger.warning(
-        'PlatformChannelVoiceMediaButtonService: failed to start',
-        error: error,
-        category: _logCategory,
-      );
-    }
+  Future<void> start() {
+    _desiredRunning = true;
+    return _transition = _reconcile(_transition);
   }
 
   @override
-  Future<void> stop() async {
-    if (!_isRunning) return;
-    try {
-      await _methodChannel.invokeMethod<void>('stop');
-    } catch (error) {
-      AppLogger.warning(
-        'PlatformChannelVoiceMediaButtonService: failed to stop',
-        error: error,
-        category: _logCategory,
-      );
-    } finally {
-      _isRunning = false;
+  Future<void> stop() {
+    _desiredRunning = false;
+    return _transition = _reconcile(_transition);
+  }
+
+  /// Drives the native session toward [_desiredRunning] after [previous]
+  /// completes. The loop re-checks the desired state after every
+  /// method-channel call so a flip-flop during an in-flight call is
+  /// honoured once the call resolves.
+  Future<void> _reconcile(Future<void> previous) async {
+    await previous;
+    while (_desiredRunning != _isRunning) {
+      final desired = _desiredRunning;
+      try {
+        if (desired) {
+          await _methodChannel.invokeMethod<void>('start');
+          _isRunning = true;
+        } else {
+          await _methodChannel.invokeMethod<void>('stop');
+          _isRunning = false;
+        }
+      } catch (error) {
+        AppLogger.warning(
+          'PlatformChannelVoiceMediaButtonService: failed to '
+          '${desired ? "start" : "stop"}',
+          error: error,
+          category: _logCategory,
+        );
+        return;
+      }
     }
   }
 
