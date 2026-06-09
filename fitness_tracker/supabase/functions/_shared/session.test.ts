@@ -1,6 +1,6 @@
 import { assertEquals } from "@std/assert";
 import { appendSessionTurn } from "./session.ts";
-import type { SupabaseClient } from "@supabase/supabase-js";
+import type { SupabaseClient } from "./deps.ts";
 
 function makeRpcClient(
   onRpc: (fn: string, args: Record<string, unknown>) => { error: unknown },

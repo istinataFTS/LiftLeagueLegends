@@ -10,7 +10,7 @@ if (!Deno.env.get("OPENAI_API_KEY")) {
 import { assertEquals } from "@std/assert";
 import { _setFetch } from "../_shared/openai.ts";
 import { ErrorCodes } from "../_shared/errors.ts";
-import type { SupabaseClient } from "@supabase/supabase-js";
+import type { SupabaseClient } from "../_shared/deps.ts";
 
 const REAL_FETCH = globalThis.fetch;
 

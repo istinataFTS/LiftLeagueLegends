@@ -1,4 +1,4 @@
-import type { SupabaseClient } from "@supabase/supabase-js";
+import type { SupabaseClient } from "./deps.ts";
 import { PRICING_VERSION } from "./cost.ts";
 import type { UsageLogInput } from "./types.ts";
 
