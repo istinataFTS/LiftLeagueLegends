@@ -271,6 +271,24 @@ const getDailyNutritionLog: ToolDefinition = {
   },
 };
 
+const getWorkoutForDay: ToolDefinition = {
+  name: "getWorkoutForDay",
+  description:
+    "List the workout sets the user performed on a specific day (exercise, weight, reps). " +
+    'Use when the user asks "what did I do / train / lift on <date>" for one day. ' +
+    "For a week range or muscle-group totals, use getWeeklyVolume instead.",
+  parameters: {
+    type: "object",
+    properties: {
+      date: {
+        type: "string",
+        description: "ISO date yyyy-MM-dd. Defaults to today.",
+      },
+    },
+    required: [],
+  },
+};
+
 // ── Clarify pseudo-tool (client maps to plain text response) ────────────────
 
 const clarify: ToolDefinition = {
@@ -302,6 +320,7 @@ export const TOOL_REGISTRY: ReadonlyArray<ToolDefinition> = [
   getDailyMacros,
   getRecentSets,
   getDailyNutritionLog,
+  getWorkoutForDay,
   clarify,
 ];
 
@@ -321,4 +340,5 @@ export const QUERY_TOOLS: ReadonlySet<string> = new Set([
   "getDailyMacros",
   "getRecentSets",
   "getDailyNutritionLog",
+  "getWorkoutForDay",
 ]);

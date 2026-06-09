@@ -629,6 +629,12 @@ class AppStrings {
       'Most recent sets: $lines.';
   static String voiceQueryNutritionLogResult(String items) =>
       'You logged: $items.';
+  static const String voiceQueryWorkoutForDayUnavailable =
+      'I could not retrieve your workout for that day right now.';
+  static const String voiceQueryNoSetsForDay =
+      'No sets were logged on that day.';
+  static String voiceQueryWorkoutForDayResult(String lines) =>
+      'On that day you did: $lines.';
 
   // ── Voice offline coordinator strings ────────────────────────────────────
   static const String voiceOfflineUnrecognized =

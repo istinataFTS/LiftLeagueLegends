@@ -1599,6 +1599,8 @@ class VoiceBloc extends Bloc<VoiceEvent, VoiceState>
           return await _queryRecentSets(args);
         case 'getDailyNutritionLog':
           return await _queryDailyNutritionLog(args);
+        case 'getWorkoutForDay':
+          return await _queryWorkoutForDay(args);
         default:
           AppLogger.warning('VoiceBloc: unknown query tool: $toolName');
           return AppStrings.voiceSpokenGenericError;
@@ -1698,6 +1700,26 @@ class VoiceBloc extends Bloc<VoiceEvent, VoiceState>
           .map((l) => '${l.mealName}, ${l.calories.round()} calories')
           .join('. ');
       return AppStrings.voiceQueryNutritionLogResult(items);
+    });
+  }
+
+  Future<String> _queryWorkoutForDay(Map<String, dynamic> args) async {
+    final dateStr = args['date'] as String?;
+    final day = dateStr != null
+        ? _parseIsoDate(dateStr) ?? DateTime.now()
+        : DateTime.now();
+    final result = await _getSetsByDateRange(startDate: day, endDate: day);
+    return result.fold((_) => AppStrings.voiceQueryWorkoutForDayUnavailable, (
+      sets,
+    ) {
+      if (sets.isEmpty) return AppStrings.voiceQueryNoSetsForDay;
+      final lines = sets
+          .map((s) {
+            final name = _exerciseNameForId(s.exerciseId);
+            return '$name: ${s.weight} × ${s.reps} reps';
+          })
+          .join('. ');
+      return AppStrings.voiceQueryWorkoutForDayResult(lines);
     });
   }
 
