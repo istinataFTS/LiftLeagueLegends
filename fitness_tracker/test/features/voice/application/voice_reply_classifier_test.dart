@@ -21,6 +21,16 @@ void main() {
         'sounds good',
         'log it',
         'save it',
+        // widened in fix/voice-confirm-classifier-normalize
+        'i confirm',
+        'please confirm',
+        'yes confirm',
+        'okay',
+        'ok',
+        'correct',
+        "that's right",
+        'thats right',
+        'sure',
       ];
 
       for (final phrase in confirms) {
@@ -52,6 +62,10 @@ void main() {
         'never mind',
         'no',
         'stop',
+        // widened in fix/voice-confirm-classifier-normalize
+        'no thanks',
+        'nope',
+        'forget it',
       ];
 
       for (final phrase in cancels) {
@@ -98,9 +112,9 @@ void main() {
         );
       });
 
-      test('"no thanks" — cancel word not anchored to end', () {
+      test('"log bench press 80 kg" — workout log instruction', () {
         expect(
-          VoiceReplyClassifier.classify('no thanks'),
+          VoiceReplyClassifier.classify('log bench press 80 kg'),
           VoiceReplyKind.correction,
         );
       });
@@ -163,6 +177,94 @@ void main() {
           VoiceReplyKind.correction,
         );
       });
+
+      // New phrases: anchoring must still hold
+      test('"sure but make it 10" — new confirm word with extra data', () {
+        expect(
+          VoiceReplyClassifier.classify('sure but make it 10'),
+          VoiceReplyKind.correction,
+        );
+      });
+
+      test('"okay fine whatever" — new confirm word not anchored to end', () {
+        expect(
+          VoiceReplyClassifier.classify('okay fine whatever'),
+          VoiceReplyKind.correction,
+        );
+      });
+
+      test('"forget it all" — new cancel word not anchored to end', () {
+        expect(
+          VoiceReplyClassifier.classify('forget it all'),
+          VoiceReplyKind.correction,
+        );
+      });
     });
+
+    // -------------------------------------------------------------------------
+    // Whisper punctuation normalisation — STT capitalisation + trailing period
+    // These are the exact forms Whisper returns (device logcat verified).
+    // -------------------------------------------------------------------------
+
+    group(
+      'Whisper normalisation — capitalisation and trailing punctuation',
+      () {
+        test('"Confirm." — capital + trailing period → confirm', () {
+          expect(
+            VoiceReplyClassifier.classify('Confirm.'),
+            VoiceReplyKind.confirm,
+          );
+        });
+
+        test('"I confirm." — filler prefix + trailing period → confirm', () {
+          expect(
+            VoiceReplyClassifier.classify('I confirm.'),
+            VoiceReplyKind.confirm,
+          );
+        });
+
+        test('"Yes." — capital + trailing period → confirm', () {
+          expect(VoiceReplyClassifier.classify('Yes.'), VoiceReplyKind.confirm);
+        });
+
+        test('"confirm!" — trailing exclamation → confirm', () {
+          expect(
+            VoiceReplyClassifier.classify('confirm!'),
+            VoiceReplyKind.confirm,
+          );
+        });
+
+        test('"Okay." — capital + trailing period → confirm', () {
+          expect(
+            VoiceReplyClassifier.classify('Okay.'),
+            VoiceReplyKind.confirm,
+          );
+        });
+
+        test('"Cancel." — capital + trailing period → cancel', () {
+          expect(
+            VoiceReplyClassifier.classify('Cancel.'),
+            VoiceReplyKind.cancel,
+          );
+        });
+
+        test('"No thanks." — capital + trailing period → cancel', () {
+          expect(
+            VoiceReplyClassifier.classify('No thanks.'),
+            VoiceReplyKind.cancel,
+          );
+        });
+
+        test(
+          '"yes but make it 8" — normalisation does not drop middle content',
+          () {
+            expect(
+              VoiceReplyClassifier.classify('yes but make it 8'),
+              VoiceReplyKind.correction,
+            );
+          },
+        );
+      },
+    );
   });
 }
