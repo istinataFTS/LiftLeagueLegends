@@ -101,6 +101,7 @@ Numbered steps or a short paragraph. State what to do and what *not* to do.
 29. [voice-day-scoped-query-falls-back-to-last-referenced-date](#voice-day-scoped-query-falls-back-to-last-referenced-date)
 30. [voice-spoken-confirm-must-tolerate-stt-punctuation-and-filler](#voice-spoken-confirm-must-tolerate-stt-punctuation-and-filler)
 31. [voice-recent-nutrition-context-was-today-only](#voice-recent-nutrition-context-was-today-only)
+32. [voice-day-scoped-query-tools-omitted-from-must-call-rule](#voice-day-scoped-query-tools-omitted-from-must-call-rule)
 
 ### Database
 11. [sqflite-version-15-rejects-incompatible-legacy-databases](#sqflite-version-15-rejects-incompatible-legacy-databases)
@@ -1256,6 +1257,33 @@ Asking "what nutrition did I log on the 8th?" (or any day other than today) caus
 - `lib/injection/modules/register_voice_module.dart` — `getLogsByDateRange: sl<GetLogsByDateRange>()` wired into VoiceBloc factory
 - `test/features/voice/application/voice_bloc_test.dart` — `MockGetLogsByDateRange`; `_defaultGetLogsByDateRange`; new "recentNutritionLogs is non-empty" and "empty range" tests; `editNutritionLog` test updated to stub `getLogsByDateRange`
 - PR `#148` — fix: widen recent-nutrition context window to 7 days
+
+---
+
+### voice-day-scoped-query-tools-omitted-from-must-call-rule
+
+- **Severity:** High
+- **Status:** Resolved-but-monitor
+- **First observed:** 2026-06-10
+- **Last verified:** 2026-06-10
+- **Area:** voice
+
+**Symptom**
+
+After the recent-nutrition window was widened to 7 days (see `[[voice-recent-nutrition-context-was-today-only]]`), the model still sometimes answers day-specific questions ("what did I eat on the 8th?", "what did I train on Monday?") with free-text prose — "You haven't logged anything" or a summary invented from the recent context — instead of calling `getDailyNutritionLog` / `getWorkoutForDay` / `getTrainingDays`.
+
+**Root cause**
+
+The "Answer data questions only through a query tool" block in the system prompt (`voice-chat/index.ts`) enumerated only three tools: `getRecentSets`, `getWeeklyVolume`, `getDailyMacros`. The three day-scoped query tools (`getDailyNutritionLog`, `getWorkoutForDay`, `getTrainingDays`) were absent from that rule and from the parallel tool-usage bullet. The model treated the recent-sets/-logs context slots as the authoritative record for day-specific questions because nothing told it otherwise, and no rule forced a tool call for those queries. A second gap: nothing stated that the recent context is a truncated hint — the model could legitimately infer "the context is exhaustive; therefore nothing was logged."
+
+**Workaround / fix**
+
+Added all six query tools to the must-call rule and the tool-usage bullet. Added an explicit statement: "The recent sets/logs above are a **truncated hint** (a few recent rows), **not** the user's full history. NEVER conclude that something was not logged, or answer any 'what did I log / eat / lift on <day>' question, from that list. You MUST call the matching query tool and let the client speak the result." Requires a `Supabase Deploy` (functions target) to take effect on the self-hosted VPS (manual rsync of `_shared` + `voice-chat` to the docker volume, then `docker restart supabase-edge-functions`).
+
+**References**
+
+- `supabase/functions/voice-chat/index.ts` — "Answer data questions only through a query tool" block and tool-usage query rule
+- PR `#149` — fix: force query tool for day-scoped data; frame recent context as hint
 
 ---
 

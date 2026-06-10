@@ -613,6 +613,40 @@ Deno.test("buildSystemPrompt: contains explicit date-resolution rule", () => {
   );
 });
 
+Deno.test("buildSystemPrompt: must-call-query-tool rule lists all 6 query tools", () => {
+  const prompt = buildSystemPrompt({
+    currentDate: "2026-06-10",
+    weightUnit: "kg",
+    recentSets: [],
+    recentNutritionLogs: [],
+  });
+  // The "Answer data questions only through a query tool" block must enumerate
+  // all day-scoped tools so the model cannot skip them for day-specific queries.
+  assertEquals(prompt.includes("getDailyNutritionLog"), true);
+  assertEquals(prompt.includes("getWorkoutForDay"), true);
+  assertEquals(prompt.includes("getTrainingDays"), true);
+  assertEquals(prompt.includes("getRecentSets"), true);
+  assertEquals(prompt.includes("getWeeklyVolume"), true);
+  assertEquals(prompt.includes("getDailyMacros"), true);
+});
+
+Deno.test("buildSystemPrompt: recent context is framed as a truncated hint, not full history", () => {
+  const prompt = buildSystemPrompt({
+    currentDate: "2026-06-10",
+    weightUnit: "kg",
+    recentSets: [],
+    recentNutritionLogs: [],
+  });
+  // These two phrases are the load-bearing anti-hallucination rule added in
+  // fix/voice-force-query-tool-for-day-data. Their absence means the model can
+  // free-text "nothing logged" from an empty recent context.
+  assertEquals(prompt.includes("truncated hint"), true);
+  assertEquals(
+    prompt.includes("NEVER conclude that something was not logged"),
+    true,
+  );
+});
+
 // ---------------------------------------------------------------------------
 // applyAssistantGuard — server-side guard against success-claiming prose
 // ---------------------------------------------------------------------------
