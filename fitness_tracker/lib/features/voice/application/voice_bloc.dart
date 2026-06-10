@@ -550,6 +550,16 @@ class VoiceBloc extends Bloc<VoiceEvent, VoiceState>
   /// session restarts.
   bool _repromptedThisTurn = false;
 
+  /// The last day the user explicitly referenced in this conversation,
+  /// resolved from an incoming day-scoped query's `date` argument. When a
+  /// later day-scoped query arrives WITHOUT a `date` (the model omitted it
+  /// on an anaphoric "that day" / "this day" turn), it falls back to this
+  /// instead of `DateTime.now()` — the deterministic backstop for the
+  /// prompt-side fix (KNOWN_ISSUES #voice-day-scoped-query-falls-back-to-last-referenced-date).
+  /// Persists for the whole conversation; reset to null on session start so
+  /// it can never leak across conversations.
+  DateTime? _lastReferencedDate;
+
   // ---------------------------------------------------------------------------
   // Session lifecycle
   // ---------------------------------------------------------------------------
@@ -564,6 +574,7 @@ class VoiceBloc extends Bloc<VoiceEvent, VoiceState>
     _currentListenIsContinuation = false;
     _awaitingUserReply = false;
     _repromptedThisTurn = false;
+    _lastReferencedDate = null;
     emit(
       state.copyWith(
         sessionId: _uuid.v4(),
@@ -1735,11 +1746,29 @@ class VoiceBloc extends Bloc<VoiceEvent, VoiceState>
     });
   }
 
-  Future<String> _queryDailyMacros(Map<String, dynamic> args) async {
+  /// Resolves the day a day-scoped query targets.
+  ///
+  /// When the model supplies a parseable `date`, that day is used AND
+  /// remembered as [_lastReferencedDate] for the rest of the conversation.
+  /// When `date` is absent (or unparseable — effectively absent), the query
+  /// falls back to the last day the user referenced, and only to
+  /// `DateTime.now()` if no day has been referenced yet. This is the
+  /// deterministic backstop for the model omitting `date` on an anaphoric
+  /// ("that day" / "this day") turn.
+  DateTime _resolveQueryDate(Map<String, dynamic> args) {
     final dateStr = args['date'] as String?;
-    final date = dateStr != null
-        ? _parseIsoDate(dateStr) ?? DateTime.now()
-        : DateTime.now();
+    if (dateStr != null) {
+      final parsed = _parseIsoDate(dateStr);
+      if (parsed != null) {
+        _lastReferencedDate = parsed;
+        return parsed;
+      }
+    }
+    return _lastReferencedDate ?? DateTime.now();
+  }
+
+  Future<String> _queryDailyMacros(Map<String, dynamic> args) async {
+    final date = _resolveQueryDate(args);
 
     final result = await _getDailyMacros(date);
 
@@ -1757,10 +1786,7 @@ class VoiceBloc extends Bloc<VoiceEvent, VoiceState>
   }
 
   Future<String> _queryDailyNutritionLog(Map<String, dynamic> args) async {
-    final dateStr = args['date'] as String?;
-    final date = dateStr != null
-        ? _parseIsoDate(dateStr) ?? DateTime.now()
-        : DateTime.now();
+    final date = _resolveQueryDate(args);
     final result = await _getLogsForDate(date);
     return result.fold((_) => AppStrings.voiceQueryNutritionUnavailable, (
       logs,
@@ -1774,10 +1800,7 @@ class VoiceBloc extends Bloc<VoiceEvent, VoiceState>
   }
 
   Future<String> _queryWorkoutForDay(Map<String, dynamic> args) async {
-    final dateStr = args['date'] as String?;
-    final day = dateStr != null
-        ? _parseIsoDate(dateStr) ?? DateTime.now()
-        : DateTime.now();
+    final day = _resolveQueryDate(args);
     final result = await _getSetsByDateRange(
       startDate: day,
       endDate: _endOfDay(day),

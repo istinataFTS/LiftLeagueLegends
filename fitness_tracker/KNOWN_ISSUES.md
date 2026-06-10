@@ -98,6 +98,7 @@ Numbered steps or a short paragraph. State what to do and what *not* to do.
 26. [voice-clarify-questions-must-be-coerced-to-the-clarify-tool](#voice-clarify-questions-must-be-coerced-to-the-clarify-tool)
 27. [voice-must-resolve-exercise-before-presenting-a-confirmation-card](#voice-must-resolve-exercise-before-presenting-a-confirmation-card)
 28. [voice-day-scoped-queries-need-explicit-date-resolution](#voice-day-scoped-queries-need-explicit-date-resolution)
+29. [voice-day-scoped-query-falls-back-to-last-referenced-date](#voice-day-scoped-query-falls-back-to-last-referenced-date)
 
 ### Database
 11. [sqflite-version-15-rejects-incompatible-legacy-databases](#sqflite-version-15-rejects-incompatible-legacy-databases)
@@ -1167,6 +1168,34 @@ Two-layer fix. Prompt half (this entry): append a `**Dates.**` rule to `SYSTEM_P
 - `lib/features/voice/application/voice_bloc.dart` — `_queryDailyNutritionLog:1691`, `_queryWorkoutForDay:1708`, `_queryDailyMacros:1670` — client-side `DateTime.now()` default (backstop for Commit 5)
 - `supabase/functions/voice-chat/index.test.ts` — `buildSystemPrompt: contains explicit date-resolution rule`
 - `supabase/functions/_shared/tools.test.ts` — `tools: day-scoped query tools instruct model to resolve dates explicitly`
+
+---
+
+### voice-day-scoped-query-falls-back-to-last-referenced-date
+
+- **Severity:** Medium
+- **Status:** Mitigated
+- **First observed:** 2026-06-10
+- **Last verified:** 2026-06-10
+- **Area:** voice
+
+**Symptom**
+
+After the user names a day ("what did I train on the 8th") and then asks a follow-up that refers to it anaphorically ("and what did I eat that day"), the second query returns "nothing logged" — even though data for the 8th exists — because the model omitted the `date` argument on the anaphoric turn and the client defaulted to today.
+
+**Root cause**
+
+The prompt-side fix ([voice-day-scoped-queries-need-explicit-date-resolution](#voice-day-scoped-queries-need-explicit-date-resolution)) instructs the model to resolve anaphoric dates to an explicit `yyyy-MM-dd`, but `tool_choice` is `auto` with no `strict` enforcement, so the model can still omit `date`. When it does, `_queryDailyNutritionLog`, `_queryWorkoutForDay`, and `_queryDailyMacros` all fell back to `DateTime.now()`, querying the wrong day.
+
+**Workaround / fix**
+
+Deterministic client backstop in `VoiceBloc`. `_lastReferencedDate` records the last day a day-scoped query resolved to from an explicit (parseable) `date` argument. `_resolveQueryDate(args)` centralises the resolution for all three day-scoped query tools: when `date` is present and parseable it is used AND remembered; when `date` is absent or unparseable it falls back to `_lastReferencedDate ?? DateTime.now()`. The carry persists for the whole conversation (per maintainer decision — NOT one-shot) and is reset to null in `_onSessionStarted` so it can never leak across conversations (a fresh `VoiceBloc` is also created per overlay, so cross-conversation leakage is doubly guarded). **Residual risk:** if the user later means "today" but the model omits `date` on that turn too, the client reuses the last referenced day instead of today. The Commit-4 prompt makes the model emit an explicit `date` for "today", which overrides the carry (only an *absent* date falls back); deploy the functions target for that mitigation to be active. Client-only — no deploy required for this commit.
+
+**References**
+
+- `lib/features/voice/application/voice_bloc.dart` — `_lastReferencedDate` field; `_resolveQueryDate`; `_queryDailyMacros`, `_queryDailyNutritionLog`, `_queryWorkoutForDay`; reset in `_onSessionStarted`
+- `test/features/voice/application/voice_bloc_test.dart` — `day-scoped date carry` group: carry reuses the prior day; lone query with no prior reference uses today
+- Related prompt half: [voice-day-scoped-queries-need-explicit-date-resolution](#voice-day-scoped-queries-need-explicit-date-resolution)
 
 ---
 

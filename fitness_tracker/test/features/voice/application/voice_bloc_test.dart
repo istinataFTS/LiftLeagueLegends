@@ -2405,6 +2405,118 @@ void main() {
   });
 
   // -------------------------------------------------------------------------
+  // Day-scoped date carry (B4): a date-less query falls back to the last day
+  // the user referenced this conversation, not to today.
+  // -------------------------------------------------------------------------
+
+  group('day-scoped date carry', () {
+    test(
+      'getWorkoutForDay(date) then getDailyNutritionLog() reuses that day',
+      () async {
+        final localLogs = MockGetLogsForDate();
+        when(
+          () => localLogs(any()),
+        ).thenAnswer((_) async => const Right(<NutritionLog>[]));
+
+        // Turn 1: getWorkoutForDay with an explicit date.
+        // Turn 2: getDailyNutritionLog with NO date (model omitted it).
+        final responses = <VoiceChatResult>[
+          const VoiceChatQueryCall(
+            toolCallId: 'c1',
+            toolName: 'getWorkoutForDay',
+            args: {'date': '2026-06-08'},
+          ),
+          const VoiceChatQueryCall(
+            toolCallId: 'c2',
+            toolName: 'getDailyNutritionLog',
+            args: {},
+          ),
+        ];
+        var call = 0;
+        when(
+          () => sendVoiceMessage(
+            userMessage: any(named: 'userMessage'),
+            sessionId: any(named: 'sessionId'),
+            history: any(named: 'history'),
+            settings: any(named: 'settings'),
+            weightUnit: any(named: 'weightUnit'),
+            recentSets: any(named: 'recentSets'),
+            recentNutritionLogs: any(named: 'recentNutritionLogs'),
+          ),
+        ).thenAnswer((_) async => Right(responses[call++]));
+
+        final tts = FakeVoiceTtsService();
+        final bloc = _makeBloc(
+          sendVoiceMessage: sendVoiceMessage,
+          getVoiceBudget: getBudget,
+          deleteVoiceHistory: deleteHistory,
+          appSettingsRepository: settingsRepo,
+          exerciseLookup: exerciseLookup,
+          getSetsByDateRange: getSetsByDateRange,
+          getLogsForDate: localLogs,
+          getDailyMacros: getDailyMacros,
+          tts: tts,
+        );
+
+        bloc.add(VoiceSessionStarted(authSession()));
+        await Future<void>.delayed(const Duration(milliseconds: 50));
+        bloc.add(const VoiceSendMessage('what did I train on the 8th'));
+        await Future<void>.delayed(const Duration(milliseconds: 200));
+        bloc.add(const VoiceSendMessage('and what did I eat that day'));
+        await Future<void>.delayed(const Duration(milliseconds: 200));
+
+        final captured = verify(() => localLogs(captureAny())).captured;
+        expect(captured, isNotEmpty);
+        final usedDate = captured.last as DateTime;
+        expect(usedDate.year, 2026);
+        expect(usedDate.month, 6);
+        expect(usedDate.day, 8);
+        await bloc.close();
+      },
+    );
+
+    test(
+      'lone getDailyNutritionLog() with no prior reference uses today',
+      () async {
+        final localLogs = MockGetLogsForDate();
+        when(
+          () => localLogs(any()),
+        ).thenAnswer((_) async => const Right(<NutritionLog>[]));
+
+        final tts = FakeVoiceTtsService();
+        final bloc = _makeBloc(
+          sendVoiceMessage: sendVoiceMessage,
+          getVoiceBudget: getBudget,
+          deleteVoiceHistory: deleteHistory,
+          appSettingsRepository: settingsRepo,
+          exerciseLookup: exerciseLookup,
+          getSetsByDateRange: getSetsByDateRange,
+          getLogsForDate: localLogs,
+          getDailyMacros: getDailyMacros,
+          tts: tts,
+        );
+
+        await runQueryFlow(
+          bloc: bloc,
+          sendVoiceMessage: sendVoiceMessage,
+          toolName: 'getDailyNutritionLog',
+          args: const {},
+          session: authSession(),
+        );
+
+        final captured = verify(() => localLogs(captureAny())).captured;
+        expect(captured, isNotEmpty);
+        final usedDate = captured.last as DateTime;
+        final today = DateTime.now();
+        expect(usedDate.year, today.year);
+        expect(usedDate.month, today.month);
+        expect(usedDate.day, today.day);
+        await bloc.close();
+      },
+    );
+  });
+
+  // -------------------------------------------------------------------------
   // getTrainingDays
   // -------------------------------------------------------------------------
 
