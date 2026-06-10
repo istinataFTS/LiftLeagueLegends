@@ -1233,10 +1233,15 @@ void main() {
       },
     );
 
+    // B2: a logWorkoutSet whose exerciseName does not resolve must NOT produce
+    // a confirmation card (which would print the placeholder verbatim and drop
+    // the set on accept). Instead the bot asks one clarify and re-opens the mic.
+    // #voice-must-resolve-exercise-before-presenting-a-confirmation-card
     test(
-      'speaks voiceSpokenExerciseNotFound when exercise cannot be resolved',
+      'unresolvable exercise asks "which exercise" and re-listens — no card',
       () async {
-        // Default exerciseLookup already returns null for all resolveId calls.
+        // Default exerciseLookup returns null for all resolveId calls.
+        final stt = FakeVoiceSttService();
         final tts = FakeVoiceTtsService();
 
         final bloc = _makeBloc(
@@ -1248,26 +1253,103 @@ void main() {
           getSetsByDateRange: getSetsByDateRange,
           getLogsForDate: getLogsForDate,
           getDailyMacros: getDailyMacros,
+          stt: stt,
           tts: tts,
         );
 
         final emittedEffects = <VoiceEffect>[];
         final sub = bloc.effects.listen(emittedEffects.add);
 
-        await runMutationFlow(
-          bloc: bloc,
-          sendVoiceMessage: sendVoiceMessage,
-          toolCall: _mutationToolCall('logWorkoutSet', {
-            'exerciseName': 'Unknown Exercise',
-            'reps': 5,
-            'weight': 50.0,
-          }),
-          session: authSession(),
+        when(
+          () => sendVoiceMessage(
+            userMessage: any(named: 'userMessage'),
+            sessionId: any(named: 'sessionId'),
+            history: any(named: 'history'),
+            settings: any(named: 'settings'),
+            weightUnit: any(named: 'weightUnit'),
+            recentSets: any(named: 'recentSets'),
+            recentNutritionLogs: any(named: 'recentNutritionLogs'),
+          ),
+        ).thenAnswer(
+          (_) async => Right(
+            VoiceChatMutationCall(
+              toolCall: _mutationToolCall('logWorkoutSet', {
+                'exerciseName': 'unknown',
+                'reps': 5,
+                'weight': 50.0,
+              }),
+            ),
+          ),
         );
 
-        expect(emittedEffects, isEmpty);
-        expect(tts.lastSpoken, AppStrings.voiceSpokenExerciseNotFound);
+        bloc.add(VoiceSessionStarted(authSession()));
+        await Future<void>.delayed(const Duration(milliseconds: 50));
+        bloc.add(const VoiceSendMessage('log five reps fifty kilos'));
+        await Future<void>.delayed(const Duration(milliseconds: 200));
+
+        // No mutation was dispatched and no card was presented.
+        expect(emittedEffects.whereType<VoiceMutationCommand>(), isEmpty);
+        expect(bloc.state.pendingConfirmation, isNull);
+        // The clarify was spoken and the mic was re-opened.
+        expect(tts.lastSpoken, AppStrings.voiceClarifyWhichExercise);
+        expect(bloc.state.status, VoiceStatus.listening);
+
         await sub.cancel();
+        await bloc.close();
+      },
+    );
+
+    test(
+      'resolvable exercise still presents the confirmation card (regression)',
+      () async {
+        _setupBenchLookup(exerciseLookup);
+        final stt = FakeVoiceSttService();
+        final tts = FakeVoiceTtsService();
+
+        final bloc = _makeBloc(
+          sendVoiceMessage: sendVoiceMessage,
+          getVoiceBudget: getBudget,
+          deleteVoiceHistory: deleteHistory,
+          appSettingsRepository: settingsRepo,
+          exerciseLookup: exerciseLookup,
+          getSetsByDateRange: getSetsByDateRange,
+          getLogsForDate: getLogsForDate,
+          getDailyMacros: getDailyMacros,
+          stt: stt,
+          tts: tts,
+        );
+
+        when(
+          () => sendVoiceMessage(
+            userMessage: any(named: 'userMessage'),
+            sessionId: any(named: 'sessionId'),
+            history: any(named: 'history'),
+            settings: any(named: 'settings'),
+            weightUnit: any(named: 'weightUnit'),
+            recentSets: any(named: 'recentSets'),
+            recentNutritionLogs: any(named: 'recentNutritionLogs'),
+          ),
+        ).thenAnswer(
+          (_) async => Right(
+            VoiceChatMutationCall(
+              toolCall: _mutationToolCall('logWorkoutSet', {
+                'exerciseName': 'Bench Press',
+                'reps': 8,
+                'weight': 80.0,
+              }),
+            ),
+          ),
+        );
+
+        bloc.add(VoiceSessionStarted(authSession()));
+        await Future<void>.delayed(const Duration(milliseconds: 50));
+        bloc.add(const VoiceSendMessage('log bench 80 by 8'));
+        await Future<void>.delayed(const Duration(milliseconds: 200));
+
+        expect(bloc.state.pendingConfirmation, isNotNull);
+        expect(bloc.state.status, VoiceStatus.listening);
+        expect(tts.lastSpoken, isNot(AppStrings.voiceClarifyWhichExercise));
+
         await bloc.close();
       },
     );

@@ -544,6 +544,13 @@ class AppStrings {
   static const String voiceSpokenExerciseNotFound =
       'I could not find that exercise in your library.';
 
+  /// Spoken when a logWorkoutSet tool call carries an exercise name that does
+  /// not resolve to a real exercise (e.g. the model lost the name and emitted a
+  /// placeholder like "unknown"). Asked as a question so the mic re-opens
+  /// instead of presenting a doomed confirmation card. See KNOWN_ISSUES.md
+  /// #voice-must-resolve-exercise-before-presenting-a-confirmation-card.
+  static const String voiceClarifyWhichExercise = 'Which exercise was that?';
+
   // ── Voice spoken (TTS) error strings ──────────────────────────────────────
   // Read aloud by device TTS. Keep them natural, brief, and pronounceable.
   // No markdown, parentheses, or special symbols.

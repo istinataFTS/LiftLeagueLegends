@@ -959,6 +959,44 @@ class VoiceBloc extends Bloc<VoiceEvent, VoiceState>
           if (refreshBudget) _refreshBudget();
           return;
         }
+        // B2: never present a confirmation card for a logWorkoutSet whose
+        // exerciseName does not resolve to a real exercise. The model can lose
+        // the name across a prose clarify turn and emit a placeholder like
+        // "unknown"; the card would print it verbatim and, on accept,
+        // _buildWorkoutSet resolves it to null and silently drops the set
+        // (#voice-must-resolve-exercise-before-presenting-a-confirmation-card).
+        // Ask one clarify and re-open the mic instead of confirming a doomed
+        // card. editWorkoutSet/deleteWorkoutSet resolve their target by setId
+        // (not args['exerciseName']), so they are not gated here.
+        if (toolCall.toolName == 'logWorkoutSet') {
+          final exerciseId = toolCall.args['exerciseId'] as String?;
+          final exerciseName = toolCall.args['exerciseName'] as String?;
+          // Mirror _buildWorkoutSet's resolution exactly (exerciseId wins, else
+          // resolve the name) so the gate never disagrees with the dispatcher.
+          // _resolveExerciseIdFromCache refreshes the lookup if stale, so this
+          // path is safe even if the cache was not warmed earlier this turn.
+          final resolvedId =
+              exerciseId ??
+              (exerciseName == null
+                  ? null
+                  : await _resolveExerciseIdFromCache(exerciseName));
+          if (resolvedId == null) {
+            final clarifyMsg = VoiceMessage(
+              role: VoiceRole.assistant,
+              content: AppStrings.voiceClarifyWhichExercise,
+              createdAt: DateTime.now(),
+            );
+            emit(
+              state.copyWith(
+                status: VoiceStatus.speaking,
+                messages: <VoiceMessage>[...updatedMessages, clarifyMsg],
+              ),
+            );
+            await _speakThenListen(AppStrings.voiceClarifyWhichExercise, emit);
+            if (refreshBudget) _refreshBudget();
+            return;
+          }
+        }
         final weightUnit = await _readWeightUnit();
         final readback = _buildReadback(toolCall, weightUnit);
         // Set pendingConfirmation in the SAME emit as `speaking` (NOT via a
