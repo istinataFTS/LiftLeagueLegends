@@ -31,11 +31,20 @@ function makeTranscribeClient(budgetRows: Array<{ cost_usd: number }> = []) {
   return { client, inserted };
 }
 
-function mockWhisperResponse(text: string, duration: number): void {
+function mockWhisperResponse(
+  text: string,
+  duration: number,
+  segments?: Array<{ no_speech_prob: number; avg_logprob: number }>,
+): void {
   _setFetch(() =>
     Promise.resolve(
       new Response(
-        JSON.stringify({ text, duration, language: "english" }),
+        JSON.stringify({
+          text,
+          duration,
+          language: "english",
+          ...(segments ? { segments } : {}),
+        }),
         { status: 200 },
       ),
     )
@@ -222,6 +231,49 @@ Deno.test(
       const row = inserted[0] as { function_name: string; status: string };
       assertEquals(row.function_name, "voice-transcribe");
       assertEquals(row.status, "OK");
+    } finally {
+      _setFetch(REAL_FETCH);
+    }
+  },
+);
+
+Deno.test(
+  "voice-transcribe: silence-hallucination is gated → empty transcript, duration still billed",
+  async () => {
+    // High no_speech_prob + low avg_logprob is Whisper hallucinating fluent
+    // text on a silent clip. transcribeAudio must return text="" so the
+    // client treats it as no-speech (reprompt-once-then-idle) and never
+    // spawns a phantom user turn.
+    mockWhisperResponse(
+      "For more information visit www.fema.gov",
+      2.0,
+      [{ no_speech_prob: 0.95, avg_logprob: -1.8 }],
+    );
+    const { inserted, client } = makeTranscribeClient();
+    const { logUsage } = await import("../_shared/usage.ts");
+
+    try {
+      const result = await transcribeAudio({
+        audio: makeAudioBlob(),
+        filename: "silence.m4a",
+      });
+      assertEquals(result.text, "");
+      assertEquals(result.durationSeconds, 2);
+
+      const cost = costForWhisper("whisper-1", result.durationSeconds);
+      await logUsage(client, {
+        userId: "u",
+        functionName: "voice-transcribe",
+        model: "whisper-1",
+        inputTokens: result.durationSeconds,
+        latencyMs: 100,
+        status: "OK",
+      }, cost);
+
+      // Audio was processed by Whisper regardless of gating — bill it.
+      assertEquals(inserted.length, 1);
+      const row = inserted[0] as { input_tokens: number; cost_usd: number };
+      assertEquals(row.input_tokens, 2);
     } finally {
       _setFetch(REAL_FETCH);
     }
