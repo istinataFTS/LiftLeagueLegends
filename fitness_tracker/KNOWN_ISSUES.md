@@ -96,6 +96,7 @@ Numbered steps or a short paragraph. State what to do and what *not* to do.
 24. [voice-edge-functions-bare-import-specifiers-fail-to-boot](#voice-edge-functions-bare-import-specifiers-fail-to-boot)
 25. [voice-confirmation-card-buttons-must-cancel-the-open-listen](#voice-confirmation-card-buttons-must-cancel-the-open-listen)
 26. [voice-clarify-questions-must-be-coerced-to-the-clarify-tool](#voice-clarify-questions-must-be-coerced-to-the-clarify-tool)
+27. [voice-must-resolve-exercise-before-presenting-a-confirmation-card](#voice-must-resolve-exercise-before-presenting-a-confirmation-card)
 
 ### Database
 11. [sqflite-version-15-rejects-incompatible-legacy-databases](#sqflite-version-15-rejects-incompatible-legacy-databases)
@@ -1106,6 +1107,35 @@ Server-side coercion. `coerceQuestionToClarify` (`voice-chat/index.ts`) inspects
 - `supabase/functions/voice-chat/index.test.ts` — `coerceQuestionToClarify` tests
 - `supabase/functions/_shared/openai.ts:133-134` — `tool_choice:"auto"`, no enforcement
 - `lib/data/datasources/remote/supabase_voice_remote_datasource.dart:251` — client re-listens on `clarify`
+
+---
+
+### voice-must-resolve-exercise-before-presenting-a-confirmation-card
+
+- **Severity:** High
+- **Status:** Resolved-but-monitor
+- **First observed:** 2026-06-10
+- **Last verified:** 2026-06-10
+- **Area:** voice
+
+**Symptom**
+
+A workout-log confirmation card reads "Log: unknown — 70 kg × 12 reps". Tapping "Yes" logs nothing — the set is silently dropped and no error is spoken.
+
+**Root cause**
+
+The model loses the exercise name across a prose clarify turn and emits `logWorkoutSet` with the literal placeholder `exerciseName: "unknown"`. `_buildReadback` prints the name verbatim, so the card shows "unknown" (`voice_bloc.dart`). On accept, `_buildWorkoutSet` resolves `"unknown"` through `ExerciseLookup.resolveId`, which returns null (no matching exercise), so the builder returns null and the mutation is dropped (`voice_bloc.dart` — the `if (set == null)` branch speaks `voiceSpokenExerciseNotFound`, but only after a doomed card was presented and confirmed). Because the model emits a real placeholder string rather than omitting the field, `strict`/`required` schema enforcement would not catch it.
+
+**Workaround / fix**
+
+Resolve-or-clarify before the card. In `_dispatchVoiceResult`'s `VoiceChatMutationCall` branch, for `logWorkoutSet` only, mirror `_buildWorkoutSet`'s resolution (`exerciseId ?? _resolveExerciseIdFromCache(exerciseName)`); if it resolves to null, do NOT set `pendingConfirmation` — speak `AppStrings.voiceClarifyWhichExercise` ("Which exercise was that?") and re-open the mic via `_speakThenListen`, then `return`. `editWorkoutSet`/`deleteWorkoutSet` are NOT gated: they resolve their target by `setId` from recent context and their readback derives the display name from that id, never from `args['exerciseName']`. `_resolveExerciseIdFromCache` refreshes the lookup if stale, so the gate is safe even on a cold cache. Client-only — no deploy required. Related: [voice-clarify-questions-must-be-coerced-to-the-clarify-tool](#voice-clarify-questions-must-be-coerced-to-the-clarify-tool), [voice-whisper-hallucinates-on-silent-audio](#voice-whisper-hallucinates-on-silent-audio).
+
+**References**
+
+- `lib/features/voice/application/voice_bloc.dart` — `_dispatchVoiceResult` `logWorkoutSet` resolution gate; `_buildWorkoutSet`, `_resolveExerciseIdFromCache`
+- `lib/core/constants/app_strings.dart` — `voiceClarifyWhichExercise`
+- `lib/features/voice/data/lookup/exercise_lookup.dart:48` — `resolveId` returns null for unknown names
+- `test/features/voice/application/voice_bloc_test.dart` — logWorkoutSet group: unresolvable → clarify+re-listen; resolvable → card
 
 ---
 
