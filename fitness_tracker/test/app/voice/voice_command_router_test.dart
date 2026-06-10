@@ -15,6 +15,7 @@ import 'package:fitness_tracker/domain/services/voice_stt_service.dart';
 import 'package:fitness_tracker/domain/services/voice_tts_service.dart';
 import 'package:fitness_tracker/domain/services/voice_wake_word_service.dart';
 import 'package:fitness_tracker/domain/usecases/nutrition_logs/get_daily_macros.dart';
+import 'package:fitness_tracker/domain/usecases/nutrition_logs/get_logs_by_date_range.dart';
 import 'package:fitness_tracker/domain/usecases/nutrition_logs/get_logs_for_date.dart';
 import 'package:fitness_tracker/domain/usecases/voice/delete_voice_history.dart';
 import 'package:fitness_tracker/domain/usecases/voice/get_voice_budget.dart';
@@ -67,6 +68,8 @@ class _MockGetSetsByDateRange extends Mock implements GetSetsByDateRange {}
 class _MockGetDailyMacros extends Mock implements GetDailyMacros {}
 
 class _MockGetWeeklySets extends Mock implements GetWeeklySets {}
+
+class _MockGetLogsByDateRange extends Mock implements GetLogsByDateRange {}
 
 class _MockGetLogsForDate extends Mock implements GetLogsForDate {}
 
@@ -211,6 +214,7 @@ VoiceBloc _buildVoiceBloc() {
     getDailyMacros: _MockGetDailyMacros(),
     getWeeklySets: _MockGetWeeklySets(),
     getLogsForDate: _MockGetLogsForDate(),
+    getLogsByDateRange: _MockGetLogsByDateRange(),
     exerciseLookup: _MockExerciseLookup(),
     offlineCoordinator: _MockOfflineVoiceCoordinator(),
   );
