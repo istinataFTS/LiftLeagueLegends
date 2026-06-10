@@ -919,25 +919,35 @@ Tapping Cancel on the confirmation card leaves the bot unreachable — the in-ov
 - **Severity:** High
 - **Status:** Resolved-but-monitor
 - **First observed:** 2026-06-07
-- **Last verified:** 2026-06-07
+- **Last verified:** 2026-06-10
 - **Area:** voice
 
 **Symptom**
 
-Waking the bot and immediately tapping Stop (or any near-silent recording) sends a phantom user message such as "For more information visit www.FEMA.gov", which the LLM then answers. The user never spoke.
+Waking the bot and immediately tapping Stop (or any near-silent recording) sends a phantom user message such as "For more information visit www.FEMA.gov", which the LLM then answers. The user never spoke. Also recurs after a bot question while the user stays silent — the post-#143 re-listen path re-opens the mic and ambient room noise crosses the client amplitude gate.
 
 **Root cause**
 
-`WhisperVoiceSttService` uploaded any non-empty recording — the only gate was `bytes.isEmpty`. A sub-second silence clip is a non-empty ~7 KB m4a, so it was uploaded, and Whisper hallucinates canned phrases on silence. The amplitude monitor already knew no voice was present (`amp.current > whisperSilenceAmplitudeDbfs` never true) but that signal was unused on the upload path.
+Two-layer failure, fixed in two stages.
+
+1. (Client, fixed 2026-06-07.) `WhisperVoiceSttService` uploaded any non-empty recording — the only gate was `bytes.isEmpty`. A sub-second silence clip is a non-empty ~7 KB m4a, so it was uploaded.
+2. (Server gap exposed 2026-06-10 by the post-#143 re-listen loop.) After bot questions, the client re-opens the mic; ambient room noise above the −45 dBFS gate (`whisper_voice_stt_service.dart`) sets `_voiceDetected=true` and the clip is uploaded anyway. Whisper then hallucinates a fluent stock phrase on the noise, and the server passed `.text` straight through with no confidence gate.
 
 **Workaround / fix**
 
-Track `_voiceDetected` (set when any amplitude sample crosses the voice threshold; reset at recording start) and gate the upload with the pure helper `WhisperVoiceSttService.shouldTranscribe(voiceDetected:, byteCount:)`. Silence-only clips emit `VoiceSttErrorKind.noSpeech` and skip the upload entirely. Do not gate on `_lastVoiceAt` — it is nulled by `_teardownTimersAndSubscription()` before the gate runs.
+Defense in depth — both layers now exist:
+
+1. **Client amplitude gate** — `_voiceDetected` (set when any amplitude sample crosses the voice threshold) gates the upload via `WhisperVoiceSttService.shouldTranscribe(voiceDetected:, byteCount:)`. Silence-only clips emit `VoiceSttErrorKind.noSpeech` without uploading. Do not gate on `_lastVoiceAt` — it is nulled by `_teardownTimersAndSubscription()` before the gate runs.
+2. **Server confidence gate** — `_shared/whisper.ts` calls the pure exported helper `gateHallucinatedTranscript(json)` on every Whisper response. When `max(segments[].no_speech_prob) >= 0.6` **AND** `min(segments[].avg_logprob) <= -1.0`, the helper returns `""`. Empty text falls through the client's existing `text.isEmpty` branch (reprompt-once-then-idle). Both bounds must trip together so real speech (incl. one-word `"Confirm."` with no_speech_prob ≈ 0.05, avg_logprob ≈ -0.4) is never silenced. The gate only fires when `segments` is present in the response — a missing/empty array passes raw text through unchanged. Audio duration is still billed because Whisper processed the clip. Field names (`segments[].no_speech_prob`, `segments[].avg_logprob`) were verified against the OpenAI audio API reference before the helper was written. Requires a `Supabase Deploy` (functions target) on the self-hosted VPS for the server gate to take effect.
 
 **References**
 
 - `lib/features/voice/data/services/whisper_voice_stt_service.dart` — `_voiceDetected`, `shouldTranscribe`, `_stopAndTranscribe`
 - `test/features/voice/services/whisper_voice_stt_service_test.dart` — `shouldTranscribe` group
+- `supabase/functions/_shared/whisper.ts` — `gateHallucinatedTranscript`, `NO_SPEECH_PROB_MAX`, `AVG_LOGPROB_MIN`
+- `supabase/functions/_shared/whisper.test.ts` — `gateHallucinatedTranscript` group + `transcribeAudio` end-to-end gate test
+- `supabase/functions/voice-transcribe/index.test.ts` — silence-hallucination end-to-end test
+- PR `#150` — fix: gate Whisper output on no_speech_prob/avg_logprob confidence
 
 ---
 

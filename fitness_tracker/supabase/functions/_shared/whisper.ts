@@ -95,6 +95,54 @@ export interface TranscriptionResponse {
   durationSeconds: number;
 }
 
+// Confidence thresholds for the silence/hallucination gate. OpenAI's own docs
+// flag `avg_logprob < -1` as unreliable and high `no_speech_prob` combined with
+// low `avg_logprob` as a silent segment. A real one-word confirm ("Confirm.")
+// in practice has no_speech_prob ≈ 0.05 and avg_logprob ≈ -0.4, well clear of
+// these bounds — the gate only catches genuine silence/noise hallucinations.
+const NO_SPEECH_PROB_MAX = 0.6;
+const AVG_LOGPROB_MIN = -1.0;
+
+/**
+ * Pure, exported, unit-tested. Returns "" when Whisper's per-segment
+ * confidence indicates the clip is silence or noise that the model
+ * hallucinated into a fluent sentence (e.g. "For more information visit
+ * www.fema.gov" on a near-silent recording).
+ *
+ * IMPORTANT: only gates when segment-level confidence is PRESENT. If
+ * `segments` is missing or empty, we cannot judge confidence, so we pass the
+ * raw text through unchanged. This is both safer (no false-negatives on
+ * legitimate responses that omit segments) and non-breaking for existing
+ * tests whose mocks emit `{text, duration}` without segments.
+ *
+ * The `verbose_json` response shape (top-level `text`, `duration`,
+ * `segments[]` with `no_speech_prob` and `avg_logprob`) was verified against
+ * the OpenAI audio API reference before this helper was written.
+ *
+ * Returns the (whitespace-trimmed) text on pass; empty string on gate.
+ */
+export function gateHallucinatedTranscript(json: unknown): string {
+  const obj = (json ?? {}) as Record<string, unknown>;
+  const rawText = typeof obj.text === "string" ? obj.text.trim() : "";
+  if (rawText === "") return "";
+  const segments = Array.isArray(obj.segments)
+    ? (obj.segments as Array<Record<string, unknown>>)
+    : [];
+  if (segments.length === 0) return rawText; // can't judge → pass through
+  const noSpeechProbs = segments
+    .map((s) => Number(s.no_speech_prob))
+    .filter((n) => Number.isFinite(n));
+  const avgLogprobs = segments
+    .map((s) => Number(s.avg_logprob))
+    .filter((n) => Number.isFinite(n));
+  if (noSpeechProbs.length === 0 || avgLogprobs.length === 0) return rawText;
+  const maxNoSpeech = Math.max(...noSpeechProbs);
+  const minAvgLogprob = Math.min(...avgLogprobs);
+  const isSilence = maxNoSpeech >= NO_SPEECH_PROB_MAX &&
+    minAvgLogprob <= AVG_LOGPROB_MIN;
+  return isSilence ? "" : rawText;
+}
+
 /// Calls OpenAI Whisper `/v1/audio/transcriptions` with `response_format=verbose_json`
 /// so the response includes the audio `duration` field needed for cost accounting.
 /// The gym-jargon `WHISPER_VOCABULARY_PROMPT` is sent as the `prompt` field to bias
@@ -124,7 +172,13 @@ export async function transcribeAudio(
   if (!res.ok) mapOpenAiStatus(res.status);
 
   const json = await res.json();
-  const text = typeof json.text === "string" ? json.text.trim() : "";
+  // Gate on Whisper's per-segment confidence — when no_speech_prob is high
+  // AND avg_logprob is low, the clip is silence/noise that Whisper
+  // hallucinated into a fluent sentence. Empty text falls through to the
+  // client's existing `text.isEmpty` branch (reprompt-once-then-idle), so
+  // the user never sees a phantom turn. Billing still uses the raw duration
+  // because the audio was processed regardless of gating.
+  const text = gateHallucinatedTranscript(json);
   // `duration` is a float in seconds; bill the ceiling so partial seconds
   // are not free.
   const rawDuration = typeof json.duration === "number" ? json.duration : 0;
