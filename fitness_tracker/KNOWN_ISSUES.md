@@ -94,6 +94,7 @@ Numbered steps or a short paragraph. State what to do and what *not* to do.
 22. [voice-wake-word-engine-stops-when-overlay-opens](#voice-wake-word-engine-stops-when-overlay-opens)
 23. [headphone-tap-to-wake-unreliable-on-airpods-and-when-another-app-holds-media-focus](#headphone-tap-to-wake-unreliable-on-airpods-and-when-another-app-holds-media-focus)
 24. [voice-edge-functions-bare-import-specifiers-fail-to-boot](#voice-edge-functions-bare-import-specifiers-fail-to-boot)
+25. [voice-confirmation-card-buttons-must-cancel-the-open-listen](#voice-confirmation-card-buttons-must-cancel-the-open-listen)
 
 ### Database
 11. [sqflite-version-15-rejects-incompatible-legacy-databases](#sqflite-version-15-rejects-incompatible-legacy-databases)
@@ -1047,6 +1048,34 @@ The self-hosted edge-runtime router (`supabase/docker/volumes/functions/main/ind
 - `supabase/functions/_shared/auth.ts:1`, `utils.ts:1` — value import of `createClient`
 - `lib/data/datasources/remote/supabase_voice_remote_datasource.dart:402` — `_throwFromErrorBody` default-message fallback
 - `supabase/docker/volumes/functions/main/index.ts` (server only) — `importMapPath = null`
+
+---
+
+### voice-confirmation-card-buttons-must-cancel-the-open-listen
+
+- **Severity:** High
+- **Status:** Resolved-but-monitor
+- **First observed:** 2026-06-10
+- **Last verified:** 2026-06-10
+- **Area:** voice
+
+**Symptom**
+
+After tapping Cancel (or Yes) on the confirmation card, a phantom user turn appears — e.g. "For more information visit www.ottobock.com" — and the bot replies as if the user spoke it. The phrase was never said.
+
+**Root cause**
+
+The mutation readback re-opens the mic (`_speakThenListen`) so the user can confirm by voice. The spoken-confirm path cancels `_sttSubscription` on its final transcript, but the card *button* handlers did not: `_onConfirmationAccepted` and `_onConfirmationCancelled` cleared `pendingConfirmation` and returned to idle without tearing down the open listen. The readback mic stayed open; its final transcript still arrived at `_onTranscriptReceived` with `pendingConfirmation == null`, so it skipped the confirm-classify block and was processed as a fresh turn. The transcript itself is a Whisper near-silence hallucination (see [voice-whisper-hallucinates-on-silent-audio](#voice-whisper-hallucinates-on-silent-audio)).
+
+**Workaround / fix**
+
+Both button handlers now tear down the live listen before any state change: `_sttSubscription?.cancel(); _sttSubscription = null;` (fire-and-forget, matching the existing `_onTranscriptReceived`/`_onListenEnded` idiom — do **not** `await`, it hangs under `fakeAsync`) plus reset of `_awaitingUserReply`, `_repromptedThisTurn`, `_consecutiveRelistens`. Defense in depth: `_onTranscriptReceived` and `_onTranscriptFailed` now drop any event that arrives when `state.status != VoiceStatus.listening` (the only open-mic state). This does not change the spoken-confirm path, which legitimately runs while `status == listening`. The near-silence hallucination itself is an inherent Whisper limit ([voice-whisper-hallucinates-on-silent-audio](#voice-whisper-hallucinates-on-silent-audio)); this fix makes its consequence harmless. Related: [voice-confirmation-cancel-leaves-bot-unresponsive](#voice-confirmation-cancel-leaves-bot-unresponsive).
+
+**References**
+
+- `lib/features/voice/application/voice_bloc.dart` — `_onConfirmationAccepted`, `_onConfirmationCancelled`, `_onTranscriptReceived`, `_onTranscriptFailed`
+- `test/features/voice/application/voice_bloc_test.dart` — `confirmation buttons end the listen` group
+- PR `#142`
 
 ---
 

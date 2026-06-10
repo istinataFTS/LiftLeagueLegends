@@ -695,6 +695,18 @@ class VoiceBloc extends Bloc<VoiceEvent, VoiceState>
       return;
     }
 
+    // Defense in depth: a final transcript that arrives when we are no longer
+    // listening (e.g. a card button tore the turn down between the engine
+    // emitting and this event being processed) must never become a new turn.
+    // The only state during an open mic is [VoiceStatus.listening] (set by
+    // _onListenRequested). See KNOWN_ISSUES.md
+    // #voice-confirmation-card-buttons-must-cancel-the-open-listen.
+    if (state.status != VoiceStatus.listening) {
+      _sttSubscription?.cancel();
+      _sttSubscription = null;
+      return;
+    }
+
     // Final result. Cancel subscription defensively — the plugin may keep
     // the stream open for a heartbeat after emitting the final result.
     _sttSubscription?.cancel();
@@ -769,6 +781,12 @@ class VoiceBloc extends Bloc<VoiceEvent, VoiceState>
   ) async {
     _sttSubscription?.cancel();
     _sttSubscription = null;
+
+    // Defense in depth: a late noSpeech/error that arrives after a card button
+    // already ended the turn must not surface an error or re-prompt. The only
+    // state during an open mic is [VoiceStatus.listening]. See KNOWN_ISSUES.md
+    // #voice-confirmation-card-buttons-must-cancel-the-open-listen.
+    if (state.status != VoiceStatus.listening) return;
 
     // noSpeech during a live continuous turn: re-prompt once then end quietly
     // at idle — do not surface an error (redesign-overview §6).
@@ -1110,6 +1128,18 @@ class VoiceBloc extends Bloc<VoiceEvent, VoiceState>
     VoiceConfirmationAccepted event,
     Emitter<VoiceState> emit,
   ) async {
+    // A card button ends the turn: tear down any readback re-listen so its
+    // (possibly hallucinated) transcript can never arrive as a fresh turn.
+    // Fire-and-forget cancel (matches _onTranscriptReceived / _onListenEnded):
+    // nulling the field is the synchronous guarantee, and the status guard in
+    // _onTranscriptReceived drops any event that still slips through. See
+    // KNOWN_ISSUES.md #voice-confirmation-card-buttons-must-cancel-the-open-listen.
+    _sttSubscription?.cancel();
+    _sttSubscription = null;
+    _awaitingUserReply = false;
+    _repromptedThisTurn = false;
+    _consecutiveRelistens = 0;
+
     final toolCall = state.pendingConfirmation;
     if (toolCall == null) return;
 
@@ -1868,6 +1898,18 @@ class VoiceBloc extends Bloc<VoiceEvent, VoiceState>
     VoiceConfirmationCancelled event,
     Emitter<VoiceState> emit,
   ) {
+    // A card button ends the turn: tear down any readback re-listen so its
+    // (possibly hallucinated) transcript can never arrive as a fresh turn.
+    // Fire-and-forget cancel (matches _onTranscriptReceived / _onListenEnded):
+    // nulling the field is the synchronous guarantee, and the status guard in
+    // _onTranscriptReceived drops any event that still slips through. See
+    // KNOWN_ISSUES.md #voice-confirmation-card-buttons-must-cancel-the-open-listen.
+    _sttSubscription?.cancel();
+    _sttSubscription = null;
+    _awaitingUserReply = false;
+    _repromptedThisTurn = false;
+    _consecutiveRelistens = 0;
+
     // Reset to idle so the overlay mic button (gated on `status == idle`) is
     // tappable again and the wake engine can re-arm. Mirrors the accept path,
     // which also ends at idle. Without this, status stays `awaitingConfirmation`

@@ -3173,6 +3173,148 @@ void main() {
     });
   });
 
+  // -------------------------------------------------------------------------
+  // B3: confirmation card buttons must cancel the open readback listen so a
+  // late (often hallucinated) transcript can never become a fresh turn.
+  // See KNOWN_ISSUES.md
+  // #voice-confirmation-card-buttons-must-cancel-the-open-listen.
+  // -------------------------------------------------------------------------
+
+  group('confirmation buttons end the listen', () {
+    void verifyNoChat(MockSendVoiceMessage sendVoiceMessage) {
+      verifyNever(
+        () => sendVoiceMessage(
+          userMessage: any(named: 'userMessage'),
+          sessionId: any(named: 'sessionId'),
+          history: any(named: 'history'),
+          settings: any(named: 'settings'),
+          weightUnit: any(named: 'weightUnit'),
+          recentSets: any(named: 'recentSets'),
+          recentNutritionLogs: any(named: 'recentNutritionLogs'),
+        ),
+      );
+    }
+
+    test('Cancel tears down the readback listen — a late final transcript is '
+        'dropped, never sent to the LLM', () async {
+      final stt = FakeVoiceSttService();
+      final bloc = _makeBloc(
+        sendVoiceMessage: sendVoiceMessage,
+        getVoiceBudget: getBudget,
+        deleteVoiceHistory: deleteHistory,
+        appSettingsRepository: settingsRepo,
+        stt: stt,
+      );
+
+      // Pending confirmation with the readback mic open (continuation listen),
+      // mirroring the state right after a mutation readback re-opens the mic.
+      bloc.emit(
+        const VoiceState(
+          sessionId: 'sid',
+          status: VoiceStatus.awaitingConfirmation,
+          pendingConfirmation: VoiceToolCall(
+            id: 'call-1',
+            toolName: 'logWorkoutSet',
+            displaySummary: 'Log Bench Press',
+            args: {},
+          ),
+        ),
+      );
+      bloc.add(const VoiceListenRequested(isContinuation: true));
+      await Future<void>.delayed(const Duration(milliseconds: 20));
+      expect(bloc.state.status, VoiceStatus.listening);
+
+      // User taps Cancel on the card.
+      bloc.add(const VoiceConfirmationCancelled());
+      await Future<void>.delayed(const Duration(milliseconds: 20));
+      expect(bloc.state.status, VoiceStatus.idle);
+
+      // The readback engine now emits a hallucinated final transcript on the
+      // stream that was open. With the subscription cancelled it must be
+      // dropped — no new turn.
+      stt.emitFinal('For more information visit www.ottobock.com');
+      await Future<void>.delayed(const Duration(milliseconds: 50));
+
+      expect(bloc.state.pendingConfirmation, isNull);
+      expect(bloc.state.status, VoiceStatus.idle);
+      verifyNoChat(sendVoiceMessage);
+
+      await bloc.close();
+    });
+
+    test('Accept tears down the readback listen — a late final transcript is '
+        'dropped, never sent to the LLM', () async {
+      final stt = FakeVoiceSttService();
+      final tts = FakeVoiceTtsService();
+      final bloc = _makeBloc(
+        sendVoiceMessage: sendVoiceMessage,
+        getVoiceBudget: getBudget,
+        deleteVoiceHistory: deleteHistory,
+        appSettingsRepository: settingsRepo,
+        stt: stt,
+        tts: tts,
+      );
+
+      // logWorkoutSet with empty args resolves to no set, so accept speaks the
+      // not-found string and ends at idle without awaiting a router completer.
+      bloc.emit(
+        const VoiceState(
+          sessionId: 'sid',
+          status: VoiceStatus.awaitingConfirmation,
+          pendingConfirmation: VoiceToolCall(
+            id: 'call-1',
+            toolName: 'logWorkoutSet',
+            displaySummary: 'Log Bench Press',
+            args: {},
+          ),
+        ),
+      );
+      bloc.add(const VoiceListenRequested(isContinuation: true));
+      await Future<void>.delayed(const Duration(milliseconds: 20));
+      expect(bloc.state.status, VoiceStatus.listening);
+
+      bloc.add(const VoiceConfirmationAccepted());
+      await Future<void>.delayed(const Duration(milliseconds: 50));
+      expect(bloc.state.status, VoiceStatus.idle);
+
+      stt.emitFinal('For more information visit www.ottobock.com');
+      await Future<void>.delayed(const Duration(milliseconds: 50));
+
+      expect(bloc.state.status, VoiceStatus.idle);
+      verifyNoChat(sendVoiceMessage);
+
+      await bloc.close();
+    });
+
+    test('defense in depth: a final transcript received while not listening is '
+        'dropped (status guard in _onTranscriptReceived)', () async {
+      final bloc = _makeBloc(
+        sendVoiceMessage: sendVoiceMessage,
+        getVoiceBudget: getBudget,
+        deleteVoiceHistory: deleteHistory,
+        appSettingsRepository: settingsRepo,
+      );
+
+      // No open mic; the bloc is idle. A stray final transcript (e.g. an event
+      // already queued before a button tore the turn down) must not become a
+      // new turn.
+      bloc.emit(const VoiceState(sessionId: 'sid', status: VoiceStatus.idle));
+
+      bloc.add(
+        const VoiceTranscriptReceived(
+          transcript: 'For more information visit www.ottobock.com',
+          isFinal: true,
+        ),
+      );
+      await Future<void>.delayed(const Duration(milliseconds: 50));
+
+      expect(bloc.state.status, VoiceStatus.idle);
+      verifyNoChat(sendVoiceMessage);
+
+      await bloc.close();
+    });
+  });
+
   // =========================================================================
   // C-6: Offline routing
   // =========================================================================
@@ -3600,9 +3742,13 @@ void main() {
         deleteVoiceHistory: deleteHistory,
         appSettingsRepository: settingsRepo,
       ),
+      // During a real confirm-listen the mic is open, so status is `listening`
+      // (voice_bloc.dart: readback path), NOT `awaitingConfirmation`. Seeding
+      // `listening` matches reality and clears the _onTranscriptReceived status
+      // guard added for B3.
       seed: () => const VoiceState(
         sessionId: 'sid',
-        status: VoiceStatus.awaitingConfirmation,
+        status: VoiceStatus.listening,
         pendingConfirmation: VoiceToolCall(
           id: 'call-1',
           toolName: 'logWorkoutSet',
@@ -3637,9 +3783,10 @@ void main() {
         deleteVoiceHistory: deleteHistory,
         appSettingsRepository: settingsRepo,
       ),
+      // See note above: real confirm-listen status is `listening`.
       seed: () => const VoiceState(
         sessionId: 'sid',
-        status: VoiceStatus.awaitingConfirmation,
+        status: VoiceStatus.listening,
         pendingConfirmation: VoiceToolCall(
           id: 'call-2',
           toolName: 'logWorkoutSet',
@@ -3673,10 +3820,11 @@ void main() {
         deleteVoiceHistory: deleteHistory,
         appSettingsRepository: settingsRepo,
       );
+      // See note above: real confirm-listen status is `listening`.
       bloc.emit(
         const VoiceState(
           sessionId: 'sid',
-          status: VoiceStatus.awaitingConfirmation,
+          status: VoiceStatus.listening,
           pendingConfirmation: VoiceToolCall(
             id: 'call-3',
             toolName: 'logWorkoutSet',
