@@ -95,6 +95,7 @@ Numbered steps or a short paragraph. State what to do and what *not* to do.
 23. [headphone-tap-to-wake-unreliable-on-airpods-and-when-another-app-holds-media-focus](#headphone-tap-to-wake-unreliable-on-airpods-and-when-another-app-holds-media-focus)
 24. [voice-edge-functions-bare-import-specifiers-fail-to-boot](#voice-edge-functions-bare-import-specifiers-fail-to-boot)
 25. [voice-confirmation-card-buttons-must-cancel-the-open-listen](#voice-confirmation-card-buttons-must-cancel-the-open-listen)
+26. [voice-clarify-questions-must-be-coerced-to-the-clarify-tool](#voice-clarify-questions-must-be-coerced-to-the-clarify-tool)
 
 ### Database
 11. [sqflite-version-15-rejects-incompatible-legacy-databases](#sqflite-version-15-rejects-incompatible-legacy-databases)
@@ -1076,6 +1077,35 @@ Both button handlers now tear down the live listen before any state change: `_st
 - `lib/features/voice/application/voice_bloc.dart` — `_onConfirmationAccepted`, `_onConfirmationCancelled`, `_onTranscriptReceived`, `_onTranscriptFailed`
 - `test/features/voice/application/voice_bloc_test.dart` — `confirmation buttons end the listen` group
 - PR `#142`
+
+---
+
+### voice-clarify-questions-must-be-coerced-to-the-clarify-tool
+
+- **Severity:** High
+- **Status:** Resolved-but-monitor
+- **First observed:** 2026-06-10
+- **Last verified:** 2026-06-10
+- **Area:** voice
+
+**Symptom**
+
+The bot asks a clarifying question ("What weight did you use?") but the microphone does not re-open — the question is spoken and the conversation ends, forcing the user to tap to answer.
+
+**Root cause**
+
+The clarify question only keeps the mic open when the model routes it through the `clarify` tool: the client re-listens for `tool_call` + `clarify` (`supabase_voice_remote_datasource.dart:251`), while a plain `message` becomes a final `kind:"message"` response → `voice_bloc` speaks then goes idle. The system prompt instructs the model to use the `clarify` tool for any question, but `completeChat` sends `tool_choice:"auto"` with no enforcement (`openai.ts:133-134`), so the model still returns questions as prose in the field. Prompt-only enforcement was already attempted (PR `#129`) and still fails.
+
+**Workaround / fix**
+
+Server-side coercion. `coerceQuestionToClarify` (`voice-chat/index.ts`) inspects the guard-resolved assistant content: a reply with no tool call whose trimmed text ends in `?` is re-tagged into a `clarify` tool call (`{name:"clarify", arguments:{question}}`). The text is run through `sanitizeAssistantText` first (and the `?`-tail is tested on the sanitized text) — a tool call bypasses the response-shaping sanitize that a `kind:"message"` reply gets, so this preserves [voice-bot-must-never-surface-internal-ids](#voice-bot-must-never-surface-internal-ids). `handleChat` applies it after `applyAssistantGuard` and before billing/response shaping, so the existing tool_call branches log the session turn and return `kind:"tool_call"` — the client re-listens with no client change. The `GUARD_CORRECTIVE_MESSAGE` ends in "request." (not "?") so it is never coerced; it remains a statement (DECISION: do not re-open the mic on the corrective). The prompt rule (`index.ts:64-65`) is kept as belt-and-suspenders. **Backend change — takes effect only after a manual `Supabase Deploy` (functions target).** Related: [voice-confirmation-cancel-leaves-bot-unresponsive](#voice-confirmation-cancel-leaves-bot-unresponsive).
+
+**References**
+
+- `supabase/functions/voice-chat/index.ts` — `coerceQuestionToClarify`, `handleChat`
+- `supabase/functions/voice-chat/index.test.ts` — `coerceQuestionToClarify` tests
+- `supabase/functions/_shared/openai.ts:133-134` — `tool_choice:"auto"`, no enforcement
+- `lib/data/datasources/remote/supabase_voice_remote_datasource.dart:251` — client re-listens on `clarify`
 
 ---
 
