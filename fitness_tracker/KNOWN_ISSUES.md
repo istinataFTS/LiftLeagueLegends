@@ -97,6 +97,7 @@ Numbered steps or a short paragraph. State what to do and what *not* to do.
 25. [voice-confirmation-card-buttons-must-cancel-the-open-listen](#voice-confirmation-card-buttons-must-cancel-the-open-listen)
 26. [voice-clarify-questions-must-be-coerced-to-the-clarify-tool](#voice-clarify-questions-must-be-coerced-to-the-clarify-tool)
 27. [voice-must-resolve-exercise-before-presenting-a-confirmation-card](#voice-must-resolve-exercise-before-presenting-a-confirmation-card)
+28. [voice-day-scoped-queries-need-explicit-date-resolution](#voice-day-scoped-queries-need-explicit-date-resolution)
 
 ### Database
 11. [sqflite-version-15-rejects-incompatible-legacy-databases](#sqflite-version-15-rejects-incompatible-legacy-databases)
@@ -1136,6 +1137,36 @@ Resolve-or-clarify before the card. In `_dispatchVoiceResult`'s `VoiceChatMutati
 - `lib/core/constants/app_strings.dart` — `voiceClarifyWhichExercise`
 - `lib/features/voice/data/lookup/exercise_lookup.dart:48` — `resolveId` returns null for unknown names
 - `test/features/voice/application/voice_bloc_test.dart` — logWorkoutSet group: unresolvable → clarify+re-listen; resolvable → card
+
+---
+
+### voice-day-scoped-queries-need-explicit-date-resolution
+
+- **Severity:** Medium
+- **Status:** Mitigated
+- **First observed:** 2026-06-10
+- **Last verified:** 2026-06-10
+- **Area:** voice
+
+**Symptom**
+
+"Tell me the nutrition I logged this day" returns "I don't have any recorded nutrition" even though data for that day exists. The model resolves a different (usually earlier) day correctly when the user names it explicitly ("the 8th of June"), but fails on anaphoric references ("this day", "that day", "then").
+
+**Root cause**
+
+`getDailyNutritionLog`, `getWorkoutForDay`, and `getDailyMacros` all default their `date` parameter to today when the model omits it (`voice_bloc.dart` — `_parseIsoDate(args['date']) ?? DateTime.now()`). The model is not instructed explicitly to resolve relative/anaphoric date references to an ISO string before calling these tools; when it fails to do so, the call silently queries today instead of the intended day. DB proof: `nutrition_logs` contained `Chicken Breast | 312.8 | 2026-06-08` for the affected user, but the bot queried 2026-06-10 (today), which had no logs.
+
+**Workaround / fix**
+
+Two-layer fix. Prompt half (this entry): append a `**Dates.**` rule to `SYSTEM_PROMPT_TEMPLATE` (`supabase/functions/voice-chat/index.ts`) instructing the model to resolve all relative/anaphoric day references to `yyyy-MM-dd` before calling the three day-scoped tools, and never to assume "today" when the user pointed at a different day. Sharpen the `date` parameter descriptions in `tools.ts` to reinforce the same rule at the schema level. **Requires a `Supabase Deploy` (functions target) to take effect** — prompt changes are not active until the edge function is redeployed. The deterministic client backstop (Commit 5 — last-referenced-date carry in `VoiceBloc`) is decision-gated and documented separately.
+
+**References**
+
+- `supabase/functions/voice-chat/index.ts` — `SYSTEM_PROMPT_TEMPLATE` date rule
+- `supabase/functions/_shared/tools.ts` — `getDailyNutritionLog`, `getDailyMacros`, `getWorkoutForDay` date parameter descriptions
+- `lib/features/voice/application/voice_bloc.dart` — `_queryDailyNutritionLog:1691`, `_queryWorkoutForDay:1708`, `_queryDailyMacros:1670` — client-side `DateTime.now()` default (backstop for Commit 5)
+- `supabase/functions/voice-chat/index.test.ts` — `buildSystemPrompt: contains explicit date-resolution rule`
+- `supabase/functions/_shared/tools.test.ts` — `tools: day-scoped query tools instruct model to resolve dates explicitly`
 
 ---
 

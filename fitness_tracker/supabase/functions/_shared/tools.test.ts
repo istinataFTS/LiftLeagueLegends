@@ -251,3 +251,23 @@ Deno.test("tools: query tools have no required fields", () => {
     );
   }
 });
+
+Deno.test("tools: day-scoped query tools instruct model to resolve dates explicitly", () => {
+  const dayTools = [
+    "getDailyNutritionLog",
+    "getDailyMacros",
+    "getWorkoutForDay",
+  ];
+  for (const name of dayTools) {
+    const tool = TOOL_REGISTRY.find((t) => t.name === name)!;
+    const dateDesc = (tool.parameters as {
+      properties: Record<string, { description: string }>;
+    })
+      .properties.date.description;
+    assertEquals(
+      dateDesc.includes("do not default to today"),
+      true,
+      `Tool "${name}" date description must instruct not to default to today`,
+    );
+  }
+});
