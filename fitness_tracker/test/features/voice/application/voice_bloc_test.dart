@@ -2583,6 +2583,10 @@ void main() {
         expect(usedDate.year, today.year);
         expect(usedDate.month, today.month);
         expect(usedDate.day, today.day);
+        // The clear path also routes through the start-of-day today fallback.
+        expect(usedDate.hour, 0);
+        expect(usedDate.minute, 0);
+        expect(usedDate.second, 0);
         await bloc.close();
       },
     );
