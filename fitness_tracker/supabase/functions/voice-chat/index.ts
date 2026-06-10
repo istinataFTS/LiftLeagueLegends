@@ -325,7 +325,13 @@ export function coerceQuestionToClarify(
   chatResult: { toolCall?: ToolCall; message?: string },
 ): ToolCall | undefined {
   if (chatResult.toolCall !== undefined) return undefined;
-  const msg = chatResult.message?.trim();
+  // Sanitize first. The client speaks `arguments.question` verbatim and, unlike
+  // a `kind:"message"` reply, a tool call never passes through the
+  // response-shaping `sanitizeAssistantText`, so strip ids here to keep the
+  // never-surface-ids guarantee (KNOWN_ISSUES.md
+  // #voice-bot-must-never-surface-internal-ids). Test the question-mark tail on
+  // the sanitized text so a trailing "[id: …]" cannot hide the "?".
+  const msg = sanitizeAssistantText(chatResult.message)?.trim();
   if (!msg || !QUESTION_TAIL.test(msg)) return undefined;
   return {
     id: `clarify_${crypto.randomUUID()}`,
