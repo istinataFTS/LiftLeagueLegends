@@ -1,4 +1,4 @@
-import type { SupabaseClient } from "@supabase/supabase-js";
+import type { SupabaseClient } from "./deps.ts";
 import { ErrorCodes, VoiceError } from "./errors.ts";
 
 export interface BudgetState {

@@ -1,7 +1,7 @@
 import { assertEquals, assertRejects } from "@std/assert";
 import { authenticate } from "./auth.ts";
 import { ErrorCodes, VoiceError } from "./errors.ts";
-import type { SupabaseClient } from "@supabase/supabase-js";
+import type { SupabaseClient } from "./deps.ts";
 
 // Minimal Supabase client stub for auth tests.
 function makeAuthClient(

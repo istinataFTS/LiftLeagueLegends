@@ -93,7 +93,8 @@ Numbered steps or a short paragraph. State what to do and what *not* to do.
 21. [voice-wake-word-keyword-miss-rate](#voice-wake-word-keyword-miss-rate)
 22. [voice-wake-word-engine-stops-when-overlay-opens](#voice-wake-word-engine-stops-when-overlay-opens)
 23. [headphone-tap-to-wake-unreliable-on-airpods-and-when-another-app-holds-media-focus](#headphone-tap-to-wake-unreliable-on-airpods-and-when-another-app-holds-media-focus)
-24. [voice-confirmation-card-buttons-must-cancel-the-open-listen](#voice-confirmation-card-buttons-must-cancel-the-open-listen)
+24. [voice-edge-functions-bare-import-specifiers-fail-to-boot](#voice-edge-functions-bare-import-specifiers-fail-to-boot)
+25. [voice-confirmation-card-buttons-must-cancel-the-open-listen](#voice-confirmation-card-buttons-must-cancel-the-open-listen)
 
 ### Database
 11. [sqflite-version-15-rejects-incompatible-legacy-databases](#sqflite-version-15-rejects-incompatible-legacy-databases)
@@ -1018,6 +1019,38 @@ Keep the app's MediaSession active while the wake word is armed in the foregroun
 
 ---
 
+### voice-edge-functions-bare-import-specifiers-fail-to-boot
+
+- **Severity:** Critical
+- **Status:** Resolved-but-monitor
+- **First observed:** 2026-06-10
+- **Last verified:** 2026-06-10
+- **Area:** voice
+
+**Symptom**
+
+Every voice call fails. The app says "Something went wrong, please try again!" and `WhisperVoiceSttService` logs `ServerFailure(HTTP_500|500|Voice service error (500))`. The Edge Function returns HTTP 500 with a body that is not the standard `{code, message}` error JSON, so the client falls back to its default message.
+
+**Root cause**
+
+The self-hosted edge-runtime router (`supabase/docker/volumes/functions/main/index.ts` on the VPS) creates each worker with `importMapPath: null` — it does **not** load the `deno.json` import map, and the deploy never copied `deno.json` to the functions volume anyway. A bare specifier like `import ... from "@supabase/supabase-js"` therefore cannot be resolved at runtime: the worker fails with `worker boot error: ... Relative import path "@supabase/supabase-js" not prefixed with / or ./ or ../`, and the router's catch block returns `500 {msg: ...}`. Because the body uses `msg` rather than `code`/`message`, `SupabaseVoiceRemoteDataSource._throwFromErrorBody` keeps its default text. This affects every function importing `_shared/auth.ts` (`voice-chat` and `voice-transcribe`).
+
+**Workaround / fix**
+
+1. Do **not** rely on `deno.json`'s import map at runtime on the self-hosted stack — the router does not load it.
+2. Route all third-party imports through `_shared/deps.ts`, which re-exports them with fully-qualified `npm:`/`jsr:` specifiers (e.g. `npm:@supabase/supabase-js@2`). Fully-qualified specifiers resolve without an import map, so the worker boots regardless of router config, and the version is pinned in one place.
+3. Keep `deno.json` only for local dev/test conveniences (`@std/*`); do not add runtime third-party deps to it.
+4. Verify on the server after deploy: `docker logs --tail 80 supabase-edge-functions` must show clean `serving the request with ...` lines and **no** `worker boot error`.
+
+**References**
+
+- `supabase/functions/_shared/deps.ts` — the dependency module
+- `supabase/functions/_shared/auth.ts:1`, `utils.ts:1` — value import of `createClient`
+- `lib/data/datasources/remote/supabase_voice_remote_datasource.dart:402` — `_throwFromErrorBody` default-message fallback
+- `supabase/docker/volumes/functions/main/index.ts` (server only) — `importMapPath = null`
+
+---
+
 ### voice-confirmation-card-buttons-must-cancel-the-open-listen
 
 - **Severity:** High
@@ -1042,7 +1075,7 @@ Both button handlers now tear down the live listen before any state change: `_st
 
 - `lib/features/voice/application/voice_bloc.dart` — `_onConfirmationAccepted`, `_onConfirmationCancelled`, `_onTranscriptReceived`, `_onTranscriptFailed`
 - `test/features/voice/application/voice_bloc_test.dart` — `confirmation buttons end the listen` group
-- PR `#141`
+- PR `#142`
 
 ---
 

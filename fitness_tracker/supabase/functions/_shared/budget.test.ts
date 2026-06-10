@@ -1,7 +1,7 @@
 import { assertAlmostEquals, assertEquals, assertRejects } from "@std/assert";
 import { assertWithinBudget, getBudgetState } from "./budget.ts";
 import { ErrorCodes, VoiceError } from "./errors.ts";
-import type { SupabaseClient } from "@supabase/supabase-js";
+import type { SupabaseClient } from "./deps.ts";
 
 function makeSupabase(
   rows: Array<{ cost_usd: number }>,

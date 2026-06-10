@@ -1,4 +1,4 @@
-import { createClient, SupabaseClient } from "@supabase/supabase-js";
+import { createClient, type SupabaseClient } from "./deps.ts";
 import { CORS_HEADERS } from "./cors.ts";
 
 export function serviceClient(): SupabaseClient {
