@@ -717,7 +717,8 @@ Deno.test("coerceQuestionToClarify: returns undefined for empty / undefined mess
 
 Deno.test("coerceQuestionToClarify: strips internal ids and still detects the question", () => {
   const result = coerceQuestionToClarify({
-    message: "Which set did you mean? [id: a74cfe8b-4f9a-4c39-96f1-eaa7063819e3]",
+    message:
+      "Which set did you mean? [id: a74cfe8b-4f9a-4c39-96f1-eaa7063819e3]",
   });
   assertEquals(result?.name, "clarify");
   assertEquals(result?.arguments, { question: "Which set did you mean?" });
