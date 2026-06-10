@@ -595,6 +595,24 @@ Deno.test("buildSystemPrompt: clarify-must rule instructs bot to use clarify too
   assertEquals(prompt.includes("never as a plain assistant message"), true);
 });
 
+Deno.test("buildSystemPrompt: contains explicit date-resolution rule", () => {
+  const prompt = buildSystemPrompt({
+    currentDate: "2026-06-10",
+    weightUnit: "kg",
+    recentSets: [],
+    recentNutritionLogs: [],
+  });
+  assertEquals(prompt.includes("Dates."), true);
+  assertEquals(prompt.includes("that day"), true);
+  assertEquals(prompt.includes("never assume"), true);
+  assertEquals(
+    prompt.includes("getWorkoutForDay") &&
+      prompt.includes("getDailyNutritionLog") &&
+      prompt.includes("getDailyMacros"),
+    true,
+  );
+});
+
 // ---------------------------------------------------------------------------
 // applyAssistantGuard — server-side guard against success-claiming prose
 // ---------------------------------------------------------------------------

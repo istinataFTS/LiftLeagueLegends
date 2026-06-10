@@ -223,7 +223,8 @@ const getDailyMacros: ToolDefinition = {
     properties: {
       date: {
         type: "string",
-        description: "ISO date yyyy-MM-dd. Defaults to today if omitted.",
+        description:
+          'ISO date yyyy-MM-dd. Resolve relative/anaphoric dates ("today", "yesterday", "that day") to an explicit date; do not default to today when the user named another day.',
       },
     },
     required: [],
@@ -264,7 +265,8 @@ const getDailyNutritionLog: ToolDefinition = {
     properties: {
       date: {
         type: "string",
-        description: "ISO date yyyy-MM-dd. Defaults to today.",
+        description:
+          'ISO date yyyy-MM-dd. Resolve relative/anaphoric dates ("today", "yesterday", "that day") to an explicit date; do not default to today when the user named another day.',
       },
     },
     required: [],
@@ -303,7 +305,8 @@ const getWorkoutForDay: ToolDefinition = {
     properties: {
       date: {
         type: "string",
-        description: "ISO date yyyy-MM-dd. Defaults to today.",
+        description:
+          'ISO date yyyy-MM-dd. Resolve relative/anaphoric dates ("today", "yesterday", "that day") to an explicit date; do not default to today when the user named another day.',
       },
     },
     required: [],

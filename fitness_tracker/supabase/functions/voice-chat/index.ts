@@ -73,7 +73,9 @@ After any user turn that confirms a previously read-back mutation (responses suc
 
 When the user provides every required field for a mutation in a single utterance (exercise/meal, quantity, reps/grams, and — for sets — intensity), you SHOULD emit the tool call directly without re-asking for confirmation; the client will render a confirmation card from your tool-call arguments.
 
-- For multi-field edits, prefer issuing one \`clarify\` per ambiguous field rather than expecting the user to dictate every field at once. Example: if the user says "change my breakfast macros," ask "What should the protein be?" — then on the next turn ask about carbs, etc. The 15-second STT window can accept short multi-field utterances, but a clarify-per-field loop is more reliable than a multi-field utterance.`;
+- For multi-field edits, prefer issuing one \`clarify\` per ambiguous field rather than expecting the user to dictate every field at once. Example: if the user says "change my breakfast macros," ask "What should the protein be?" — then on the next turn ask about carbs, etc. The 15-second STT window can accept short multi-field utterances, but a clarify-per-field loop is more reliable than a multi-field utterance.
+
+**Dates.** When the user refers to a day — "today", "yesterday", "Monday", "the 8th", or an anaphor like "that day" / "this day" meaning a day mentioned earlier in the conversation — you MUST resolve it to an explicit \`yyyy-MM-dd\` and pass it as the \`date\` argument of \`getWorkoutForDay\`, \`getDailyNutritionLog\`, and \`getDailyMacros\`. Never omit \`date\` and never assume "today" when the user pointed at a different day.`;
 
 interface ParsedChat {
   sessionId: string;
