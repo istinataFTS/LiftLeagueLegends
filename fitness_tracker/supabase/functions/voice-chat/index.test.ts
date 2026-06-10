@@ -669,3 +669,48 @@ Deno.test("ErrorCodes includes GUARD_FAILED_TOOL_OMITTED", () => {
     "GUARD_FAILED_TOOL_OMITTED",
   );
 });
+
+// ---------------------------------------------------------------------------
+// coerceQuestionToClarify — re-tags a prose question as a `clarify` tool call
+// so the client re-listens (tool_choice:"auto" does not force the tool).
+// Tested as a pure function, the same way applyAssistantGuard is — handleChat
+// is not exported and the file has no handler-level harness.
+// ---------------------------------------------------------------------------
+
+const { coerceQuestionToClarify } = await import("./index.ts");
+
+Deno.test("coerceQuestionToClarify: re-tags a question into a clarify tool call", () => {
+  const result = coerceQuestionToClarify({
+    message: "What weight did you use?",
+  });
+  assertEquals(result?.name, "clarify");
+  assertEquals(result?.arguments, { question: "What weight did you use?" });
+  assertEquals(result!.id.startsWith("clarify_"), true);
+});
+
+Deno.test("coerceQuestionToClarify: returns undefined when a tool_call is present", () => {
+  const result = coerceQuestionToClarify({
+    toolCall: { id: "call_1", name: "logWorkoutSet", arguments: {} },
+    message: "What weight did you use?",
+  });
+  assertEquals(result, undefined);
+});
+
+Deno.test("coerceQuestionToClarify: returns undefined for a statement (not a question)", () => {
+  const result = coerceQuestionToClarify({
+    message: "I only handle logging.",
+  });
+  assertEquals(result, undefined);
+});
+
+Deno.test("coerceQuestionToClarify: does NOT coerce the guard corrective message", () => {
+  const result = coerceQuestionToClarify({
+    message: GUARD_CORRECTIVE_MESSAGE,
+  });
+  assertEquals(result, undefined);
+});
+
+Deno.test("coerceQuestionToClarify: returns undefined for empty / undefined message", () => {
+  assertEquals(coerceQuestionToClarify({ message: undefined }), undefined);
+  assertEquals(coerceQuestionToClarify({ message: "   " }), undefined);
+});

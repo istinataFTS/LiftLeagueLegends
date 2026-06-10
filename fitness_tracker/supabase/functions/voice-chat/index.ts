@@ -10,6 +10,7 @@ import type {
   FunctionName,
   RecentNutritionLogContext,
   RecentSetContext,
+  ToolCall,
   Turn,
   VoiceContext,
 } from "../_shared/types.ts";
@@ -311,6 +312,28 @@ export function applyAssistantGuard(
   return { tripped: true, responseContent: GUARD_CORRECTIVE_MESSAGE };
 }
 
+// A no-tool-call assistant message ending in a question mark is a clarify the
+// model failed to route through the `clarify` tool — `tool_choice:"auto"` does
+// not force it (see openai.ts:133-134). Left as a plain message, the client
+// treats it as a final statement and goes idle without re-opening the mic. This
+// re-tags such a reply as a `clarify` tool call so the client re-listens. Pure
+// and exported for direct unit testing.
+// See KNOWN_ISSUES.md #voice-clarify-questions-must-be-coerced-to-the-clarify-tool.
+const QUESTION_TAIL = /\?\s*$/;
+
+export function coerceQuestionToClarify(
+  chatResult: { toolCall?: ToolCall; message?: string },
+): ToolCall | undefined {
+  if (chatResult.toolCall !== undefined) return undefined;
+  const msg = chatResult.message?.trim();
+  if (!msg || !QUESTION_TAIL.test(msg)) return undefined;
+  return {
+    id: `clarify_${crypto.randomUUID()}`,
+    name: "clarify",
+    arguments: { question: msg },
+  };
+}
+
 // Strips internal identifiers from assistant *message* text. Defense-in-depth:
 // the prompt forbids surfacing ids, but this guarantees it even if the model
 // disobeys. Tool calls are unaffected — their structured args are consumed by the
@@ -390,6 +413,20 @@ async function handleChat(req: Request, t0: number): Promise<Response> {
     );
   }
   const safeContent = sanitizeAssistantText(guard.responseContent);
+
+  // A question the model returned as prose (instead of a `clarify` tool call)
+  // is re-tagged here so the client keeps the mic open. Applied to the
+  // guard-resolved content; GUARD_CORRECTIVE_MESSAGE ends in "request." (not
+  // "?") so it is never coerced — it stays a statement (DECISION: do not
+  // re-open the mic on the corrective). Setting `chatResult.toolCall` makes the
+  // existing tool_call branches below handle session logging and the
+  // `kind:"tool_call"` response automatically; the client already re-listens
+  // for `clarify` (supabase_voice_remote_datasource.dart:251).
+  const coerced = coerceQuestionToClarify({
+    message: guard.responseContent,
+    toolCall: chatResult.toolCall,
+  });
+  if (coerced) chatResult.toolCall = coerced;
 
   const cost = costForChat(
     MODEL,
