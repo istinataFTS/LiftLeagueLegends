@@ -99,6 +99,7 @@ Numbered steps or a short paragraph. State what to do and what *not* to do.
 27. [voice-must-resolve-exercise-before-presenting-a-confirmation-card](#voice-must-resolve-exercise-before-presenting-a-confirmation-card)
 28. [voice-day-scoped-queries-need-explicit-date-resolution](#voice-day-scoped-queries-need-explicit-date-resolution)
 29. [voice-day-scoped-query-falls-back-to-last-referenced-date](#voice-day-scoped-query-falls-back-to-last-referenced-date)
+30. [voice-spoken-confirm-must-tolerate-stt-punctuation-and-filler](#voice-spoken-confirm-must-tolerate-stt-punctuation-and-filler)
 
 ### Database
 11. [sqflite-version-15-rejects-incompatible-legacy-databases](#sqflite-version-15-rejects-incompatible-legacy-databases)
@@ -1196,6 +1197,35 @@ Deterministic client backstop in `VoiceBloc`. `_lastReferencedDate` records the 
 - `lib/features/voice/application/voice_bloc.dart` — `_lastReferencedDate` field; `_resolveQueryDate` (start-of-day fallback); `_queryDailyMacros`, `_queryDailyNutritionLog`, `_queryWorkoutForDay`; reset in `_onSessionStarted`, `_onConversationCleared`, `_onHistoryDelete`
 - `test/features/voice/application/voice_bloc_test.dart` — `day-scoped date carry` group: carry reuses the prior day; lone query uses start-of-day today; clearing the conversation drops the carried day
 - Related prompt half: [voice-day-scoped-queries-need-explicit-date-resolution](#voice-day-scoped-queries-need-explicit-date-resolution)
+
+---
+
+### voice-spoken-confirm-must-tolerate-stt-punctuation-and-filler
+
+- **Severity:** High
+- **Status:** Resolved-but-monitor
+- **First observed:** 2026-06-10
+- **Last verified:** 2026-06-10
+- **Area:** voice
+
+**Symptom**
+
+Saying "Confirm" (or "I confirm") while a confirmation card is showing causes the bot to re-ask the question and then log a completely different exercise. Device logcat proves the pattern: `transcription received (8 chars)` = `"Confirm."`, `transcription received (10 chars)` = `"I confirm."`. The correct exercise (e.g. bench press) disappears and a hallucinated one (e.g. Bulgarian Split Squat) appears on the card instead.
+
+**Root cause**
+
+`VoiceReplyClassifier.classify` matched against the raw transcript using anchored regexes (`^confirm$`). Whisper returns transcripts with a capital first letter and a trailing period, so `"Confirm."` fails `^confirm$` on the trailing `.` and `"I confirm."` fails on the `I ` prefix AND the `.`. Both fall through to `VoiceReplyKind.correction`, which routes to the LLM. `_onSendMessage` clears the pending confirmation before the LLM call, so the bench-press card is gone. The LLM receives a bare `"Confirm"` with truncated history, loses context, and re-emits `logWorkoutSet` with a hallucinated exercise name.
+
+**Workaround / fix**
+
+`VoiceReplyClassifier.classify` now normalises the input before matching: `transcript.toLowerCase().trim().replaceAll(_edgePunct, '')`, where `_edgePunct = RegExp(r'^[\s\p{P}]+|[\s\p{P}]+$', unicode: true)` strips leading and trailing Unicode whitespace and punctuation. The anchored regexes (`^…$`) are applied to the normalised string, so `"Confirm."` → `"confirm"` and `"I confirm."` → `"i confirm"` both hit their respective alternation. The alternations were also widened to cover common spoken forms (`i confirm`, `please confirm`, `okay`, `ok`, `correct`, `that's right`, `thats right`, `sure`; cancel: `no thanks`, `nope`, `forget it`). Anchoring is preserved — `"yes but make it 8"` still falls through to correction. Do **not** weaken the anchor (`^…$`) or remove the normalisation without re-running the full classifier test suite.
+
+**References**
+
+- `lib/features/voice/application/voice_reply_classifier.dart` — `_edgePunct`; widened `_confirm`/`_cancel`; normalised `classify()`
+- `test/features/voice/application/voice_reply_classifier_test.dart` — new "Whisper normalisation" group; updated cancel list; regression anchoring tests
+- PR `#147` — fix: punctuation/filler-tolerant confirm classifier
+- Related: [voice-must-resolve-exercise-before-presenting-a-confirmation-card](#voice-must-resolve-exercise-before-presenting-a-confirmation-card)
 
 ---
 
