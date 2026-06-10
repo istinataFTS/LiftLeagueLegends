@@ -30,6 +30,7 @@ import '../../../domain/services/voice_stt_service.dart';
 import '../../../domain/services/voice_tts_service.dart';
 import '../../../domain/services/voice_wake_word_service.dart';
 import '../../../domain/usecases/nutrition_logs/get_daily_macros.dart';
+import '../../../domain/usecases/nutrition_logs/get_logs_by_date_range.dart';
 import '../../../domain/usecases/nutrition_logs/get_logs_for_date.dart';
 import '../../../domain/usecases/voice/delete_voice_history.dart';
 import '../../../domain/usecases/voice/get_voice_budget.dart';
@@ -418,6 +419,7 @@ class VoiceBloc extends Bloc<VoiceEvent, VoiceState>
     required GetDailyMacros getDailyMacros,
     required GetWeeklySets getWeeklySets,
     required GetLogsForDate getLogsForDate,
+    required GetLogsByDateRange getLogsByDateRange,
     // C-6: shared lookup helpers
     required ExerciseLookup exerciseLookup,
     // C-6: offline coordinator
@@ -438,6 +440,7 @@ class VoiceBloc extends Bloc<VoiceEvent, VoiceState>
        // ignore: unused_field
        _getWeeklySets = getWeeklySets,
        _getLogsForDate = getLogsForDate,
+       _getLogsByDateRange = getLogsByDateRange,
        _exerciseLookup = exerciseLookup,
        _offlineCoordinator = offlineCoordinator,
        super(const VoiceState()) {
@@ -515,6 +518,7 @@ class VoiceBloc extends Bloc<VoiceEvent, VoiceState>
   // ignore: unused_field
   final GetWeeklySets _getWeeklySets;
   final GetLogsForDate _getLogsForDate;
+  final GetLogsByDateRange _getLogsByDateRange;
 
   // C-6: shared lookup — singleton, cache persists across voice sessions
   final ExerciseLookup _exerciseLookup;
@@ -1100,8 +1104,8 @@ class VoiceBloc extends Bloc<VoiceEvent, VoiceState>
   // C-5: Recent context builder
   // ---------------------------------------------------------------------------
 
-  /// Populates [_cachedWorkoutSets] / [_cachedNutritionLogs] (last 5 sets from
-  /// the past 7 days, last 5 logs from today) and warms the exercise lookup.
+  /// Populates [_cachedWorkoutSets] / [_cachedNutritionLogs] (last 5 sets and
+  /// last 5 logs from the past 7 days) and warms the exercise lookup.
   ///
   /// Shared by the online context builder and the offline path so a confirmed
   /// edit/delete can always resolve an id back to a full entity. Errors are
@@ -1121,9 +1125,12 @@ class VoiceBloc extends Bloc<VoiceEvent, VoiceState>
       final rawSets = setsResult.fold((_) => <WorkoutSet>[], (s) => s);
       _cachedWorkoutSets = rawSets.toList();
 
-      final logsResult = await _getLogsForDate(DateTime.now());
+      final logsResult = await _getLogsByDateRange(
+        startDate: DateTime.now().subtract(const Duration(days: 7)),
+        endDate: DateTime.now(),
+      );
       final rawLogs = logsResult.fold((_) => <NutritionLog>[], (l) => l);
-      _cachedNutritionLogs = rawLogs.take(5).toList();
+      _cachedNutritionLogs = rawLogs.take(_recentCacheWindowSize).toList();
     } catch (e, st) {
       AppLogger.warning(
         'VoiceBloc: _warmRecentCaches failed',

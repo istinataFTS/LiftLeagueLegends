@@ -20,6 +20,7 @@ import 'package:fitness_tracker/domain/entities/voice_tool_call.dart';
 import 'package:fitness_tracker/domain/entities/workout_set.dart';
 import 'package:fitness_tracker/domain/repositories/app_settings_repository.dart';
 import 'package:fitness_tracker/domain/usecases/nutrition_logs/get_daily_macros.dart';
+import 'package:fitness_tracker/domain/usecases/nutrition_logs/get_logs_by_date_range.dart';
 import 'package:fitness_tracker/domain/usecases/nutrition_logs/get_logs_for_date.dart';
 import 'package:fitness_tracker/features/voice/data/coordinator/offline_voice_coordinator.dart';
 import 'package:fitness_tracker/features/voice/data/lookup/exercise_lookup.dart';
@@ -56,6 +57,8 @@ class MockGetDailyMacros extends Mock implements GetDailyMacros {}
 class MockGetWeeklySets extends Mock implements GetWeeklySets {}
 
 class MockExerciseLookup extends Mock implements ExerciseLookup {}
+
+class MockGetLogsByDateRange extends Mock implements GetLogsByDateRange {}
 
 class MockGetLogsForDate extends Mock implements GetLogsForDate {}
 
@@ -287,6 +290,17 @@ MockGetLogsForDate _defaultGetLogsForDate() {
   return m;
 }
 
+MockGetLogsByDateRange _defaultGetLogsByDateRange() {
+  final m = MockGetLogsByDateRange();
+  when(
+    () => m(
+      startDate: any(named: 'startDate'),
+      endDate: any(named: 'endDate'),
+    ),
+  ).thenAnswer((_) async => const Right([]));
+  return m;
+}
+
 MockOfflineVoiceCoordinator _defaultOfflineCoordinator() {
   final m = MockOfflineVoiceCoordinator();
   when(() => m.process(any(), weightUnit: any(named: 'weightUnit'))).thenAnswer(
@@ -322,6 +336,7 @@ VoiceBloc _makeBloc({
   GetDailyMacros? getDailyMacros,
   GetWeeklySets? getWeeklySets,
   GetLogsForDate? getLogsForDate,
+  GetLogsByDateRange? getLogsByDateRange,
   // C-6 params
   ExerciseLookup? exerciseLookup,
   OfflineVoiceCoordinator? offlineCoordinator,
@@ -342,6 +357,7 @@ VoiceBloc _makeBloc({
     getDailyMacros: getDailyMacros ?? _defaultGetDailyMacros(),
     getWeeklySets: getWeeklySets ?? _defaultGetWeeklySets(),
     getLogsForDate: getLogsForDate ?? _defaultGetLogsForDate(),
+    getLogsByDateRange: getLogsByDateRange ?? _defaultGetLogsByDateRange(),
     exerciseLookup: exerciseLookup ?? _defaultExerciseLookup(),
     offlineCoordinator: offlineCoordinator ?? _defaultOfflineCoordinator(),
   );
@@ -415,6 +431,7 @@ void main() {
   late MockExerciseLookup exerciseLookup;
   late MockGetSetsByDateRange getSetsByDateRange;
   late MockGetLogsForDate getLogsForDate;
+  late MockGetLogsByDateRange getLogsByDateRange;
   late MockGetDailyMacros getDailyMacros;
 
   setUp(() {
@@ -426,6 +443,7 @@ void main() {
     exerciseLookup = _defaultExerciseLookup();
     getSetsByDateRange = _defaultGetSetsByDateRange();
     getLogsForDate = _defaultGetLogsForDate();
+    getLogsByDateRange = _defaultGetLogsByDateRange();
     getDailyMacros = _defaultGetDailyMacros();
 
     when(() => getBudget()).thenAnswer(
@@ -589,6 +607,105 @@ void main() {
           ),
         ).captured;
         expect(captured.single, WeightUnit.pounds);
+      },
+    );
+
+    // recent-context: 7-day nutrition window
+    blocTest<VoiceBloc, VoiceState>(
+      'recentNutritionLogs is non-empty when 7-day window contains a log',
+      build: () {
+        final logFromJune8 = NutritionLog(
+          id: 'log-june8',
+          mealName: 'Chicken',
+          calories: 300,
+          proteinGrams: 25,
+          carbsGrams: 10,
+          fatGrams: 8,
+          loggedAt: DateTime(2026, 6, 8),
+          createdAt: DateTime(2026, 6, 8),
+        );
+        when(
+          () => getLogsByDateRange(
+            startDate: any(named: 'startDate'),
+            endDate: any(named: 'endDate'),
+          ),
+        ).thenAnswer((_) async => Right([logFromJune8]));
+        when(
+          () => sendVoiceMessage(
+            userMessage: any(named: 'userMessage'),
+            sessionId: any(named: 'sessionId'),
+            history: any(named: 'history'),
+            settings: any(named: 'settings'),
+            weightUnit: any(named: 'weightUnit'),
+            recentSets: any(named: 'recentSets'),
+            recentNutritionLogs: any(named: 'recentNutritionLogs'),
+          ),
+        ).thenAnswer((_) async => Right(_assistantResult('ok')));
+        return _makeBloc(
+          sendVoiceMessage: sendVoiceMessage,
+          getVoiceBudget: getBudget,
+          deleteVoiceHistory: deleteHistory,
+          appSettingsRepository: settingsRepo,
+          getLogsByDateRange: getLogsByDateRange,
+        );
+      },
+      seed: () => const VoiceState(sessionId: 'sid'),
+      act: (bloc) =>
+          bloc.add(const VoiceSendMessage('what did I eat on June 8th')),
+      verify: (_) {
+        final captured = verify(
+          () => sendVoiceMessage(
+            userMessage: any(named: 'userMessage'),
+            sessionId: any(named: 'sessionId'),
+            history: any(named: 'history'),
+            settings: any(named: 'settings'),
+            weightUnit: any(named: 'weightUnit'),
+            recentSets: any(named: 'recentSets'),
+            recentNutritionLogs: captureAny(named: 'recentNutritionLogs'),
+          ),
+        ).captured;
+        expect(captured.single as List, isNotEmpty);
+      },
+    );
+
+    blocTest<VoiceBloc, VoiceState>(
+      'empty date range returns empty recentNutritionLogs without throwing',
+      build: () {
+        when(
+          () => sendVoiceMessage(
+            userMessage: any(named: 'userMessage'),
+            sessionId: any(named: 'sessionId'),
+            history: any(named: 'history'),
+            settings: any(named: 'settings'),
+            weightUnit: any(named: 'weightUnit'),
+            recentSets: any(named: 'recentSets'),
+            recentNutritionLogs: any(named: 'recentNutritionLogs'),
+          ),
+        ).thenAnswer((_) async => Right(_assistantResult('ok')));
+        // default getLogsByDateRange returns Right([]) — no stub override needed
+        return _makeBloc(
+          sendVoiceMessage: sendVoiceMessage,
+          getVoiceBudget: getBudget,
+          deleteVoiceHistory: deleteHistory,
+          appSettingsRepository: settingsRepo,
+          getLogsByDateRange: getLogsByDateRange,
+        );
+      },
+      seed: () => const VoiceState(sessionId: 'sid'),
+      act: (bloc) => bloc.add(const VoiceSendMessage('test')),
+      verify: (_) {
+        final captured = verify(
+          () => sendVoiceMessage(
+            userMessage: any(named: 'userMessage'),
+            sessionId: any(named: 'sessionId'),
+            history: any(named: 'history'),
+            settings: any(named: 'settings'),
+            weightUnit: any(named: 'weightUnit'),
+            recentSets: any(named: 'recentSets'),
+            recentNutritionLogs: captureAny(named: 'recentNutritionLogs'),
+          ),
+        ).captured;
+        expect(captured.single as List, isEmpty);
       },
     );
   });
@@ -1559,7 +1676,10 @@ void main() {
           createdAt: _now,
         );
         when(
-          () => getLogsForDate(any()),
+          () => getLogsByDateRange(
+            startDate: any(named: 'startDate'),
+            endDate: any(named: 'endDate'),
+          ),
         ).thenAnswer((_) async => Right([editableLog]));
 
         final tts = FakeVoiceTtsService();
@@ -1572,6 +1692,7 @@ void main() {
           exerciseLookup: exerciseLookup,
           getSetsByDateRange: getSetsByDateRange,
           getLogsForDate: getLogsForDate,
+          getLogsByDateRange: getLogsByDateRange,
           getDailyMacros: getDailyMacros,
           tts: tts,
         );

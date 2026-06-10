@@ -100,6 +100,7 @@ Numbered steps or a short paragraph. State what to do and what *not* to do.
 28. [voice-day-scoped-queries-need-explicit-date-resolution](#voice-day-scoped-queries-need-explicit-date-resolution)
 29. [voice-day-scoped-query-falls-back-to-last-referenced-date](#voice-day-scoped-query-falls-back-to-last-referenced-date)
 30. [voice-spoken-confirm-must-tolerate-stt-punctuation-and-filler](#voice-spoken-confirm-must-tolerate-stt-punctuation-and-filler)
+31. [voice-recent-nutrition-context-was-today-only](#voice-recent-nutrition-context-was-today-only)
 
 ### Database
 11. [sqflite-version-15-rejects-incompatible-legacy-databases](#sqflite-version-15-rejects-incompatible-legacy-databases)
@@ -1226,6 +1227,35 @@ Saying "Confirm" (or "I confirm") while a confirmation card is showing causes th
 - `test/features/voice/application/voice_reply_classifier_test.dart` — new "Whisper normalisation" group; updated cancel list; regression anchoring tests
 - PR `#147` — fix: punctuation/filler-tolerant confirm classifier
 - Related: [voice-must-resolve-exercise-before-presenting-a-confirmation-card](#voice-must-resolve-exercise-before-presenting-a-confirmation-card)
+
+---
+
+### voice-recent-nutrition-context-was-today-only
+
+- **Severity:** High
+- **Status:** Resolved-but-monitor
+- **First observed:** 2026-06-10
+- **Last verified:** 2026-06-10
+- **Area:** voice
+
+**Symptom**
+
+Asking "what nutrition did I log on the 8th?" (or any day other than today) causes the bot to answer "You haven't logged any nutrition entries yet" even though food was logged via the app screens. Workout history from the same day is visible and queryable normally.
+
+**Root cause**
+
+`_warmRecentCaches` in `VoiceBloc` built the two LLM context slots asymmetrically: `{{recent_sets}}` used a 7-day sliding window (`_getSetsByDateRange`, last 7 days) while `{{recent_nutrition_logs}}` used today-only (`_getLogsForDate(DateTime.now())`). On any day where nutrition was logged earlier in the week but nothing was logged today, `{{recent_nutrition_logs}}` was empty. The LLM saw recent workouts and zero nutrition, concluded the user had no nutrition history, and free-texted that answer instead of calling `getDailyNutritionLog`.
+
+**Workaround / fix**
+
+`_warmRecentCaches` now uses `_getLogsByDateRange(startDate: now − 7 days, endDate: now)` for the nutrition cache, matching the sets window exactly. `GetLogsByDateRange` was already `registerLazySingleton` in the meals module and is wired into `VoiceBloc` as a new required constructor param `getLogsByDateRange`. `_getLogsForDate` is retained for the `_queryDailyNutritionLog` tool path, which still queries a specific date on demand. The `editNutritionLog` tool-dispatch test was updated to stub `getLogsByDateRange` (not `getLogsForDate`) for cache warming, since that path now populates `_cachedNutritionLogs`. Client-only — no deploy required.
+
+**References**
+
+- `lib/features/voice/application/voice_bloc.dart` — `_warmRecentCaches`: `_getLogsByDateRange` replaces `_getLogsForDate`; `_getLogsByDateRange` field and constructor param
+- `lib/injection/modules/register_voice_module.dart` — `getLogsByDateRange: sl<GetLogsByDateRange>()` wired into VoiceBloc factory
+- `test/features/voice/application/voice_bloc_test.dart` — `MockGetLogsByDateRange`; `_defaultGetLogsByDateRange`; new "recentNutritionLogs is non-empty" and "empty range" tests; `editNutritionLog` test updated to stub `getLogsByDateRange`
+- PR `#148` — fix: widen recent-nutrition context window to 7 days
 
 ---
 

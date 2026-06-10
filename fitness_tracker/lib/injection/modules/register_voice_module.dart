@@ -19,6 +19,7 @@ import '../../domain/services/voice_tts_service.dart';
 import '../../domain/services/voice_wake_word_service.dart';
 import '../../domain/usecases/exercises/get_all_exercises.dart';
 import '../../domain/usecases/nutrition_logs/get_daily_macros.dart';
+import '../../domain/usecases/nutrition_logs/get_logs_by_date_range.dart';
 import '../../domain/usecases/nutrition_logs/get_logs_for_date.dart';
 import '../../domain/usecases/voice/delete_voice_history.dart';
 import '../../domain/usecases/voice/get_voice_budget.dart';
@@ -188,6 +189,7 @@ void registerVoiceModule(GetIt sl) {
       getDailyMacros: sl<GetDailyMacros>(),
       getWeeklySets: sl<GetWeeklySets>(),
       getLogsForDate: sl<GetLogsForDate>(),
+      getLogsByDateRange: sl<GetLogsByDateRange>(),
       exerciseLookup: sl<ExerciseLookup>(),
       offlineCoordinator: sl<OfflineVoiceCoordinator>(),
     ),
