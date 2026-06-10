@@ -1,7 +1,7 @@
 import { assertEquals } from "@std/assert";
 import { logUsage } from "./usage.ts";
 import { PRICING_VERSION } from "./cost.ts";
-import type { SupabaseClient } from "@supabase/supabase-js";
+import type { SupabaseClient } from "./deps.ts";
 
 function makeInsertClient(
   onInsert: (payload: Record<string, unknown>) => { error: unknown },

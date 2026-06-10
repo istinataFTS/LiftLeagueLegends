@@ -9,7 +9,7 @@ import { assertEquals } from "@std/assert";
 import { _setFetch, transcribeAudio } from "../_shared/whisper.ts";
 import { ErrorCodes } from "../_shared/errors.ts";
 import { costForWhisper } from "../_shared/cost.ts";
-import type { SupabaseClient } from "@supabase/supabase-js";
+import type { SupabaseClient } from "../_shared/deps.ts";
 
 const REAL_FETCH = globalThis.fetch;
 
