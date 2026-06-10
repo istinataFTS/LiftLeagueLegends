@@ -1764,7 +1764,13 @@ class VoiceBloc extends Bloc<VoiceEvent, VoiceState>
         return parsed;
       }
     }
-    return _lastReferencedDate ?? DateTime.now();
+    // A referenced date is already midnight (_parseIsoDate yields DateTime(y,m,d)).
+    // The today fallback must also be start-of-day: _queryWorkoutForDay uses the
+    // returned value directly as startDate, so a time component would exclude
+    // earlier-in-day sets.
+    if (_lastReferencedDate != null) return _lastReferencedDate!;
+    final now = DateTime.now();
+    return DateTime(now.year, now.month, now.day);
   }
 
   Future<String> _queryDailyMacros(Map<String, dynamic> args) async {
@@ -1911,13 +1917,18 @@ class VoiceBloc extends Bloc<VoiceEvent, VoiceState>
     final result = await _deleteVoiceHistory();
     result.fold(
       (failure) => emit(state.copyWith(errorMessage: _messageFor(failure))),
-      (_) => emit(
-        state.copyWith(
-          messages: const <VoiceMessage>[],
-          sessionId: _uuid.v4(),
-          clearError: true,
-        ),
-      ),
+      (_) {
+        // New sessionId = fresh conversation: drop the carried day so it cannot
+        // leak into it (see _resolveQueryDate / _onSessionStarted).
+        _lastReferencedDate = null;
+        emit(
+          state.copyWith(
+            messages: const <VoiceMessage>[],
+            sessionId: _uuid.v4(),
+            clearError: true,
+          ),
+        );
+      },
     );
   }
 
@@ -1925,6 +1936,9 @@ class VoiceBloc extends Bloc<VoiceEvent, VoiceState>
     VoiceConversationCleared event,
     Emitter<VoiceState> emit,
   ) {
+    // New sessionId = fresh conversation: drop the carried day so it cannot
+    // leak into it (see _resolveQueryDate / _onSessionStarted).
+    _lastReferencedDate = null;
     emit(
       state.copyWith(
         messages: const <VoiceMessage>[],

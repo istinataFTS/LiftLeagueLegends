@@ -2511,6 +2511,78 @@ void main() {
         expect(usedDate.year, today.year);
         expect(usedDate.month, today.month);
         expect(usedDate.day, today.day);
+        // Today fallback must be start-of-day (no time component) so a query
+        // using it directly as startDate cannot exclude earlier-in-day rows.
+        expect(usedDate.hour, 0);
+        expect(usedDate.minute, 0);
+        expect(usedDate.second, 0);
+        await bloc.close();
+      },
+    );
+
+    test(
+      'clearing the conversation drops the carried day (next date-less query uses today)',
+      () async {
+        final localLogs = MockGetLogsForDate();
+        when(
+          () => localLogs(any()),
+        ).thenAnswer((_) async => const Right(<NutritionLog>[]));
+
+        // Turn 1 references the 8th; then the conversation is cleared; the
+        // post-clear date-less query must NOT reuse the 8th.
+        final responses = <VoiceChatResult>[
+          const VoiceChatQueryCall(
+            toolCallId: 'c1',
+            toolName: 'getDailyNutritionLog',
+            args: {'date': '2026-06-08'},
+          ),
+          const VoiceChatQueryCall(
+            toolCallId: 'c2',
+            toolName: 'getDailyNutritionLog',
+            args: {},
+          ),
+        ];
+        var call = 0;
+        when(
+          () => sendVoiceMessage(
+            userMessage: any(named: 'userMessage'),
+            sessionId: any(named: 'sessionId'),
+            history: any(named: 'history'),
+            settings: any(named: 'settings'),
+            weightUnit: any(named: 'weightUnit'),
+            recentSets: any(named: 'recentSets'),
+            recentNutritionLogs: any(named: 'recentNutritionLogs'),
+          ),
+        ).thenAnswer((_) async => Right(responses[call++]));
+
+        final tts = FakeVoiceTtsService();
+        final bloc = _makeBloc(
+          sendVoiceMessage: sendVoiceMessage,
+          getVoiceBudget: getBudget,
+          deleteVoiceHistory: deleteHistory,
+          appSettingsRepository: settingsRepo,
+          exerciseLookup: exerciseLookup,
+          getSetsByDateRange: getSetsByDateRange,
+          getLogsForDate: localLogs,
+          getDailyMacros: getDailyMacros,
+          tts: tts,
+        );
+
+        bloc.add(VoiceSessionStarted(authSession()));
+        await Future<void>.delayed(const Duration(milliseconds: 50));
+        bloc.add(const VoiceSendMessage('what did I eat on the 8th'));
+        await Future<void>.delayed(const Duration(milliseconds: 200));
+        bloc.add(const VoiceConversationCleared());
+        await Future<void>.delayed(const Duration(milliseconds: 50));
+        bloc.add(const VoiceSendMessage('what did I eat'));
+        await Future<void>.delayed(const Duration(milliseconds: 200));
+
+        final captured = verify(() => localLogs(captureAny())).captured;
+        final usedDate = captured.last as DateTime;
+        final today = DateTime.now();
+        expect(usedDate.year, today.year);
+        expect(usedDate.month, today.month);
+        expect(usedDate.day, today.day);
         await bloc.close();
       },
     );
