@@ -977,6 +977,8 @@ Short keywords (2–3 BPE tokens) provide little acoustic evidence for streaming
 
 On 2026-06-11 all three phrases were prefixed with "Hey" (now 5+ BPE tokens after re-tokenization against `tool/wake_words/bpe.model`: `▁HE Y ▁SA MO ▁LE V S K I`, `▁HE Y ▁TRA IN ER`, `▁HE Y ▁TH OM AS`). The short two (trainer, thomas) additionally carry a per-keyword `:2.0` boost suffix in `assets/wake_words/kws/keywords.txt` to compensate for fewer tokens. The global `keywordsScore` (1.5) and `keywordsThreshold` (0.20) remain unchanged. Settings labels and `WakeWordPreset.wakePhrase` / `displayName` were updated accordingly (`HEY SAMO LEVSKI` / `HEY TRAINER` / `HEY THOMAS`). Status stays Active — on-device verification of the new hit rate is pending.
 
+A second root cause was identified 2026-06-11: `VoiceSettingsCubit` starts at `VoiceSettings.defaults()` (preset `samoLevski`) and hydrates async via `_init()`. `VoiceFab.initState` called `_startWakeWordIfArmed` immediately — before hydration — arming the wrong preset and triggering a second native init when hydration landed and the cubit emitted the persisted preset. Fixed by exposing `VoiceSettingsCubit.ready` (the `_init()` future) and gating `_startWakeWordIfArmed` on `await cubit.ready` before reading `cubit.state`. This eliminates the wrong-preset window at boot and halves the native engine inits per session.
+
 **References**
 
 - `lib/core/constants/voice_constants.dart` — `wakeWordKeywordsThreshold`, `wakeWordKeywordsScore`
