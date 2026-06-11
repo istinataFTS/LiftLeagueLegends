@@ -417,12 +417,20 @@ class SherpaOnnxVoiceWakeWordService implements VoiceWakeWordService {
       if (kw.isNotEmpty) {
         handle.reset();
         final active = _activePreset;
-        if (active != null && kw == active.wakePhrase) {
+        if (active != null && active.acceptedPhrases.contains(kw)) {
           AppLogger.debug(
             'SherpaOnnxVoiceWakeWordService: detected "$kw"',
             category: 'voice',
           );
           _detectedController.add(active);
+        } else {
+          // B3: never drop a firing silently — this is the only signal we have
+          // for diagnosing phrase-contract or preset mismatches on device.
+          AppLogger.info(
+            'SherpaOnnxVoiceWakeWordService: keyword "$kw" ignored '
+            '(active preset: $active)',
+            category: 'voice',
+          );
         }
       }
     }
@@ -508,7 +516,7 @@ Future<String> _keywordsBufForPreset(WakeWordPreset preset) async {
   final contents = await rootBundle.loadString(
     'assets/wake_words/kws/keywords.txt',
   );
-  return tokenizedLineForPreset(contents, preset);
+  return tokenizedLinesForPreset(contents, preset);
 }
 
 // ── Value type ───────────────────────────────────────────────────────────────

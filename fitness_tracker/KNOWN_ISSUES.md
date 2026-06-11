@@ -979,6 +979,8 @@ On 2026-06-11 all three phrases were prefixed with "Hey" (now 5+ BPE tokens afte
 
 A second root cause was identified 2026-06-11: `VoiceSettingsCubit` starts at `VoiceSettings.defaults()` (preset `samoLevski`) and hydrates async via `_init()`. `VoiceFab.initState` called `_startWakeWordIfArmed` immediately — before hydration — arming the wrong preset and triggering a second native init when hydration landed and the cubit emitted the persisted preset. Fixed by exposing `VoiceSettingsCubit.ready` (the `_init()` future) and gating `_startWakeWordIfArmed` on `await cubit.ready` before reading `cubit.state`. This eliminates the wrong-preset window at boot and halves the native engine inits per session.
 
+On-device verification 2026-06-11 (SM-S908B) showed the "Hey"-only lines made the regression worse, not better: the trainer preset measured **0/10** (down from ~1/10). The keyword path now requires the engine to decode `▁HE Y` before the preset tokens are reachable; if "Hey" is not decoded (accent, mic, a pause after "Hey,") the whole keyword can never fire. The fix arms **two keyword lines per preset** — the bare phrase and the "Hey"-prefixed variant — in `assets/wake_words/kws/keywords.txt` (six lines total, `:2.0` boost on the shorter bare/Hey trainer and thomas lines). `tokenizedLineForPreset` became `tokenizedLinesForPreset`, returning the two-line block for the active preset. `WakeWordPreset.acceptedPhrases` was added next to `wakePhrase` so detection matches either de-tokenized variant (`{'TRAINER', 'HEY TRAINER'}`, etc.); `_onAudioFrame` now compares against that set. To close a long-standing blind spot, a keyword that fires but matches no accepted phrase is now logged at `info` (`keyword "<kw>" ignored`) instead of being dropped silently — the only on-device signal for diagnosing phrase-contract or preset mismatches. Status stays **Active**: this is empirical tuning, and on-device verification of the new dual-phrase hit rate is pending. Do not claim solved.
+
 **References**
 
 - `lib/core/constants/voice_constants.dart` — `wakeWordKeywordsThreshold`, `wakeWordKeywordsScore`
@@ -990,6 +992,10 @@ A second root cause was identified 2026-06-11: `VoiceSettingsCubit` starts at `V
 - `lib/domain/entities/voice_settings.dart:48` — `VoiceSettings.defaults()` (samoLevski preset)
 - `lib/features/voice/presentation/widgets/voice_fab.dart:59` — `initState` (arms wake word on mount)
 - `lib/features/voice/presentation/widgets/voice_fab.dart:115` — `_startWakeWordIfArmed` (now awaits `cubit.ready`)
+- `assets/wake_words/kws/keywords.txt` — six lines, bare + "Hey" variant per preset
+- `lib/features/voice/data/services/pcm_utils.dart` — `tokenizedLinesForPreset` (two-line block per preset)
+- `lib/domain/entities/voice_settings.dart` — `WakeWordPreset.acceptedPhrases` (bare + Hey per preset)
+- `lib/features/voice/data/services/sherpa_onnx_voice_wake_word_service.dart` — `_onAudioFrame` (matches `acceptedPhrases`; logs ignored firings)
 
 ---
 
