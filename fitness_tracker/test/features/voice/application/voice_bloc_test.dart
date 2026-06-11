@@ -2383,6 +2383,7 @@ void main() {
       expect(tts.lastSpoken?.contains('5g fat'), isTrue);
       expect(tts.lastSpoken?.contains('40g protein'), isTrue);
       expect(tts.lastSpoken?.contains('0g carbs'), isTrue);
+      expect(tts.lastSpoken?.contains('8g fat'), isTrue);
       expect(bloc.state.pendingConfirmation, isNull);
       expect(bloc.state.status, VoiceStatus.idle);
       await bloc.close();
