@@ -957,12 +957,12 @@ Defense in depth — both layers now exist:
 - **Severity:** Medium
 - **Status:** Active
 - **First observed:** 2026-06-07
-- **Last verified:** 2026-06-07
+- **Last verified:** 2026-06-11
 - **Area:** voice
 
 **Symptom**
 
-With the engine correctly armed and the mic streaming a clear signal, the sherpa-onnx KWS frequently fails to spot a short wake phrase ("Thomas", "Trainer") — often needing several repetitions, occasionally missing entirely. Confirmed on-device: two consecutive "Thomas" attempts produced no detection; the third matched.
+With the engine correctly armed and the mic streaming a clear signal, the sherpa-onnx KWS frequently fails to spot a short wake phrase ("Thomas", "Trainer") — often needing several repetitions, occasionally missing entirely. Confirmed on-device: two consecutive "Thomas" attempts produced no detection; the third matched. On 2026-06-11, the trainer preset measured ~1/10 hit rate on a fresh device session.
 
 **Root cause**
 
@@ -971,6 +971,8 @@ Short keywords (2–3 BPE tokens) provide little acoustic evidence for streaming
 **Workaround / fix**
 
 `keywordsThreshold` lowered 0.25 → `VoiceConstants.wakeWordKeywordsThreshold` (0.20) and `keywordsScore` raised 1.0 → `VoiceConstants.wakeWordKeywordsScore` (1.5). Both are now in `VoiceConstants` and wired through `buildKeywordSpotterConfig`. The longer "Samo Levski" preset is the most reliable and is recommended for users who miss wake-word fires frequently. Values may need further on-device tuning; watch for false positives if the threshold is lowered further. Status stays Active because tuning is empirical and ongoing.
+
+On 2026-06-11 all three phrases were prefixed with "Hey" (now 5+ BPE tokens after re-tokenization against `tool/wake_words/bpe.model`: `▁HE Y ▁SA MO ▁LE V S K I`, `▁HE Y ▁TRA IN ER`, `▁HE Y ▁TH OM AS`). The short two (trainer, thomas) additionally carry a per-keyword `:2.0` boost suffix in `assets/wake_words/kws/keywords.txt` to compensate for fewer tokens. The global `keywordsScore` (1.5) and `keywordsThreshold` (0.20) remain unchanged. Settings labels and `WakeWordPreset.wakePhrase` / `displayName` were updated accordingly (`HEY SAMO LEVSKI` / `HEY TRAINER` / `HEY THOMAS`). Status stays Active — on-device verification of the new hit rate is pending.
 
 **References**
 
