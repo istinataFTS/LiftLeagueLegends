@@ -254,6 +254,26 @@ const getRecentSets: ToolDefinition = {
   },
 };
 
+const getRecentNutrition: ToolDefinition = {
+  name: "getRecentNutrition",
+  description:
+    "Retrieve the user's most recently logged meals/foods across days (name, " +
+    "calories, and macros), NOT limited to a single day. Use when the user asks " +
+    '"what did I eat recently / lately" or "my latest / most recent nutrition".',
+  parameters: {
+    type: "object",
+    properties: {
+      limit: {
+        type: "integer",
+        minimum: 1,
+        maximum: 10,
+        description: "Max results. Default 5.",
+      },
+    },
+    required: [],
+  },
+};
+
 const getDailyNutritionLog: ToolDefinition = {
   name: "getDailyNutritionLog",
   description:
@@ -343,6 +363,7 @@ export const TOOL_REGISTRY: ReadonlyArray<ToolDefinition> = [
   getWeeklyVolume,
   getDailyMacros,
   getRecentSets,
+  getRecentNutrition,
   getDailyNutritionLog,
   getWorkoutForDay,
   getTrainingDays,
@@ -364,6 +385,7 @@ export const QUERY_TOOLS: ReadonlySet<string> = new Set([
   "getWeeklyVolume",
   "getDailyMacros",
   "getRecentSets",
+  "getRecentNutrition",
   "getDailyNutritionLog",
   "getWorkoutForDay",
   "getTrainingDays",

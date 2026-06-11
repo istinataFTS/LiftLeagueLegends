@@ -1683,6 +1683,8 @@ class VoiceBloc extends Bloc<VoiceEvent, VoiceState>
           return await _queryDailyMacros(args);
         case 'getRecentSets':
           return await _queryRecentSets(args);
+        case 'getRecentNutrition':
+          return await _queryRecentNutrition(args);
         case 'getDailyNutritionLog':
           return await _queryDailyNutritionLog(args);
         case 'getWorkoutForDay':
@@ -1907,6 +1909,21 @@ class VoiceBloc extends Bloc<VoiceEvent, VoiceState>
           .join('. ');
 
       return AppStrings.voiceQueryRecentSetsResult(lines);
+    });
+  }
+
+  Future<String> _queryRecentNutrition(Map<String, dynamic> args) async {
+    final limit = (args['limit'] as num?)?.toInt() ?? 5;
+    final result = await _getLogsByDateRange(
+      startDate: DateTime.now().subtract(const Duration(days: 30)),
+      endDate: DateTime.now(),
+    );
+    return result.fold((_) => AppStrings.voiceQueryRecentNutritionUnavailable, (
+      logs,
+    ) {
+      if (logs.isEmpty) return AppStrings.voiceQueryNoRecentNutrition;
+      final items = logs.take(limit).map(_nutritionLineFor).join('. ');
+      return AppStrings.voiceQueryRecentNutritionResult(items);
     });
   }
 

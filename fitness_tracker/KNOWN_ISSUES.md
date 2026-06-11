@@ -103,6 +103,7 @@ Numbered steps or a short paragraph. State what to do and what *not* to do.
 31. [voice-recent-nutrition-context-was-today-only](#voice-recent-nutrition-context-was-today-only)
 32. [voice-day-scoped-query-tools-omitted-from-must-call-rule](#voice-day-scoped-query-tools-omitted-from-must-call-rule)
 33. [voice-nutrition-query-spoke-calories-without-macros](#voice-nutrition-query-spoke-calories-without-macros)
+34. [voice-most-recent-nutrition-had-no-cross-day-query-tool](#voice-most-recent-nutrition-had-no-cross-day-query-tool)
 
 ### Database
 11. [sqflite-version-15-rejects-incompatible-legacy-databases](#sqflite-version-15-rejects-incompatible-legacy-databases)
@@ -1326,6 +1327,36 @@ Extracted a `_nutritionLineFor(NutritionLog l)` helper that voices all three mac
 - `lib/domain/entities/nutrition_log.dart:11-13` — `proteinGrams`, `carbsGrams`, `fatGrams`
 - `[[voice-logged-meal-macros-are-retrievable-not-advice]]` — prompt carve-out (Commit 4)
 - `[[voice-most-recent-nutrition-had-no-cross-day-query-tool]]` — cross-day query tool (Commit 3)
+
+---
+
+### voice-most-recent-nutrition-had-no-cross-day-query-tool
+
+- **Severity:** High
+- **Status:** Resolved-but-monitor
+- **First observed:** 2026-06-11
+- **Last verified:** 2026-06-11
+- **Area:** voice
+
+**Symptom**
+
+"Tell me my latest worked nutritions" / "what's my most recent nutrition" → "Nothing has been logged for that day yet." The same session correctly answered "show me my recent sets" — exercise queries had a cross-day path, nutrition did not.
+
+**Root cause**
+
+The exercises path has `getRecentSets` → client `_queryRecentSets` over a 30-day window. The only nutrition query tools were `getDailyNutritionLog` and `getDailyMacros`, both single-day, both resolving through `_resolveQueryDate` (defaulting to today / last-referenced day). When the user asked for "latest / most recent nutrition," the model's only nutrition option was `getDailyNutritionLog` — which resolved to today, found nothing, and spoke `voiceQueryNothingLogged`.
+
+**Workaround / fix**
+
+Added a `getRecentNutrition` tool mirroring `getRecentSets`: server `ToolDefinition` next to `getRecentSets`, added to `TOOL_REGISTRY` and `QUERY_TOOLS`, enumerated in both query-tool prompt blocks in `voice-chat/index.ts`. Client handler `_queryRecentNutrition` calls `_getLogsByDateRange` over a 30-day window (the datasource orders newest-first via `nutritionLogCreatedAt DESC`, so `.take(limit)` keeps the most recent), reuses `_nutritionLineFor` from `[[voice-nutrition-query-spoke-calories-without-macros]]` so macros are voiced for the recent path too. Default `limit` 5. Three new AppStrings (`voiceQueryRecentNutritionUnavailable`, `voiceQueryNoRecentNutrition`, `voiceQueryRecentNutritionResult`). Requires a `Supabase Deploy` (functions target) for the server changes to take effect on the self-hosted VPS (manual rsync of `_shared` + `voice-chat` to the docker volume, then `docker restart supabase-edge-functions`).
+
+**References**
+
+- `supabase/functions/_shared/tools.ts` — `getRecentNutrition`, `TOOL_REGISTRY`, `QUERY_TOOLS`
+- `supabase/functions/voice-chat/index.ts` — must-call query-tool block + tool-usage bullet
+- `lib/features/voice/application/voice_bloc.dart` — `_executeQueryTool` dispatch + `_queryRecentNutrition`
+- `lib/core/constants/app_strings.dart` — three new recent-nutrition strings
+- `[[voice-nutrition-query-spoke-calories-without-macros]]` — shared `_nutritionLineFor` formatter
 
 ---
 

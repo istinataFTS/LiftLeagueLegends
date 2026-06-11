@@ -77,16 +77,17 @@ Deno.test("tools: MUTATION_TOOLS contains exactly the 6 mutation tool names", ()
 
 // ── QUERY_TOOLS ──────────────────────────────────────────────────────────────
 
-Deno.test("tools: QUERY_TOOLS contains exactly the 6 query tool names", () => {
+Deno.test("tools: QUERY_TOOLS contains exactly the 7 query tool names", () => {
   const expected = new Set([
     "getWeeklyVolume",
     "getDailyMacros",
     "getRecentSets",
+    "getRecentNutrition",
     "getDailyNutritionLog",
     "getWorkoutForDay",
     "getTrainingDays",
   ]);
-  assertEquals(QUERY_TOOLS.size, 6, "QUERY_TOOLS must have exactly 6 entries");
+  assertEquals(QUERY_TOOLS.size, 7, "QUERY_TOOLS must have exactly 7 entries");
   for (const name of expected) {
     assertEquals(
       QUERY_TOOLS.has(name),
@@ -98,11 +99,11 @@ Deno.test("tools: QUERY_TOOLS contains exactly the 6 query tool names", () => {
 
 // ── Registry completeness ────────────────────────────────────────────────────
 
-Deno.test("tools: TOOL_REGISTRY contains exactly 13 tools", () => {
+Deno.test("tools: TOOL_REGISTRY contains exactly 14 tools", () => {
   assertEquals(
     TOOL_REGISTRY.length,
-    13,
-    "TOOL_REGISTRY must have exactly 13 tools",
+    14,
+    "TOOL_REGISTRY must have exactly 14 tools",
   );
 });
 

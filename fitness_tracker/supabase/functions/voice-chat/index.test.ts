@@ -613,7 +613,7 @@ Deno.test("buildSystemPrompt: contains explicit date-resolution rule", () => {
   );
 });
 
-Deno.test("buildSystemPrompt: must-call-query-tool rule lists all 6 query tools", () => {
+Deno.test("buildSystemPrompt: must-call-query-tool rule lists all 7 query tools", () => {
   const prompt = buildSystemPrompt({
     currentDate: "2026-06-10",
     weightUnit: "kg",
@@ -626,6 +626,7 @@ Deno.test("buildSystemPrompt: must-call-query-tool rule lists all 6 query tools"
   assertEquals(prompt.includes("getWorkoutForDay"), true);
   assertEquals(prompt.includes("getTrainingDays"), true);
   assertEquals(prompt.includes("getRecentSets"), true);
+  assertEquals(prompt.includes("getRecentNutrition"), true);
   assertEquals(prompt.includes("getWeeklyVolume"), true);
   assertEquals(prompt.includes("getDailyMacros"), true);
 });

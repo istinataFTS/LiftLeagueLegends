@@ -614,6 +614,10 @@ class AppStrings {
   static const String voiceQueryRecentSetsUnavailable =
       'I could not retrieve your recent sets right now.';
   static const String voiceQueryNoRecentSets = 'No recent sets found.';
+  static const String voiceQueryRecentNutritionUnavailable =
+      'I could not retrieve your recent nutrition right now.';
+  static const String voiceQueryNoRecentNutrition =
+      'No recent nutrition found.';
 
   static String voiceQueryNoSetsInPeriod(String period) =>
       'No $period logged in that period.';
@@ -634,6 +638,8 @@ class AppStrings {
       'No recent sets found for $exerciseName.';
   static String voiceQueryRecentSetsResult(String lines) =>
       'Most recent sets: $lines.';
+  static String voiceQueryRecentNutritionResult(String items) =>
+      'Most recent nutrition: $items.';
   static String voiceQueryNutritionLogResult(String items) =>
       'You logged: $items.';
   static const String voiceQueryWorkoutForDayUnavailable =
