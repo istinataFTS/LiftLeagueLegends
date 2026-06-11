@@ -208,7 +208,14 @@ class SherpaOnnxVoiceWakeWordService implements VoiceWakeWordService {
   final AudioSessionFactory _audioSessionFactory;
   final Future<void> Function(Duration) _sleep;
 
-  KwsHandle? _handle;
+  // The native spotter handle is cached across stop()/start() cycles and freed
+  // only on a preset switch (in _doStart) or dispose(). Arming/disarming happens
+  // many times per session (every STT/TTS phase, app resume, overlay close);
+  // rebuilding the 3-model ONNX engine each time was a synchronous FFI init on
+  // the UI isolate and stalled route animations. Splitting the handle lifetime
+  // from the mic lifetime makes the native init happen once per preset choice.
+  KwsHandle? _cachedHandle;
+  WakeWordPreset? _cachedHandlePreset;
   Future<void> Function()? _stopAudio;
   StreamSubscription<Uint8List>? _audioSub;
   bool _running = false;
@@ -265,6 +272,11 @@ class SherpaOnnxVoiceWakeWordService implements VoiceWakeWordService {
     // start() from writing to a closed stream after disposal.
     return _enqueue(() async {
       await _doStop();
+      // _doStop no longer frees the handle — free the cached engine here so the
+      // native session is released exactly once at end of life.
+      _cachedHandle?.free();
+      _cachedHandle = null;
+      _cachedHandlePreset = null;
       await _detectedController.close();
       await _errorController.close();
     });
@@ -276,22 +288,36 @@ class SherpaOnnxVoiceWakeWordService implements VoiceWakeWordService {
     if (_running && _activePreset == preset) return;
     await _doStop();
 
-    KwsHandle handle;
-    try {
-      handle = await _kwsFactory(preset);
-    } on VoiceWakeWordException {
-      rethrow;
-    } catch (e, st) {
-      AppLogger.warning(
-        'SherpaOnnxVoiceWakeWordService: engine creation failed',
-        error: e,
-        stackTrace: st,
-        category: 'voice',
-      );
-      throw VoiceWakeWordException(
-        VoiceWakeWordErrorKind.engineError,
-        'Failed to create keyword spotter: $e',
-      );
+    if (_cachedHandle != null && _cachedHandlePreset == preset) {
+      // Same preset as the cached engine — reuse it without a native re-init.
+      // Reset first so any partial hypothesis left from the previous arm is
+      // dropped before this session starts feeding audio.
+      _cachedHandle!.reset();
+    } else {
+      // First arm, or the preset changed: free the stale engine (if any) and
+      // build a fresh one for this preset.
+      _cachedHandle?.free();
+      _cachedHandle = null;
+      _cachedHandlePreset = null;
+      final KwsHandle handle;
+      try {
+        handle = await _kwsFactory(preset);
+      } on VoiceWakeWordException {
+        rethrow;
+      } catch (e, st) {
+        AppLogger.warning(
+          'SherpaOnnxVoiceWakeWordService: engine creation failed',
+          error: e,
+          stackTrace: st,
+          category: 'voice',
+        );
+        throw VoiceWakeWordException(
+          VoiceWakeWordErrorKind.engineError,
+          'Failed to create keyword spotter: $e',
+        );
+      }
+      _cachedHandle = handle;
+      _cachedHandlePreset = preset;
     }
 
     AudioSession? session;
@@ -329,7 +355,8 @@ class SherpaOnnxVoiceWakeWordService implements VoiceWakeWordService {
       }
     }
     if (session == null) {
-      handle.free();
+      // The engine handle stays cached so the next arm can reuse it without a
+      // native re-init; only mic acquisition failed here.
       throw lastError!;
     }
     _stopAudio = session.stop;
@@ -339,7 +366,6 @@ class SherpaOnnxVoiceWakeWordService implements VoiceWakeWordService {
       cancelOnError: false,
     );
 
-    _handle = handle;
     _running = true;
     _activePreset = preset;
     AppLogger.info(
@@ -349,12 +375,15 @@ class SherpaOnnxVoiceWakeWordService implements VoiceWakeWordService {
   }
 
   Future<void> _doStop() async {
-    if (!_running && _handle == null) return;
-    // Attempt every cleanup step independently so a failure in one does not
-    // leave the recorder or native handle alive and leaked.  State is always
-    // cleared so the dedup guard in _doStart sees a settled _running value.
-    // The first captured error is reThrown so _enqueue callers (and their
-    // .catchError handlers) see real failures instead of silent success.
+    if (!_running && _audioSub == null && _stopAudio == null) return;
+    // Stops the mic only — the native KWS handle is deliberately retained in
+    // _cachedHandle so the next arm reuses it without a costly re-init (it is
+    // freed on a preset switch in _doStart or in dispose). Attempt every
+    // cleanup step independently so a failure in one does not leave the recorder
+    // alive and leaked. State is always cleared so the dedup guard in _doStart
+    // sees a settled _running value. The first captured error is reThrown so
+    // _enqueue callers (and their .catchError handlers) see real failures
+    // instead of silent success.
     Object? firstError;
     StackTrace? firstSt;
 
@@ -379,14 +408,9 @@ class SherpaOnnxVoiceWakeWordService implements VoiceWakeWordService {
       firstSt ??= st;
     }
 
-    try {
-      final handle = _handle;
-      _handle = null;
-      handle?.free();
-    } catch (e, st) {
-      firstError ??= e;
-      firstSt ??= st;
-    }
+    // The native handle is intentionally NOT freed here — it is cached for
+    // reuse (see _cachedHandle). It is freed only on a preset switch in
+    // _doStart or in dispose.
 
     _running = false;
     _activePreset = null;
@@ -405,7 +429,7 @@ class SherpaOnnxVoiceWakeWordService implements VoiceWakeWordService {
   // ── Internal ────────────────────────────────────────────────────────────────
 
   void _onAudioFrame(Uint8List pcm16) {
-    final handle = _handle;
+    final handle = _cachedHandle;
     if (handle == null || !_running) return;
 
     final samples = pcm16ToFloat32(pcm16);

@@ -106,6 +106,7 @@ Numbered steps or a short paragraph. State what to do and what *not* to do.
 34. [voice-most-recent-nutrition-had-no-cross-day-query-tool](#voice-most-recent-nutrition-had-no-cross-day-query-tool)
 35. [voice-logged-meal-macros-are-retrievable-not-advice](#voice-logged-meal-macros-are-retrievable-not-advice)
 36. [voice-recent-nutrition-tool-was-misclassified-as-mutation-on-client](#voice-recent-nutrition-tool-was-misclassified-as-mutation-on-client)
+37. [voice-kws-engine-reinit-per-arm-causes-ui-jank](#voice-kws-engine-reinit-per-arm-causes-ui-jank)
 
 ### Database
 11. [sqflite-version-15-rejects-incompatible-legacy-databases](#sqflite-version-15-rejects-incompatible-legacy-databases)
@@ -1430,6 +1431,35 @@ Added `'getRecentNutrition'` to the `queryTools` set in `parseResult`. Added a t
 - `test/data/datasources/remote/supabase_voice_remote_datasource_test.dart` — seven-tool contract test
 - `lib/features/voice/application/voice_bloc.dart:1686` — `_executeQueryTool` dispatch (was already correct)
 - `[[voice-most-recent-nutrition-had-no-cross-day-query-tool]]` — #153 that shipped the tool server-side
+
+---
+
+### voice-kws-engine-reinit-per-arm-causes-ui-jank
+
+- **Severity:** High
+- **Status:** Resolved-but-monitor
+- **First observed:** 2026-06-11
+- **Last verified:** 2026-06-12
+- **Area:** voice
+
+**Symptom**
+
+The app feels "laggy as hell" while voice surfaces churn: frozen route transitions, ghosted mid-transition overlay frames, a stuck spinner. An on-device session log showed 8+ `started for preset` lines within minutes.
+
+**Root cause**
+
+`SherpaOnnxVoiceWakeWordService` freed the native keyword-spotter handle on every `stop()` and rebuilt it on every `start()`. Each rebuild ran `_kwsFactory` → three int8 ONNX model loads + `sherpa_onnx.KeywordSpotter(cfg)`, a synchronous FFI init on the UI isolate. Arming/disarming happens constantly — the overlay stops the engine for every STT/TTS phase and re-arms on every `idle`, `VoiceFab` re-arms on resume/overlay-close, and the pre-hydration arming race (`[[voice-wake-word-keyword-miss-rate]]`) doubled boot inits — so the UI thread stalled repeatedly.
+
+**Workaround / fix**
+
+Split the handle lifetime from the mic lifetime. The handle is cached in `_cachedHandle` (+ `_cachedHandlePreset`) and reused when the next arm requests the same preset (`reset()` is called before reuse to drop stale partial hypotheses). `_doStop` now stops the mic only and retains the handle; the handle is freed exactly once — on a preset switch in `_doStart`, or in `dispose`. Net effect: the 3-model ONNX init runs once per preset choice, not per conversation turn. The observed run was a **debug** build (JIT + asserts overstate jank); the decode-loop-on-UI-isolate cost is a separate, deferred concern — judge it on a `flutter run --profile` build before moving the recorder+spotter loop to a dedicated isolate. **Do not claim the lag is fully solved until measured on --profile.**
+
+**References**
+
+- `lib/features/voice/data/services/sherpa_onnx_voice_wake_word_service.dart` — `_cachedHandle`/`_cachedHandlePreset`, `_doStart` reuse/rebuild branch, `_doStop` (no free), `dispose` (frees cache)
+- `test/features/voice/services/sherpa_onnx_voice_wake_word_service_test.dart` — `handle caching` group
+- `[[voice-wake-word-keyword-miss-rate]]` — arming race that doubled boot inits
+- `[[voice-wake-word-engine-stops-when-overlay-opens]]` — per-phase stop/start churn
 
 ---
 
