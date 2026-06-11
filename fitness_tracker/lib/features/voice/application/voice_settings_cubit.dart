@@ -46,12 +46,17 @@ class VoiceSettingsCubit extends Cubit<VoiceSettings> {
         .map((s) => s.voiceSettings)
         .distinct()
         .listen(_emitIfOpen);
-    unawaited(_init());
+    ready = _init();
   }
 
   final AppSettingsRepository _repository;
   final DeleteVoiceHistory _deleteVoiceHistory;
   late final StreamSubscription<VoiceSettings> _subscription;
+
+  /// Completes once the initial [AppSettingsRepository.getSettings] read
+  /// finishes (success or failure). Callers that must not arm the wake-word
+  /// engine with un-hydrated defaults await this before reading [state].
+  late final Future<void> ready;
 
   /// Bootstrap: triggers an initial read so the cubit's state reflects
   /// persisted values even when no other subscriber has populated the

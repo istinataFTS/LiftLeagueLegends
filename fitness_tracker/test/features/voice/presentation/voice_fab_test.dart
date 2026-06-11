@@ -47,6 +47,7 @@ class FakeVoiceWakeWordService implements VoiceWakeWordService {
   bool _running = false;
   final _detectedController = StreamController<WakeWordPreset>.broadcast();
   final _errorController = StreamController<VoiceWakeWordException>.broadcast();
+  final List<WakeWordPreset> startedPresets = [];
 
   @override
   Stream<WakeWordPreset> get onWakeWordDetected => _detectedController.stream;
@@ -58,7 +59,10 @@ class FakeVoiceWakeWordService implements VoiceWakeWordService {
   bool get isRunning => _running;
 
   @override
-  Future<void> start(WakeWordPreset preset) async => _running = true;
+  Future<void> start(WakeWordPreset preset) async {
+    _running = true;
+    startedPresets.add(preset);
+  }
 
   @override
   Future<void> stop() async => _running = false;
@@ -120,6 +124,7 @@ void main() {
     sl.registerSingleton<VoiceMediaButtonService>(mediaButtonService);
 
     when(() => settingsCubit.state).thenReturn(defaultSettings);
+    when(() => settingsCubit.ready).thenAnswer((_) => Future.value());
     whenListen(
       settingsCubit,
       Stream<VoiceSettings>.empty(),
@@ -163,6 +168,31 @@ void main() {
       );
       expect(find.byTooltip(AppStrings.voiceFabTooltipOpen), findsOneWidget);
     });
+
+    testWidgets(
+      'start() called exactly once with persisted preset (not defaults) on mount',
+      (tester) async {
+        const persistedSettings = VoiceSettings(
+          wakeWordPreset: WakeWordPreset.trainer,
+        );
+        when(() => settingsCubit.state).thenReturn(persistedSettings);
+        when(() => settingsCubit.ready).thenAnswer((_) => Future.value());
+        whenListen(
+          settingsCubit,
+          Stream<VoiceSettings>.empty(),
+          initialState: persistedSettings,
+        );
+
+        await tester.pumpWidget(
+          _wrap(session: _authSession, settingsCubit: settingsCubit),
+        );
+        // Let the unawaited _startWakeWordIfArmed future complete.
+        await tester.pump();
+
+        expect(wakeWordService.startedPresets, hasLength(1));
+        expect(wakeWordService.startedPresets.single, WakeWordPreset.trainer);
+      },
+    );
   });
 
   // Guest-mode coverage removed: the FAB is only reachable above the auth

@@ -212,6 +212,7 @@ void main() {
     );
 
     when(() => voiceSettingsCubit.state).thenReturn(const VoiceSettings());
+    when(() => voiceSettingsCubit.ready).thenAnswer((_) => Future.value());
     whenListen<VoiceSettings>(
       voiceSettingsCubit,
       const Stream<VoiceSettings>.empty(),

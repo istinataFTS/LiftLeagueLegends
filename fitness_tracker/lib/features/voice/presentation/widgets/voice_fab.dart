@@ -78,7 +78,7 @@ class _VoiceFabState extends State<VoiceFab>
     _listenToWakeWordStream();
     _listenToWakeWordErrors();
     _listenToMediaButtonStream();
-    _startWakeWordIfArmed();
+    unawaited(_startWakeWordIfArmed());
   }
 
   @override
@@ -99,7 +99,7 @@ class _VoiceFabState extends State<VoiceFab>
   void didChangeAppLifecycleState(AppLifecycleState state) {
     switch (state) {
       case AppLifecycleState.resumed:
-        _startWakeWordIfArmed();
+        unawaited(_startWakeWordIfArmed());
       case AppLifecycleState.inactive:
       case AppLifecycleState.paused:
       case AppLifecycleState.detached:
@@ -112,9 +112,12 @@ class _VoiceFabState extends State<VoiceFab>
 
   // ── Wake-word management ────────────────────────────────────────────────────
 
-  void _startWakeWordIfArmed() {
+  Future<void> _startWakeWordIfArmed() async {
     if (!mounted) return;
-    final settings = context.read<VoiceSettingsCubit>().state;
+    final cubit = context.read<VoiceSettingsCubit>();
+    await cubit.ready;
+    if (!mounted) return;
+    final settings = cubit.state;
     if (!settings.wakeWordArmedInForeground) return;
     _wakeWordService
         .start(settings.wakeWordPreset)
@@ -261,7 +264,7 @@ class _VoiceFabState extends State<VoiceFab>
       // the cubit so toggling the setting while the overlay was open is
       // respected.
       if (wakeWordWasRunning) {
-        _startWakeWordIfArmed();
+        unawaited(_startWakeWordIfArmed());
       }
     }
   }
@@ -280,7 +283,7 @@ class _VoiceFabState extends State<VoiceFab>
           _mediaButtonService.stop();
           _stopPulse();
         } else {
-          _startWakeWordIfArmed();
+          unawaited(_startWakeWordIfArmed());
         }
       },
       child: _buildFab(),
