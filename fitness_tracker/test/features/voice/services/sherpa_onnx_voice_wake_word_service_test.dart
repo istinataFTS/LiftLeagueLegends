@@ -219,6 +219,32 @@ void main() {
       },
     );
 
+    test(
+      'bare (non-Hey) phrase on audio frame emits preset on onWakeWordDetected',
+      () async {
+        final handle = _FakeKwsHandle();
+        final audioSource = _FakeAudioSource();
+        final svc = _makeService(handle: handle, audioSource: audioSource);
+
+        final emitted = <WakeWordPreset>[];
+        final sub = svc.onWakeWordDetected.listen(emitted.add);
+
+        await svc.start(WakeWordPreset.trainer);
+        // The bare keyword line ("▁TRA IN ER") de-tokenizes to "TRAINER" — an
+        // accepted phrase for the trainer preset alongside "HEY TRAINER".
+        handle.setNextKeyword('TRAINER');
+        audioSource.push(_silentFrame);
+
+        await Future<void>.delayed(Duration.zero);
+
+        expect(emitted, [WakeWordPreset.trainer]);
+        expect(handle.resetCount, 1);
+
+        await sub.cancel();
+        await svc.dispose();
+      },
+    );
+
     test('non-matching keyword (wrong preset phrase) → no emission', () async {
       final handle = _FakeKwsHandle();
       final audioSource = _FakeAudioSource();
@@ -237,6 +263,34 @@ void main() {
       expect(emitted, isEmpty);
 
       await sub.cancel();
+      await svc.dispose();
+    });
+
+    test('unrecognised keyword does not emit and is not an error', () async {
+      final handle = _FakeKwsHandle();
+      final audioSource = _FakeAudioSource();
+      final svc = _makeService(handle: handle, audioSource: audioSource);
+
+      final emitted = <WakeWordPreset>[];
+      final errors = <VoiceWakeWordException>[];
+      final detectedSub = svc.onWakeWordDetected.listen(emitted.add);
+      final errorSub = svc.onError.listen(errors.add);
+
+      await svc.start(WakeWordPreset.trainer);
+      // A firing the engine emits that matches no accepted phrase: ignored,
+      // logged (B3), but never surfaced as an error.
+      handle.setNextKeyword('SOME RANDOM WORDS');
+      audioSource.push(_silentFrame);
+
+      await Future<void>.delayed(Duration.zero);
+
+      expect(emitted, isEmpty);
+      expect(errors, isEmpty);
+      // The handle is still reset so the stream does not re-fire the stale kw.
+      expect(handle.resetCount, 1);
+
+      await detectedSub.cancel();
+      await errorSub.cancel();
       await svc.dispose();
     });
 

@@ -21,11 +21,23 @@ extension WakeWordPresetLabel on WakeWordPreset {
 
 extension WakeWordPresetPhrase on WakeWordPreset {
   /// The exact spoken phrase the KWS model is trained to spot, upper-cased to
-  /// match the de-tokenized `KeywordResult.keyword` sherpa returns.
+  /// match the de-tokenized `KeywordResult.keyword` sherpa returns. This is the
+  /// primary phrase shown in Settings copy and asserted by tests; detection
+  /// accepts any string in [acceptedPhrases].
   String get wakePhrase => switch (this) {
     WakeWordPreset.samoLevski => 'HEY SAMO LEVSKI',
     WakeWordPreset.trainer => 'HEY TRAINER',
     WakeWordPreset.thomas => 'HEY THOMAS',
+  };
+
+  /// Every de-tokenized keyword string the engine may emit for this preset.
+  /// Two variants per preset — the bare phrase and the "Hey"-prefixed phrase —
+  /// matching the two keyword lines armed per preset in
+  /// `assets/wake_words/kws/keywords.txt`.
+  Set<String> get acceptedPhrases => switch (this) {
+    WakeWordPreset.samoLevski => {'SAMO LEVSKI', 'HEY SAMO LEVSKI'},
+    WakeWordPreset.trainer => {'TRAINER', 'HEY TRAINER'},
+    WakeWordPreset.thomas => {'THOMAS', 'HEY THOMAS'},
   };
 }
 

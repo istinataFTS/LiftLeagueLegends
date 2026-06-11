@@ -45,46 +45,56 @@ void main() {
     });
   });
 
-  // ── tokenizedLineForPreset ─────────────────────────────────────────────────
+  // ── tokenizedLinesForPreset ────────────────────────────────────────────────
 
-  group('tokenizedLineForPreset', () {
+  group('tokenizedLinesForPreset', () {
     const kwContents =
-        '▁HE Y ▁SA MO ▁LE V S K I\n▁HE Y ▁TRA IN ER :2.0\n▁HE Y ▁TH OM AS :2.0\n';
+        '▁SA MO ▁LE V S K I\n'
+        '▁HE Y ▁SA MO ▁LE V S K I\n'
+        '▁TRA IN ER :2.0\n'
+        '▁HE Y ▁TRA IN ER :2.0\n'
+        '▁TH OM AS :2.0\n'
+        '▁HE Y ▁TH OM AS :2.0\n';
 
-    test('samoLevski → first tokenized line', () {
+    test('samoLevski → bare + Hey lines', () {
       expect(
-        tokenizedLineForPreset(kwContents, WakeWordPreset.samoLevski),
-        '▁HE Y ▁SA MO ▁LE V S K I',
+        tokenizedLinesForPreset(kwContents, WakeWordPreset.samoLevski),
+        '▁SA MO ▁LE V S K I\n▁HE Y ▁SA MO ▁LE V S K I',
       );
     });
 
-    test('trainer → second tokenized line', () {
+    test('trainer → bare + Hey lines', () {
       expect(
-        tokenizedLineForPreset(kwContents, WakeWordPreset.trainer),
-        '▁HE Y ▁TRA IN ER :2.0',
+        tokenizedLinesForPreset(kwContents, WakeWordPreset.trainer),
+        '▁TRA IN ER :2.0\n▁HE Y ▁TRA IN ER :2.0',
       );
     });
 
-    test('thomas → third tokenized line', () {
+    test('thomas → bare + Hey lines', () {
       expect(
-        tokenizedLineForPreset(kwContents, WakeWordPreset.thomas),
-        '▁HE Y ▁TH OM AS :2.0',
+        tokenizedLinesForPreset(kwContents, WakeWordPreset.thomas),
+        '▁TH OM AS :2.0\n▁HE Y ▁TH OM AS :2.0',
       );
     });
 
-    test('fewer than 3 non-empty lines → throws ArgumentError', () {
+    test('fewer than 6 non-empty lines → throws ArgumentError', () {
       expect(
-        () => tokenizedLineForPreset('line1\nline2\n', WakeWordPreset.thomas),
+        () => tokenizedLinesForPreset(
+          'l1\nl2\nl3\nl4\nl5\n',
+          WakeWordPreset.thomas,
+        ),
         throwsArgumentError,
       );
     });
 
     test('extra blank lines are ignored', () {
       const withBlanks =
-          '\n▁HE Y ▁SA MO ▁LE V S K I\n\n▁HE Y ▁TRA IN ER :2.0\n▁HE Y ▁TH OM AS :2.0\n\n';
+          '\n▁SA MO ▁LE V S K I\n\n▁HE Y ▁SA MO ▁LE V S K I\n'
+          '▁TRA IN ER :2.0\n▁HE Y ▁TRA IN ER :2.0\n\n'
+          '▁TH OM AS :2.0\n▁HE Y ▁TH OM AS :2.0\n\n';
       expect(
-        tokenizedLineForPreset(withBlanks, WakeWordPreset.trainer),
-        '▁HE Y ▁TRA IN ER :2.0',
+        tokenizedLinesForPreset(withBlanks, WakeWordPreset.trainer),
+        '▁TRA IN ER :2.0\n▁HE Y ▁TRA IN ER :2.0',
       );
     });
   });

@@ -100,5 +100,17 @@ void main() {
       expect(WakeWordPreset.trainer.displayName, 'Hey Trainer');
       expect(WakeWordPreset.thomas.displayName, 'Hey Thomas');
     });
+
+    test('WakeWordPreset acceptedPhrases include bare and Hey variants', () {
+      expect(WakeWordPreset.samoLevski.acceptedPhrases, {
+        'SAMO LEVSKI',
+        'HEY SAMO LEVSKI',
+      });
+      expect(WakeWordPreset.trainer.acceptedPhrases, {
+        'TRAINER',
+        'HEY TRAINER',
+      });
+      expect(WakeWordPreset.thomas.acceptedPhrases, {'THOMAS', 'HEY THOMAS'});
+    });
   });
 }
