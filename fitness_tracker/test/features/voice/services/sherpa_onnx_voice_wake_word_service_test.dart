@@ -363,6 +363,90 @@ void main() {
     );
   });
 
+  // ── Handle caching (perf: no native re-init per arm) ───────────────────────
+
+  group('handle caching', () {
+    test(
+      'reuses the cached handle across stop/start for the same preset',
+      () async {
+        int factoryCalls = 0;
+        int audioCalls = 0;
+        final handle = _FakeKwsHandle();
+        final audio1 = _FakeAudioSource();
+        final audio2 = _FakeAudioSource();
+        final svc = SherpaOnnxVoiceWakeWordService(
+          kwsFactory: (_) async {
+            factoryCalls++;
+            return handle;
+          },
+          audioSessionFactory: (_) {
+            audioCalls++;
+            return audioCalls == 1 ? audio1.session : audio2.session;
+          },
+        );
+
+        await svc.start(WakeWordPreset.trainer);
+        await svc.stop();
+        await svc.start(WakeWordPreset.trainer); // same preset → reuse
+
+        // Native engine built exactly once across the stop/start cycle.
+        expect(factoryCalls, 1);
+        // reset() called once when the cached handle is reused.
+        expect(handle.resetCount, 1);
+        expect(handle.freed, isFalse);
+        expect(svc.isRunning, isTrue);
+
+        await svc.dispose();
+        expect(handle.freed, isTrue);
+      },
+    );
+
+    test('switching preset frees the cached handle and rebuilds', () async {
+      int factoryCalls = 0;
+      int audioCalls = 0;
+      final handles = <_FakeKwsHandle>[];
+      final audio1 = _FakeAudioSource();
+      final audio2 = _FakeAudioSource();
+      final svc = SherpaOnnxVoiceWakeWordService(
+        kwsFactory: (_) async {
+          factoryCalls++;
+          final h = _FakeKwsHandle();
+          handles.add(h);
+          return h;
+        },
+        audioSessionFactory: (_) {
+          audioCalls++;
+          return audioCalls == 1 ? audio1.session : audio2.session;
+        },
+      );
+
+      await svc.start(WakeWordPreset.trainer);
+      await svc.start(WakeWordPreset.thomas); // different preset → rebuild
+
+      expect(factoryCalls, 2);
+      // The old preset's handle is freed when the preset switches.
+      expect(handles[0].freed, isTrue);
+      expect(handles[1].freed, isFalse);
+      expect(svc.isRunning, isTrue);
+
+      await svc.dispose();
+      expect(handles[1].freed, isTrue);
+    });
+
+    test('dispose frees the cached handle', () async {
+      final handle = _FakeKwsHandle();
+      final audioSource = _FakeAudioSource();
+      final svc = _makeService(handle: handle, audioSource: audioSource);
+
+      await svc.start(WakeWordPreset.thomas);
+      await svc.stop();
+      expect(handle.freed, isFalse); // retained across stop
+
+      await svc.dispose();
+      expect(handle.freed, isTrue);
+    });
+  });
+
   // ── Failure mapping ────────────────────────────────────────────────────────
 
   group('failure mapping', () {
@@ -496,9 +580,12 @@ void main() {
         );
 
         expect(audioCalls, VoiceConstants.wakeWordMicAcquireMaxAttempts);
-        expect(handle.freed, isTrue);
+        // The engine handle is cached for reuse even when mic acquisition
+        // fails; only a preset switch or dispose frees it.
+        expect(handle.freed, isFalse);
 
         await svc.dispose();
+        expect(handle.freed, isTrue);
       },
     );
   });
@@ -546,9 +633,11 @@ void main() {
       await Future.wait([startFuture, stopFuture]);
 
       expect(svc.isRunning, isFalse);
-      expect(handle.freed, isTrue);
+      // Handle is retained across stop (cached for reuse); dispose frees it.
+      expect(handle.freed, isFalse);
 
       await svc.dispose();
+      expect(handle.freed, isTrue);
     });
 
     test('concurrent start then dispose leaves service stopped', () async {
@@ -601,7 +690,7 @@ void main() {
   // ── stop() teardown ────────────────────────────────────────────────────────
 
   group('stop teardown', () {
-    test('stop calls audio stop and frees the handle', () async {
+    test('stop calls audio stop but retains the cached handle', () async {
       final handle = _FakeKwsHandle();
       final audioSource = _FakeAudioSource();
       final svc = _makeService(handle: handle, audioSource: audioSource);
@@ -610,6 +699,10 @@ void main() {
       await svc.stop();
 
       expect(audioSource.stopCalled, isTrue);
+      // The native handle is cached for reuse, not freed on stop.
+      expect(handle.freed, isFalse);
+
+      await svc.dispose();
       expect(handle.freed, isTrue);
     });
 
