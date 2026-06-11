@@ -105,5 +105,28 @@ void main() {
       final clarify = result as VoiceChatClarifyResponse;
       expect(clarify.message.content, '42');
     });
+
+    test('all seven query tools → VoiceChatQueryCall (cross-layer contract)', () {
+      const allQueryTools = <String>{
+        'getWeeklyVolume',
+        'getDailyMacros',
+        'getRecentSets',
+        'getRecentNutrition',
+        'getDailyNutritionLog',
+        'getWorkoutForDay',
+        'getTrainingDays',
+      };
+      for (final name in allQueryTools) {
+        final result = SupabaseVoiceRemoteDataSource.parseResult(
+          _toolCall(name, {}),
+        );
+        expect(
+          result,
+          isA<VoiceChatQueryCall>(),
+          reason:
+              '$name must parse to VoiceChatQueryCall, not VoiceChatMutationCall',
+        );
+      }
+    });
   });
 }

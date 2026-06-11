@@ -105,6 +105,7 @@ Numbered steps or a short paragraph. State what to do and what *not* to do.
 33. [voice-nutrition-query-spoke-calories-without-macros](#voice-nutrition-query-spoke-calories-without-macros)
 34. [voice-most-recent-nutrition-had-no-cross-day-query-tool](#voice-most-recent-nutrition-had-no-cross-day-query-tool)
 35. [voice-logged-meal-macros-are-retrievable-not-advice](#voice-logged-meal-macros-are-retrievable-not-advice)
+36. [voice-recent-nutrition-tool-was-misclassified-as-mutation-on-client](#voice-recent-nutrition-tool-was-misclassified-as-mutation-on-client)
 
 ### Database
 11. [sqflite-version-15-rejects-incompatible-legacy-databases](#sqflite-version-15-rejects-incompatible-legacy-databases)
@@ -1386,6 +1387,35 @@ Added a narrowly-scoped carve-out sentence immediately after the example refusal
 - `supabase/functions/voice-chat/index.ts` — `SYSTEM_PROMPT_TEMPLATE` refusal rule carve-out
 - `[[voice-nutrition-query-spoke-calories-without-macros]]` — Commit 1, client-side macro formatter
 - `[[voice-most-recent-nutrition-had-no-cross-day-query-tool]]` — Commit 3, shared deploy
+
+---
+
+### voice-recent-nutrition-tool-was-misclassified-as-mutation-on-client
+
+- **Severity:** High
+- **Status:** Resolved-but-monitor
+- **First observed:** 2026-06-11
+- **Last verified:** 2026-06-11
+- **Area:** voice
+
+**Symptom**
+
+"What's my most recent nutrition?" → spoken "I can't do that yet." with no assistant bubble in the transcript. The backend demonstrably called `getRecentNutrition` correctly; the failure was entirely on the client side.
+
+**Root cause**
+
+`SupabaseVoiceRemoteDataSource.parseResult` classifies tool calls using a hardcoded `queryTools` set. PR #153 added `getRecentNutrition` to the server `TOOL_REGISTRY`, the prompt, and the `VoiceBloc._executeQueryTool` dispatch case — but not to this client-side set. The tool fell through to `VoiceChatMutationCall`, then hit the `_knownMutationTools` fail-closed gate (which also does not list it), and spoke `voiceSpokenUnsupportedAction`. The `_queryRecentNutrition` handler was reachable dead code for the lifetime of #153.
+
+**Workaround / fix**
+
+Added `'getRecentNutrition'` to the `queryTools` set in `parseResult`. Added a table-driven test iterating all seven query-tool names and asserting each parses to `VoiceChatQueryCall` — this test IS the cross-layer contract; a future omission will fail CI immediately. No backend change, no deploy required.
+
+**References**
+
+- `lib/data/datasources/remote/supabase_voice_remote_datasource.dart` — `queryTools` set in `parseResult`
+- `test/data/datasources/remote/supabase_voice_remote_datasource_test.dart` — seven-tool contract test
+- `lib/features/voice/application/voice_bloc.dart:1686` — `_executeQueryTool` dispatch (was already correct)
+- `[[voice-most-recent-nutrition-had-no-cross-day-query-tool]]` — #153 that shipped the tool server-side
 
 ---
 

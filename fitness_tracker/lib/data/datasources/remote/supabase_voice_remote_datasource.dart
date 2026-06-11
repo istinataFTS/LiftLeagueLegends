@@ -265,6 +265,7 @@ class SupabaseVoiceRemoteDataSource implements VoiceRemoteDataSource {
         'getWeeklyVolume',
         'getDailyMacros',
         'getRecentSets',
+        'getRecentNutrition',
         'getDailyNutritionLog',
         'getWorkoutForDay',
         'getTrainingDays',
