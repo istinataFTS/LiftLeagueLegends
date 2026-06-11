@@ -984,6 +984,12 @@ A second root cause was identified 2026-06-11: `VoiceSettingsCubit` starts at `V
 - `lib/core/constants/voice_constants.dart` — `wakeWordKeywordsThreshold`, `wakeWordKeywordsScore`
 - `lib/features/voice/data/services/sherpa_onnx_voice_wake_word_service.dart` — `buildKeywordSpotterConfig`
 - `test/features/voice/services/sherpa_onnx_voice_wake_word_service_test.dart` — `buildKeywordSpotterConfig` group
+- `lib/features/voice/application/voice_settings_cubit.dart:43` — `super(VoiceSettings.defaults())` initial state (samoLevski)
+- `lib/features/voice/application/voice_settings_cubit.dart:59` — `late final Future<void> ready` getter
+- `lib/features/voice/application/voice_settings_cubit.dart:65` — `_init()` hydration method
+- `lib/domain/entities/voice_settings.dart:48` — `VoiceSettings.defaults()` (samoLevski preset)
+- `lib/features/voice/presentation/widgets/voice_fab.dart:59` — `initState` (arms wake word on mount)
+- `lib/features/voice/presentation/widgets/voice_fab.dart:115` — `_startWakeWordIfArmed` (now awaits `cubit.ready`)
 
 ---
 
