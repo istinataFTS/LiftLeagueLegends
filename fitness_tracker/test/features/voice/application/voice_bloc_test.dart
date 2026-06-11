@@ -2422,6 +2422,116 @@ void main() {
   });
 
   // -------------------------------------------------------------------------
+  // getRecentNutrition
+  // -------------------------------------------------------------------------
+
+  group('getRecentNutrition query', () {
+    test(
+      'speaks recent meals across days with names, calories, and macros',
+      () async {
+        final recentLogs = MockGetLogsByDateRange();
+        when(
+          () => recentLogs(
+            startDate: any(named: 'startDate'),
+            endDate: any(named: 'endDate'),
+          ),
+        ).thenAnswer(
+          (_) async => Right([
+            NutritionLog(
+              id: 'log-rn-1',
+              mealName: 'Oats',
+              proteinGrams: 10,
+              carbsGrams: 50,
+              fatGrams: 5,
+              calories: 300,
+              loggedAt: _now,
+              createdAt: _now,
+            ),
+            NutritionLog(
+              id: 'log-rn-2',
+              mealName: 'Chicken',
+              proteinGrams: 40,
+              carbsGrams: 0,
+              fatGrams: 8,
+              calories: 230,
+              loggedAt: _now.subtract(const Duration(days: 2)),
+              createdAt: _now.subtract(const Duration(days: 2)),
+            ),
+          ]),
+        );
+
+        final tts = FakeVoiceTtsService();
+        final bloc = _makeBloc(
+          sendVoiceMessage: sendVoiceMessage,
+          getVoiceBudget: getBudget,
+          deleteVoiceHistory: deleteHistory,
+          appSettingsRepository: settingsRepo,
+          exerciseLookup: exerciseLookup,
+          getSetsByDateRange: getSetsByDateRange,
+          getLogsForDate: getLogsForDate,
+          getLogsByDateRange: recentLogs,
+          getDailyMacros: getDailyMacros,
+          tts: tts,
+        );
+
+        await runQueryFlow(
+          bloc: bloc,
+          sendVoiceMessage: sendVoiceMessage,
+          toolName: 'getRecentNutrition',
+          args: const {},
+          session: authSession(),
+        );
+
+        expect(tts.lastSpoken?.contains('Oats'), isTrue);
+        expect(tts.lastSpoken?.contains('Chicken'), isTrue);
+        expect(tts.lastSpoken?.contains('300 calories'), isTrue);
+        expect(tts.lastSpoken?.contains('230 calories'), isTrue);
+        expect(tts.lastSpoken?.contains('10g protein'), isTrue);
+        expect(tts.lastSpoken?.contains('40g protein'), isTrue);
+        expect(tts.lastSpoken?.contains('0g carbs'), isTrue);
+        expect(tts.lastSpoken?.contains('8g fat'), isTrue);
+        expect(bloc.state.status, VoiceStatus.idle);
+        await bloc.close();
+      },
+    );
+
+    test('empty result speaks voiceQueryNoRecentNutrition', () async {
+      final recentLogs = MockGetLogsByDateRange();
+      when(
+        () => recentLogs(
+          startDate: any(named: 'startDate'),
+          endDate: any(named: 'endDate'),
+        ),
+      ).thenAnswer((_) async => const Right(<NutritionLog>[]));
+
+      final tts = FakeVoiceTtsService();
+      final bloc = _makeBloc(
+        sendVoiceMessage: sendVoiceMessage,
+        getVoiceBudget: getBudget,
+        deleteVoiceHistory: deleteHistory,
+        appSettingsRepository: settingsRepo,
+        exerciseLookup: exerciseLookup,
+        getSetsByDateRange: getSetsByDateRange,
+        getLogsForDate: getLogsForDate,
+        getLogsByDateRange: recentLogs,
+        getDailyMacros: getDailyMacros,
+        tts: tts,
+      );
+
+      await runQueryFlow(
+        bloc: bloc,
+        sendVoiceMessage: sendVoiceMessage,
+        toolName: 'getRecentNutrition',
+        args: const {},
+        session: authSession(),
+      );
+
+      expect(tts.lastSpoken, equals(AppStrings.voiceQueryNoRecentNutrition));
+      await bloc.close();
+    });
+  });
+
+  // -------------------------------------------------------------------------
   // getWorkoutForDay
   // -------------------------------------------------------------------------
 
