@@ -260,7 +260,7 @@ The voice feature is split across Flutter (on-device I/O) and a single Supabase 
 
 ### CI
 
-Two GitHub Actions jobs on push to `main`, `develop`, and any `chore/**`, `ci/**`, `docs/**`, `feat/**`, `feature/**`, `fix/**`, or `refactor/**` branch, plus on every PR targeting `main` or `develop`:
+Two GitHub Actions jobs on push to `main`, `develop`, and any `chore/**`, `ci/**`, `docs/**`, `feat/**`, `feature/**`, `fix/**`, `perf/**`, or `refactor/**` branch, plus on every PR targeting `main` or `develop`:
 - **Flutter**: format check → `flutter analyze --no-fatal-infos` → `check_conventions` → `check_state_freshness` → `flutter test --coverage` → `check_coverage` (per-directory thresholds in `tool/check_coverage.dart`) → `flutter build apk --debug --dart-define-from-file=dart_defines.json`
 - **Backend**: `deno fmt --check` → `deno lint` → `deno check` (type-check every `.ts`) → `deno test --allow-all`
 
