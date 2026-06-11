@@ -1798,6 +1798,15 @@ class VoiceBloc extends Bloc<VoiceEvent, VoiceState>
     });
   }
 
+  // Spoken summary for one nutrition log: meal, calories, and all three
+  // macros. Macros are always voiced (including zeros, e.g. "0g carbs") so a
+  // follow-up macro question is answerable from the spoken answer + history
+  // alone — never re-refused as out-of-scope.
+  String _nutritionLineFor(NutritionLog l) =>
+      '${l.mealName}, ${l.calories.round()} calories, '
+      '${l.proteinGrams.round()}g protein, ${l.carbsGrams.round()}g carbs, '
+      '${l.fatGrams.round()}g fat';
+
   Future<String> _queryDailyNutritionLog(Map<String, dynamic> args) async {
     final date = _resolveQueryDate(args);
     final result = await _getLogsForDate(date);
@@ -1805,9 +1814,7 @@ class VoiceBloc extends Bloc<VoiceEvent, VoiceState>
       logs,
     ) {
       if (logs.isEmpty) return AppStrings.voiceQueryNothingLogged;
-      final items = logs
-          .map((l) => '${l.mealName}, ${l.calories.round()} calories')
-          .join('. ');
+      final items = logs.map(_nutritionLineFor).join('. ');
       return AppStrings.voiceQueryNutritionLogResult(items);
     });
   }
