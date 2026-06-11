@@ -104,6 +104,7 @@ Numbered steps or a short paragraph. State what to do and what *not* to do.
 32. [voice-day-scoped-query-tools-omitted-from-must-call-rule](#voice-day-scoped-query-tools-omitted-from-must-call-rule)
 33. [voice-nutrition-query-spoke-calories-without-macros](#voice-nutrition-query-spoke-calories-without-macros)
 34. [voice-most-recent-nutrition-had-no-cross-day-query-tool](#voice-most-recent-nutrition-had-no-cross-day-query-tool)
+35. [voice-logged-meal-macros-are-retrievable-not-advice](#voice-logged-meal-macros-are-retrievable-not-advice)
 
 ### Database
 11. [sqflite-version-15-rejects-incompatible-legacy-databases](#sqflite-version-15-rejects-incompatible-legacy-databases)
@@ -1357,6 +1358,34 @@ Added a `getRecentNutrition` tool mirroring `getRecentSets`: server `ToolDefinit
 - `lib/features/voice/application/voice_bloc.dart` — `_executeQueryTool` dispatch + `_queryRecentNutrition`
 - `lib/core/constants/app_strings.dart` — three new recent-nutrition strings
 - `[[voice-nutrition-query-spoke-calories-without-macros]]` — shared `_nutritionLineFor` formatter
+
+---
+
+### voice-logged-meal-macros-are-retrievable-not-advice
+
+- **Severity:** Medium
+- **Status:** Resolved-but-monitor
+- **First observed:** 2026-06-11
+- **Last verified:** 2026-06-11
+- **Area:** voice
+
+**Symptom**
+
+A follow-up question about macros of a meal the user had already logged ("how many protein does it contain?") was refused with "I only handle logging and your own stats." — even though the macros were available and had been spoken by the client (after Commit 1).
+
+**Root cause**
+
+The system prompt's nutrition-recommendation refusal rule ("You MUST refuse… nutrition recommendations") had no carve-out distinguishing *generic dietary advice* from *retrieval of the user's own logged data*. With no carve-out, the model classified "how many protein in my logged meal?" as generic dietary advice and refused. The `getDailyNutritionLog`, `getRecentNutrition`, and `getDailyMacros` tools can retrieve this data, but the model did not attempt them.
+
+**Workaround / fix**
+
+Added a narrowly-scoped carve-out sentence immediately after the example refusal in `SYSTEM_PROMPT_TEMPLATE` (`voice-chat/index.ts`): reporting macros/calories/contents of a meal the user already logged is retrieving their own data, NOT a nutrition recommendation — answer via the nutrition query tools. Generic nutrition facts and dietary advice for foods the user did not log remain refused. Belt-and-suspenders alongside Commit 1's `_nutritionLineFor`, which seeds macros into conversation history so follow-up questions are often answerable from context without a tool call. Requires a `Supabase Deploy` (functions target) for the server-side prompt change to take effect on the self-hosted VPS (manual rsync of `_shared` + `voice-chat` to the docker volume, then `docker restart supabase-edge-functions`). Deploy shared with Commit 3 (`[[voice-most-recent-nutrition-had-no-cross-day-query-tool]]`).
+
+**References**
+
+- `supabase/functions/voice-chat/index.ts` — `SYSTEM_PROMPT_TEMPLATE` refusal rule carve-out
+- `[[voice-nutrition-query-spoke-calories-without-macros]]` — Commit 1, client-side macro formatter
+- `[[voice-most-recent-nutrition-had-no-cross-day-query-tool]]` — Commit 3, shared deploy
 
 ---
 
