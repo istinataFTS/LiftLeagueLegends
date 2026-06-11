@@ -102,6 +102,7 @@ Numbered steps or a short paragraph. State what to do and what *not* to do.
 30. [voice-spoken-confirm-must-tolerate-stt-punctuation-and-filler](#voice-spoken-confirm-must-tolerate-stt-punctuation-and-filler)
 31. [voice-recent-nutrition-context-was-today-only](#voice-recent-nutrition-context-was-today-only)
 32. [voice-day-scoped-query-tools-omitted-from-must-call-rule](#voice-day-scoped-query-tools-omitted-from-must-call-rule)
+33. [voice-nutrition-query-spoke-calories-without-macros](#voice-nutrition-query-spoke-calories-without-macros)
 
 ### Database
 11. [sqflite-version-15-rejects-incompatible-legacy-databases](#sqflite-version-15-rejects-incompatible-legacy-databases)
@@ -1294,6 +1295,35 @@ Added all six query tools to the must-call rule and the tool-usage bullet. Added
 
 - `supabase/functions/voice-chat/index.ts` — "Answer data questions only through a query tool" block and tool-usage query rule
 - PR `#149` — fix: force query tool for day-scoped data; frame recent context as hint
+
+---
+
+### voice-nutrition-query-spoke-calories-without-macros
+
+- **Severity:** High
+- **Status:** Resolved-but-monitor
+- **First observed:** 2026-06-11
+- **Last verified:** 2026-06-11
+- **Area:** voice
+
+**Symptom**
+
+Voice bot spoke only meal name and calories for `getDailyNutritionLog` results (e.g. "You logged: Chicken Breast, 313 calories."). A follow-up macro question ("how many protein?") was refused with "I only handle logging and your own stats." — even though macros were stored on the entity.
+
+**Root cause**
+
+Two layers. **A (client):** `_queryDailyNutritionLog` in `voice_bloc.dart` formatted each row as `'${l.mealName}, ${l.calories.round()} calories'`, discarding `proteinGrams`, `carbsGrams`, and `fatGrams`. With no macros in the spoken output or conversation history, the model had no data to answer a follow-up. **B (prompt):** The system prompt's nutrition-recommendation refusal rule had no carve-out for macros of meals the user already logged, so the model classified "how many protein does it contain?" as generic dietary advice and refused. See `[[voice-logged-meal-macros-are-retrievable-not-advice]]` (Commit 4) for the prompt fix.
+
+**Workaround / fix**
+
+Extracted a `_nutritionLineFor(NutritionLog l)` helper that voices all three macros including zeros (e.g. "0g carbs"). `_queryDailyNutritionLog` now delegates to this helper. With macros present in the spoken output and history, macro follow-ups are answered from context — the refusal trigger disappears without requiring the prompt carve-out. The helper is reused by `_queryRecentNutrition` (Commit 3, see `[[voice-most-recent-nutrition-had-no-cross-day-query-tool]]`). Client-only fix; no Supabase deploy required.
+
+**References**
+
+- `lib/features/voice/application/voice_bloc.dart` — `_nutritionLineFor`, `_queryDailyNutritionLog`
+- `lib/domain/entities/nutrition_log.dart:11-13` — `proteinGrams`, `carbsGrams`, `fatGrams`
+- `[[voice-logged-meal-macros-are-retrievable-not-advice]]` — prompt carve-out (Commit 4)
+- `[[voice-most-recent-nutrition-had-no-cross-day-query-tool]]` — cross-day query tool (Commit 3)
 
 ---
 
