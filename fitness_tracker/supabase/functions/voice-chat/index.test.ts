@@ -648,6 +648,30 @@ Deno.test("buildSystemPrompt: recent context is framed as a truncated hint, not 
   );
 });
 
+Deno.test("buildSystemPrompt: logged-meal macros are retrievable, not a nutrition recommendation", () => {
+  const prompt = buildSystemPrompt({
+    currentDate: "2026-06-11",
+    weightUnit: "kg",
+    recentSets: [],
+    recentNutritionLogs: [],
+  });
+  // Carve-out added in fix/voice-logged-macros-retrievable-prompt. Without it
+  // the model classifies "how many protein in my logged meal?" as generic dietary
+  // advice and refuses — even though Commit 1 already voices macros in history.
+  assertEquals(
+    prompt.includes("NOT a nutrition recommendation"),
+    true,
+  );
+  assertEquals(
+    prompt.includes("already logged is retrieving their own data"),
+    true,
+  );
+  assertEquals(
+    prompt.includes("Only refuse generic nutrition facts"),
+    true,
+  );
+});
+
 // ---------------------------------------------------------------------------
 // applyAssistantGuard — server-side guard against success-claiming prose
 // ---------------------------------------------------------------------------

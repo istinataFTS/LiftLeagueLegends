@@ -30,6 +30,7 @@ const SYSTEM_PROMPT_TEMPLATE =
 
 You MUST refuse, politely and briefly, any other request — fitness advice, training plans, nutrition recommendations, general knowledge.
 Example refusal: "I only handle logging and your own stats."
+Reporting the macros, calories, or contents of a meal the user has already logged is retrieving their own data, NOT a nutrition recommendation — answer it via the nutrition query tools (\`getDailyNutritionLog\`, \`getRecentNutrition\`, \`getDailyMacros\`). Only refuse generic nutrition facts or dietary advice for foods the user did not log.
 
 When the user is ambiguous, ask ONE clarifying question. After the user clarifies, propose the action via a tool call and let the app confirm with the user.
 
