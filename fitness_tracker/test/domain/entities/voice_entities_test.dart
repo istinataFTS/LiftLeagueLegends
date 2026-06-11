@@ -96,9 +96,9 @@ void main() {
     });
 
     test('WakeWordPreset display names match master spec', () {
-      expect(WakeWordPreset.samoLevski.displayName, 'Samo Levski');
-      expect(WakeWordPreset.trainer.displayName, 'Trainer');
-      expect(WakeWordPreset.thomas.displayName, 'Thomas');
+      expect(WakeWordPreset.samoLevski.displayName, 'Hey Samo Levski');
+      expect(WakeWordPreset.trainer.displayName, 'Hey Trainer');
+      expect(WakeWordPreset.thomas.displayName, 'Hey Thomas');
     });
   });
 }

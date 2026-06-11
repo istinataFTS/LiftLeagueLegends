@@ -662,9 +662,9 @@ class AppStrings {
       "I could not find that exercise in your library.";
 
   // ── Wake word preset labels ────────────────────────────────────────────────
-  static const String wakeWordSamoLevski = 'Samo Levski';
-  static const String wakeWordTrainer = 'Trainer';
-  static const String wakeWordThomas = 'Thomas';
+  static const String wakeWordSamoLevski = 'Hey Samo Levski';
+  static const String wakeWordTrainer = 'Hey Trainer';
+  static const String wakeWordThomas = 'Hey Thomas';
   static const String wakeWordPronunciationSamoLevski = 'SAH-mo LEV-ski';
   static const String wakeWordPronunciationTrainer = 'TRAY-ner';
   static const String wakeWordPronunciationThomas = 'TOH-mas';

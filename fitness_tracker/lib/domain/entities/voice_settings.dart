@@ -10,11 +10,11 @@ extension WakeWordPresetLabel on WakeWordPreset {
   String get displayName {
     switch (this) {
       case WakeWordPreset.samoLevski:
-        return 'Samo Levski';
+        return 'Hey Samo Levski';
       case WakeWordPreset.trainer:
-        return 'Trainer';
+        return 'Hey Trainer';
       case WakeWordPreset.thomas:
-        return 'Thomas';
+        return 'Hey Thomas';
     }
   }
 }
@@ -23,9 +23,9 @@ extension WakeWordPresetPhrase on WakeWordPreset {
   /// The exact spoken phrase the KWS model is trained to spot, upper-cased to
   /// match the de-tokenized `KeywordResult.keyword` sherpa returns.
   String get wakePhrase => switch (this) {
-    WakeWordPreset.samoLevski => 'SAMO LEVSKI',
-    WakeWordPreset.trainer => 'TRAINER',
-    WakeWordPreset.thomas => 'THOMAS',
+    WakeWordPreset.samoLevski => 'HEY SAMO LEVSKI',
+    WakeWordPreset.trainer => 'HEY TRAINER',
+    WakeWordPreset.thomas => 'HEY THOMAS',
   };
 }
 

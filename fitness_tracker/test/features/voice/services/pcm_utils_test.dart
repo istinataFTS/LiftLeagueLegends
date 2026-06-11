@@ -48,26 +48,27 @@ void main() {
   // ── tokenizedLineForPreset ─────────────────────────────────────────────────
 
   group('tokenizedLineForPreset', () {
-    const kwContents = '▁SA MO ▁LE V S K I\n▁TRA IN ER\n▁TH OM AS\n';
+    const kwContents =
+        '▁HE Y ▁SA MO ▁LE V S K I\n▁HE Y ▁TRA IN ER :2.0\n▁HE Y ▁TH OM AS :2.0\n';
 
     test('samoLevski → first tokenized line', () {
       expect(
         tokenizedLineForPreset(kwContents, WakeWordPreset.samoLevski),
-        '▁SA MO ▁LE V S K I',
+        '▁HE Y ▁SA MO ▁LE V S K I',
       );
     });
 
     test('trainer → second tokenized line', () {
       expect(
         tokenizedLineForPreset(kwContents, WakeWordPreset.trainer),
-        '▁TRA IN ER',
+        '▁HE Y ▁TRA IN ER :2.0',
       );
     });
 
     test('thomas → third tokenized line', () {
       expect(
         tokenizedLineForPreset(kwContents, WakeWordPreset.thomas),
-        '▁TH OM AS',
+        '▁HE Y ▁TH OM AS :2.0',
       );
     });
 
@@ -79,10 +80,11 @@ void main() {
     });
 
     test('extra blank lines are ignored', () {
-      const withBlanks = '\n▁SA MO ▁LE V S K I\n\n▁TRA IN ER\n▁TH OM AS\n\n';
+      const withBlanks =
+          '\n▁HE Y ▁SA MO ▁LE V S K I\n\n▁HE Y ▁TRA IN ER :2.0\n▁HE Y ▁TH OM AS :2.0\n\n';
       expect(
         tokenizedLineForPreset(withBlanks, WakeWordPreset.trainer),
-        '▁TRA IN ER',
+        '▁HE Y ▁TRA IN ER :2.0',
       );
     });
   });
@@ -90,16 +92,16 @@ void main() {
   // ── WakeWordPreset.wakePhrase ──────────────────────────────────────────────
 
   group('WakeWordPreset.wakePhrase', () {
-    test('samoLevski → SAMO LEVSKI', () {
-      expect(WakeWordPreset.samoLevski.wakePhrase, 'SAMO LEVSKI');
+    test('samoLevski → HEY SAMO LEVSKI', () {
+      expect(WakeWordPreset.samoLevski.wakePhrase, 'HEY SAMO LEVSKI');
     });
 
-    test('trainer → TRAINER', () {
-      expect(WakeWordPreset.trainer.wakePhrase, 'TRAINER');
+    test('trainer → HEY TRAINER', () {
+      expect(WakeWordPreset.trainer.wakePhrase, 'HEY TRAINER');
     });
 
-    test('thomas → THOMAS', () {
-      expect(WakeWordPreset.thomas.wakePhrase, 'THOMAS');
+    test('thomas → HEY THOMAS', () {
+      expect(WakeWordPreset.thomas.wakePhrase, 'HEY THOMAS');
     });
   });
 }
