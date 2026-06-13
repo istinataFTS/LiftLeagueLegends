@@ -8,7 +8,6 @@ class InitialCloudMigrationState extends Equatable {
   final bool exercisesCompleted;
   final bool mealsCompleted;
   final bool nutritionLogsCompleted;
-  final bool targetsCompleted;
   final DateTime startedAt;
   final DateTime updatedAt;
   final String? lastError;
@@ -21,7 +20,6 @@ class InitialCloudMigrationState extends Equatable {
     this.exercisesCompleted = false,
     this.mealsCompleted = false,
     this.nutritionLogsCompleted = false,
-    this.targetsCompleted = false,
     this.lastError,
   });
 
@@ -29,8 +27,7 @@ class InitialCloudMigrationState extends Equatable {
       workoutSetsCompleted &&
       exercisesCompleted &&
       mealsCompleted &&
-      nutritionLogsCompleted &&
-      targetsCompleted;
+      nutritionLogsCompleted;
 
   InitialCloudMigrationState copyWith({
     String? userId,
@@ -38,7 +35,6 @@ class InitialCloudMigrationState extends Equatable {
     bool? exercisesCompleted,
     bool? mealsCompleted,
     bool? nutritionLogsCompleted,
-    bool? targetsCompleted,
     DateTime? startedAt,
     DateTime? updatedAt,
     String? lastError,
@@ -51,7 +47,6 @@ class InitialCloudMigrationState extends Equatable {
       mealsCompleted: mealsCompleted ?? this.mealsCompleted,
       nutritionLogsCompleted:
           nutritionLogsCompleted ?? this.nutritionLogsCompleted,
-      targetsCompleted: targetsCompleted ?? this.targetsCompleted,
       startedAt: startedAt ?? this.startedAt,
       updatedAt: updatedAt ?? this.updatedAt,
       lastError: clearLastError ? null : (lastError ?? this.lastError),
@@ -65,7 +60,6 @@ class InitialCloudMigrationState extends Equatable {
       'exercisesCompleted': exercisesCompleted,
       'mealsCompleted': mealsCompleted,
       'nutritionLogsCompleted': nutritionLogsCompleted,
-      'targetsCompleted': targetsCompleted,
       'startedAt': startedAt.toStorageIso(),
       'updatedAt': updatedAt.toStorageIso(),
       'lastError': lastError,
@@ -79,7 +73,6 @@ class InitialCloudMigrationState extends Equatable {
       exercisesCompleted: json['exercisesCompleted'] as bool? ?? false,
       mealsCompleted: json['mealsCompleted'] as bool? ?? false,
       nutritionLogsCompleted: json['nutritionLogsCompleted'] as bool? ?? false,
-      targetsCompleted: json['targetsCompleted'] as bool? ?? false,
       startedAt: parseStorageDate(json['startedAt'] as String),
       updatedAt: parseStorageDate(json['updatedAt'] as String),
       lastError: json['lastError'] as String?,
@@ -102,7 +95,6 @@ class InitialCloudMigrationState extends Equatable {
     exercisesCompleted,
     mealsCompleted,
     nutritionLogsCompleted,
-    targetsCompleted,
     startedAt,
     updatedAt,
     lastError,

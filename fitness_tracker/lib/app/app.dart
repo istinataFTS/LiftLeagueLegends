@@ -1,13 +1,8 @@
 import 'dart:ui';
-import 'dart:math' as math;
 
-import 'package:device_preview/device_preview.dart';
-import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 
-import '../config/env_config.dart';
-import '../core/constants/app_dimensions.dart';
 import '../core/constants/app_strings.dart';
 import '../core/themes/app_theme.dart';
 import '../features/profile/application/profile_cubit.dart';
@@ -27,21 +22,12 @@ class AppHost extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    if (kIsWeb || !EnvConfig.enableDevicePreview) {
-      return const FitnessTrackerApp(useDevicePreviewAdapters: false);
-    }
-
-    return DevicePreview(
-      enabled: true,
-      builder: (_) => const FitnessTrackerApp(useDevicePreviewAdapters: true),
-    );
+    return const FitnessTrackerApp();
   }
 }
 
 class FitnessTrackerApp extends StatelessWidget {
-  const FitnessTrackerApp({super.key, this.useDevicePreviewAdapters = false});
-
-  final bool useDevicePreviewAdapters;
+  const FitnessTrackerApp({super.key});
 
   @override
   Widget build(BuildContext context) {
@@ -63,22 +49,6 @@ class FitnessTrackerApp extends StatelessWidget {
       child: AuthSessionShell(
         child: SettingsScope(
           child: AppShell(
-            builder: (BuildContext context, Widget? child) {
-              Widget builtChild = child ?? const SizedBox.shrink();
-
-              if (useDevicePreviewAdapters) {
-                builtChild = DevicePreview.appBuilder(context, builtChild);
-              }
-
-              if (EnvConfig.enableWebPhoneFrame) {
-                builtChild = _WebPhoneFrame(child: builtChild);
-              }
-
-              return builtChild;
-            },
-            locale: useDevicePreviewAdapters
-                ? DevicePreview.locale(context)
-                : null,
             // AuthGate sits above the startup listeners so the initial-load
             // dispatch (LoadWeeklySetsEvent, LoadHomeDataEvent, etc.) only
             // mounts when a real authenticated user is present. Unauthenticated
@@ -105,93 +75,10 @@ class FitnessTrackerApp extends StatelessWidget {
   }
 }
 
-class _WebPhoneFrame extends StatelessWidget {
-  const _WebPhoneFrame({required this.child});
-
-  final Widget child;
-
-  @override
-  Widget build(BuildContext context) {
-    return LayoutBuilder(
-      builder: (BuildContext context, BoxConstraints constraints) {
-        if (constraints.maxWidth <= AppDimensions.webPhoneBreakpoint) {
-          return child;
-        }
-
-        final double availableHeight = math.max(
-          0,
-          constraints.maxHeight - AppDimensions.webPhoneFramePadding,
-        );
-        final double phoneHeight = math.min(
-          AppDimensions.webPhoneMaxHeight,
-          availableHeight,
-        );
-
-        return ColoredBox(
-          color: AppTheme.webFrameBackground,
-          child: Center(
-            child: Container(
-              width: AppDimensions.webPhoneWidth,
-              height: phoneHeight,
-              decoration: BoxDecoration(
-                color: AppTheme.backgroundDark,
-                borderRadius: BorderRadius.circular(
-                  AppDimensions.webPhoneFrameRadius,
-                ),
-                border: Border.all(color: AppTheme.borderDark, width: 1.5),
-                boxShadow: const <BoxShadow>[
-                  BoxShadow(
-                    color: AppTheme.webFrameShadow,
-                    blurRadius: 28,
-                    offset: Offset(0, 18),
-                  ),
-                ],
-              ),
-              child: ClipRRect(
-                borderRadius: BorderRadius.circular(
-                  AppDimensions.webPhoneContentRadius,
-                ),
-                child: Stack(
-                  children: <Widget>[
-                    Positioned.fill(child: child),
-                    const Positioned(
-                      top: AppDimensions.webPhoneNotchTopOffset,
-                      left: 0,
-                      right: 0,
-                      child: IgnorePointer(
-                        child: Center(
-                          child: DecoratedBox(
-                            decoration: BoxDecoration(
-                              color: AppTheme.webFrameNotch,
-                              borderRadius: BorderRadius.all(
-                                Radius.circular(999),
-                              ),
-                            ),
-                            child: SizedBox(
-                              width: AppDimensions.webPhoneNotchWidth,
-                              height: AppDimensions.webPhoneNotchHeight,
-                            ),
-                          ),
-                        ),
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-            ),
-          ),
-        );
-      },
-    );
-  }
-}
-
 class AppShell extends StatelessWidget {
-  const AppShell({required this.home, super.key, this.builder, this.locale});
+  const AppShell({required this.home, super.key});
 
   final Widget home;
-  final TransitionBuilder? builder;
-  final Locale? locale;
 
   @override
   Widget build(BuildContext context) {
@@ -199,8 +86,6 @@ class AppShell extends StatelessWidget {
       title: AppStrings.appTitle,
       debugShowCheckedModeBanner: false,
       theme: AppTheme.darkTheme,
-      locale: locale,
-      builder: builder,
       // `home:` builds the initial route directly (instead of going
       // through `onGenerateRoute` for '/'). Keeping `home:` for the
       // initial widget lets the existing AppStartupListener →

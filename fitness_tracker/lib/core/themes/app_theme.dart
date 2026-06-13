@@ -40,11 +40,6 @@ class AppTheme {
   static const Color warningAmber = warning;
   static const Color errorRed = error;
 
-  // Web Phone Frame Colors
-  static const Color webFrameBackground = Color(0xFF111111);
-  static const Color webFrameNotch = Color(0xFF252525);
-  static const Color webFrameShadow = Color(0x66000000);
-
   // Muscle Visualization Colors
   static const Color intensityNone = Color(0xFF2A2A2A);
   static const Color intensityLow = Color(0xFF4A5F4A);

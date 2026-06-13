@@ -198,8 +198,6 @@ class InitialCloudMigrationCoordinatorImpl
         return state.mealsCompleted;
       case 'nutrition_logs':
         return state.nutritionLogsCompleted;
-      case 'targets':
-        return state.targetsCompleted;
       default:
         return false;
     }
@@ -231,12 +229,6 @@ class InitialCloudMigrationCoordinatorImpl
       case 'nutrition_logs':
         return state.copyWith(
           nutritionLogsCompleted: true,
-          updatedAt: DateTime.now(),
-          clearLastError: true,
-        );
-      case 'targets':
-        return state.copyWith(
-          targetsCompleted: true,
           updatedAt: DateTime.now(),
           clearLastError: true,
         );

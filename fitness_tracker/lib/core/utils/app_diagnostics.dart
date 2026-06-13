@@ -171,10 +171,8 @@ class AppDiagnostics {
     final checks = [
       'Database name: Using EnvConfig.databaseName',
       'App version: Using EnvConfig.appVersion',
-      'API endpoints: Using EnvConfig.apiBaseUrl',
       'User name: Resolved from the authenticated session',
       'Seeding: Using EnvConfig.seedDefaultData',
-      'Web-only strings: Using AppStrings constants',
     ];
 
     debugPrint('  Manual verification checklist:');
