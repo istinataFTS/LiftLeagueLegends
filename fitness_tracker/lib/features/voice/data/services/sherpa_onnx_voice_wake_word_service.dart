@@ -363,7 +363,7 @@ class SherpaOnnxVoiceWakeWordService implements VoiceWakeWordService {
         session = await _audioSessionFactory(
           const RecordConfig(
             encoder: AudioEncoder.pcm16bits,
-            sampleRate: 16000,
+            sampleRate: _sampleRate,
             numChannels: 1,
           ),
         );

@@ -768,10 +768,10 @@ void main() {
 
     tearDown(() async => svc.dispose());
 
-    // Broadcast-stream delivery is async; give queued frames time to land
-    // before stop() snapshots the ring buffer.
-    Future<void> flush() =>
-        Future<void>.delayed(const Duration(milliseconds: 20));
+    // Broadcast-stream delivery is async; drain the event queue
+    // deterministically (no wall-clock sleep) so all queued frames land before
+    // stop() snapshots the ring buffer.
+    Future<void> flush() => pumpEventQueue();
 
     test('publishes pre-roll on a stop that follows a detection', () async {
       await svc.start(WakeWordPreset.trainer);
