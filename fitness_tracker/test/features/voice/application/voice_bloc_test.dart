@@ -939,6 +939,92 @@ void main() {
       expect(earcon.playCount, 0);
       await bloc.close();
     });
+
+    test('wake-initiated "Hey Thomas, stop" ends at idle — stop-word runs '
+        'post-strip', () async {
+      final stt = FakeVoiceSttService();
+      final bloc = _makeBloc(
+        sendVoiceMessage: sendVoiceMessage,
+        getVoiceBudget: getBudget,
+        deleteVoiceHistory: deleteHistory,
+        appSettingsRepository: settingsRepo,
+        stt: stt,
+        settings: const VoiceSettings.defaults().copyWith(
+          wakeWordPreset: WakeWordPreset.thomas,
+        ),
+      );
+      bloc.emit(const VoiceState(sessionId: 'sid'));
+      bloc.add(const VoiceListenRequested(fromWakeWord: true));
+      await Future<void>.delayed(const Duration(milliseconds: 20));
+      stt.emitFinal('Hey Thomas, stop');
+      await Future<void>.delayed(const Duration(milliseconds: 20));
+      expect(bloc.state.status, VoiceStatus.idle);
+      verifyNever(
+        () => sendVoiceMessage(
+          userMessage: any(named: 'userMessage'),
+          sessionId: any(named: 'sessionId'),
+          history: any(named: 'history'),
+          settings: any(named: 'settings'),
+          weightUnit: any(named: 'weightUnit'),
+          recentSets: any(named: 'recentSets'),
+          recentNutritionLogs: any(named: 'recentNutritionLogs'),
+        ),
+      );
+      await bloc.close();
+    });
+
+    test('armed strip clears on no-final completion — next FAB-tap turn is not '
+        'stripped', () async {
+      when(
+        () => sendVoiceMessage(
+          userMessage: any(named: 'userMessage'),
+          sessionId: any(named: 'sessionId'),
+          history: any(named: 'history'),
+          settings: any(named: 'settings'),
+          weightUnit: any(named: 'weightUnit'),
+          recentSets: any(named: 'recentSets'),
+          recentNutritionLogs: any(named: 'recentNutritionLogs'),
+        ),
+      ).thenAnswer((_) async => Right(_assistantResult('OK.')));
+      final stt = FakeVoiceSttService();
+      final bloc = _makeBloc(
+        sendVoiceMessage: sendVoiceMessage,
+        getVoiceBudget: getBudget,
+        deleteVoiceHistory: deleteHistory,
+        appSettingsRepository: settingsRepo,
+        stt: stt,
+        settings: const VoiceSettings.defaults().copyWith(
+          wakeWordPreset: WakeWordPreset.thomas,
+        ),
+      );
+      bloc.emit(const VoiceState(sessionId: 'sid'));
+
+      // Turn 1: wake-initiated listen ends without a final transcript.
+      bloc.add(const VoiceListenRequested(fromWakeWord: true));
+      await Future<void>.delayed(const Duration(milliseconds: 20));
+      stt.completeWithoutResult();
+      await Future<void>.delayed(const Duration(milliseconds: 20));
+      expect(bloc.state.status, VoiceStatus.idle);
+
+      // Turn 2: manual FAB-tap listen. Transcript happens to begin with the
+      // wake word — prior armament must NOT carry over.
+      bloc.add(const VoiceListenRequested());
+      await Future<void>.delayed(const Duration(milliseconds: 20));
+      stt.emitFinal('Thomas needs a workout plan');
+      await Future<void>.delayed(const Duration(milliseconds: 20));
+      verify(
+        () => sendVoiceMessage(
+          userMessage: 'Thomas needs a workout plan',
+          sessionId: any(named: 'sessionId'),
+          history: any(named: 'history'),
+          settings: any(named: 'settings'),
+          weightUnit: any(named: 'weightUnit'),
+          recentSets: any(named: 'recentSets'),
+          recentNutritionLogs: any(named: 'recentNutritionLogs'),
+        ),
+      ).called(1);
+      await bloc.close();
+    });
   });
 
   group('VoiceConversationCleared', () {

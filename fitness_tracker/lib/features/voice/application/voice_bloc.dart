@@ -617,8 +617,6 @@ class VoiceBloc extends Bloc<VoiceEvent, VoiceState>
   ) async {
     if (!event.isContinuation && _rejectBusy()) return;
     _currentListenIsContinuation = event.isContinuation;
-    // Arm the strip for wake-initiated turns; consumed in _onTranscriptReceived.
-    if (event.fromWakeWord) _stripWakePhraseOnNextFinal = true;
     _ensureSessionId(emit);
 
     try {
@@ -667,6 +665,13 @@ class VoiceBloc extends Bloc<VoiceEvent, VoiceState>
     }
 
     await _sttSubscription?.cancel();
+    // Arm the strip only AFTER STT initialised / is available / earcon ran —
+    // every early-return above this point leaves the flag untouched so a later
+    // FAB-tap turn cannot inherit an unconsumed armament. Cleared on consume in
+    // _onTranscriptReceived, and on all turn-ending paths that do not produce
+    // a forwarded final (_onListenEnded / _onTranscriptFailed /
+    // _onListenStopRequested / empty / stop-word / classifier short-circuit).
+    if (event.fromWakeWord) _stripWakePhraseOnNextFinal = true;
     _sttSubscription = _stt
         .listen(localeId: 'en-US')
         .listen(
@@ -706,6 +711,9 @@ class VoiceBloc extends Bloc<VoiceEvent, VoiceState>
     await _stt.stop();
     await _sttSubscription?.cancel();
     _sttSubscription = null;
+    // Manual stop — no final will arrive on this turn, so an armed strip must
+    // not bleed into the next FAB-tap turn.
+    _stripWakePhraseOnNextFinal = false;
     if (state.status == VoiceStatus.listening) {
       emit(state.copyWith(status: VoiceStatus.idle, clearTranscript: true));
     }
@@ -719,6 +727,9 @@ class VoiceBloc extends Bloc<VoiceEvent, VoiceState>
     // beyond), the natural stream completion that follows must NOT yank
     // the state machine back to idle.
     if (state.status == VoiceStatus.listening) {
+      // Stream completed without a final — drop any armed strip so it cannot
+      // leak into the next manual turn.
+      _stripWakePhraseOnNextFinal = false;
       emit(state.copyWith(status: VoiceStatus.idle, clearTranscript: true));
     }
   }
@@ -752,6 +763,9 @@ class VoiceBloc extends Bloc<VoiceEvent, VoiceState>
 
     final text = event.transcript.trim();
     if (text.isEmpty) {
+      // No final to consume — drop any armed strip so a later FAB-tap turn
+      // cannot inherit it.
+      _stripWakePhraseOnNextFinal = false;
       // During a live continuous turn, offer one local re-prompt before ending
       // (redesign-overview §6).
       if (_awaitingUserReply && !_repromptedThisTurn) {
@@ -765,10 +779,33 @@ class VoiceBloc extends Bloc<VoiceEvent, VoiceState>
       return;
     }
 
+    // Wake-initiated turn: strip the leading wake phrase ("thomas, ",
+    // "hey thomas, ") FIRST so every downstream endpoint check (stop-word,
+    // pending-confirmation classifier, LLM forward) sees only the command.
+    // Without this, "Hey Thomas stop" would not match the stop-word pattern
+    // and would be forwarded to the LLM instead of ending the conversation.
+    // Always single-shot — cleared here even if the transcript did not start
+    // with a wake phrase, so a later FAB-tap turn is never affected.
+    var forwardText = text;
+    if (_stripWakePhraseOnNextFinal) {
+      _stripWakePhraseOnNextFinal = false;
+      final phrases = _currentVoiceSettings().wakeWordPreset.acceptedPhrases;
+      forwardText = stripLeadingWakePhrase(text, phrases);
+      if (forwardText.isEmpty) {
+        // Only the wake word was captured — nothing to ask. End at idle
+        // rather than firing an empty turn.
+        _consecutiveRelistens = 0;
+        _awaitingUserReply = false;
+        emit(state.copyWith(status: VoiceStatus.idle, clearTranscript: true));
+        return;
+      }
+    }
+
     // Endpoint stop-words (redesign-overview §4) — anchored so "stop the timer"
     // does not end the conversation. Checked before the pendingConfirmation
-    // block so an explicit stop always wins, even mid-confirmation.
-    if (_stopWordPattern.hasMatch(text)) {
+    // block so an explicit stop always wins, even mid-confirmation. Runs on
+    // [forwardText] (post-strip) so wake-initiated "Hey Thomas, stop" matches.
+    if (_stopWordPattern.hasMatch(forwardText)) {
       _consecutiveRelistens = 0;
       _awaitingUserReply = false;
       _repromptedThisTurn = false;
@@ -783,8 +820,9 @@ class VoiceBloc extends Bloc<VoiceEvent, VoiceState>
     }
 
     // Confirmation pending: classify the utterance and route accordingly.
+    // Runs on [forwardText] so wake-initiated "Hey Thomas, yes" still confirms.
     if (state.pendingConfirmation != null) {
-      final kind = VoiceReplyClassifier.classify(text);
+      final kind = VoiceReplyClassifier.classify(forwardText);
       switch (kind) {
         case VoiceReplyKind.confirm:
           emit(state.copyWith(clearTranscript: true));
@@ -807,25 +845,6 @@ class VoiceBloc extends Bloc<VoiceEvent, VoiceState>
     _awaitingUserReply = false;
     _repromptedThisTurn = false;
 
-    // Wake-initiated turn: strip the leading wake phrase ("thomas, ",
-    // "hey thomas, ") so the LLM sees only the command. Always single-shot —
-    // cleared here even if the transcript did not start with a wake phrase, so
-    // a later FAB-tap turn is never affected.
-    var forwardText = text;
-    if (_stripWakePhraseOnNextFinal) {
-      _stripWakePhraseOnNextFinal = false;
-      final phrases = _currentVoiceSettings().wakeWordPreset.acceptedPhrases;
-      forwardText = stripLeadingWakePhrase(text, phrases);
-      if (forwardText.isEmpty) {
-        // Only the wake word was captured — nothing to ask. End at idle
-        // rather than firing an empty turn.
-        _consecutiveRelistens = 0;
-        _awaitingUserReply = false;
-        emit(state.copyWith(status: VoiceStatus.idle, clearTranscript: true));
-        return;
-      }
-    }
-
     emit(
       state.copyWith(
         status: VoiceStatus.transcribing,
@@ -847,6 +866,11 @@ class VoiceBloc extends Bloc<VoiceEvent, VoiceState>
     // state during an open mic is [VoiceStatus.listening]. See KNOWN_ISSUES.md
     // #voice-confirmation-card-buttons-must-cancel-the-open-listen.
     if (state.status != VoiceStatus.listening) return;
+
+    // STT errored on a wake-initiated listen — no final will reach
+    // _onTranscriptReceived, so an armed strip would otherwise leak into the
+    // next manual turn.
+    _stripWakePhraseOnNextFinal = false;
 
     // noSpeech during a live continuous turn: re-prompt once then end quietly
     // at idle — do not surface an error (redesign-overview §6).
