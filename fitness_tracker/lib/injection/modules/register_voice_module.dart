@@ -73,6 +73,7 @@ void registerVoiceModule(GetIt sl) {
     () => NetworkAwareVoiceSttService(
       remoteService: WhisperVoiceSttService(
         remoteDataSource: sl<VoiceRemoteDataSource>(),
+        preRollStore: sl<VoicePreRollStore>(),
       ),
       onDeviceService: SpeechToTextVoiceSttService(),
       networkStatusService: sl<NetworkStatusService>(),

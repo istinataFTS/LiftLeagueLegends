@@ -1,7 +1,10 @@
 import 'dart:io';
+import 'dart:typed_data';
 
 import 'package:fitness_tracker/core/errors/failures.dart';
+import 'package:fitness_tracker/domain/services/voice_pre_roll_store.dart';
 import 'package:fitness_tracker/domain/services/voice_stt_service.dart';
+import 'package:fitness_tracker/features/voice/data/services/wav_utils.dart';
 import 'package:fitness_tracker/features/voice/data/services/whisper_voice_stt_service.dart';
 import 'package:flutter_test/flutter_test.dart';
 
@@ -184,5 +187,61 @@ void main() {
         isTrue,
       );
     });
+  });
+
+  group('applyPreRoll', () {
+    const sampleRate = 16000;
+
+    Uint8List pcm(int n) =>
+        Uint8List.fromList(List<int>.generate(n, (i) => i % 256));
+
+    PreRollClip clip(Uint8List body) => PreRollClip(
+      pcm16: body,
+      sampleRate: sampleRate,
+      capturedAt: DateTime(2026),
+    );
+
+    test('null pre-roll → live bytes pass through untouched', () {
+      final live = buildWav(pcm(40), sampleRate: sampleRate);
+      final out = WhisperVoiceSttService.applyPreRoll(
+        liveBytes: live,
+        preRoll: null,
+        sampleRate: sampleRate,
+      );
+      expect(out.hadPreRoll, isFalse);
+      expect(identical(out.bytes, live), isTrue);
+    });
+
+    test('empty pre-roll → live bytes pass through untouched', () {
+      final live = buildWav(pcm(40), sampleRate: sampleRate);
+      final out = WhisperVoiceSttService.applyPreRoll(
+        liveBytes: live,
+        preRoll: clip(Uint8List(0)),
+        sampleRate: sampleRate,
+      );
+      expect(out.hadPreRoll, isFalse);
+      expect(identical(out.bytes, live), isTrue);
+    });
+
+    test(
+      'fresh pre-roll → spliced WAV with pre-roll ahead of the live body',
+      () {
+        final preBody = pcm(30);
+        final liveBody = pcm(40);
+        final live = buildWav(liveBody, sampleRate: sampleRate);
+
+        final out = WhisperVoiceSttService.applyPreRoll(
+          liveBytes: live,
+          preRoll: clip(preBody),
+          sampleRate: sampleRate,
+        );
+
+        expect(out.hadPreRoll, isTrue);
+        final body = wavPcmBody(out.bytes);
+        expect(body.length, preBody.length + liveBody.length);
+        expect(body.sublist(0, preBody.length), preBody);
+        expect(body.sublist(preBody.length), liveBody);
+      },
+    );
   });
 }

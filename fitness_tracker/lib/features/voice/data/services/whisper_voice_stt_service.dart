@@ -11,14 +11,16 @@ import '../../../../core/constants/voice_constants.dart';
 import '../../../../core/errors/failures.dart';
 import '../../../../core/logging/app_logger.dart';
 import '../../../../data/datasources/remote/voice_remote_datasource.dart';
+import '../../../../domain/services/voice_pre_roll_store.dart';
 import '../../../../domain/services/voice_stt_service.dart';
+import 'wav_utils.dart';
 
 /// Whisper-backed [VoiceSttService] — records audio locally, uploads to the
 /// `voice-transcribe` Edge Function on stop, emits a single synthetic final
 /// [VoiceSttResult]. No partials (Whisper is one-shot).
 ///
 /// Lifecycle:
-///   - [listen] starts recording to a temp m4a file and arms two timers:
+///   - [listen] starts recording to a temp WAV file and arms two timers:
 ///     a hard-cap timer at [VoiceConstants.whisperMaxAudioDuration] and an
 ///     amplitude-based silence monitor at
 ///     [VoiceConstants.whisperSilenceTimeout].
@@ -28,11 +30,20 @@ import '../../../../domain/services/voice_stt_service.dart';
 class WhisperVoiceSttService implements VoiceSttService {
   WhisperVoiceSttService({
     required VoiceRemoteDataSource remoteDataSource,
+    VoicePreRollStore? preRollStore,
     AudioRecorder? recorder,
   }) : _remote = remoteDataSource,
+       _preRollStore = preRollStore,
        _recorder = recorder ?? AudioRecorder();
 
   final VoiceRemoteDataSource _remote;
+
+  /// Shared hand-off buffer the wake-word engine fills with the audio it held
+  /// when the mic was released for this STT turn. Nullable: when absent (e.g.
+  /// the no-Supabase / FAB-only build) the upload is exactly the live
+  /// recording, byte-for-byte as before pre-roll existed.
+  final VoicePreRollStore? _preRollStore;
+
   final AudioRecorder _recorder;
 
   StreamController<VoiceSttResult>? _controller;
@@ -121,22 +132,24 @@ class WhisperVoiceSttService implements VoiceSttService {
       }
 
       final tmpDir = await getTemporaryDirectory();
-      final filename = 'voice_${DateTime.now().millisecondsSinceEpoch}.m4a';
+      final filename = 'voice_${DateTime.now().millisecondsSinceEpoch}.wav';
       final path = p.join(tmpDir.path, filename);
       _activePath = path;
 
       AppLogger.info(
         'WhisperVoiceSttService: starting recorder '
-        '(sampleRate=${VoiceConstants.whisperAudioSampleRate}Hz, '
-        'bitRate=${VoiceConstants.whisperAudioBitrate}bps, '
+        '(encoder=wav/pcm16, '
+        'sampleRate=${VoiceConstants.whisperAudioSampleRate}Hz, '
         'language=${language ?? 'en'})',
         category: _logCategory,
       );
 
+      // WAV/PCM16 (not AAC) so the live clip and the wake-word pre-roll share
+      // one lossless format and can be spliced without a re-encode. A 15 s
+      // 16 kHz mono WAV is ~480 KB — well under the 4 MB transcribe cap.
       await _recorder.start(
         const RecordConfig(
-          encoder: AudioEncoder.aacLc,
-          bitRate: VoiceConstants.whisperAudioBitrate,
+          encoder: AudioEncoder.wav,
           sampleRate: VoiceConstants.whisperAudioSampleRate,
           numChannels: 1,
         ),
@@ -272,13 +285,36 @@ class WhisperVoiceSttService implements VoiceSttService {
       return;
     }
 
+    // Prepend the wake-word pre-roll (the words spoken right after the wake
+    // word, before the Whisper recorder owned the mic) when one is fresh.
+    final pre = _preRollStore?.take(
+      maxAge: VoiceConstants.wakeWordPreRollMaxAge,
+    );
+    final prepared = applyPreRoll(
+      liveBytes: bytes,
+      preRoll: pre,
+      sampleRate: VoiceConstants.whisperAudioSampleRate,
+    );
+    final uploadBytes = prepared.bytes;
+    final hasPre = prepared.hadPreRoll;
+    if (hasPre) {
+      AppLogger.info(
+        'WhisperVoiceSttService: prepended ${pre!.pcm16.length} B pre-roll '
+        '(upload now ${uploadBytes.length} B)',
+        category: _logCategory,
+      );
+    }
+
+    // A one-breath command can finish during the pre-roll window, leaving the
+    // live clip nearly silent (`_voiceDetected == false`). The wake word firing
+    // is itself proof of speech, so a fresh pre-roll forces the voiced verdict.
     if (!shouldTranscribe(
-      voiceDetected: _voiceDetected,
-      byteCount: bytes.length,
+      voiceDetected: _voiceDetected || hasPre,
+      byteCount: uploadBytes.length,
     )) {
       AppLogger.info(
         'WhisperVoiceSttService: no voice detected during recording '
-        '(voiceDetected=$_voiceDetected, ${bytes.length} bytes) — '
+        '(voiceDetected=$_voiceDetected, ${uploadBytes.length} bytes) — '
         'skipping upload to avoid silence hallucination',
         category: _logCategory,
       );
@@ -290,7 +326,7 @@ class WhisperVoiceSttService implements VoiceSttService {
       return;
     }
 
-    final uploadKb = (bytes.length / 1024).toStringAsFixed(1);
+    final uploadKb = (uploadBytes.length / 1024).toStringAsFixed(1);
     AppLogger.info(
       'WhisperVoiceSttService: uploading $uploadKb KB to voice-transcribe',
       category: _logCategory,
@@ -298,8 +334,8 @@ class WhisperVoiceSttService implements VoiceSttService {
 
     try {
       final transcript = await _remote.transcribe(
-        audioBytes: bytes,
-        filename: finalPath != null ? p.basename(finalPath) : 'utterance.m4a',
+        audioBytes: uploadBytes,
+        filename: finalPath != null ? p.basename(finalPath) : 'utterance.wav',
         language: language ?? 'en',
       );
       if (transcript.trim().isEmpty) {
@@ -386,6 +422,27 @@ class WhisperVoiceSttService implements VoiceSttService {
     required bool voiceDetected,
     required int byteCount,
   }) => voiceDetected && byteCount > 0;
+
+  /// Decides the bytes to upload given the recorded [liveBytes] (a WAV buffer)
+  /// and an optional wake-word [preRoll]. When a non-empty pre-roll is present
+  /// its raw PCM is spliced ahead of the live WAV body and re-framed into one
+  /// continuous WAV ([hadPreRoll] = true); otherwise the live bytes pass
+  /// through untouched. Pure so the splice decision is unit-testable without
+  /// the `record` plugin.
+  @visibleForTesting
+  static ({Uint8List bytes, bool hadPreRoll}) applyPreRoll({
+    required Uint8List liveBytes,
+    required PreRollClip? preRoll,
+    required int sampleRate,
+  }) {
+    if (preRoll == null || preRoll.isEmpty) {
+      return (bytes: liveBytes, hadPreRoll: false);
+    }
+    return (
+      bytes: spliceWav(preRoll.pcm16, liveBytes, sampleRate: sampleRate),
+      hadPreRoll: true,
+    );
+  }
 
   /// Classifies an error from `_remote.transcribe(...)` into the closest
   /// [VoiceSttErrorKind]. The remote layer encodes Edge Function failures as
