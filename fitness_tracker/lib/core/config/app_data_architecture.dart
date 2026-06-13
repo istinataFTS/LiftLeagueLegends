@@ -67,11 +67,6 @@ class AppDataArchitecture {
           sourceOfTruth: SourceOfTruth.supabase,
         ),
         FeatureOwnershipDecision(
-          featureKey: 'targets',
-          userScoped: true,
-          sourceOfTruth: SourceOfTruth.supabase,
-        ),
-        FeatureOwnershipDecision(
           featureKey: 'history',
           userScoped: true,
           sourceOfTruth: SourceOfTruth.derivedFromUserScopedData,

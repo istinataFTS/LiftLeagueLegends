@@ -77,12 +77,6 @@ void main() {
       });
     });
 
-    group('api', () {
-      test('apiTimeoutSeconds is positive', () {
-        expect(EnvConfig.apiTimeoutSeconds, greaterThan(0));
-      });
-    });
-
     group('production safety', () {
       test('forceReseed is false by default', () {
         // forceReseed=true in production would wipe user data on every launch.

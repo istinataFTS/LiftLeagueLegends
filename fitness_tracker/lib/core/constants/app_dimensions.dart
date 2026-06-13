@@ -57,15 +57,4 @@ class AppDimensions {
 
   // Avatar Border Width
   static const double avatarBorderWidth = 4.0;
-
-  // Web Phone Frame
-  static const double webPhoneWidth = 430.0;
-  static const double webPhoneMaxHeight = 932.0;
-  static const double webPhoneFrameRadius = 32.0;
-  static const double webPhoneContentRadius = 30.0;
-  static const double webPhoneFramePadding = 32.0;
-  static const double webPhoneBreakpoint = 480.0;
-  static const double webPhoneNotchWidth = 110.0;
-  static const double webPhoneNotchHeight = 18.0;
-  static const double webPhoneNotchTopOffset = 10.0;
 }
