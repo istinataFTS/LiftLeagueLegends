@@ -107,6 +107,7 @@ Numbered steps or a short paragraph. State what to do and what *not* to do.
 35. [voice-logged-meal-macros-are-retrievable-not-advice](#voice-logged-meal-macros-are-retrievable-not-advice)
 36. [voice-recent-nutrition-tool-was-misclassified-as-mutation-on-client](#voice-recent-nutrition-tool-was-misclassified-as-mutation-on-client)
 37. [voice-kws-engine-reinit-per-arm-causes-ui-jank](#voice-kws-engine-reinit-per-arm-causes-ui-jank)
+38. [voice-wake-word-first-words-clipped-during-mic-handoff](#voice-wake-word-first-words-clipped-during-mic-handoff)
 
 ### Database
 11. [sqflite-version-15-rejects-incompatible-legacy-databases](#sqflite-version-15-rejects-incompatible-legacy-databases)
@@ -1460,6 +1461,45 @@ Split the handle lifetime from the mic lifetime. The handle is cached in `_cache
 - `test/features/voice/services/sherpa_onnx_voice_wake_word_service_test.dart` — `handle caching` group
 - `[[voice-wake-word-keyword-miss-rate]]` — arming race that doubled boot inits
 - `[[voice-wake-word-engine-stops-when-overlay-opens]]` — per-phase stop/start churn
+
+---
+
+### voice-wake-word-first-words-clipped-during-mic-handoff
+
+- **Severity:** Medium
+- **Status:** Mitigated
+- **First observed:** 2026-06-13
+- **Last verified:** 2026-06-13
+- **Area:** voice
+
+**Symptom**
+
+A command spoken in one breath after the wake word ("Thomas, log me bench press") loses its first words; the bot transcribes only the tail ("log me bench press" → "me bench press" or worse).
+
+**Root cause**
+
+A ~900 ms gap where no recorder owns the microphone, between the wake engine releasing it (`SherpaOnnxVoiceWakeWordService._doStop` → `recorder.stop()`) and the Whisper recorder acquiring it (`WhisperVoiceSttService._startRecording` → `recorder.start()`). The intervening time is consumed by the post-detection mic release, the `Navigator.push` route transition, the listen-start earcon (up to `VoiceConstants.earconMaxDuration`), and the new recorder's `start()` round-trip. Speech in that window lands in a dead mic.
+
+**Workaround / fix**
+
+Three coordinated pieces (PRs #160, #161, #162):
+
+1. `SherpaOnnxVoiceWakeWordService` retains a `wakeWordPreRollDuration`-bounded PCM16 ring buffer and publishes it via `VoicePreRollStore` on `stop()` when a detection fired within `wakeWordPreRollDetectionWindow`.
+2. `WhisperVoiceSttService` records WAV/PCM16 (was AAC) and prepends the pre-roll to the upload via `spliceWav` (`applyPreRoll`). When a pre-roll is present the voiced-gate is forced — the wake word firing is itself proof of speech.
+3. `VoiceListenRequested.fromWakeWord` skips the listen-start earcon (saves up to ~600 ms of the gap) and strips the leading wake phrase from the transcript via `stripLeadingWakePhrase` before forwarding to the LLM.
+
+Residual ~300 ms gap remains (mic-release → Whisper-mic-open) — acceptable for a normal-cadence command but may still clip a single syllable for very fast one-breath utterances. The only way to fully close it is Option B (single continuous mic stream), which requires a `VoiceSttService` interface change and is intentionally deferred until A is measured insufficient on device.
+
+**References**
+
+- `lib/domain/services/voice_pre_roll_store.dart` — port + `PreRollClip`
+- `lib/features/voice/data/services/in_memory_voice_pre_roll_store.dart` — single-slot, TTL-guarded
+- `lib/features/voice/data/services/wav_utils.dart` — `buildWav` / `wavPcmBody` / `spliceWav`
+- `lib/features/voice/data/services/sherpa_onnx_voice_wake_word_service.dart` — ring buffer + `_doStop` snapshot
+- `lib/features/voice/data/services/whisper_voice_stt_service.dart` — WAV encoder, `applyPreRoll`, voiced-gate
+- `lib/features/voice/application/voice_bloc.dart` — `VoiceListenRequested.fromWakeWord`, `stripLeadingWakePhrase`
+- `lib/core/constants/voice_constants.dart` — `wakeWordPreRoll*` constants
+- `[[voice-wake-word-keyword-miss-rate]]` — distinct problem (phrase/model, not handoff timing)
 
 ---
 

@@ -67,15 +67,25 @@ class VoiceSessionStarted extends VoiceEvent {
 /// stream emitted by the [VoiceSttService] and forwards the final
 /// transcript as a [VoiceSendMessage].
 class VoiceListenRequested extends VoiceEvent {
-  const VoiceListenRequested({this.isContinuation = false});
+  const VoiceListenRequested({
+    this.isContinuation = false,
+    this.fromWakeWord = false,
+  });
 
   /// True when the bloc itself re-opens the mic mid-conversation (after a
   /// clarify question or a confirmation readback). Bypasses the busy-guard so
   /// the machine transitions speaking→listening directly. See Plan 2 §2.1.
   final bool isContinuation;
 
+  /// True when this listen was triggered by a wake-word detection (vs. a
+  /// manual FAB tap or in-overlay mic button). Wake turns skip the
+  /// "your turn" earcon (the user just spoke the wake word; the cue is
+  /// redundant and costs up to 600 ms before the mic opens) and arm the
+  /// leading-wake-phrase strip on the next final transcript.
+  final bool fromWakeWord;
+
   @override
-  List<Object?> get props => <Object?>[isContinuation];
+  List<Object?> get props => <Object?>[isContinuation, fromWakeWord];
 }
 
 /// Stops an in-progress STT session gracefully (the final partial
@@ -554,6 +564,12 @@ class VoiceBloc extends Bloc<VoiceEvent, VoiceState>
   /// session restarts.
   bool _repromptedThisTurn = false;
 
+  /// Armed by a wake-initiated [VoiceListenRequested] (`fromWakeWord: true`);
+  /// consumed on the next final transcript so the wake phrase (e.g.
+  /// "Thomas, ") is removed before the text is forwarded to the LLM. Always
+  /// cleared after one use so a later FAB-tap turn is never stripped.
+  bool _stripWakePhraseOnNextFinal = false;
+
   /// The last day the user explicitly referenced in this conversation,
   /// resolved from an incoming day-scoped query's `date` argument. When a
   /// later day-scoped query arrives WITHOUT a `date` (the model omitted it
@@ -578,6 +594,7 @@ class VoiceBloc extends Bloc<VoiceEvent, VoiceState>
     _currentListenIsContinuation = false;
     _awaitingUserReply = false;
     _repromptedThisTurn = false;
+    _stripWakePhraseOnNextFinal = false;
     _lastReferencedDate = null;
     emit(
       state.copyWith(
@@ -600,6 +617,8 @@ class VoiceBloc extends Bloc<VoiceEvent, VoiceState>
   ) async {
     if (!event.isContinuation && _rejectBusy()) return;
     _currentListenIsContinuation = event.isContinuation;
+    // Arm the strip for wake-initiated turns; consumed in _onTranscriptReceived.
+    if (event.fromWakeWord) _stripWakePhraseOnNextFinal = true;
     _ensureSessionId(emit);
 
     try {
@@ -639,9 +658,13 @@ class VoiceBloc extends Bloc<VoiceEvent, VoiceState>
 
     // Audible "your turn" cue before the mic opens. Best-effort and bounded
     // (the service never throws and self-caps), so it cannot block or break the
-    // turn. Centralized here so wake-word, FAB-tap, and (Plan 2) auto-relisten
-    // turns all get the same feedback.
-    await _earcon.playListenStart();
+    // turn. Skipped on wake-initiated turns — the user just spoke the wake
+    // word, so the cue is redundant and would only cost ~600 ms of mic-handoff
+    // gap before STT opens (which is exactly the gap the pre-roll plan exists
+    // to shrink).
+    if (!event.fromWakeWord) {
+      await _earcon.playListenStart();
+    }
 
     await _sttSubscription?.cancel();
     _sttSubscription = _stt
@@ -784,10 +807,32 @@ class VoiceBloc extends Bloc<VoiceEvent, VoiceState>
     _awaitingUserReply = false;
     _repromptedThisTurn = false;
 
+    // Wake-initiated turn: strip the leading wake phrase ("thomas, ",
+    // "hey thomas, ") so the LLM sees only the command. Always single-shot —
+    // cleared here even if the transcript did not start with a wake phrase, so
+    // a later FAB-tap turn is never affected.
+    var forwardText = text;
+    if (_stripWakePhraseOnNextFinal) {
+      _stripWakePhraseOnNextFinal = false;
+      final phrases = _currentVoiceSettings().wakeWordPreset.acceptedPhrases;
+      forwardText = stripLeadingWakePhrase(text, phrases);
+      if (forwardText.isEmpty) {
+        // Only the wake word was captured — nothing to ask. End at idle
+        // rather than firing an empty turn.
+        _consecutiveRelistens = 0;
+        _awaitingUserReply = false;
+        emit(state.copyWith(status: VoiceStatus.idle, clearTranscript: true));
+        return;
+      }
+    }
+
     emit(
-      state.copyWith(status: VoiceStatus.transcribing, liveTranscript: text),
+      state.copyWith(
+        status: VoiceStatus.transcribing,
+        liveTranscript: forwardText,
+      ),
     );
-    add(VoiceSendMessage(text));
+    add(VoiceSendMessage(forwardText));
   }
 
   Future<void> _onTranscriptFailed(
@@ -2202,4 +2247,65 @@ class VoiceBloc extends Bloc<VoiceEvent, VoiceState>
     await _wakelock.disable();
     await super.close();
   }
+}
+
+/// Strips a leading wake phrase (e.g. "thomas", "hey thomas") plus any
+/// trailing comma / period / whitespace from a wake-initiated transcript.
+///
+/// - Case-insensitive against [acceptedPhrases].
+/// - Longest-phrase-first so "Hey Thomas" wins over "Thomas".
+/// - Only matches when the transcript actually *starts* with an accepted
+///   phrase followed by a word boundary; a command that merely contains the
+///   name ("log the thomas bench press") is returned untouched.
+/// - Returns the trimmed remainder; if the transcript is exactly the wake
+///   phrase, returns the empty string.
+///
+/// Pure top-level so it is unit-testable without the bloc.
+String stripLeadingWakePhrase(String transcript, Set<String> acceptedPhrases) {
+  final text = transcript.trimLeft();
+  if (text.isEmpty || acceptedPhrases.isEmpty) return text;
+  // Longest first so "HEY THOMAS" beats "THOMAS".
+  final sorted = acceptedPhrases.toList()
+    ..sort((a, b) => b.length.compareTo(a.length));
+  final lower = text.toLowerCase();
+  for (final phrase in sorted) {
+    final p = phrase.toLowerCase();
+    if (p.isEmpty) continue;
+    if (!lower.startsWith(p)) continue;
+    // Require a word-ending boundary so "thomas's" isn't stripped to "'s".
+    // Only treat whitespace and a small set of sentence punctuation as a true
+    // wake-phrase terminator; anything else (apostrophe, dash inside a word,
+    // letters, digits) keeps the wake phrase as part of a larger word.
+    if (lower.length > p.length) {
+      final next = lower.codeUnitAt(p.length);
+      if (!_isWakePhraseDelimiter(next)) continue;
+    }
+    // Strip the phrase + any leading punctuation/whitespace from the tail.
+    var rest = text.substring(p.length);
+    rest = rest.replaceFirst(RegExp(r'^[\s,.…!?:;-]+'), '');
+    return rest.trim();
+  }
+  return text;
+}
+
+/// Returns true when [codeUnit] is a whitespace or sentence-ending punctuation
+/// character that legitimately terminates the wake phrase. Anything else
+/// (letters, digits, apostrophes, internal hyphens) means the phrase is
+/// actually a prefix of a longer word and must not be stripped.
+bool _isWakePhraseDelimiter(int codeUnit) {
+  // ASCII whitespace + tab + newlines
+  if (codeUnit == 0x20 ||
+      codeUnit == 0x09 ||
+      codeUnit == 0x0A ||
+      codeUnit == 0x0D) {
+    return true;
+  }
+  // , . ! ? : ;
+  return codeUnit == 0x2C ||
+      codeUnit == 0x2E ||
+      codeUnit == 0x21 ||
+      codeUnit == 0x3F ||
+      codeUnit == 0x3A ||
+      codeUnit == 0x3B ||
+      codeUnit == 0x2026; // …
 }

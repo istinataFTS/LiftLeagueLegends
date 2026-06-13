@@ -100,10 +100,15 @@ class _VoiceOverlayViewState extends State<_VoiceOverlayView> {
     _armWakeEngineForOverlay();
     if (widget.openedByWakeWord) {
       // Auto-start STT on first frame: the user has already spoken the wake
-      // word and expects the assistant to be listening immediately.
+      // word and expects the assistant to be listening immediately. Flag the
+      // turn as wake-initiated so the bloc skips the "your turn" earcon and
+      // strips the leading wake phrase from the transcript.
       WidgetsBinding.instance.addPostFrameCallback((_) {
-        if (mounted)
-          context.read<VoiceBloc>().add(const VoiceListenRequested());
+        if (mounted) {
+          context.read<VoiceBloc>().add(
+            const VoiceListenRequested(fromWakeWord: true),
+          );
+        }
       });
     }
   }
@@ -147,7 +152,7 @@ class _VoiceOverlayViewState extends State<_VoiceOverlayView> {
       if (!mounted) return;
       final bloc = context.read<VoiceBloc>();
       if (bloc.state.status == VoiceStatus.idle) {
-        bloc.add(const VoiceListenRequested());
+        bloc.add(const VoiceListenRequested(fromWakeWord: true));
       }
     });
   }
@@ -158,7 +163,9 @@ class _VoiceOverlayViewState extends State<_VoiceOverlayView> {
         if (!mounted) return;
         final bloc = context.read<VoiceBloc>();
         if (bloc.state.status == VoiceStatus.idle) {
-          bloc.add(const VoiceListenRequested());
+          // Tap-to-wake is the wake-word equivalent on Android headsets —
+          // same handoff, same earcon-skip / wake-phrase-strip semantics.
+          bloc.add(const VoiceListenRequested(fromWakeWord: true));
         }
       },
     );

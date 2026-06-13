@@ -923,6 +923,22 @@ void main() {
       expect(earcon.playCount, 1);
       await bloc.close();
     });
+
+    test('skips the listen-start earcon on a wake-initiated listen', () async {
+      final earcon = FakeVoiceEarconService();
+      final bloc = _makeBloc(
+        sendVoiceMessage: sendVoiceMessage,
+        getVoiceBudget: getBudget,
+        deleteVoiceHistory: deleteHistory,
+        appSettingsRepository: settingsRepo,
+        earcon: earcon,
+      );
+      bloc.emit(const VoiceState(sessionId: 'sid'));
+      bloc.add(const VoiceListenRequested(fromWakeWord: true));
+      await Future<void>.delayed(const Duration(milliseconds: 20));
+      expect(earcon.playCount, 0);
+      await bloc.close();
+    });
   });
 
   group('VoiceConversationCleared', () {
