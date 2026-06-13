@@ -14,6 +14,7 @@ import '../../domain/repositories/voice_repository.dart';
 import '../../domain/services/voice_earcon_service.dart';
 import '../../domain/services/voice_media_button_service.dart';
 import '../../domain/services/voice_permission_service.dart';
+import '../../domain/services/voice_pre_roll_store.dart';
 import '../../domain/services/voice_stt_service.dart';
 import '../../domain/services/voice_tts_service.dart';
 import '../../domain/services/voice_wake_word_service.dart';
@@ -38,6 +39,7 @@ import '../../features/voice/data/parser/matchers/nutrition_matchers.dart';
 import '../../features/voice/data/parser/matchers/query_matchers.dart';
 import '../../features/voice/data/parser/matchers/workout_set_matchers.dart';
 import '../../features/voice/data/services/flutter_tts_voice_tts_service.dart';
+import '../../features/voice/data/services/in_memory_voice_pre_roll_store.dart';
 import '../../features/voice/data/services/just_audio_voice_earcon_service.dart';
 import '../../features/voice/data/services/network_aware_voice_stt_service.dart';
 import '../../features/voice/data/services/permission_handler_voice_permission_service.dart';
@@ -81,12 +83,24 @@ void registerVoiceModule(GetIt sl) {
   // ── Earcon player (non-speech cues; owns a just_audio AudioPlayer) ──────
   sl.registerLazySingleton<VoiceEarconService>(JustAudioVoiceEarconService.new);
 
+  // ── Pre-roll store (wake→STT first-words capture) ──────────────────────
+  // Single-slot hand-off buffer shared between the wake-word engine (producer)
+  // and the Whisper STT path (consumer). Must be a singleton so both sides see
+  // the same instance. Registered before the wake-word engine, which depends
+  // on it.
+  sl.registerLazySingleton<VoicePreRollStore>(
+    () => InMemoryVoicePreRollStore(clock: sl<Clock>()),
+  );
+
   // ── Wake-word engine ───────────────────────────────────────────────────
   // Lazy singleton: holds the microphone and must not be torn down /
   // re-created per overlay instance. VoiceFab manages lifecycle
   // (start on resume, stop on background).
   sl.registerLazySingleton<VoiceWakeWordService>(
-    SherpaOnnxVoiceWakeWordService.new,
+    () => SherpaOnnxVoiceWakeWordService(
+      preRollStore: sl<VoicePreRollStore>(),
+      clock: sl<Clock>(),
+    ),
   );
 
   // ── Media-button (headphone tap-to-wake) service ───────────────────────

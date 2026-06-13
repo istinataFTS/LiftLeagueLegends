@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'dart:collection';
 import 'dart:convert';
 import 'dart:io';
 import 'dart:typed_data';
@@ -10,8 +11,11 @@ import 'package:sherpa_onnx/sherpa_onnx.dart' as sherpa_onnx;
 
 import '../../../../core/constants/voice_constants.dart';
 import '../../../../core/logging/app_logger.dart';
+import '../../../../core/time/clock.dart';
+import '../../../../core/time/system_clock.dart';
 import '../../../../domain/entities/voice_settings.dart'
     show WakeWordPreset, WakeWordPresetPhrase;
+import '../../../../domain/services/voice_pre_roll_store.dart';
 import '../../../../domain/services/voice_wake_word_service.dart';
 import 'pcm_utils.dart';
 
@@ -200,13 +204,41 @@ class SherpaOnnxVoiceWakeWordService implements VoiceWakeWordService {
     KwsHandleFactory? kwsFactory,
     AudioSessionFactory? audioSessionFactory,
     Future<void> Function(Duration)? sleep,
+    VoicePreRollStore? preRollStore,
+    Clock clock = const SystemClock(),
   }) : _kwsFactory = kwsFactory ?? _defaultKwsHandleFactory,
        _audioSessionFactory = audioSessionFactory ?? _defaultAudioSession,
-       _sleep = sleep ?? Future<void>.delayed;
+       _sleep = sleep ?? Future<void>.delayed,
+       _preRollStore = preRollStore,
+       _clock = clock;
 
   final KwsHandleFactory _kwsFactory;
   final AudioSessionFactory _audioSessionFactory;
   final Future<void> Function(Duration) _sleep;
+
+  // Pre-roll capture. When [_preRollStore] is null (the default, and every
+  // existing unit test) the ring buffer is never touched and behaviour is
+  // unchanged. When wired (production DI), the engine retains a rolling window
+  // of recent mic audio and publishes it on a stop that follows a recent
+  // detection, so the Whisper path can prepend the words spoken right after
+  // the wake word. See [[voice-wake-word-first-words-clipped-during-mic-handoff]].
+  final VoicePreRollStore? _preRollStore;
+  final Clock _clock;
+
+  /// Sample rate of the wake-engine mic stream, mirrored by the [RecordConfig]
+  /// in [_doStart] and the [acceptWaveform] calls. Used to size the ring
+  /// buffer and stamp captured pre-roll clips.
+  static const int _sampleRate = 16000;
+
+  /// Rolling PCM16 frames retained for pre-roll, trimmed to a byte budget
+  /// derived from [VoiceConstants.wakeWordPreRollDuration]. Only populated
+  /// when [_preRollStore] is non-null.
+  final Queue<Uint8List> _ringFrames = Queue<Uint8List>();
+  int _ringBytes = 0;
+
+  /// Wall-clock instant of the most recent accepted detection, or null if no
+  /// detection has fired since the last stop. Gates pre-roll publication.
+  DateTime? _lastDetectionAt;
 
   // The native spotter handle is cached across stop()/start() cycles and freed
   // only on a preset switch (in _doStart) or dispose(). Arming/disarming happens
@@ -412,6 +444,10 @@ class SherpaOnnxVoiceWakeWordService implements VoiceWakeWordService {
     // reuse (see _cachedHandle). It is freed only on a preset switch in
     // _doStart or in dispose.
 
+    // Publish the retained pre-roll if this stop follows a recent detection
+    // (the wake→STT mic handoff). Clears the ring buffer either way.
+    _publishPreRollIfDue();
+
     _running = false;
     _activePreset = null;
 
@@ -433,7 +469,7 @@ class SherpaOnnxVoiceWakeWordService implements VoiceWakeWordService {
     if (handle == null || !_running) return;
 
     final samples = pcm16ToFloat32(pcm16);
-    handle.acceptWaveform(samples: samples, sampleRate: 16000);
+    handle.acceptWaveform(samples: samples, sampleRate: _sampleRate);
 
     while (handle.isReady) {
       handle.decode();
@@ -446,6 +482,7 @@ class SherpaOnnxVoiceWakeWordService implements VoiceWakeWordService {
             'SherpaOnnxVoiceWakeWordService: detected "$kw"',
             category: 'voice',
           );
+          _lastDetectionAt = _clock.now();
           _detectedController.add(active);
         } else {
           // B3: never drop a firing silently — this is the only signal we have
@@ -458,6 +495,78 @@ class SherpaOnnxVoiceWakeWordService implements VoiceWakeWordService {
         }
       }
     }
+
+    // Retain this frame for pre-roll so the words spoken right after the wake
+    // word survive the wake→STT mic handoff. No-op when no store is wired.
+    _appendToRing(pcm16);
+  }
+
+  // ── Pre-roll ring buffer ──────────────────────────────────────────────────
+
+  int get _ringBudgetBytes =>
+      (_sampleRate *
+          2 *
+          VoiceConstants.wakeWordPreRollDuration.inMilliseconds) ~/
+      1000;
+
+  /// Appends a copy of [frame] to the ring buffer, trimming the oldest frames
+  /// once the byte budget is exceeded. Copies because the `record` plugin may
+  /// reuse the backing buffer of the delivered chunk. No-op when no store is
+  /// wired, so the default/test path carries zero overhead.
+  void _appendToRing(Uint8List frame) {
+    if (_preRollStore == null) return;
+    _ringFrames.add(Uint8List.fromList(frame));
+    _ringBytes += frame.lengthInBytes;
+    final budget = _ringBudgetBytes;
+    while (_ringBytes > budget && _ringFrames.length > 1) {
+      _ringBytes -= _ringFrames.removeFirst().lengthInBytes;
+    }
+  }
+
+  void _clearRing() {
+    _ringFrames.clear();
+    _ringBytes = 0;
+  }
+
+  /// Concatenates the retained frames into one contiguous PCM16 buffer.
+  Uint8List _snapshotRing() {
+    final out = Uint8List(_ringBytes);
+    var offset = 0;
+    for (final frame in _ringFrames) {
+      out.setAll(offset, frame);
+      offset += frame.lengthInBytes;
+    }
+    return out;
+  }
+
+  /// Publishes the ring buffer as pre-roll **iff** a detection fired within
+  /// [VoiceConstants.wakeWordPreRollDetectionWindow] of now — i.e. this stop is
+  /// a real wake-initiated mic handoff, not an app-background/settings-off
+  /// stop. Always clears the buffer and detection marker afterwards.
+  void _publishPreRollIfDue() {
+    final store = _preRollStore;
+    final detectedAt = _lastDetectionAt;
+    if (store != null && detectedAt != null && _ringBytes > 0) {
+      final since = _clock.now().difference(detectedAt);
+      if (!since.isNegative &&
+          since <= VoiceConstants.wakeWordPreRollDetectionWindow) {
+        final bytes = _ringBytes;
+        store.put(
+          PreRollClip(
+            pcm16: _snapshotRing(),
+            sampleRate: _sampleRate,
+            capturedAt: _clock.now(),
+          ),
+        );
+        AppLogger.debug(
+          'SherpaOnnxVoiceWakeWordService: captured $bytes B pre-roll '
+          '(detected ${since.inMilliseconds}ms ago)',
+          category: 'voice',
+        );
+      }
+    }
+    _lastDetectionAt = null;
+    _clearRing();
   }
 
   void _onAudioError(Object error, StackTrace st) {
