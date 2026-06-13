@@ -306,7 +306,11 @@ void main() {
       mediaButtonService.emitPress();
       await tester.pump();
 
-      verify(() => voiceBloc.add(const VoiceListenRequested())).called(1);
+      // Media button uses the same wake-initiated semantics as the wake word —
+      // earcon skipped, leading wake phrase stripped (Plan A commit 3).
+      verify(
+        () => voiceBloc.add(const VoiceListenRequested(fromWakeWord: true)),
+      ).called(1);
     });
 
     testWidgets('press while not idle does not dispatch VoiceListenRequested', (
@@ -324,7 +328,9 @@ void main() {
       mediaButtonService.emitPress();
       await tester.pump();
 
-      verifyNever(() => voiceBloc.add(const VoiceListenRequested()));
+      verifyNever(
+        () => voiceBloc.add(const VoiceListenRequested(fromWakeWord: true)),
+      );
     });
   });
 }
