@@ -98,9 +98,10 @@ abstract final class VoiceConstants {
     milliseconds: 200,
   );
 
-  /// AAC bitrate for the m4a file uploaded to Whisper. 32 kbps mono is
-  /// sufficient for speech and keeps the upload under 100 KB for a 20s
-  /// utterance — important on mobile networks.
+  /// AAC bitrate, in bps. No longer used by the Whisper upload path — the
+  /// recorder now emits WAV/PCM16 so the live clip and the wake-word pre-roll
+  /// share one lossless format and splice without a re-encode. Kept for
+  /// reference (and in case an AAC fallback is ever reinstated).
   static const int whisperAudioBitrate = 32000;
 
   /// Sample rate for the recording. 16 kHz is Whisper's optimal input — the
