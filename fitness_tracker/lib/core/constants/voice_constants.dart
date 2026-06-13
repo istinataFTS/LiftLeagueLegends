@@ -152,6 +152,27 @@ abstract final class VoiceConstants {
   static const double wakeWordKeywordsScore = 1.5;
 
   // ───────────────────────────────────────────────────────────────────────
+  // Wake word (sherpa-onnx KWS) — pre-roll capture
+  // ───────────────────────────────────────────────────────────────────────
+
+  /// Rolling window of recent mic audio the wake-word engine retains so the
+  /// words spoken right after the wake word survive the wake→STT mic handoff.
+  /// 3 s comfortably covers a one-breath command ("Thomas, log me bench
+  /// press"). At 16 kHz mono PCM16 this is ~96 KB of buffer — negligible.
+  static const Duration wakeWordPreRollDuration = Duration(seconds: 3);
+
+  /// A detection must have fired within this window of the wake engine's
+  /// `stop()` for the ring buffer to be published as pre-roll. Bounds the
+  /// buffer to real wake-initiated handoffs (not app-background / settings-off
+  /// stops, which also call `stop()`).
+  static const Duration wakeWordPreRollDetectionWindow = Duration(seconds: 4);
+
+  /// Maximum age the Whisper path will accept a stored pre-roll clip. Older
+  /// than this (or absent) ⇒ no prepend, so a stale clip never bleeds into a
+  /// later FAB-tap turn. Sized to the worst-case wake→record handoff latency.
+  static const Duration wakeWordPreRollMaxAge = Duration(milliseconds: 2500);
+
+  // ───────────────────────────────────────────────────────────────────────
   // Continuous conversation
   // ───────────────────────────────────────────────────────────────────────
 

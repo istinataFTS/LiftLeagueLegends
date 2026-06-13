@@ -1,13 +1,16 @@
 import 'dart:async';
+import 'dart:convert';
 import 'dart:typed_data';
 
 import 'package:fitness_tracker/core/constants/voice_constants.dart';
 import 'package:fitness_tracker/domain/entities/voice_settings.dart'
     show WakeWordPreset, WakeWordPresetPhrase;
+import 'package:fitness_tracker/domain/services/voice_pre_roll_store.dart';
 import 'package:fitness_tracker/domain/services/voice_wake_word_service.dart';
 import 'package:fitness_tracker/features/voice/data/services/sherpa_onnx_voice_wake_word_service.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'dart:convert';
+
+import '../../../integration/support/fake_clock.dart';
 
 // ---------------------------------------------------------------------------
 // Test doubles
@@ -69,6 +72,25 @@ class _FakeAudioSource {
       await _controller.close();
     },
   );
+}
+
+/// Spy [VoicePreRollStore] that records every [put] without consuming it, so
+/// pre-roll capture can be asserted without the real TTL store.
+class _SpyPreRollStore implements VoicePreRollStore {
+  int putCount = 0;
+  PreRollClip? lastPut;
+
+  @override
+  void put(PreRollClip clip) {
+    putCount++;
+    lastPut = clip;
+  }
+
+  @override
+  PreRollClip? take({required Duration maxAge}) => null;
+
+  @override
+  void clear() {}
 }
 
 // ---------------------------------------------------------------------------
@@ -717,6 +739,95 @@ void main() {
       expect(svc.isRunning, isFalse);
 
       await svc.dispose();
+    });
+  });
+
+  // ── Pre-roll capture ───────────────────────────────────────────────────────
+
+  group('pre-roll capture', () {
+    late _FakeKwsHandle handle;
+    late _FakeAudioSource audioSource;
+    late _SpyPreRollStore store;
+    late FakeClock clock;
+    late SherpaOnnxVoiceWakeWordService svc;
+
+    final t0 = DateTime(2026, 6, 13, 12);
+
+    setUp(() {
+      handle = _FakeKwsHandle();
+      audioSource = _FakeAudioSource();
+      store = _SpyPreRollStore();
+      clock = FakeClock(t0);
+      svc = SherpaOnnxVoiceWakeWordService(
+        kwsFactory: (_) async => handle,
+        audioSessionFactory: (_) => audioSource.session,
+        preRollStore: store,
+        clock: clock,
+      );
+    });
+
+    tearDown(() async => svc.dispose());
+
+    // Broadcast-stream delivery is async; drain the event queue
+    // deterministically (no wall-clock sleep) so all queued frames land before
+    // stop() snapshots the ring buffer.
+    Future<void> flush() => pumpEventQueue();
+
+    test('publishes pre-roll on a stop that follows a detection', () async {
+      await svc.start(WakeWordPreset.trainer);
+      audioSource.push(Uint8List(2000)); // wake-word audio
+      handle.setNextKeyword(WakeWordPreset.trainer.wakePhrase);
+      audioSource.push(Uint8List(2000)); // frame that fires detection
+      await flush();
+      await svc.stop();
+
+      expect(store.putCount, 1);
+      expect(store.lastPut!.pcm16, isNotEmpty);
+      expect(store.lastPut!.sampleRate, 16000);
+    });
+
+    test('does not publish when the stop follows no detection', () async {
+      await svc.start(WakeWordPreset.trainer);
+      audioSource.push(Uint8List(2000));
+      await flush();
+      await svc.stop();
+
+      expect(store.putCount, 0);
+    });
+
+    test(
+      'does not publish when the detection is older than the window',
+      () async {
+        await svc.start(WakeWordPreset.trainer);
+        handle.setNextKeyword(WakeWordPreset.trainer.wakePhrase);
+        audioSource.push(Uint8List(2000));
+        await flush();
+        // Advance past the detection window before the handoff stop.
+        clock.advance(
+          VoiceConstants.wakeWordPreRollDetectionWindow +
+              const Duration(seconds: 1),
+        );
+        await svc.stop();
+
+        expect(store.putCount, 0);
+      },
+    );
+
+    test('trims the ring buffer to the byte budget', () async {
+      await svc.start(WakeWordPreset.trainer);
+      // Budget = 16000 Hz * 2 bytes * 3 s = 96000 bytes. Push well past it.
+      for (var i = 0; i < 60; i++) {
+        audioSource.push(Uint8List(4000)); // 240000 bytes before detection
+      }
+      handle.setNextKeyword(WakeWordPreset.trainer.wakePhrase);
+      audioSource.push(Uint8List(4000));
+      await flush();
+      await svc.stop();
+
+      const budget = 16000 * 2 * 3; // 96000
+      expect(store.putCount, 1);
+      expect(store.lastPut!.pcm16, isNotEmpty);
+      expect(store.lastPut!.pcm16.length, lessThanOrEqualTo(budget));
     });
   });
 }
