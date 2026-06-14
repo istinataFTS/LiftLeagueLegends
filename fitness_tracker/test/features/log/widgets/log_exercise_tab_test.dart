@@ -2,7 +2,10 @@ import 'package:bloc_test/bloc_test.dart';
 import 'package:fitness_tracker/app/app.dart';
 import 'package:fitness_tracker/core/constants/app_strings.dart';
 import 'package:fitness_tracker/domain/entities/exercise.dart';
+import 'package:fitness_tracker/domain/entities/workout_set.dart';
+import 'package:fitness_tracker/domain/muscle_visual/muscle_visual_contract.dart';
 import 'package:fitness_tracker/features/library/application/exercise_bloc.dart';
+import 'package:fitness_tracker/features/log/application/exercise_insight.dart';
 import 'package:fitness_tracker/features/log/log.dart';
 import 'package:fitness_tracker/features/settings/application/app_settings_cubit.dart';
 import 'package:fitness_tracker/features/settings/presentation/settings_scope.dart';
@@ -47,6 +50,32 @@ void main() {
       createdAt: DateTime(2024, 1, 1),
     ),
   ];
+
+  ExerciseInsight benchInsight() {
+    return ExerciseInsight(
+      exerciseId: 'exercise-1',
+      personalRecord: WorkoutSet(
+        id: 'pr-set',
+        exerciseId: 'exercise-1',
+        reps: 3,
+        weight: 105,
+        intensity: 5,
+        date: DateTime(2024, 6, 1),
+        createdAt: DateTime(2024, 6, 1),
+      ),
+      setsToday: 3,
+      volumeTodayKg: 2400,
+      muscles: const <MuscleFatigue>[
+        MuscleFatigue(
+          coarseGroup: 'chest',
+          displayName: 'Chest',
+          percent: 42,
+          bucket: MuscleVisualBucket.moderate,
+          color: Color(0xFFFFEB3B),
+        ),
+      ],
+    );
+  }
 
   setUpAll(() {
     registerFallbackValue(FakeWorkoutEvent());
@@ -112,6 +141,13 @@ void main() {
     );
   }
 
+  Future<void> selectBenchPress(WidgetTester tester) async {
+    await tester.tap(find.text(AppStrings.selectExercise));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Bench Press').last);
+    await tester.pumpAndSettle();
+  }
+
   group('LogExerciseTab', () {
     testWidgets('shows loading state while exercises load', (tester) async {
       await tester.pumpWidget(buildSubject(exerciseState: ExerciseLoading()));
@@ -146,40 +182,7 @@ void main() {
       verify(() => exerciseBloc.add(LoadExercisesEvent())).called(1);
     });
 
-    testWidgets('submits selected exercise, reps, and weight', (tester) async {
-      await tester.pumpWidget(
-        buildSubject(exerciseState: ExercisesLoaded(exercises)),
-      );
-      await tester.pumpAndSettle();
-
-      await tester.tap(find.text(AppStrings.selectExercise));
-      await tester.pumpAndSettle();
-
-      await tester.tap(find.text('Bench Press').last);
-      await tester.pumpAndSettle();
-
-      await tester.enterText(find.byType(TextField).at(0), '10');
-      await tester.enterText(find.byType(TextField).at(1), '80');
-
-      await tester.ensureVisible(find.text(AppStrings.logSetButton));
-      await tester.pumpAndSettle();
-      await tester.tap(find.text(AppStrings.logSetButton));
-      await tester.pump();
-
-      verify(
-        () => workoutBloc.add(
-          any(
-            that: isA<AddWorkoutSetEvent>().having(
-              (e) => e.workoutSet.exerciseId,
-              'exerciseId',
-              'exercise-1',
-            ),
-          ),
-        ),
-      ).called(1);
-    });
-
-    testWidgets('shows muscle group info after exercise selection', (
+    testWidgets('selecting an exercise dispatches insight event', (
       tester,
     ) async {
       await tester.pumpWidget(
@@ -187,15 +190,113 @@ void main() {
       );
       await tester.pumpAndSettle();
 
-      await tester.tap(find.text(AppStrings.selectExercise));
+      await selectBenchPress(tester);
+
+      verify(
+        () => workoutBloc.add(
+          any(
+            that: isA<SelectExerciseForInsightEvent>().having(
+              (e) => e.exercise.id,
+              'exercise.id',
+              'exercise-1',
+            ),
+          ),
+        ),
+      ).called(1);
+    });
+
+    testWidgets('submits selected exercise, reps, and weight via steppers', (
+      tester,
+    ) async {
+      await tester.pumpWidget(
+        buildSubject(exerciseState: ExercisesLoaded(exercises)),
+      );
       await tester.pumpAndSettle();
 
-      await tester.tap(find.text('Bench Press').last);
+      await selectBenchPress(tester);
+
+      // Reps stepper is first, weight stepper second.
+      await tester.tap(find.text('+').at(0)); // reps 0 -> 1
+      await tester.pumpAndSettle();
+      await tester.tap(find.text('+').at(1)); // weight 0 -> 2.5
       await tester.pumpAndSettle();
 
-      expect(find.text(AppStrings.setWillCountToward), findsOneWidget);
+      await tester.tap(find.text(AppStrings.logSetButton));
+      await tester.pump();
+
+      verify(
+        () => workoutBloc.add(
+          any(
+            that: isA<AddWorkoutSetEvent>()
+                .having(
+                  (e) => e.workoutSet.exerciseId,
+                  'exerciseId',
+                  'exercise-1',
+                )
+                .having((e) => e.workoutSet.reps, 'reps', 1)
+                .having((e) => e.workoutSet.weight, 'weight', 2.5),
+          ),
+        ),
+      ).called(1);
+    });
+
+    testWidgets('renders PR badge, sets-today count and fatigue chip from '
+        'insight', (tester) async {
+      await tester.pumpWidget(
+        buildSubject(
+          exerciseState: ExercisesLoaded(exercises),
+          workoutState: WorkoutLoaded(
+            const <WorkoutSet>[],
+            selectedInsight: benchInsight(),
+          ),
+        ),
+      );
+      await tester.pumpAndSettle();
+
+      await selectBenchPress(tester);
+
+      expect(find.text('PR 105 kg'), findsOneWidget);
+      expect(find.text('3 sets today'), findsOneWidget);
       expect(find.text('Chest'), findsOneWidget);
-      expect(find.text('Triceps'), findsOneWidget);
+      expect(find.text('42%'), findsOneWidget);
+    });
+
+    testWidgets('shows empty feed message when no sets logged today', (
+      tester,
+    ) async {
+      await tester.pumpWidget(
+        buildSubject(exerciseState: ExercisesLoaded(exercises)),
+      );
+      await tester.pumpAndSettle();
+
+      await selectBenchPress(tester);
+
+      expect(find.text('No sets yet today'), findsOneWidget);
+    });
+
+    testWidgets('renders a set row for a set logged today', (tester) async {
+      final WorkoutSet todaySet = WorkoutSet(
+        id: 'set-1',
+        exerciseId: 'exercise-1',
+        reps: 8,
+        weight: 100,
+        intensity: 4,
+        date: DateTime.now(),
+        createdAt: DateTime.now(),
+      );
+
+      await tester.pumpWidget(
+        buildSubject(
+          exerciseState: ExercisesLoaded(exercises),
+          workoutState: WorkoutLoaded(<WorkoutSet>[todaySet]),
+        ),
+      );
+      await tester.pumpAndSettle();
+
+      await selectBenchPress(tester);
+
+      expect(find.text('Set 1'), findsOneWidget);
+      expect(find.text('100 kg × 8'), findsOneWidget);
     });
   });
 }
