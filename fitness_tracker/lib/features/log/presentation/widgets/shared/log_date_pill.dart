@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 
+import '../../../../../core/constants/app_strings.dart';
 import '../../../../../core/themes/app_theme.dart';
 
 /// Compact date pill used in each tab's header area.
@@ -26,7 +27,7 @@ class LogDatePill extends StatelessWidget {
   }
 
   String _label() =>
-      _isToday(date) ? 'Today' : DateFormat('MMM d').format(date);
+      _isToday(date) ? AppStrings.today : DateFormat('MMM d').format(date);
 
   @override
   Widget build(BuildContext context) {
@@ -72,11 +73,16 @@ class LogDatePill extends StatelessWidget {
 
   Future<void> _selectDate(BuildContext context) async {
     final DateTime now = DateTime.now();
+    final DateTime effectiveFirst = firstDate ?? DateTime(2020);
+    final DateTime effectiveLast = lastDate ?? now;
+    DateTime initial = date;
+    if (initial.isBefore(effectiveFirst)) initial = effectiveFirst;
+    if (initial.isAfter(effectiveLast)) initial = effectiveLast;
     final DateTime? picked = await showDatePicker(
       context: context,
-      initialDate: date.isAfter(now) ? now : date,
-      firstDate: firstDate ?? DateTime(2020),
-      lastDate: lastDate ?? now,
+      initialDate: initial,
+      firstDate: effectiveFirst,
+      lastDate: effectiveLast,
       builder: (BuildContext ctx, Widget? child) {
         return Theme(
           data: Theme.of(ctx).copyWith(

@@ -41,11 +41,26 @@ class MacroCompositionBar extends StatelessWidget {
     final double carbsFraction = hasData ? carbsCals / totalCals : 0;
     final double fatsFraction = hasData ? fatsCals / totalCals : 0;
 
-    final int proteinPct = hasData
-        ? (proteinCals / totalCals * 100).round()
-        : 0;
-    final int carbsPct = hasData ? (carbsCals / totalCals * 100).round() : 0;
-    final int fatsPct = hasData ? (fatsCals / totalCals * 100).round() : 0;
+    int proteinPct = 0;
+    int carbsPct = 0;
+    int fatsPct = 0;
+    if (hasData) {
+      // Round the two non-largest; assign remainder to the largest so the
+      // three percentages always sum to exactly 100.
+      if (proteinCals >= carbsCals && proteinCals >= fatsCals) {
+        carbsPct = (carbsCals / totalCals * 100).round();
+        fatsPct = (fatsCals / totalCals * 100).round();
+        proteinPct = 100 - carbsPct - fatsPct;
+      } else if (carbsCals >= fatsCals) {
+        proteinPct = (proteinCals / totalCals * 100).round();
+        fatsPct = (fatsCals / totalCals * 100).round();
+        carbsPct = 100 - proteinPct - fatsPct;
+      } else {
+        proteinPct = (proteinCals / totalCals * 100).round();
+        carbsPct = (carbsCals / totalCals * 100).round();
+        fatsPct = 100 - proteinPct - carbsPct;
+      }
+    }
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,

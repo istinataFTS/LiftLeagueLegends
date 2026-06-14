@@ -80,7 +80,9 @@ class _LogActionBarState extends State<LogActionBar> {
                   onTapUp: _interactive
                       ? (_) => setState(() => _pressed = false)
                       : null,
-                  onTapCancel: () => setState(() => _pressed = false),
+                  onTapCancel: _interactive
+                      ? () => setState(() => _pressed = false)
+                      : null,
                   onTap: _interactive ? _handleTap : null,
                   child: AnimatedScale(
                     scale: _pressed ? 0.98 : 1.0,

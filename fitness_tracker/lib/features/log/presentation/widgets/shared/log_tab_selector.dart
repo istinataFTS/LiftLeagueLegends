@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 
+import '../../../../../core/constants/app_strings.dart';
 import '../../../../../core/themes/app_theme.dart';
 
 /// Slim segmented control replacing the stacked icon+label variant in [log_page.dart].
@@ -15,9 +16,9 @@ class LogTabSelector extends StatelessWidget {
   final ValueChanged<int> onChanged;
 
   static const List<_TabItem> _tabs = <_TabItem>[
-    _TabItem(label: 'Exercise', icon: Icons.fitness_center),
-    _TabItem(label: 'Meal', icon: Icons.restaurant),
-    _TabItem(label: 'Macros', icon: Icons.calculate),
+    _TabItem(label: AppStrings.logExerciseTab, icon: Icons.fitness_center),
+    _TabItem(label: AppStrings.logMealTab, icon: Icons.restaurant),
+    _TabItem(label: AppStrings.logMacrosTab, icon: Icons.calculate),
   ];
 
   @override
@@ -43,7 +44,6 @@ class LogTabSelector extends StatelessWidget {
                 onTap: () => onChanged(i),
                 child: AnimatedContainer(
                   duration: const Duration(milliseconds: 180),
-                  height: 44,
                   decoration: BoxDecoration(
                     color: active ? AppTheme.primaryOrange : Colors.transparent,
                     borderRadius: BorderRadius.circular(8),
