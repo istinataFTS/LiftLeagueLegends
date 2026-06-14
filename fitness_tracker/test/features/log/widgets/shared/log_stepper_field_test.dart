@@ -13,18 +13,23 @@ void main() {
     num step = 1,
     num min = 0,
     bool allowDecimal = false,
+    double? width,
   }) {
+    final Widget field = LogStepperField(
+      label: label,
+      value: value,
+      onChanged: onChanged ?? (_) {},
+      onTapValue: onTapValue,
+      unitSuffix: unitSuffix,
+      step: step,
+      min: min,
+      allowDecimal: allowDecimal,
+    );
+
     return AppShell(
       home: Scaffold(
-        body: LogStepperField(
-          label: label,
-          value: value,
-          onChanged: onChanged ?? (_) {},
-          onTapValue: onTapValue,
-          unitSuffix: unitSuffix,
-          step: step,
-          min: min,
-          allowDecimal: allowDecimal,
+        body: Center(
+          child: width == null ? field : SizedBox(width: width, child: field),
         ),
       ),
     );
@@ -142,5 +147,47 @@ void main() {
 
       expect(received, equals(82.5));
     });
+
+    // Regression: the value cluster (number + unit + edit icon) must never
+    // overflow its slot, however narrow the column or however many digits the
+    // value grows to. Before the FittedBox fix this painted the
+    // "OVERFLOWED BY x PIXELS" stripe (e.g. the Meal-tab amount stepper, which
+    // lives in a tight flex:2 slot).
+    testWidgets('does not overflow in a narrow slot with a long value', (
+      tester,
+    ) async {
+      await tester.pumpWidget(
+        buildSubject(
+          width: 120,
+          label: 'Amount (grams)',
+          value: 100000,
+          unitSuffix: 'g',
+          onTapValue: () {},
+        ),
+      );
+      await tester.pumpAndSettle();
+
+      expect(find.text('100000'), findsOneWidget);
+      expect(tester.takeException(), isNull);
+    });
+
+    testWidgets(
+      'does not overflow in a narrow slot with a long decimal value',
+      (tester) async {
+        await tester.pumpWidget(
+          buildSubject(
+            width: 110,
+            label: 'grams',
+            value: 9999.9,
+            allowDecimal: true,
+            onTapValue: () {},
+          ),
+        );
+        await tester.pumpAndSettle();
+
+        expect(find.text('9999.9'), findsOneWidget);
+        expect(tester.takeException(), isNull);
+      },
+    );
   });
 }
