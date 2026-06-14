@@ -1,5 +1,6 @@
 import 'package:fitness_tracker/app/app.dart';
 import 'package:fitness_tracker/features/log/presentation/pages/log_page.dart';
+import 'package:fitness_tracker/features/log/presentation/widgets/shared/log_tab_selector.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 
@@ -23,6 +24,7 @@ void main() {
       await tester.pumpWidget(buildSubject());
       await tester.pumpAndSettle();
 
+      expect(find.byType(LogTabSelector), findsOneWidget);
       expect(find.text('Exercise'), findsOneWidget);
       expect(find.text('Meal'), findsOneWidget);
       expect(find.text('Macros'), findsOneWidget);
