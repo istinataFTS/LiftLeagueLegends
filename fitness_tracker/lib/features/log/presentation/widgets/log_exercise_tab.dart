@@ -2,6 +2,7 @@ import 'dart:async';
 
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
+import 'package:intl/intl.dart';
 import 'package:uuid/uuid.dart';
 
 import '../../../../core/constants/app_strings.dart';
@@ -168,8 +169,10 @@ class _LogExerciseTabState extends State<LogExerciseTab> {
 
             final bool isLoading = workoutState is WorkoutLoading;
             final ExerciseInsight? insight = _insightFor(workoutState);
-            final List<WorkoutSet> todaySets = _todaySetsFor(workoutState);
-            final int todaySetCount = insight?.setsToday ?? todaySets.length;
+            final List<WorkoutSet> selectedDateSets = _setsForSelectedDate(
+              workoutState,
+            );
+            final int selectedDateSetCount = selectedDateSets.length;
             final bool canLog =
                 _selectedExercise != null &&
                 _reps > 0 &&
@@ -199,6 +202,7 @@ class _LogExerciseTabState extends State<LogExerciseTab> {
                           context,
                           exercises,
                           insight,
+                          selectedDateSetCount,
                           weightUnit,
                         ),
                         const SizedBox(height: 16),
@@ -207,6 +211,7 @@ class _LogExerciseTabState extends State<LogExerciseTab> {
                           children: <Widget>[
                             Expanded(
                               child: LogStepperField(
+                                key: const Key('exerciseRepsStepper'),
                                 label: AppStrings.reps,
                                 value: _reps,
                                 onChanged: (num v) =>
@@ -219,6 +224,7 @@ class _LogExerciseTabState extends State<LogExerciseTab> {
                             const SizedBox(width: 12),
                             Expanded(
                               child: LogStepperField(
+                                key: const Key('exerciseWeightStepper'),
                                 label: WeightUnitUtils.inputLabel(weightUnit),
                                 value: _weight,
                                 step: 2.5,
@@ -242,10 +248,9 @@ class _LogExerciseTabState extends State<LogExerciseTab> {
                               setState(() => _selectedIntensity = value),
                         ),
                         const SizedBox(height: 20),
-                        _buildTodayFeed(
+                        _buildSelectedDateFeed(
                           context,
-                          todaySets,
-                          insight,
+                          selectedDateSets,
                           weightUnit,
                         ),
                       ],
@@ -260,9 +265,9 @@ class _LogExerciseTabState extends State<LogExerciseTab> {
                         canSubmit: canLog,
                         isLoading: isLoading,
                         onSubmit: () => _handleLogSet(weightUnit),
-                        statusLine: todaySetCount > 0
+                        statusLine: selectedDateSetCount > 0
                             ? Text(
-                                'Logged ×$todaySetCount today',
+                                'Logged ×$selectedDateSetCount $_dateSuffixLabel',
                                 style: const TextStyle(
                                   color: AppTheme.successGreen,
                                   fontSize: 12,
@@ -279,8 +284,18 @@ class _LogExerciseTabState extends State<LogExerciseTab> {
     );
   }
 
+  bool get _selectedIsToday =>
+      WeekDateUtils.isSameDay(_selectedDate, DateTime.now());
+
+  /// `today` when the selected date is today, otherwise `MMM d` — mirrors the
+  /// Macros tab's date-guarded labelling so the feed/count never claim "today"
+  /// for a past date (e.g. when logging through the History sheet).
+  String get _dateSuffixLabel =>
+      _selectedIsToday ? 'today' : DateFormat('MMM d').format(_selectedDate);
+
   /// The insight only applies when it matches the currently-selected exercise
   /// (a stale insight for a previous selection must not paint this card).
+  /// PR + fatigue read "current" data and are intentionally not date-scoped.
   ExerciseInsight? _insightFor(WorkoutState state) {
     if (state is! WorkoutLoaded) return null;
     final ExerciseInsight? insight = state.selectedInsight;
@@ -288,16 +303,15 @@ class _LogExerciseTabState extends State<LogExerciseTab> {
     return insight.exerciseId == _selectedExercise!.id ? insight : null;
   }
 
-  List<WorkoutSet> _todaySetsFor(WorkoutState state) {
+  List<WorkoutSet> _setsForSelectedDate(WorkoutState state) {
     if (state is! WorkoutLoaded || _selectedExercise == null) {
       return const <WorkoutSet>[];
     }
-    final DateTime now = DateTime.now();
     return state.weeklySets
         .where(
           (WorkoutSet s) =>
               s.exerciseId == _selectedExercise!.id &&
-              WeekDateUtils.isSameDay(s.date, now),
+              WeekDateUtils.isSameDay(s.date, _selectedDate),
         )
         .toList()
       ..sort(
@@ -309,11 +323,11 @@ class _LogExerciseTabState extends State<LogExerciseTab> {
     BuildContext context,
     List<Exercise> exercises,
     ExerciseInsight? insight,
+    int setCount,
     WeightUnit weightUnit,
   ) {
     final Exercise? exercise = _selectedExercise;
     final WorkoutSet? pr = insight?.personalRecord;
-    final int setsToday = insight?.setsToday ?? 0;
 
     return Container(
       padding: const EdgeInsets.all(16),
@@ -368,7 +382,7 @@ class _LogExerciseTabState extends State<LogExerciseTab> {
                               const SizedBox(width: 8),
                             ],
                             Text(
-                              '$setsToday sets today',
+                              '$setCount sets $_dateSuffixLabel',
                               style: const TextStyle(
                                 color: AppTheme.textDim,
                                 fontSize: 12,
@@ -400,21 +414,18 @@ class _LogExerciseTabState extends State<LogExerciseTab> {
     );
   }
 
-  Widget _buildTodayFeed(
+  Widget _buildSelectedDateFeed(
     BuildContext context,
-    List<WorkoutSet> todaySets,
-    ExerciseInsight? insight,
+    List<WorkoutSet> sets,
     WeightUnit weightUnit,
   ) {
     final Exercise? exercise = _selectedExercise;
     if (exercise == null) return const SizedBox.shrink();
 
-    final double volumeKg =
-        insight?.volumeTodayKg ??
-        todaySets.fold<double>(
-          0,
-          (double sum, WorkoutSet s) => sum + s.weight * s.reps,
-        );
+    final double volumeKg = sets.fold<double>(
+      0,
+      (double sum, WorkoutSet s) => sum + s.weight * s.reps,
+    );
     final String volumeText = WeightUnitUtils.formatForDisplay(
       volumeKg,
       weightUnit,
@@ -427,7 +438,7 @@ class _LogExerciseTabState extends State<LogExerciseTab> {
           children: <Widget>[
             Expanded(
               child: Text(
-                '${exercise.name} · today',
+                '${exercise.name} · $_dateSuffixLabel',
                 style: const TextStyle(
                   color: AppTheme.textMedium,
                   fontSize: 13,
@@ -448,24 +459,26 @@ class _LogExerciseTabState extends State<LogExerciseTab> {
           ],
         ),
         const SizedBox(height: 10),
-        if (todaySets.isEmpty)
-          const Padding(
-            padding: EdgeInsets.symmetric(vertical: 12),
+        if (sets.isEmpty)
+          Padding(
+            padding: const EdgeInsets.symmetric(vertical: 12),
             child: Text(
-              'No sets yet today',
-              style: TextStyle(color: AppTheme.textDim, fontSize: 13),
+              _selectedIsToday
+                  ? 'No sets yet today'
+                  : 'No sets on ${DateFormat('MMM d').format(_selectedDate)}',
+              style: const TextStyle(color: AppTheme.textDim, fontSize: 13),
             ),
           )
         else
-          for (int i = 0; i < todaySets.length; i++)
+          for (int i = 0; i < sets.length; i++)
             ExerciseSetRow(
               setNumber: i + 1,
-              intensity: todaySets[i].intensity,
+              intensity: sets[i].intensity,
               weightText: WeightUnitUtils.formatForDisplay(
-                todaySets[i].weight,
+                sets[i].weight,
                 weightUnit,
               ),
-              reps: todaySets[i].reps,
+              reps: sets[i].reps,
             ),
       ],
     );
