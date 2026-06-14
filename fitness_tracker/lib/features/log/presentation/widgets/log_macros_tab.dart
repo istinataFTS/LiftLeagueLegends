@@ -346,7 +346,9 @@ class _LogMacrosTabState extends State<LogMacrosTab> {
           ),
           const SizedBox(height: 10),
           Semantics(
-            label: 'Today macro composition',
+            label: isToday
+                ? 'Today macro composition'
+                : '${DateFormat('MMM d').format(_selectedDate)} macro composition',
             child: MacroCompositionBar(
               proteinGrams: state.totalProtein,
               carbsGrams: state.totalCarbs,
