@@ -18,6 +18,7 @@ Future<void> showHistoryWorkoutLogBottomSheet(
     child: LogExerciseTab(
       initialDate: selectedDate,
       showSuccessFeedback: false,
+      showDatePill: false,
       onLoggedSuccess: (DateTime loggedDate) {
         final HistoryBloc historyBloc = context.read<HistoryBloc>();
         historyBloc.add(SelectDateEvent(loggedDate));
