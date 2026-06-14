@@ -5,6 +5,7 @@ import '../../../../core/themes/app_theme.dart';
 import '../widgets/log_exercise_tab.dart';
 import '../widgets/log_macros_tab.dart';
 import '../widgets/log_meal_tab.dart';
+import '../widgets/shared/log_tab_selector.dart';
 
 typedef LogTabBuilder = Widget Function(DateTime initialDate);
 
@@ -54,85 +55,15 @@ class _LogPageState extends State<LogPage> {
       ),
       body: Column(
         children: <Widget>[
-          _buildSegmentedControl(),
+          Padding(
+            padding: const EdgeInsets.fromLTRB(20, 16, 20, 12),
+            child: LogTabSelector(
+              selectedIndex: _selectedIndex,
+              onChanged: (int i) => setState(() => _selectedIndex = i),
+            ),
+          ),
           Expanded(child: _buildContent()),
         ],
-      ),
-    );
-  }
-
-  Widget _buildSegmentedControl() {
-    return Container(
-      margin: const EdgeInsets.all(20),
-      padding: const EdgeInsets.all(4),
-      decoration: BoxDecoration(
-        color: AppTheme.surfaceDark,
-        borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: AppTheme.borderDark),
-      ),
-      child: Row(
-        children: <Widget>[
-          _buildSegmentButton(
-            index: 0,
-            label: AppStrings.logExerciseTab,
-            icon: Icons.fitness_center,
-          ),
-          _buildSegmentButton(
-            index: 1,
-            label: AppStrings.logMealTab,
-            icon: Icons.restaurant,
-          ),
-          _buildSegmentButton(
-            index: 2,
-            label: AppStrings.logMacrosTab,
-            icon: Icons.calculate,
-          ),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildSegmentButton({
-    required int index,
-    required String label,
-    required IconData icon,
-  }) {
-    final bool isSelected = _selectedIndex == index;
-
-    return Expanded(
-      child: GestureDetector(
-        onTap: () {
-          setState(() {
-            _selectedIndex = index;
-          });
-        },
-        child: AnimatedContainer(
-          duration: const Duration(milliseconds: 200),
-          padding: const EdgeInsets.symmetric(vertical: 12),
-          decoration: BoxDecoration(
-            color: isSelected ? AppTheme.primaryOrange : Colors.transparent,
-            borderRadius: BorderRadius.circular(8),
-          ),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: <Widget>[
-              Icon(
-                icon,
-                color: isSelected ? Colors.white : AppTheme.textDim,
-                size: 24,
-              ),
-              const SizedBox(height: 4),
-              Text(
-                label,
-                style: TextStyle(
-                  color: isSelected ? Colors.white : AppTheme.textDim,
-                  fontSize: 12,
-                  fontWeight: isSelected ? FontWeight.w600 : FontWeight.w500,
-                ),
-              ),
-            ],
-          ),
-        ),
       ),
     );
   }
