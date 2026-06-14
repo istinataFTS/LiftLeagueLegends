@@ -1,7 +1,7 @@
 {
   "schemaVersion": 1,
   "generatedAt": "2026-05-25",
-  "fingerprint": "11717482bda63045",
+  "fingerprint": "faee2972d8d83fd8",
   "features": {
     "auth": {
       "summary": "Authentication cubits for sign-in, sign-up, and OTP verification.",
@@ -159,7 +159,7 @@
         "workout_sets"
       ],
       "notes": "WorkoutBloc also consumes calculate_muscle_stimulus (from the muscle_stimulus domain layer) to compute stimulation scores on each rep-set log. WorkoutBloc also exposes ExerciseInsight (PR / fatigue chips / sets-today) via SelectExerciseForInsightEvent + ClearExerciseInsightEvent; insight is recomputed in _loadWeeklySetsData after every successful add so the Exercise tab refreshes the same frame the feed updates. GetExercisePersonalRecord returns the heaviest WorkoutSet for an exercise (tie-break higher reps); fatigue chips derive from GetMuscleVisualData(TimePeriod.week) via MuscleGroups.granularToSimple.",
-      "fingerprint": "3be3b1ba17d36ca4"
+      "fingerprint": "48fea1b404b4fd87"
     },
     "profile": {
       "summary": "User profile view and sign-out; manages authenticated-user metadata.",
