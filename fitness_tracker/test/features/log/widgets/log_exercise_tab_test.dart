@@ -114,6 +114,7 @@ void main() {
   Widget buildSubject({
     required ExerciseState exerciseState,
     WorkoutState workoutState = const WorkoutLoaded([]),
+    DateTime? initialDate,
   }) {
     when(() => exerciseBloc.state).thenReturn(exerciseState);
     whenListen(
@@ -136,7 +137,9 @@ void main() {
           BlocProvider<WorkoutBloc>.value(value: workoutBloc),
           BlocProvider<ExerciseBloc>.value(value: exerciseBloc),
         ],
-        child: const SettingsScope(child: Scaffold(body: LogExerciseTab())),
+        child: SettingsScope(
+          child: Scaffold(body: LogExerciseTab(initialDate: initialDate)),
+        ),
       ),
     );
   }
@@ -215,10 +218,20 @@ void main() {
 
       await selectBenchPress(tester);
 
-      // Reps stepper is first, weight stepper second.
-      await tester.tap(find.text('+').at(0)); // reps 0 -> 1
+      // Target each stepper by its stable key, not list order.
+      await tester.tap(
+        find.descendant(
+          of: find.byKey(const Key('exerciseRepsStepper')),
+          matching: find.text('+'),
+        ),
+      ); // reps 0 -> 1
       await tester.pumpAndSettle();
-      await tester.tap(find.text('+').at(1)); // weight 0 -> 2.5
+      await tester.tap(
+        find.descendant(
+          of: find.byKey(const Key('exerciseWeightStepper')),
+          matching: find.text('+'),
+        ),
+      ); // weight 0 -> 2.5
       await tester.pumpAndSettle();
 
       await tester.tap(find.text(AppStrings.logSetButton));
@@ -240,25 +253,58 @@ void main() {
       ).called(1);
     });
 
-    testWidgets('renders PR badge, sets-today count and fatigue chip from '
-        'insight', (tester) async {
+    testWidgets('renders PR badge and fatigue chip from insight; count is '
+        'selected-date-based', (tester) async {
+      WorkoutSet todaySet(String id) => WorkoutSet(
+        id: id,
+        exerciseId: 'exercise-1',
+        reps: 8,
+        weight: 80,
+        intensity: 3,
+        date: DateTime.now(),
+        createdAt: DateTime.now(),
+      );
+
       await tester.pumpWidget(
         buildSubject(
           exerciseState: ExercisesLoaded(exercises),
-          workoutState: WorkoutLoaded(
-            const <WorkoutSet>[],
-            selectedInsight: benchInsight(),
-          ),
+          workoutState: WorkoutLoaded(<WorkoutSet>[
+            todaySet('a'),
+            todaySet('b'),
+          ], selectedInsight: benchInsight()),
         ),
       );
       await tester.pumpAndSettle();
 
       await selectBenchPress(tester);
 
+      // PR + fatigue come from the (now-based) insight.
       expect(find.text('PR 105 kg'), findsOneWidget);
-      expect(find.text('3 sets today'), findsOneWidget);
       expect(find.text('Chest'), findsOneWidget);
       expect(find.text('42%'), findsOneWidget);
+      // Count reflects the two sets logged for the selected date, not
+      // insight.setsToday.
+      expect(find.text('2 sets today'), findsOneWidget);
+    });
+
+    testWidgets('feed and labels follow a non-today selected date', (
+      tester,
+    ) async {
+      await tester.pumpWidget(
+        buildSubject(
+          exerciseState: ExercisesLoaded(exercises),
+          initialDate: DateTime(2024, 1, 15),
+        ),
+      );
+      await tester.pumpAndSettle();
+
+      await selectBenchPress(tester);
+
+      // Labels use the formatted date, never "today", for a past date.
+      expect(find.text('Bench Press · Jan 15'), findsOneWidget);
+      expect(find.text('No sets on Jan 15'), findsOneWidget);
+      expect(find.text('0 sets Jan 15'), findsOneWidget);
+      expect(find.textContaining('today'), findsNothing);
     });
 
     testWidgets('shows empty feed message when no sets logged today', (
