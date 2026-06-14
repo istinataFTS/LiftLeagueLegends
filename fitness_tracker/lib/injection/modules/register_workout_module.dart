@@ -15,6 +15,7 @@ import '../../domain/repositories/workout_set_repository.dart';
 import '../../domain/usecases/workout_sets/add_workout_set.dart';
 import '../../domain/usecases/workout_sets/delete_workout_set.dart';
 import '../../domain/usecases/workout_sets/get_all_workout_sets.dart';
+import '../../domain/usecases/workout_sets/get_exercise_personal_record.dart';
 import '../../domain/usecases/workout_sets/get_sets_by_date_range.dart';
 import '../../domain/usecases/workout_sets/get_weekly_sets.dart';
 import '../../domain/usecases/workout_sets/update_workout_set.dart';
@@ -26,6 +27,8 @@ void registerWorkoutModule(GetIt sl) {
       addWorkoutSet: sl(),
       getWeeklySets: sl(),
       calculateMuscleStimulus: sl(),
+      getMuscleVisualData: sl(),
+      getExercisePersonalRecord: sl(),
     ),
   );
 
@@ -41,6 +44,9 @@ void registerWorkoutModule(GetIt sl) {
   );
   sl.registerLazySingleton(
     () => GetWeeklySets(sl(), sourcePreferenceResolver: sl()),
+  );
+  sl.registerLazySingleton(
+    () => GetExercisePersonalRecord(sl(), sourcePreferenceResolver: sl()),
   );
   sl.registerLazySingleton(
     () => GetSetsByDateRange(

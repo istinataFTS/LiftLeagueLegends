@@ -1,7 +1,7 @@
 {
   "schemaVersion": 1,
   "generatedAt": "2026-05-25",
-  "fingerprint": "cdc7960d84da21a6",
+  "fingerprint": "7b06a693d7441e43",
   "features": {
     "auth": {
       "summary": "Authentication cubits for sign-in, sign-up, and OTP verification.",
@@ -145,6 +145,7 @@
         "lib/domain/usecases/nutrition_logs/get_logs_for_date.dart",
         "lib/domain/usecases/nutrition_logs/update_nutrition_log.dart",
         "lib/domain/usecases/workout_sets/add_workout_set.dart",
+        "lib/domain/usecases/workout_sets/get_exercise_personal_record.dart",
         "lib/domain/usecases/workout_sets/get_weekly_sets.dart"
       ],
       "injectionModule": [
@@ -157,8 +158,8 @@
         "nutrition_logs",
         "workout_sets"
       ],
-      "notes": "WorkoutBloc also consumes calculate_muscle_stimulus (from the muscle_stimulus domain layer) to compute stimulation scores on each rep-set log.",
-      "fingerprint": "7daa68d977f690fa"
+      "notes": "WorkoutBloc also consumes calculate_muscle_stimulus (from the muscle_stimulus domain layer) to compute stimulation scores on each rep-set log. WorkoutBloc also exposes ExerciseInsight (PR / fatigue chips / sets-today) via SelectExerciseForInsightEvent + ClearExerciseInsightEvent; insight is recomputed in _loadWeeklySetsData after every successful add so the Exercise tab refreshes the same frame the feed updates. GetExercisePersonalRecord returns the heaviest WorkoutSet for an exercise (tie-break higher reps); fatigue chips derive from GetMuscleVisualData(TimePeriod.week) via MuscleGroups.granularToSimple.",
+      "fingerprint": "14d11c3b402551c6"
     },
     "profile": {
       "summary": "User profile view and sign-out; manages authenticated-user metadata.",
