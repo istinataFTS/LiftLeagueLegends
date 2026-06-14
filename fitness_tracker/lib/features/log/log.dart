@@ -1,3 +1,4 @@
+export 'application/exercise_insight.dart';
 export 'application/nutrition_log_bloc.dart';
 export 'application/workout_bloc.dart';
 export 'presentation/pages/log_page.dart';

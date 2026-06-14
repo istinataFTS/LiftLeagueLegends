@@ -3,11 +3,18 @@ import 'package:flutter_bloc/flutter_bloc.dart';
 
 import '../../../../core/bloc/bloc_effects_mixin.dart';
 import '../../../../core/constants/app_strings.dart';
+import '../../../../core/constants/muscle_groups.dart';
 import '../../../../core/logging/app_logger.dart';
+import '../../../../domain/entities/exercise.dart';
+import '../../../../domain/entities/muscle_visual_data.dart';
+import '../../../../domain/entities/time_period.dart';
 import '../../../../domain/entities/workout_set.dart';
 import '../../../../domain/usecases/muscle_stimulus/calculate_muscle_stimulus.dart';
+import '../../../../domain/usecases/muscle_stimulus/get_muscle_visual_data.dart';
 import '../../../../domain/usecases/workout_sets/add_workout_set.dart';
+import '../../../../domain/usecases/workout_sets/get_exercise_personal_record.dart';
 import '../../../../domain/usecases/workout_sets/get_weekly_sets.dart';
+import 'exercise_insight.dart';
 
 abstract class WorkoutEvent extends Equatable {
   const WorkoutEvent();
@@ -33,6 +40,19 @@ class RefreshWeeklySetsEvent extends WorkoutEvent {
   const RefreshWeeklySetsEvent();
 }
 
+class SelectExerciseForInsightEvent extends WorkoutEvent {
+  final Exercise exercise;
+
+  const SelectExerciseForInsightEvent(this.exercise);
+
+  @override
+  List<Object?> get props => [exercise];
+}
+
+class ClearExerciseInsightEvent extends WorkoutEvent {
+  const ClearExerciseInsightEvent();
+}
+
 abstract class WorkoutState extends Equatable {
   const WorkoutState();
 
@@ -46,11 +66,12 @@ class WorkoutLoading extends WorkoutState {}
 
 class WorkoutLoaded extends WorkoutState {
   final List<WorkoutSet> weeklySets;
+  final ExerciseInsight? selectedInsight;
 
-  const WorkoutLoaded(this.weeklySets);
+  const WorkoutLoaded(this.weeklySets, {this.selectedInsight});
 
   @override
-  List<Object?> get props => [weeklySets];
+  List<Object?> get props => [weeklySets, selectedInsight];
 }
 
 class WorkoutError extends WorkoutState {
@@ -97,17 +118,24 @@ class WorkoutBloc extends Bloc<WorkoutEvent, WorkoutState>
   final AddWorkoutSet addWorkoutSet;
   final GetWeeklySets getWeeklySets;
   final CalculateMuscleStimulus calculateMuscleStimulus;
+  final GetMuscleVisualData getMuscleVisualData;
+  final GetExercisePersonalRecord getExercisePersonalRecord;
 
   List<WorkoutSet> _cachedWeeklySets = [];
+  Exercise? _selectedExercise;
 
   WorkoutBloc({
     required this.addWorkoutSet,
     required this.getWeeklySets,
     required this.calculateMuscleStimulus,
+    required this.getMuscleVisualData,
+    required this.getExercisePersonalRecord,
   }) : super(WorkoutInitial()) {
     on<AddWorkoutSetEvent>(_onAddWorkoutSet);
     on<LoadWeeklySetsEvent>(_onLoadWeeklySets);
     on<RefreshWeeklySetsEvent>(_onRefreshWeeklySets);
+    on<SelectExerciseForInsightEvent>(_onSelectExerciseForInsight);
+    on<ClearExerciseInsightEvent>(_onClearExerciseInsight);
   }
 
   Future<void> _onAddWorkoutSet(
@@ -176,6 +204,23 @@ class WorkoutBloc extends Bloc<WorkoutEvent, WorkoutState>
     await _loadWeeklySetsData(emit);
   }
 
+  Future<void> _onSelectExerciseForInsight(
+    SelectExerciseForInsightEvent event,
+    Emitter<WorkoutState> emit,
+  ) async {
+    _selectedExercise = event.exercise;
+    final insight = await _computeInsight(event.exercise, _cachedWeeklySets);
+    emit(WorkoutLoaded(_cachedWeeklySets, selectedInsight: insight));
+  }
+
+  Future<void> _onClearExerciseInsight(
+    ClearExerciseInsightEvent event,
+    Emitter<WorkoutState> emit,
+  ) async {
+    _selectedExercise = null;
+    emit(WorkoutLoaded(_cachedWeeklySets));
+  }
+
   Future<void> _loadWeeklySetsData(
     Emitter<WorkoutState> emit, {
     bool showLoading = false,
@@ -186,11 +231,88 @@ class WorkoutBloc extends Bloc<WorkoutEvent, WorkoutState>
 
     final result = await getWeeklySets();
 
-    result.fold((failure) => emit(WorkoutError(failure.message)), (sets) {
+    await result.fold((failure) async => emit(WorkoutError(failure.message)), (
+      sets,
+    ) async {
       _cachedWeeklySets = sets;
-      emit(WorkoutLoaded(sets));
+      final selected = _selectedExercise;
+      if (selected != null) {
+        final insight = await _computeInsight(selected, sets);
+        emit(WorkoutLoaded(sets, selectedInsight: insight));
+      } else {
+        emit(WorkoutLoaded(sets));
+      }
     });
   }
+
+  Future<ExerciseInsight> _computeInsight(
+    Exercise exercise,
+    List<WorkoutSet> weeklySets,
+  ) async {
+    final now = DateTime.now();
+    int setsToday = 0;
+    double volumeTodayKg = 0;
+    for (final set in weeklySets) {
+      if (set.exerciseId != exercise.id) continue;
+      if (!_isSameDay(set.date, now)) continue;
+      setsToday += 1;
+      volumeTodayKg += set.weight * set.reps;
+    }
+
+    final prResult = await getExercisePersonalRecord(exercise.id);
+    final WorkoutSet? personalRecord = prResult.fold((failure) {
+      AppLogger.warning(
+        'getExercisePersonalRecord failed: ${failure.message}',
+        category: 'workout',
+      );
+      return null;
+    }, (set) => set);
+
+    final muscleResult = await getMuscleVisualData(TimePeriod.week);
+    final Map<String, MuscleVisualData> visualByGranular = muscleResult.fold((
+      failure,
+    ) {
+      AppLogger.warning(
+        'getMuscleVisualData failed: ${failure.message}',
+        category: 'workout',
+      );
+      return <String, MuscleVisualData>{};
+    }, (map) => map);
+
+    final List<MuscleFatigue> muscles = <MuscleFatigue>[];
+    for (final coarse in exercise.muscleGroups) {
+      MuscleVisualData? top;
+      for (final entry in MuscleGroups.granularToSimple.entries) {
+        if (entry.value != coarse) continue;
+        final data = visualByGranular[entry.key];
+        if (data == null) continue;
+        if (top == null || data.visualIntensity > top.visualIntensity) {
+          top = data;
+        }
+      }
+      if (top == null) continue;
+      muscles.add(
+        MuscleFatigue(
+          coarseGroup: coarse,
+          displayName: MuscleGroups.getDisplayName(coarse),
+          percent: (top.visualIntensity * 100).round().clamp(0, 100),
+          bucket: top.bucket,
+          color: top.color,
+        ),
+      );
+    }
+
+    return ExerciseInsight(
+      exerciseId: exercise.id,
+      personalRecord: personalRecord,
+      setsToday: setsToday,
+      volumeTodayKg: volumeTodayKg,
+      muscles: muscles,
+    );
+  }
+
+  bool _isSameDay(DateTime a, DateTime b) =>
+      a.year == b.year && a.month == b.month && a.day == b.day;
 
   List<WorkoutSet> get cachedWeeklySets => _cachedWeeklySets;
 }
