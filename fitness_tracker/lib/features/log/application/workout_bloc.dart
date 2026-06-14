@@ -209,7 +209,11 @@ class WorkoutBloc extends Bloc<WorkoutEvent, WorkoutState>
     Emitter<WorkoutState> emit,
   ) async {
     _selectedExercise = event.exercise;
+    final requestedId = event.exercise.id;
     final insight = await _computeInsight(event.exercise, _cachedWeeklySets);
+    // Another handler (clear, or a newer select) may have changed the
+    // selection while we were awaiting; drop the stale insight if so.
+    if (_selectedExercise?.id != requestedId) return;
     emit(WorkoutLoaded(_cachedWeeklySets, selectedInsight: insight));
   }
 
@@ -237,8 +241,15 @@ class WorkoutBloc extends Bloc<WorkoutEvent, WorkoutState>
       _cachedWeeklySets = sets;
       final selected = _selectedExercise;
       if (selected != null) {
+        final selectedId = selected.id;
         final insight = await _computeInsight(selected, sets);
-        emit(WorkoutLoaded(sets, selectedInsight: insight));
+        // If a clear or different selection raced in, do not re-emit a stale
+        // insight tied to the previous exercise.
+        if (_selectedExercise?.id != selectedId) {
+          emit(WorkoutLoaded(sets));
+        } else {
+          emit(WorkoutLoaded(sets, selectedInsight: insight));
+        }
       } else {
         emit(WorkoutLoaded(sets));
       }
