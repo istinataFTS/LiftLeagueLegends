@@ -414,6 +414,7 @@ class _LogMealTabState extends State<LogMealTab> {
 
   Widget _buildThisMealPreview(Meal meal) {
     if (_grams <= 0) return const SizedBox.shrink();
+    if (meal.servingSizeGrams <= 0) return const SizedBox.shrink();
 
     // Per plan §4: reuse multiplier = grams / servingSizeGrams from the
     // current implementation.
@@ -580,6 +581,7 @@ class _LogMealTabState extends State<LogMealTab> {
     final Meal? meal = _selectedMeal;
     if (meal == null) return;
     if (_grams <= 0) return;
+    if (meal.servingSizeGrams <= 0) return;
 
     final double multiplier = _grams / meal.servingSizeGrams;
     final double loggedProtein = meal.proteinPerServing * multiplier;
