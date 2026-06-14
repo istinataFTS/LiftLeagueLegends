@@ -1,7 +1,7 @@
 {
   "schemaVersion": 1,
   "generatedAt": "2026-05-25",
-  "fingerprint": "ee4790b295bb6d8b",
+  "fingerprint": "cdc7960d84da21a6",
   "features": {
     "auth": {
       "summary": "Authentication cubits for sign-in, sign-up, and OTP verification.",
@@ -158,7 +158,7 @@
         "workout_sets"
       ],
       "notes": "WorkoutBloc also consumes calculate_muscle_stimulus (from the muscle_stimulus domain layer) to compute stimulation scores on each rep-set log.",
-      "fingerprint": "cb5aa058eb5b368a"
+      "fingerprint": "7daa68d977f690fa"
     },
     "profile": {
       "summary": "User profile view and sign-out; manages authenticated-user metadata.",
