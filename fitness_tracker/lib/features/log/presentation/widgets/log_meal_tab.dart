@@ -1,9 +1,8 @@
 import 'dart:async';
+import 'dart:ui';
 
-import 'package:flutter/material.dart';
-import 'package:flutter/services.dart';
+import 'package:flutter/material.dart' hide FontFeature;
 import 'package:flutter_bloc/flutter_bloc.dart';
-import 'package:intl/intl.dart';
 import 'package:uuid/uuid.dart';
 
 import '../../../../core/constants/app_strings.dart';
@@ -13,31 +12,48 @@ import '../../../../domain/entities/meal.dart';
 import '../../../../domain/entities/nutrition_log.dart';
 import '../../../library/application/meal_bloc.dart';
 import '../../application/nutrition_log_bloc.dart';
+import 'meal_list_row.dart';
+import 'shared/log_action_bar.dart';
+import 'shared/log_date_pill.dart';
+import 'shared/log_numeric_keypad.dart';
+import 'shared/log_quick_chips.dart';
+import 'shared/log_stepper_field.dart';
+import 'shared/log_ui_colors.dart';
 
 class LogMealTab extends StatefulWidget {
-  final DateTime? initialDate;
-  final bool showSuccessFeedback;
-  final ValueChanged<DateTime>? onLoggedSuccess;
-
   const LogMealTab({
     super.key,
     this.initialDate,
     this.showSuccessFeedback = true,
+    this.showDatePill = true,
     this.onLoggedSuccess,
   });
+
+  final DateTime? initialDate;
+  final bool showSuccessFeedback;
+
+  /// Whether to render the [LogDatePill] in the tab header. The History log
+  /// bottom sheets show their own date header, so they pass `false`.
+  final bool showDatePill;
+  final ValueChanged<DateTime>? onLoggedSuccess;
 
   @override
   State<LogMealTab> createState() => _LogMealTabState();
 }
 
 class _LogMealTabState extends State<LogMealTab> {
+  static const List<num> _quickGramChips = <num>[50, 100, 150, 200];
+  static const int _defaultGrams = 100;
+
+  final Uuid _uuid = const Uuid();
+  final TextEditingController _searchController = TextEditingController();
+
   Meal? _selectedMeal;
-  final _gramsController = TextEditingController();
-  final _searchController = TextEditingController();
+  int _grams = _defaultGrams;
   String _searchQuery = '';
-  final _uuid = const Uuid();
   late DateTime _selectedDate;
   bool _logCooldownActive = false;
+  bool _keypadOpen = false;
   Timer? _logCooldownTimer;
 
   StreamSubscription<NutritionLogUiEffect>? _nutritionEffectsSub;
@@ -48,8 +64,10 @@ class _LogMealTabState extends State<LogMealTab> {
 
     _selectedDate = widget.initialDate ?? DateTime.now();
 
-    final nutritionBloc = context.read<NutritionLogBloc>();
-    _nutritionEffectsSub = nutritionBloc.effects.listen((effect) {
+    final NutritionLogBloc nutritionBloc = context.read<NutritionLogBloc>();
+    _nutritionEffectsSub = nutritionBloc.effects.listen((
+      NutritionLogUiEffect effect,
+    ) {
       if (!mounted) return;
 
       if (effect is NutritionLogSuccessEffect) {
@@ -80,7 +98,6 @@ class _LogMealTabState extends State<LogMealTab> {
   void dispose() {
     _nutritionEffectsSub?.cancel();
     _logCooldownTimer?.cancel();
-    _gramsController.dispose();
     _searchController.dispose();
     super.dispose();
   }
@@ -88,7 +105,7 @@ class _LogMealTabState extends State<LogMealTab> {
   @override
   Widget build(BuildContext context) {
     return BlocConsumer<NutritionLogBloc, NutritionLogState>(
-      listener: (context, state) {
+      listener: (BuildContext context, NutritionLogState state) {
         if (state is NutritionLogError) {
           ScaffoldMessenger.of(context).showSnackBar(
             SnackBar(
@@ -100,41 +117,90 @@ class _LogMealTabState extends State<LogMealTab> {
           );
         }
       },
-      builder: (context, nutritionState) {
+      builder: (BuildContext context, NutritionLogState nutritionState) {
+        final bool isLoading = nutritionState is NutritionLogLoading;
+        final Meal? meal = _selectedMeal;
+        final bool canLog = meal != null && _grams > 0 && !_logCooldownActive;
+
         return Column(
-          children: [
+          children: <Widget>[
             Expanded(
               child: SingleChildScrollView(
-                padding: const EdgeInsets.all(20),
+                padding: const EdgeInsets.fromLTRB(20, 16, 20, 20),
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    _buildMealSelector(context),
-                    if (_selectedMeal != null) ...[
-                      const SizedBox(height: 20),
-                      _buildAmountInput(),
-                      const SizedBox(height: 20),
-                      _buildDatePicker(context),
-                      const SizedBox(height: 24),
-                      _buildNutritionPreview(),
+                  children: <Widget>[
+                    if (widget.showDatePill) ...<Widget>[
+                      Align(
+                        alignment: Alignment.centerRight,
+                        child: LogDatePill(
+                          date: _selectedDate,
+                          onDateSelected: (DateTime picked) =>
+                              setState(() => _selectedDate = picked),
+                        ),
+                      ),
+                      const SizedBox(height: 12),
                     ],
+                    _buildSearchField(),
+                    const SizedBox(height: 12),
+                    _buildMealList(context),
                   ],
                 ),
               ),
             ),
-            _buildLogButton(nutritionState),
+            if (meal != null)
+              _keypadOpen
+                  ? _buildKeypadDock(meal)
+                  : _buildDock(meal, canLog: canLog, isLoading: isLoading),
           ],
         );
       },
     );
   }
 
-  Widget _buildMealSelector(BuildContext context) {
+  // ─── Search field ─────────────────────────────────────────────────────────
+
+  Widget _buildSearchField() {
+    return SizedBox(
+      height: 44,
+      child: TextField(
+        controller: _searchController,
+        decoration: InputDecoration(
+          hintText: AppStrings.searchMeals,
+          isDense: true,
+          contentPadding: const EdgeInsets.symmetric(
+            horizontal: 12,
+            vertical: 10,
+          ),
+          prefixIcon: const Icon(Icons.search, size: 20),
+          suffixIcon: _searchQuery.isNotEmpty
+              ? IconButton(
+                  icon: const Icon(Icons.clear, size: 18),
+                  onPressed: () {
+                    setState(() {
+                      _searchController.clear();
+                      _searchQuery = '';
+                    });
+                  },
+                )
+              : null,
+        ),
+        onChanged: (String value) => setState(() => _searchQuery = value),
+      ),
+    );
+  }
+
+  // ─── Meal list ────────────────────────────────────────────────────────────
+
+  Widget _buildMealList(BuildContext context) {
     return BlocBuilder<MealBloc, MealState>(
-      builder: (context, state) {
+      builder: (BuildContext context, MealState state) {
         if (state is MealInitial || state is MealLoading) {
-          return const Center(
-            child: CircularProgressIndicator(color: AppTheme.primaryOrange),
+          return const Padding(
+            padding: EdgeInsets.symmetric(vertical: 24),
+            child: Center(
+              child: CircularProgressIndicator(color: AppTheme.primaryOrange),
+            ),
           );
         }
 
@@ -142,60 +208,33 @@ class _LogMealTabState extends State<LogMealTab> {
           return _buildMealErrorState(context);
         }
 
-        final allMeals = state is MealsLoaded ? state.meals : <Meal>[];
+        final List<Meal> allMeals = state is MealsLoaded
+            ? state.meals
+            : const <Meal>[];
 
         if (allMeals.isEmpty) {
           return _buildEmptyMealsState(context);
         }
 
-        final filteredMeals = _searchQuery.isEmpty
+        final String query = _searchQuery.toLowerCase().trim();
+        final List<Meal> filtered = query.isEmpty
             ? allMeals
             : allMeals
-                  .where(
-                    (meal) => meal.name.toLowerCase().contains(
-                      _searchQuery.toLowerCase(),
-                    ),
-                  )
+                  .where((Meal m) => m.name.toLowerCase().contains(query))
                   .toList();
+
+        if (filtered.isEmpty) return _buildNoResultsState();
 
         return Column(
           crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Text(
-              AppStrings.selectMeal,
-              style: Theme.of(
-                context,
-              ).textTheme.titleMedium?.copyWith(fontWeight: FontWeight.w600),
-            ),
-            const SizedBox(height: 12),
-            TextField(
-              controller: _searchController,
-              decoration: InputDecoration(
-                hintText: AppStrings.searchMeals,
-                prefixIcon: const Icon(Icons.search),
-                suffixIcon: _searchQuery.isNotEmpty
-                    ? IconButton(
-                        icon: const Icon(Icons.clear),
-                        onPressed: () {
-                          setState(() {
-                            _searchController.clear();
-                            _searchQuery = '';
-                          });
-                        },
-                      )
-                    : null,
+          children: <Widget>[
+            for (final Meal meal in filtered)
+              MealListRow(
+                key: ValueKey<String>('mealRow-${meal.id}'),
+                meal: meal,
+                isSelected: _selectedMeal?.id == meal.id,
+                onTap: () => setState(() => _selectedMeal = meal),
               ),
-              onChanged: (value) {
-                setState(() {
-                  _searchQuery = value;
-                });
-              },
-            ),
-            const SizedBox(height: 16),
-            if (filteredMeals.isEmpty)
-              _buildNoResultsState()
-            else
-              ...filteredMeals.map((meal) => _buildMealCard(meal)),
           ],
         );
       },
@@ -204,16 +243,16 @@ class _LogMealTabState extends State<LogMealTab> {
 
   Widget _buildMealErrorState(BuildContext context) {
     return Container(
-      padding: const EdgeInsets.all(24),
+      padding: const EdgeInsets.all(20),
       decoration: BoxDecoration(
         color: AppTheme.surfaceDark,
         borderRadius: BorderRadius.circular(12),
         border: Border.all(color: AppTheme.borderDark),
       ),
       child: Column(
-        children: [
-          const Icon(Icons.error_outline, size: 48, color: AppTheme.errorRed),
-          const SizedBox(height: 12),
+        children: <Widget>[
+          const Icon(Icons.error_outline, size: 40, color: AppTheme.errorRed),
+          const SizedBox(height: 10),
           Text(
             AppStrings.errorLoadingMeals,
             style: Theme.of(
@@ -223,9 +262,7 @@ class _LogMealTabState extends State<LogMealTab> {
           ),
           const SizedBox(height: 8),
           ElevatedButton(
-            onPressed: () {
-              context.read<MealBloc>().add(LoadMealsEvent());
-            },
+            onPressed: () => context.read<MealBloc>().add(LoadMealsEvent()),
             child: const Text(AppStrings.retry),
           ),
         ],
@@ -235,20 +272,20 @@ class _LogMealTabState extends State<LogMealTab> {
 
   Widget _buildEmptyMealsState(BuildContext context) {
     return Container(
-      padding: const EdgeInsets.all(24),
+      padding: const EdgeInsets.all(20),
       decoration: BoxDecoration(
         color: AppTheme.surfaceDark,
         borderRadius: BorderRadius.circular(12),
         border: Border.all(color: AppTheme.borderDark),
       ),
       child: Column(
-        children: [
+        children: <Widget>[
           const Icon(
             Icons.restaurant_outlined,
-            size: 48,
+            size: 40,
             color: AppTheme.textDim,
           ),
-          const SizedBox(height: 12),
+          const SizedBox(height: 10),
           Text(
             AppStrings.noMealsInLibrary,
             style: Theme.of(
@@ -256,7 +293,7 @@ class _LogMealTabState extends State<LogMealTab> {
             ).textTheme.titleMedium?.copyWith(fontWeight: FontWeight.w600),
             textAlign: TextAlign.center,
           ),
-          const SizedBox(height: 8),
+          const SizedBox(height: 6),
           Text(
             AppStrings.createMealsInLibrary,
             style: Theme.of(
@@ -271,16 +308,16 @@ class _LogMealTabState extends State<LogMealTab> {
 
   Widget _buildNoResultsState() {
     return Container(
-      padding: const EdgeInsets.all(24),
+      padding: const EdgeInsets.all(20),
       decoration: BoxDecoration(
         color: AppTheme.surfaceDark,
         borderRadius: BorderRadius.circular(12),
         border: Border.all(color: AppTheme.borderDark),
       ),
       child: Column(
-        children: [
-          const Icon(Icons.search_off, size: 48, color: AppTheme.textDim),
-          const SizedBox(height: 12),
+        children: <Widget>[
+          const Icon(Icons.search_off, size: 36, color: AppTheme.textDim),
+          const SizedBox(height: 8),
           Text(
             'No meals found',
             style: Theme.of(
@@ -292,383 +329,268 @@ class _LogMealTabState extends State<LogMealTab> {
     );
   }
 
-  Widget _buildMealCard(Meal meal) {
-    final isSelected = _selectedMeal?.id == meal.id;
-    final calculatedCalories = MacroCalculator.calculateCalories(
-      protein: meal.proteinPerServing,
-      carbs: meal.carbsPerServing,
-      fat: meal.fatsPerServing,
-    );
+  // ─── Dock (normal + keypad) ───────────────────────────────────────────────
 
-    return Card(
-      margin: const EdgeInsets.only(bottom: 12),
-      color: isSelected ? AppTheme.primaryOrange.withValues(alpha: 0.1) : null,
-      shape: RoundedRectangleBorder(
-        borderRadius: BorderRadius.circular(12),
-        side: BorderSide(
-          color: isSelected ? AppTheme.primaryOrange : AppTheme.borderDark,
-          width: isSelected ? 2 : 1,
-        ),
-      ),
-      child: InkWell(
-        onTap: () {
-          setState(() {
-            _selectedMeal = meal;
-          });
-        },
-        borderRadius: BorderRadius.circular(12),
-        child: Padding(
-          padding: const EdgeInsets.all(16),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Row(
-                children: [
-                  Expanded(
-                    child: Text(
-                      meal.name,
-                      style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                        fontWeight: FontWeight.w600,
-                        color: isSelected ? AppTheme.primaryOrange : null,
-                      ),
-                    ),
-                  ),
-                  if (isSelected)
-                    const Icon(
-                      Icons.check_circle,
-                      color: AppTheme.primaryOrange,
-                    ),
-                ],
-              ),
-              const SizedBox(height: 8),
-              Text(
-                '${AppStrings.per100g}: ${meal.servingSizeGrams}g',
-                style: Theme.of(
-                  context,
-                ).textTheme.bodySmall?.copyWith(color: AppTheme.textDim),
-              ),
-              const SizedBox(height: 12),
-              Row(
-                mainAxisAlignment: MainAxisAlignment.spaceAround,
-                children: [
-                  _buildMacroChip(
-                    label: AppStrings.protein,
-                    value: '${meal.proteinPerServing.toStringAsFixed(1)}g',
-                    color: Colors.blue,
-                  ),
-                  _buildMacroChip(
-                    label: AppStrings.carbs,
-                    value: '${meal.carbsPerServing.toStringAsFixed(1)}g',
-                    color: Colors.green,
-                  ),
-                  _buildMacroChip(
-                    label: AppStrings.fats,
-                    value: '${meal.fatsPerServing.toStringAsFixed(1)}g',
-                    color: Colors.orange,
-                  ),
-                  _buildMacroChip(
-                    label: AppStrings.kcal,
-                    value: calculatedCalories.round().toString(),
-                    color: AppTheme.primaryOrange,
-                  ),
-                ],
-              ),
-            ],
-          ),
-        ),
-      ),
-    );
-  }
-
-  Widget _buildMacroChip({
-    required String label,
-    required String value,
-    required Color color,
+  Widget _buildDock(
+    Meal meal, {
+    required bool canLog,
+    required bool isLoading,
   }) {
-    return Column(
-      children: [
-        Text(
-          value,
-          style: TextStyle(
-            color: color,
-            fontWeight: FontWeight.w600,
-            fontSize: 13,
-          ),
-        ),
-        const SizedBox(height: 2),
-        Text(
-          label,
-          style: const TextStyle(color: AppTheme.textDim, fontSize: 11),
-        ),
-      ],
+    return LogActionBar(
+      ctaLabel: AppStrings.logMealButton,
+      ctaIcon: Icons.add_circle_outline,
+      canSubmit: canLog,
+      isLoading: isLoading,
+      onSubmit: _handleLogMeal,
+      previewSlot: _buildDockPreview(meal),
     );
   }
 
-  Widget _buildAmountInput() {
+  Widget _buildDockPreview(Meal meal) {
     return Column(
+      mainAxisSize: MainAxisSize.min,
       crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Text(
-          AppStrings.amountGrams,
-          style: Theme.of(
-            context,
-          ).textTheme.titleMedium?.copyWith(fontWeight: FontWeight.w600),
+      children: <Widget>[
+        // Selected meal name + 'per <grams> g'.
+        Row(
+          children: <Widget>[
+            Expanded(
+              child: Text(
+                meal.name,
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+                style: const TextStyle(
+                  color: AppTheme.primaryOrange,
+                  fontSize: 14,
+                  fontWeight: FontWeight.w700,
+                ),
+              ),
+            ),
+            const SizedBox(width: 8),
+            Text(
+              'per $_grams g',
+              style: const TextStyle(
+                color: AppTheme.textDim,
+                fontSize: 12,
+                fontFeatures: <FontFeature>[FontFeature.tabularFigures()],
+              ),
+            ),
+          ],
         ),
-        const SizedBox(height: 12),
-        TextField(
-          controller: _gramsController,
-          keyboardType: TextInputType.number,
-          inputFormatters: [FilteringTextInputFormatter.digitsOnly],
-          decoration: InputDecoration(
-            hintText: AppStrings.amountGramsHint,
-            prefixIcon: const Icon(Icons.straighten),
-            suffixText: AppStrings.grams,
-          ),
-          onChanged: (value) {
-            setState(() {});
-          },
+        const SizedBox(height: 8),
+        Row(
+          crossAxisAlignment: CrossAxisAlignment.center,
+          children: <Widget>[
+            Expanded(
+              flex: 2,
+              child: LogStepperField(
+                key: const Key('mealGramsStepper'),
+                label: AppStrings.amountGrams,
+                value: _grams,
+                step: 10,
+                onChanged: (num v) => setState(() => _grams = v.round()),
+                onTapValue: () => setState(() => _keypadOpen = true),
+              ),
+            ),
+            const SizedBox(width: 8),
+            Expanded(
+              flex: 3,
+              child: SingleChildScrollView(
+                scrollDirection: Axis.horizontal,
+                child: LogQuickChips(
+                  values: _quickGramChips,
+                  selectedValue: _grams,
+                  onSelected: (num v) => setState(() => _grams = v.round()),
+                ),
+              ),
+            ),
+          ],
         ),
+        const SizedBox(height: 8),
+        _buildThisMealPreview(meal),
       ],
     );
   }
 
-  Widget _buildDatePicker(BuildContext context) {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Text(
-          'Log Date',
-          style: Theme.of(
-            context,
-          ).textTheme.titleMedium?.copyWith(fontWeight: FontWeight.w600),
-        ),
-        const SizedBox(height: 12),
-        InkWell(
-          onTap: () => _selectDate(context),
-          borderRadius: BorderRadius.circular(12),
-          child: Container(
-            padding: const EdgeInsets.all(16),
-            decoration: BoxDecoration(
-              color: AppTheme.surfaceDark,
-              borderRadius: BorderRadius.circular(12),
-              border: Border.all(color: AppTheme.borderDark),
-            ),
-            child: Row(
-              children: [
-                Container(
-                  width: 40,
-                  height: 40,
-                  decoration: BoxDecoration(
-                    color: AppTheme.primaryOrange.withValues(alpha: 0.1),
-                    borderRadius: BorderRadius.circular(8),
-                  ),
-                  child: const Icon(
-                    Icons.calendar_today,
-                    color: AppTheme.primaryOrange,
-                    size: 20,
-                  ),
-                ),
-                const SizedBox(width: 12),
-                Expanded(
-                  child: Text(
-                    DateFormat('EEEE, MMM d, yyyy').format(_selectedDate),
-                    style: Theme.of(context).textTheme.bodyLarge,
-                  ),
-                ),
-                const Icon(Icons.arrow_drop_down, color: AppTheme.textDim),
-              ],
-            ),
-          ),
-        ),
-      ],
-    );
-  }
+  Widget _buildThisMealPreview(Meal meal) {
+    if (_grams <= 0) return const SizedBox.shrink();
 
-  Widget _buildNutritionPreview() {
-    if (_selectedMeal == null || _gramsController.text.isEmpty) {
-      return const SizedBox.shrink();
-    }
-
-    final grams = int.tryParse(_gramsController.text) ?? 0;
-    if (grams <= 0) return const SizedBox.shrink();
-
-    final multiplier = grams / _selectedMeal!.servingSizeGrams;
-    final protein = _selectedMeal!.proteinPerServing * multiplier;
-    final carbs = _selectedMeal!.carbsPerServing * multiplier;
-    final fats = _selectedMeal!.fatsPerServing * multiplier;
-    final calories = MacroCalculator.calculateCalories(
+    // Per plan §4: reuse multiplier = grams / servingSizeGrams from the
+    // current implementation.
+    final double multiplier = _grams / meal.servingSizeGrams;
+    final double protein = meal.proteinPerServing * multiplier;
+    final double carbs = meal.carbsPerServing * multiplier;
+    final double fats = meal.fatsPerServing * multiplier;
+    final double calories = MacroCalculator.calculateCalories(
       protein: protein,
       carbs: carbs,
       fat: fats,
     );
 
+    // % composition by calorie contribution (single text line, D5 default).
+    final double pCals = protein * 4;
+    final double cCals = carbs * 4;
+    final double fCals = fats * 9;
+    final double totalCals = pCals + cCals + fCals;
+    final int pPct = totalCals == 0 ? 0 : (pCals / totalCals * 100).round();
+    final int cPct = totalCals == 0 ? 0 : (cCals / totalCals * 100).round();
+    final int fPct = totalCals == 0 ? 0 : (fCals / totalCals * 100).round();
+
     return Container(
-      padding: const EdgeInsets.all(16),
+      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
       decoration: BoxDecoration(
-        color: AppTheme.primaryOrange.withValues(alpha: 0.1),
-        borderRadius: BorderRadius.circular(12),
-        border: Border.all(
-          color: AppTheme.primaryOrange.withValues(alpha: 0.3),
-        ),
+        color: LogUiColors.rowSurface,
+        borderRadius: BorderRadius.circular(10),
+        border: Border.all(color: AppTheme.borderDark),
       ),
       child: Column(
+        mainAxisSize: MainAxisSize.min,
         crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
+        children: <Widget>[
+          const Text(
+            'This meal',
+            style: TextStyle(
+              color: AppTheme.textDim,
+              fontSize: 11,
+              fontWeight: FontWeight.w500,
+            ),
+          ),
+          const SizedBox(height: 6),
           Row(
-            children: [
-              const Icon(
-                Icons.info_outline,
-                color: AppTheme.primaryOrange,
-                size: 20,
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: <Widget>[
+              _previewStat(
+                label: AppStrings.protein,
+                value: '${protein.round()}g',
+                color: LogUiColors.protein,
               ),
-              const SizedBox(width: 8),
-              Text(
-                'Nutrition for ${grams}g',
-                style: Theme.of(context).textTheme.titleSmall?.copyWith(
-                  color: AppTheme.primaryOrange,
-                  fontWeight: FontWeight.w600,
-                ),
+              _previewStat(
+                label: AppStrings.carbs,
+                value: '${carbs.round()}g',
+                color: LogUiColors.carbs,
+              ),
+              _previewStat(
+                label: AppStrings.fats,
+                value: '${fats.round()}g',
+                color: LogUiColors.fats,
+              ),
+              Container(width: 1, height: 22, color: AppTheme.borderDark),
+              _previewStat(
+                label: AppStrings.kcal,
+                value: '${calories.round()}',
+                color: AppTheme.primaryOrangeLight,
               ),
             ],
           ),
-          const SizedBox(height: 16),
-          Row(
-            mainAxisAlignment: MainAxisAlignment.spaceAround,
-            children: [
-              _buildNutritionItem(
-                label: AppStrings.protein,
-                value: '${protein.toStringAsFixed(1)}g',
-                color: Colors.blue,
+          const SizedBox(height: 6),
+          RichText(
+            text: TextSpan(
+              style: const TextStyle(
+                fontSize: 11,
+                fontFeatures: <FontFeature>[FontFeature.tabularFigures()],
               ),
-              _buildNutritionItem(
-                label: AppStrings.carbs,
-                value: '${carbs.toStringAsFixed(1)}g',
-                color: Colors.green,
-              ),
-              _buildNutritionItem(
-                label: AppStrings.fats,
-                value: '${fats.toStringAsFixed(1)}g',
-                color: Colors.orange,
-              ),
-              _buildNutritionItem(
-                label: AppStrings.calories,
-                value: '${calories.round()}',
-                color: AppTheme.primaryOrange,
-              ),
-            ],
+              children: <InlineSpan>[
+                TextSpan(
+                  text: '$pPct% protein',
+                  style: const TextStyle(color: LogUiColors.protein),
+                ),
+                const TextSpan(
+                  text: ' · ',
+                  style: TextStyle(color: AppTheme.textDim),
+                ),
+                TextSpan(
+                  text: '$cPct% carbs',
+                  style: const TextStyle(color: LogUiColors.carbs),
+                ),
+                const TextSpan(
+                  text: ' · ',
+                  style: TextStyle(color: AppTheme.textDim),
+                ),
+                TextSpan(
+                  text: '$fPct% fats',
+                  style: const TextStyle(color: LogUiColors.fats),
+                ),
+              ],
+            ),
           ),
         ],
       ),
     );
   }
 
-  Widget _buildNutritionItem({
+  Widget _previewStat({
     required String label,
     required String value,
     required Color color,
   }) {
     return Column(
-      children: [
+      mainAxisSize: MainAxisSize.min,
+      crossAxisAlignment: CrossAxisAlignment.center,
+      children: <Widget>[
         Text(
           value,
           style: TextStyle(
             color: color,
-            fontWeight: FontWeight.bold,
-            fontSize: 16,
+            fontSize: 15,
+            fontWeight: FontWeight.w700,
+            fontFeatures: const <FontFeature>[FontFeature.tabularFigures()],
           ),
         ),
-        const SizedBox(height: 4),
         Text(
           label,
-          style: const TextStyle(color: AppTheme.textMedium, fontSize: 12),
+          style: const TextStyle(color: AppTheme.textDim, fontSize: 10),
         ),
       ],
     );
   }
 
-  Widget _buildLogButton(NutritionLogState state) {
-    final isLoading = state is NutritionLogLoading;
-    final canLog =
-        _selectedMeal != null &&
-        _gramsController.text.isNotEmpty &&
-        (int.tryParse(_gramsController.text) ?? 0) > 0 &&
-        !_logCooldownActive;
-
+  Widget _buildKeypadDock(Meal meal) {
     return Container(
-      padding: const EdgeInsets.all(20),
       decoration: BoxDecoration(
         color: AppTheme.surfaceDark,
-        border: Border(top: BorderSide(color: AppTheme.borderDark, width: 1)),
+        border: const Border(top: BorderSide(color: AppTheme.borderDark)),
+        boxShadow: <BoxShadow>[
+          BoxShadow(
+            color: Colors.black.withValues(alpha: 0.25),
+            blurRadius: 8,
+            offset: const Offset(0, -2),
+          ),
+        ],
       ),
       child: SafeArea(
-        child: SizedBox(
-          width: double.infinity,
-          child: ElevatedButton(
-            onPressed: (canLog && !isLoading) ? _handleLogMeal : null,
-            style: ElevatedButton.styleFrom(
-              padding: const EdgeInsets.symmetric(vertical: 16),
-            ),
-            child: isLoading
-                ? const SizedBox(
-                    height: 20,
-                    width: 20,
-                    child: CircularProgressIndicator(
-                      strokeWidth: 2,
-                      color: Colors.white,
-                    ),
-                  )
-                : const Text(
-                    AppStrings.logMealButton,
-                    style: TextStyle(fontSize: 16, fontWeight: FontWeight.w600),
-                  ),
-          ),
+        top: false,
+        child: LogNumericKeypad(
+          initialValue: _grams,
+          label: 'grams',
+          unitSuffix: 'g',
+          maxIntegerDigits: 4,
+          onSubmit: (num value) => setState(() {
+            _grams = value.round();
+            _keypadOpen = false;
+          }),
+          onCancel: () => setState(() => _keypadOpen = false),
         ),
       ),
     );
   }
 
-  Future<void> _selectDate(BuildContext context) async {
-    final picked = await showDatePicker(
-      context: context,
-      initialDate: _selectedDate,
-      firstDate: DateTime(2020),
-      lastDate: DateTime.now(),
-      builder: (context, child) {
-        return Theme(
-          data: Theme.of(context).copyWith(
-            colorScheme: const ColorScheme.dark(
-              primary: AppTheme.primaryOrange,
-              onPrimary: Colors.white,
-              surface: AppTheme.surfaceDark,
-              onSurface: AppTheme.textLight,
-            ),
-          ),
-          child: child!,
-        );
-      },
-    );
-
-    if (picked != null && picked != _selectedDate) {
-      setState(() {
-        _selectedDate = picked;
-      });
-    }
-  }
+  // ─── Log handler ──────────────────────────────────────────────────────────
 
   void _handleLogMeal() {
-    if (_selectedMeal == null) return;
+    final Meal? meal = _selectedMeal;
+    if (meal == null) return;
+    if (_grams <= 0) return;
 
-    final grams = int.parse(_gramsController.text);
-    final multiplier = grams / _selectedMeal!.servingSizeGrams;
-    final loggedProtein = _selectedMeal!.proteinPerServing * multiplier;
-    final loggedCarbs = _selectedMeal!.carbsPerServing * multiplier;
-    final loggedFat = _selectedMeal!.fatsPerServing * multiplier;
+    final double multiplier = _grams / meal.servingSizeGrams;
+    final double loggedProtein = meal.proteinPerServing * multiplier;
+    final double loggedCarbs = meal.carbsPerServing * multiplier;
+    final double loggedFat = meal.fatsPerServing * multiplier;
 
-    final nutritionLog = NutritionLog(
+    final NutritionLog nutritionLog = NutritionLog(
       id: _uuid.v4(),
-      mealId: _selectedMeal!.id,
-      mealName: _selectedMeal!.name,
-      gramsConsumed: grams.toDouble(),
+      mealId: meal.id,
+      mealName: meal.name,
+      gramsConsumed: _grams.toDouble(),
       proteinGrams: loggedProtein,
       carbsGrams: loggedCarbs,
       fatGrams: loggedFat,
@@ -685,7 +607,7 @@ class _LogMealTabState extends State<LogMealTab> {
   }
 
   DateTime _combineDateWithCurrentTime(DateTime date) {
-    final now = DateTime.now();
+    final DateTime now = DateTime.now();
     return DateTime(
       date.year,
       date.month,
