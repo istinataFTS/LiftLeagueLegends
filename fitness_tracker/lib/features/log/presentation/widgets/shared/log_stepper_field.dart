@@ -103,11 +103,15 @@ class LogStepperField extends StatelessWidget {
                   ),
                 ),
               ),
-              // Value display
+              // Value display — FittedBox(scaleDown) guarantees the
+              // number + unit + edit-icon cluster shrinks to fit its slot
+              // instead of painting a RenderFlex overflow stripe, however
+              // narrow the column or however many digits the value grows to.
               Expanded(
                 child: GestureDetector(
                   onTap: onTapValue,
-                  child: Center(
+                  child: FittedBox(
+                    fit: BoxFit.scaleDown,
                     child: Row(
                       mainAxisSize: MainAxisSize.min,
                       crossAxisAlignment: CrossAxisAlignment.center,
