@@ -5,6 +5,7 @@ import '../../../../core/bloc/bloc_effects_mixin.dart';
 import '../../../../core/constants/app_strings.dart';
 import '../../../../core/constants/muscle_groups.dart';
 import '../../../../core/logging/app_logger.dart';
+import '../../../../core/utils/week_date_utils.dart';
 import '../../../../domain/entities/exercise.dart';
 import '../../../../domain/entities/muscle_visual_data.dart';
 import '../../../../domain/entities/time_period.dart';
@@ -265,12 +266,17 @@ class WorkoutBloc extends Bloc<WorkoutEvent, WorkoutState>
     double volumeTodayKg = 0;
     for (final set in weeklySets) {
       if (set.exerciseId != exercise.id) continue;
-      if (!_isSameDay(set.date, now)) continue;
+      if (!WeekDateUtils.isSameDay(set.date, now)) continue;
       setsToday += 1;
       volumeTodayKg += set.weight * set.reps;
     }
 
-    final prResult = await getExercisePersonalRecord(exercise.id);
+    // The PR read and the fatigue-map read are independent — kick both off
+    // before awaiting either so they run in parallel.
+    final prFuture = getExercisePersonalRecord(exercise.id);
+    final muscleFuture = getMuscleVisualData(TimePeriod.week);
+
+    final prResult = await prFuture;
     final WorkoutSet? personalRecord = prResult.fold((failure) {
       AppLogger.warning(
         'getExercisePersonalRecord failed: ${failure.message}',
@@ -279,7 +285,7 @@ class WorkoutBloc extends Bloc<WorkoutEvent, WorkoutState>
       return null;
     }, (set) => set);
 
-    final muscleResult = await getMuscleVisualData(TimePeriod.week);
+    final muscleResult = await muscleFuture;
     final Map<String, MuscleVisualData> visualByGranular = muscleResult.fold((
       failure,
     ) {
@@ -321,9 +327,6 @@ class WorkoutBloc extends Bloc<WorkoutEvent, WorkoutState>
       muscles: muscles,
     );
   }
-
-  bool _isSameDay(DateTime a, DateTime b) =>
-      a.year == b.year && a.month == b.month && a.day == b.day;
 
   List<WorkoutSet> get cachedWeeklySets => _cachedWeeklySets;
 }
