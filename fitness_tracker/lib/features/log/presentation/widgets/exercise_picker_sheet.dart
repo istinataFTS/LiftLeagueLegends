@@ -254,23 +254,98 @@ class _ExercisePickerSheetState extends State<ExercisePickerSheet> {
   Widget _buildExerciseTile(Exercise exercise) {
     final bool isSelected = widget.selected?.id == exercise.id;
 
-    return ListTile(
-      title: Text(
-        exercise.name,
-        style: Theme.of(context).textTheme.bodyLarge?.copyWith(
-          fontWeight: isSelected ? FontWeight.w600 : FontWeight.normal,
+    return Material(
+      color: isSelected
+          ? AppTheme.primaryOrange.withValues(alpha: 0.07)
+          : Colors.transparent,
+      child: InkWell(
+        onTap: () => Navigator.pop(context, exercise),
+        child: Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+          child: Row(
+            crossAxisAlignment: CrossAxisAlignment.center,
+            children: <Widget>[
+              _buildLeadingTile(isSelected),
+              const SizedBox(width: 12),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  mainAxisSize: MainAxisSize.min,
+                  children: <Widget>[
+                    Text(
+                      exercise.name,
+                      style: Theme.of(context).textTheme.bodyLarge?.copyWith(
+                        color: isSelected
+                            ? AppTheme.primaryOrange
+                            : AppTheme.textLight,
+                        fontWeight: isSelected
+                            ? FontWeight.w600
+                            : FontWeight.w500,
+                      ),
+                    ),
+                    if (exercise.muscleGroups.isNotEmpty) ...<Widget>[
+                      const SizedBox(height: 6),
+                      _buildMusclePills(exercise.muscleGroups, isSelected),
+                    ],
+                  ],
+                ),
+              ),
+              if (isSelected) ...<Widget>[
+                const SizedBox(width: 8),
+                const Icon(Icons.check_circle, color: AppTheme.primaryOrange),
+              ],
+            ],
+          ),
         ),
       ),
-      subtitle: Text(
-        exercise.muscleGroups.map(MuscleGroups.getDisplayName).join(', '),
-        style: Theme.of(
-          context,
-        ).textTheme.bodySmall?.copyWith(color: AppTheme.textMedium),
+    );
+  }
+
+  Widget _buildLeadingTile(bool isSelected) {
+    return Container(
+      width: 38,
+      height: 38,
+      decoration: BoxDecoration(
+        gradient: isSelected ? AppTheme.primaryGradient : null,
+        color: isSelected ? null : AppTheme.surfaceMedium,
+        borderRadius: BorderRadius.circular(10),
       ),
-      trailing: isSelected
-          ? const Icon(Icons.check_circle, color: AppTheme.primaryOrange)
-          : null,
-      onTap: () => Navigator.pop(context, exercise),
+      child: Icon(
+        Icons.fitness_center,
+        size: 18,
+        color: isSelected ? Colors.white : AppTheme.textDim,
+      ),
+    );
+  }
+
+  Widget _buildMusclePills(List<String> muscles, bool rowSelected) {
+    final Color bg = rowSelected
+        ? AppTheme.primaryOrange.withValues(alpha: 0.20)
+        : AppTheme.info.withValues(alpha: 0.16);
+    final Color fg = rowSelected ? AppTheme.primaryOrangeLight : AppTheme.info;
+
+    return Wrap(
+      spacing: 6,
+      runSpacing: 4,
+      children: muscles
+          .map(
+            (String mg) => Container(
+              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+              decoration: BoxDecoration(
+                color: bg,
+                borderRadius: BorderRadius.circular(11),
+              ),
+              child: Text(
+                MuscleGroups.getDisplayName(mg),
+                style: TextStyle(
+                  color: fg,
+                  fontSize: 11.5,
+                  fontWeight: FontWeight.w500,
+                ),
+              ),
+            ),
+          )
+          .toList(),
     );
   }
 }
