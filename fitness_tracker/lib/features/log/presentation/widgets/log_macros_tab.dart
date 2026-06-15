@@ -136,8 +136,6 @@ class _LogMacrosTabState extends State<LogMacrosTab> {
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: <Widget>[
-                    _buildInfoLine(context),
-                    const SizedBox(height: 16),
                     _buildMacroRow(
                       label: AppStrings.protein,
                       value: _protein,
@@ -185,26 +183,6 @@ class _LogMacrosTabState extends State<LogMacrosTab> {
     );
   }
 
-  // ─── Info line (spec §5.3) ────────────────────────────────────────────────
-
-  Widget _buildInfoLine(BuildContext context) {
-    return Row(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: <Widget>[
-        const Icon(Icons.info_outline, color: AppTheme.textDim, size: 16),
-        const SizedBox(width: 8),
-        Expanded(
-          child: Text(
-            'No meal in your library? Enter macros directly.',
-            style: Theme.of(
-              context,
-            ).textTheme.bodySmall?.copyWith(color: AppTheme.textDim),
-          ),
-        ),
-      ],
-    );
-  }
-
   // ─── Macro row (dot + name + stepper) (spec §5.4) ─────────────────────────
 
   Widget _buildMacroRow({
@@ -245,6 +223,7 @@ class _LogMacrosTabState extends State<LogMacrosTab> {
             accentColor: color,
             onChanged: onChanged,
             onTapValue: onTapValue,
+            dense: true,
           ),
         ),
       ],
