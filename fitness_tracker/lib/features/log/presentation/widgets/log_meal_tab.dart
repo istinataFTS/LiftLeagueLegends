@@ -8,16 +8,19 @@ import 'package:uuid/uuid.dart';
 import '../../../../core/constants/app_strings.dart';
 import '../../../../core/themes/app_theme.dart';
 import '../../../../core/utils/macro_calculator.dart';
+import '../../../../core/utils/week_date_utils.dart';
 import '../../../../domain/entities/meal.dart';
 import '../../../../domain/entities/nutrition_log.dart';
 import '../../../library/application/meal_bloc.dart';
 import '../../application/nutrition_log_bloc.dart';
-import 'meal_list_row.dart';
+import 'meal_picker_sheet.dart';
 import 'shared/log_action_bar.dart';
 import 'shared/log_numeric_keypad.dart';
 import 'shared/log_quick_chips.dart';
 import 'shared/log_stepper_field.dart';
+import 'shared/log_today_so_far_card.dart';
 import 'shared/log_ui_colors.dart';
+import 'shared/macro_composition_bar.dart';
 
 class LogMealTab extends StatefulWidget {
   const LogMealTab({
@@ -40,11 +43,9 @@ class _LogMealTabState extends State<LogMealTab> {
   static const int _defaultGrams = 100;
 
   final Uuid _uuid = const Uuid();
-  final TextEditingController _searchController = TextEditingController();
 
   Meal? _selectedMeal;
   int _grams = _defaultGrams;
-  String _searchQuery = '';
   late DateTime _selectedDate;
   bool _logCooldownActive = false;
   bool _keypadOpen = false;
@@ -59,6 +60,17 @@ class _LogMealTabState extends State<LogMealTab> {
     _selectedDate = widget.initialDate ?? DateTime.now();
 
     final NutritionLogBloc nutritionBloc = context.read<NutritionLogBloc>();
+
+    // Safety-net load so Today-so-far + recents populate when the standalone
+    // Log page opens this tab first. Skip if the bloc already holds this date.
+    final NutritionLogState current = nutritionBloc.state;
+    final bool alreadyLoadedForDate =
+        current is DailyLogsLoaded &&
+        WeekDateUtils.isSameDay(current.date, _selectedDate);
+    if (!alreadyLoadedForDate) {
+      nutritionBloc.add(LoadDailyLogsEvent(_selectedDate));
+    }
+
     _nutritionEffectsSub = nutritionBloc.effects.listen((
       NutritionLogUiEffect effect,
     ) {
@@ -92,7 +104,6 @@ class _LogMealTabState extends State<LogMealTab> {
   void dispose() {
     _nutritionEffectsSub?.cancel();
     _logCooldownTimer?.cancel();
-    _searchController.dispose();
     super.dispose();
   }
 
@@ -124,9 +135,12 @@ class _LogMealTabState extends State<LogMealTab> {
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: <Widget>[
-                    _buildSearchField(),
-                    const SizedBox(height: 12),
-                    _buildMealList(context),
+                    _buildSelectMealBar(context, nutritionState),
+                    const SizedBox(height: 16),
+                    LogTodaySoFarCard(
+                      state: nutritionState,
+                      selectedDate: _selectedDate,
+                    ),
                   ],
                 ),
               ),
@@ -141,175 +155,102 @@ class _LogMealTabState extends State<LogMealTab> {
     );
   }
 
-  // ─── Search field ─────────────────────────────────────────────────────────
+  // ─── Select-meal bar (opens the picker sheet) ─────────────────────────────
 
-  Widget _buildSearchField() {
-    return SizedBox(
-      height: 44,
-      child: TextField(
-        controller: _searchController,
-        decoration: InputDecoration(
-          hintText: AppStrings.searchMeals,
-          isDense: true,
-          contentPadding: const EdgeInsets.symmetric(
-            horizontal: 12,
-            vertical: 10,
-          ),
-          prefixIcon: const Icon(Icons.search, size: 20),
-          suffixIcon: _searchQuery.isNotEmpty
-              ? IconButton(
-                  icon: const Icon(Icons.clear, size: 18),
-                  onPressed: () {
-                    setState(() {
-                      _searchController.clear();
-                      _searchQuery = '';
-                    });
-                  },
-                )
-              : null,
-        ),
-        onChanged: (String value) => setState(() => _searchQuery = value),
-      ),
-    );
-  }
-
-  // ─── Meal list ────────────────────────────────────────────────────────────
-
-  Widget _buildMealList(BuildContext context) {
+  Widget _buildSelectMealBar(
+    BuildContext context,
+    NutritionLogState nutritionState,
+  ) {
     return BlocBuilder<MealBloc, MealState>(
-      builder: (BuildContext context, MealState state) {
-        if (state is MealInitial || state is MealLoading) {
-          return const Padding(
-            padding: EdgeInsets.symmetric(vertical: 24),
-            child: Center(
-              child: CircularProgressIndicator(color: AppTheme.primaryOrange),
-            ),
-          );
-        }
-
-        if (state is MealError) {
-          return _buildMealErrorState(context);
-        }
-
-        final List<Meal> allMeals = state is MealsLoaded
-            ? state.meals
+      builder: (BuildContext context, MealState mealState) {
+        final List<Meal> meals = mealState is MealsLoaded
+            ? mealState.meals
             : const <Meal>[];
 
-        if (allMeals.isEmpty) {
-          return _buildEmptyMealsState(context);
-        }
-
-        final String query = _searchQuery.toLowerCase().trim();
-        final List<Meal> filtered = query.isEmpty
-            ? allMeals
-            : allMeals
-                  .where((Meal m) => m.name.toLowerCase().contains(query))
-                  .toList();
-
-        if (filtered.isEmpty) return _buildNoResultsState();
-
-        return Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: <Widget>[
-            for (final Meal meal in filtered)
-              MealListRow(
-                key: ValueKey<String>('mealRow-${meal.id}'),
-                meal: meal,
-                isSelected: _selectedMeal?.id == meal.id,
-                onTap: () => setState(() => _selectedMeal = meal),
+        return Material(
+          color: Colors.transparent,
+          child: InkWell(
+            borderRadius: BorderRadius.circular(12),
+            onTap: () => _openMealPicker(context, meals, nutritionState),
+            child: Container(
+              padding: const EdgeInsets.all(16),
+              decoration: BoxDecoration(
+                color: AppTheme.surfaceDark,
+                borderRadius: BorderRadius.circular(12),
+                border: Border.all(color: AppTheme.borderDark),
               ),
-          ],
+              child: Row(
+                children: <Widget>[
+                  Container(
+                    width: 40,
+                    height: 40,
+                    decoration: BoxDecoration(
+                      gradient: AppTheme.primaryGradient,
+                      borderRadius: BorderRadius.circular(8),
+                    ),
+                    child: const Icon(
+                      Icons.restaurant,
+                      color: Colors.white,
+                      size: 20,
+                    ),
+                  ),
+                  const SizedBox(width: 12),
+                  Expanded(
+                    child: Text(
+                      _selectedMeal?.name ?? AppStrings.selectMeal,
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: TextStyle(
+                        color: _selectedMeal == null
+                            ? AppTheme.textLight
+                            : AppTheme.primaryOrange,
+                        fontSize: 15,
+                        fontWeight: FontWeight.w600,
+                      ),
+                    ),
+                  ),
+                  const SizedBox(width: 8),
+                  const Icon(Icons.expand_more, color: AppTheme.textDim),
+                ],
+              ),
+            ),
+          ),
         );
       },
     );
   }
 
-  Widget _buildMealErrorState(BuildContext context) {
-    return Container(
-      padding: const EdgeInsets.all(20),
-      decoration: BoxDecoration(
-        color: AppTheme.surfaceDark,
-        borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: AppTheme.borderDark),
-      ),
-      child: Column(
-        children: <Widget>[
-          const Icon(Icons.error_outline, size: 40, color: AppTheme.errorRed),
-          const SizedBox(height: 10),
-          Text(
-            AppStrings.errorLoadingMeals,
-            style: Theme.of(
-              context,
-            ).textTheme.titleMedium?.copyWith(fontWeight: FontWeight.w600),
-            textAlign: TextAlign.center,
-          ),
-          const SizedBox(height: 8),
-          ElevatedButton(
-            onPressed: () => context.read<MealBloc>().add(LoadMealsEvent()),
-            child: const Text(AppStrings.retry),
-          ),
-        ],
-      ),
+  Future<void> _openMealPicker(
+    BuildContext context,
+    List<Meal> meals,
+    NutritionLogState nutritionState,
+  ) async {
+    final List<String> recentIds = _buildRecentMealIds(nutritionState);
+    final Meal? picked = await MealPickerSheet.show(
+      context,
+      meals: meals,
+      recentMealIds: recentIds,
+      selected: _selectedMeal,
     );
+    if (!mounted) return;
+    if (picked != null) {
+      setState(() => _selectedMeal = picked);
+    }
   }
 
-  Widget _buildEmptyMealsState(BuildContext context) {
-    return Container(
-      padding: const EdgeInsets.all(20),
-      decoration: BoxDecoration(
-        color: AppTheme.surfaceDark,
-        borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: AppTheme.borderDark),
-      ),
-      child: Column(
-        children: <Widget>[
-          const Icon(
-            Icons.restaurant_outlined,
-            size: 40,
-            color: AppTheme.textDim,
-          ),
-          const SizedBox(height: 10),
-          Text(
-            AppStrings.noMealsInLibrary,
-            style: Theme.of(
-              context,
-            ).textTheme.titleMedium?.copyWith(fontWeight: FontWeight.w600),
-            textAlign: TextAlign.center,
-          ),
-          const SizedBox(height: 6),
-          Text(
-            AppStrings.createMealsInLibrary,
-            style: Theme.of(
-              context,
-            ).textTheme.bodyMedium?.copyWith(color: AppTheme.textMedium),
-            textAlign: TextAlign.center,
-          ),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildNoResultsState() {
-    return Container(
-      padding: const EdgeInsets.all(20),
-      decoration: BoxDecoration(
-        color: AppTheme.surfaceDark,
-        borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: AppTheme.borderDark),
-      ),
-      child: Column(
-        children: <Widget>[
-          const Icon(Icons.search_off, size: 36, color: AppTheme.textDim),
-          const SizedBox(height: 8),
-          Text(
-            'No meals found',
-            style: Theme.of(
-              context,
-            ).textTheme.bodyMedium?.copyWith(color: AppTheme.textMedium),
-          ),
-        ],
-      ),
-    );
+  List<String> _buildRecentMealIds(NutritionLogState state) {
+    if (state is! DailyLogsLoaded) return const <String>[];
+    final List<NutritionLog> sorted = List<NutritionLog>.from(state.logs)
+      ..sort(
+        (NutritionLog a, NutritionLog b) => b.loggedAt.compareTo(a.loggedAt),
+      );
+    final Set<String> seen = <String>{};
+    return sorted
+        .map((NutritionLog l) => l.mealId)
+        .whereType<String>()
+        .where(seen.add)
+        .take(5)
+        .toList();
   }
 
   // ─── Dock (normal + keypad) ───────────────────────────────────────────────
@@ -399,8 +340,6 @@ class _LogMealTabState extends State<LogMealTab> {
     if (_grams <= 0) return const SizedBox.shrink();
     if (meal.servingSizeGrams <= 0) return const SizedBox.shrink();
 
-    // Per plan §4: reuse multiplier = grams / servingSizeGrams from the
-    // current implementation.
     final double multiplier = _grams / meal.servingSizeGrams;
     final double protein = meal.proteinPerServing * multiplier;
     final double carbs = meal.carbsPerServing * multiplier;
@@ -410,15 +349,6 @@ class _LogMealTabState extends State<LogMealTab> {
       carbs: carbs,
       fat: fats,
     );
-
-    // % composition by calorie contribution (single text line, D5 default).
-    final double pCals = protein * 4;
-    final double cCals = carbs * 4;
-    final double fCals = fats * 9;
-    final double totalCals = pCals + cCals + fCals;
-    final int pPct = totalCals == 0 ? 0 : (pCals / totalCals * 100).round();
-    final int cPct = totalCals == 0 ? 0 : (cCals / totalCals * 100).round();
-    final int fPct = totalCals == 0 ? 0 : (fCals / totalCals * 100).round();
 
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
@@ -431,15 +361,6 @@ class _LogMealTabState extends State<LogMealTab> {
         mainAxisSize: MainAxisSize.min,
         crossAxisAlignment: CrossAxisAlignment.start,
         children: <Widget>[
-          const Text(
-            'This meal',
-            style: TextStyle(
-              color: AppTheme.textDim,
-              fontSize: 11,
-              fontWeight: FontWeight.w500,
-            ),
-          ),
-          const SizedBox(height: 6),
           Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: <Widget>[
@@ -466,35 +387,13 @@ class _LogMealTabState extends State<LogMealTab> {
               ),
             ],
           ),
-          const SizedBox(height: 6),
-          RichText(
-            text: TextSpan(
-              style: const TextStyle(
-                fontSize: 11,
-                fontFeatures: <FontFeature>[FontFeature.tabularFigures()],
-              ),
-              children: <InlineSpan>[
-                TextSpan(
-                  text: '$pPct% protein',
-                  style: const TextStyle(color: LogUiColors.protein),
-                ),
-                const TextSpan(
-                  text: ' · ',
-                  style: TextStyle(color: AppTheme.textDim),
-                ),
-                TextSpan(
-                  text: '$cPct% carbs',
-                  style: const TextStyle(color: LogUiColors.carbs),
-                ),
-                const TextSpan(
-                  text: ' · ',
-                  style: TextStyle(color: AppTheme.textDim),
-                ),
-                TextSpan(
-                  text: '$fPct% fats',
-                  style: const TextStyle(color: LogUiColors.fats),
-                ),
-              ],
+          const SizedBox(height: 8),
+          Semantics(
+            label: 'This entry macro composition',
+            child: MacroCompositionBar(
+              proteinGrams: protein,
+              carbsGrams: carbs,
+              fatsGrams: fats,
             ),
           ),
         ],
