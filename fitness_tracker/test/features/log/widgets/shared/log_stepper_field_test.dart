@@ -9,10 +9,10 @@ void main() {
     num value = 10,
     ValueChanged<num>? onChanged,
     VoidCallback? onTapValue,
-    String unitSuffix = '',
     num step = 1,
     num min = 0,
     bool allowDecimal = false,
+    bool dense = false,
     double? width,
   }) {
     final Widget field = LogStepperField(
@@ -20,10 +20,10 @@ void main() {
       value: value,
       onChanged: onChanged ?? (_) {},
       onTapValue: onTapValue,
-      unitSuffix: unitSuffix,
       step: step,
       min: min,
       allowDecimal: allowDecimal,
+      dense: dense,
     );
 
     return AppShell(
@@ -42,15 +42,6 @@ void main() {
 
       expect(find.text('Reps'), findsOneWidget);
       expect(find.text('10'), findsOneWidget);
-    });
-
-    testWidgets('renders unit suffix when provided', (tester) async {
-      await tester.pumpWidget(
-        buildSubject(value: 80, unitSuffix: 'kg', allowDecimal: true),
-      );
-      await tester.pumpAndSettle();
-
-      expect(find.text('kg'), findsOneWidget);
     });
 
     testWidgets('tapping + calls onChanged with incremented value', (
@@ -109,20 +100,6 @@ void main() {
       expect(tapped, isTrue);
     });
 
-    testWidgets('shows edit icon when onTapValue is provided', (tester) async {
-      await tester.pumpWidget(buildSubject(value: 10, onTapValue: () {}));
-      await tester.pumpAndSettle();
-
-      expect(find.byIcon(Icons.edit), findsOneWidget);
-    });
-
-    testWidgets('no edit icon when onTapValue is null', (tester) async {
-      await tester.pumpWidget(buildSubject(value: 10));
-      await tester.pumpAndSettle();
-
-      expect(find.byIcon(Icons.edit), findsNothing);
-    });
-
     testWidgets('decimal value shows one decimal place', (tester) async {
       await tester.pumpWidget(buildSubject(value: 80.0, allowDecimal: true));
       await tester.pumpAndSettle();
@@ -148,11 +125,10 @@ void main() {
       expect(received, equals(82.5));
     });
 
-    // Regression: the value cluster (number + unit + edit icon) must never
-    // overflow its slot, however narrow the column or however many digits the
-    // value grows to. Before the FittedBox fix this painted the
-    // "OVERFLOWED BY x PIXELS" stripe (e.g. the Meal-tab amount stepper, which
-    // lives in a tight flex:2 slot).
+    // Regression: the value text must never overflow its slot, however narrow
+    // the column or however many digits the value grows to. Before the
+    // FittedBox fix this painted the "OVERFLOWED BY x PIXELS" stripe (e.g.
+    // the Meal-tab amount stepper, which lives in a tight flex:2 slot).
     testWidgets('does not overflow in a narrow slot with a long value', (
       tester,
     ) async {
@@ -161,7 +137,6 @@ void main() {
           width: 120,
           label: 'Amount (grams)',
           value: 100000,
-          unitSuffix: 'g',
           onTapValue: () {},
         ),
       );
@@ -189,5 +164,63 @@ void main() {
         expect(tester.takeException(), isNull);
       },
     );
+
+    group('dense', () {
+      testWidgets('hides label text but keeps ± and value', (tester) async {
+        await tester.pumpWidget(
+          buildSubject(label: 'Protein', value: 42, dense: true),
+        );
+        await tester.pumpAndSettle();
+
+        expect(find.text('Protein'), findsNothing);
+        expect(find.text('−'), findsOneWidget);
+        expect(find.text('42'), findsOneWidget);
+        expect(find.text('+'), findsOneWidget);
+      });
+
+      testWidgets('keeps 44dp hit targets on ± buttons', (tester) async {
+        await tester.pumpWidget(buildSubject(value: 10, dense: true));
+        await tester.pumpAndSettle();
+
+        final Size minus = tester.getSize(find.text('−').first);
+        final Size plus = tester.getSize(find.text('+').first);
+        // The Text itself is smaller than the SizedBox; assert the wrapping
+        // SizedBox(width: 44, height: 44) is honoured by the parent.
+        final Size minusBox = tester.getSize(
+          find
+              .ancestor(of: find.text('−'), matching: find.byType(SizedBox))
+              .first,
+        );
+        final Size plusBox = tester.getSize(
+          find
+              .ancestor(of: find.text('+'), matching: find.byType(SizedBox))
+              .first,
+        );
+        expect(minusBox.width, 44);
+        expect(minusBox.height, 44);
+        expect(plusBox.width, 44);
+        expect(plusBox.height, 44);
+        expect(minus.width, lessThanOrEqualTo(44));
+        expect(plus.width, lessThanOrEqualTo(44));
+      });
+
+      testWidgets('does not overflow in narrow slot with long value', (
+        tester,
+      ) async {
+        await tester.pumpWidget(
+          buildSubject(
+            width: 110,
+            label: 'Protein',
+            value: 999999,
+            dense: true,
+            onTapValue: () {},
+          ),
+        );
+        await tester.pumpAndSettle();
+
+        expect(find.text('999999'), findsOneWidget);
+        expect(tester.takeException(), isNull);
+      });
+    });
   });
 }

@@ -6,8 +6,12 @@ import 'package:flutter/services.dart';
 import '../../../../../core/themes/app_theme.dart';
 
 /// Bordered stepper cell: label on top, [− value +] row below.
-/// The value text is tappable (dashed underline + edit icon) and calls [onTapValue]
+/// The value text is tappable (dashed underline) and calls [onTapValue]
 /// to open a [LogNumericKeypad] in the parent's dock.
+///
+/// Set [dense] to drop the top label row + outer vertical paddings for a
+/// compact single-line variant (used by the Macros tab P/C/F rows). The 44×44
+/// ±-button hit targets stay; only the label row collapses.
 ///
 /// All ±/value interactions emit via [onChanged]; parent owns the value.
 class LogStepperField extends StatelessWidget {
@@ -17,22 +21,22 @@ class LogStepperField extends StatelessWidget {
     required this.value,
     required this.onChanged,
     this.onTapValue,
-    this.unitSuffix = '',
     this.step = 1,
     this.min = 0,
     this.accentColor = AppTheme.primaryOrange,
     this.allowDecimal = false,
+    this.dense = false,
   });
 
   final String label;
   final num value;
   final ValueChanged<num> onChanged;
   final VoidCallback? onTapValue;
-  final String unitSuffix;
   final num step;
   final num min;
   final Color accentColor;
   final bool allowDecimal;
+  final bool dense;
 
   String _formatValue() {
     if (!allowDecimal) return value.round().toString();
@@ -64,17 +68,19 @@ class LogStepperField extends StatelessWidget {
       child: Column(
         mainAxisSize: MainAxisSize.min,
         children: <Widget>[
-          const SizedBox(height: 8),
-          Text(
-            label,
-            textAlign: TextAlign.center,
-            style: const TextStyle(
-              color: AppTheme.textDim,
-              fontSize: 12,
-              fontWeight: FontWeight.w500,
+          if (!dense) ...<Widget>[
+            const SizedBox(height: 8),
+            Text(
+              label,
+              textAlign: TextAlign.center,
+              style: const TextStyle(
+                color: AppTheme.textDim,
+                fontSize: 12,
+                fontWeight: FontWeight.w500,
+              ),
             ),
-          ),
-          const SizedBox(height: 4),
+            const SizedBox(height: 4),
+          ],
           Row(
             children: <Widget>[
               // Decrease button — ≥44 dp hit target
@@ -104,53 +110,29 @@ class LogStepperField extends StatelessWidget {
                 ),
               ),
               // Value display — FittedBox(scaleDown) guarantees the
-              // number + unit + edit-icon cluster shrinks to fit its slot
-              // instead of painting a RenderFlex overflow stripe, however
-              // narrow the column or however many digits the value grows to.
+              // number shrinks to fit its slot instead of painting a
+              // RenderFlex overflow stripe, however narrow the column or
+              // however many digits the value grows to.
               Expanded(
                 child: GestureDetector(
                   onTap: onTapValue,
                   child: FittedBox(
                     fit: BoxFit.scaleDown,
-                    child: Row(
-                      mainAxisSize: MainAxisSize.min,
-                      crossAxisAlignment: CrossAxisAlignment.center,
-                      children: <Widget>[
-                        Text(
-                          _formatValue(),
-                          style: TextStyle(
-                            color: AppTheme.textLight,
-                            fontSize: 22,
-                            fontWeight: FontWeight.w600,
-                            fontFeatures: const <FontFeature>[
-                              FontFeature.tabularFigures(),
-                            ],
-                            decoration: onTapValue != null
-                                ? TextDecoration.underline
-                                : null,
-                            decorationStyle: TextDecorationStyle.dashed,
-                            decorationColor: AppTheme.textDim,
-                          ),
-                        ),
-                        if (unitSuffix.isNotEmpty) ...<Widget>[
-                          const SizedBox(width: 3),
-                          Text(
-                            unitSuffix,
-                            style: const TextStyle(
-                              color: AppTheme.textDim,
-                              fontSize: 13,
-                            ),
-                          ),
+                    child: Text(
+                      _formatValue(),
+                      style: TextStyle(
+                        color: AppTheme.textLight,
+                        fontSize: 22,
+                        fontWeight: FontWeight.w600,
+                        fontFeatures: const <FontFeature>[
+                          FontFeature.tabularFigures(),
                         ],
-                        if (onTapValue != null) ...<Widget>[
-                          const SizedBox(width: 4),
-                          const Icon(
-                            Icons.edit,
-                            size: 12,
-                            color: AppTheme.textDim,
-                          ),
-                        ],
-                      ],
+                        decoration: onTapValue != null
+                            ? TextDecoration.underline
+                            : null,
+                        decorationStyle: TextDecorationStyle.dashed,
+                        decorationColor: AppTheme.textDim,
+                      ),
                     ),
                   ),
                 ),
@@ -183,7 +165,7 @@ class LogStepperField extends StatelessWidget {
               ),
             ],
           ),
-          const SizedBox(height: 8),
+          if (!dense) const SizedBox(height: 8),
         ],
       ),
     );
