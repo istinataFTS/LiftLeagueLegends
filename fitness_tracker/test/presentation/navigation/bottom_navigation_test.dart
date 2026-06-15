@@ -3,6 +3,7 @@ import 'dart:async';
 import 'package:bloc_test/bloc_test.dart';
 import 'package:fitness_tracker/domain/entities/app_session.dart';
 import 'package:fitness_tracker/domain/entities/app_user.dart';
+import 'package:fitness_tracker/core/ui/keypad_visibility_controller.dart';
 import 'package:fitness_tracker/domain/entities/voice_settings.dart';
 import 'package:fitness_tracker/features/history/history.dart';
 import 'package:fitness_tracker/features/home/application/home_bloc.dart';
@@ -287,8 +288,14 @@ void main() {
     if (sl.isRegistered<VoiceMediaButtonService>()) {
       sl.unregister<VoiceMediaButtonService>();
     }
+    if (sl.isRegistered<KeypadVisibilityController>()) {
+      sl.unregister<KeypadVisibilityController>();
+    }
     sl.registerSingleton<VoiceWakeWordService>(voiceWakeWordService);
     sl.registerSingleton<VoiceMediaButtonService>(voiceMediaButtonService);
+    sl.registerSingleton<KeypadVisibilityController>(
+      KeypadVisibilityController(),
+    );
   });
 
   tearDown(() async {
@@ -297,6 +304,9 @@ void main() {
     }
     if (sl.isRegistered<VoiceMediaButtonService>()) {
       sl.unregister<VoiceMediaButtonService>();
+    }
+    if (sl.isRegistered<KeypadVisibilityController>()) {
+      sl.unregister<KeypadVisibilityController>();
     }
     await voiceWakeWordService.dispose();
     await voiceMediaButtonService.dispose();

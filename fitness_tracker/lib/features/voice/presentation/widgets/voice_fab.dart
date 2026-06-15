@@ -6,6 +6,7 @@ import 'package:flutter_bloc/flutter_bloc.dart';
 import '../../../../core/constants/app_strings.dart';
 import '../../../../core/logging/app_logger.dart';
 import '../../../../core/themes/app_theme.dart';
+import '../../../../core/ui/keypad_visibility_controller.dart';
 import '../../../../domain/entities/app_session.dart';
 import '../../../../domain/entities/voice_settings.dart';
 import '../../../../domain/services/voice_media_button_service.dart';
@@ -50,6 +51,12 @@ class _VoiceFabState extends State<VoiceFab>
   /// Lifecycle mirrors [_wakeWordService] — started/stopped at the same gates.
   late final VoiceMediaButtonService _mediaButtonService;
 
+  /// Cross-tree signal flipped by the Log tabs when their in-layout
+  /// `LogNumericKeypad` is docked. We hide only the visual FAB while open so
+  /// the mic button cannot overlap the keypad's confirm / Done key; the
+  /// surrounding `BlocListener` stays mounted (wake-word lifecycle).
+  late final KeypadVisibilityController _keypadVisibility;
+
   StreamSubscription<WakeWordPreset>? _wakeWordSub;
   StreamSubscription<VoiceWakeWordException>? _wakeWordErrorSub;
   StreamSubscription<void>? _mediaButtonSub;
@@ -61,6 +68,7 @@ class _VoiceFabState extends State<VoiceFab>
     WidgetsBinding.instance.addObserver(this);
     _wakeWordService = sl<VoiceWakeWordService>();
     _mediaButtonService = sl<VoiceMediaButtonService>();
+    _keypadVisibility = sl<KeypadVisibilityController>();
 
     _pulseController = AnimationController(
       vsync: this,
@@ -286,7 +294,11 @@ class _VoiceFabState extends State<VoiceFab>
           unawaited(_startWakeWordIfArmed());
         }
       },
-      child: _buildFab(),
+      child: ValueListenableBuilder<bool>(
+        valueListenable: _keypadVisibility.isOpen,
+        builder: (BuildContext context, bool keypadOpen, _) =>
+            keypadOpen ? const SizedBox.shrink() : _buildFab(),
+      ),
     );
   }
 

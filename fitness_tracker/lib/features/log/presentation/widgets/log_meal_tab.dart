@@ -7,8 +7,10 @@ import 'package:uuid/uuid.dart';
 
 import '../../../../core/constants/app_strings.dart';
 import '../../../../core/themes/app_theme.dart';
+import '../../../../core/ui/keypad_visibility_controller.dart';
 import '../../../../core/utils/macro_calculator.dart';
 import '../../../../core/utils/week_date_utils.dart';
+import '../../../../injection/injection_container.dart';
 import '../../../../domain/entities/meal.dart';
 import '../../../../domain/entities/nutrition_log.dart';
 import '../../../library/application/meal_bloc.dart';
@@ -50,6 +52,7 @@ class _LogMealTabState extends State<LogMealTab> {
   bool _logCooldownActive = false;
   bool _keypadOpen = false;
   Timer? _logCooldownTimer;
+  late final KeypadVisibilityController _keypadVisibility;
 
   StreamSubscription<NutritionLogUiEffect>? _nutritionEffectsSub;
 
@@ -58,6 +61,7 @@ class _LogMealTabState extends State<LogMealTab> {
     super.initState();
 
     _selectedDate = widget.initialDate ?? DateTime.now();
+    _keypadVisibility = sl<KeypadVisibilityController>();
 
     final NutritionLogBloc nutritionBloc = context.read<NutritionLogBloc>();
 
@@ -104,7 +108,17 @@ class _LogMealTabState extends State<LogMealTab> {
   void dispose() {
     _nutritionEffectsSub?.cancel();
     _logCooldownTimer?.cancel();
+    _keypadVisibility.hide();
     super.dispose();
+  }
+
+  void _setKeypadOpen(bool open) {
+    setState(() => _keypadOpen = open);
+    if (open) {
+      _keypadVisibility.show();
+    } else {
+      _keypadVisibility.hide();
+    }
   }
 
   @override
@@ -313,7 +327,7 @@ class _LogMealTabState extends State<LogMealTab> {
                 value: _grams,
                 step: 10,
                 onChanged: (num v) => setState(() => _grams = v.round()),
-                onTapValue: () => setState(() => _keypadOpen = true),
+                onTapValue: () => _setKeypadOpen(true),
               ),
             ),
             const SizedBox(width: 8),
@@ -447,11 +461,11 @@ class _LogMealTabState extends State<LogMealTab> {
           label: 'grams',
           unitSuffix: 'g',
           maxIntegerDigits: 4,
-          onSubmit: (num value) => setState(() {
-            _grams = value.round();
-            _keypadOpen = false;
-          }),
-          onCancel: () => setState(() => _keypadOpen = false),
+          onSubmit: (num value) {
+            setState(() => _grams = value.round());
+            _setKeypadOpen(false);
+          },
+          onCancel: () => _setKeypadOpen(false),
         ),
       ),
     );

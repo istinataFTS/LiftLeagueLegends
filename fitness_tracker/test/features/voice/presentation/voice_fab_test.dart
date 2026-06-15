@@ -2,6 +2,7 @@ import 'dart:async';
 
 import 'package:bloc_test/bloc_test.dart';
 import 'package:fitness_tracker/core/constants/app_strings.dart';
+import 'package:fitness_tracker/core/ui/keypad_visibility_controller.dart';
 import 'package:fitness_tracker/domain/entities/app_session.dart';
 import 'package:fitness_tracker/domain/entities/app_user.dart';
 import 'package:fitness_tracker/domain/entities/voice_settings.dart';
@@ -106,6 +107,7 @@ void main() {
   late MockVoiceSettingsCubit settingsCubit;
   late FakeVoiceWakeWordService wakeWordService;
   late FakeVoiceMediaButtonService mediaButtonService;
+  late KeypadVisibilityController keypadVisibility;
 
   final defaultSettings = const VoiceSettings.defaults();
 
@@ -113,6 +115,7 @@ void main() {
     settingsCubit = MockVoiceSettingsCubit();
     wakeWordService = FakeVoiceWakeWordService();
     mediaButtonService = FakeVoiceMediaButtonService();
+    keypadVisibility = KeypadVisibilityController();
 
     if (sl.isRegistered<VoiceWakeWordService>()) {
       sl.unregister<VoiceWakeWordService>();
@@ -120,8 +123,12 @@ void main() {
     if (sl.isRegistered<VoiceMediaButtonService>()) {
       sl.unregister<VoiceMediaButtonService>();
     }
+    if (sl.isRegistered<KeypadVisibilityController>()) {
+      sl.unregister<KeypadVisibilityController>();
+    }
     sl.registerSingleton<VoiceWakeWordService>(wakeWordService);
     sl.registerSingleton<VoiceMediaButtonService>(mediaButtonService);
+    sl.registerSingleton<KeypadVisibilityController>(keypadVisibility);
 
     when(() => settingsCubit.state).thenReturn(defaultSettings);
     when(() => settingsCubit.ready).thenAnswer((_) => Future.value());
@@ -138,6 +145,9 @@ void main() {
     }
     if (sl.isRegistered<VoiceMediaButtonService>()) {
       sl.unregister<VoiceMediaButtonService>();
+    }
+    if (sl.isRegistered<KeypadVisibilityController>()) {
+      sl.unregister<KeypadVisibilityController>();
     }
     await wakeWordService.dispose();
     await mediaButtonService.dispose();
@@ -193,6 +203,25 @@ void main() {
         expect(wakeWordService.startedPresets.single, WakeWordPreset.trainer);
       },
     );
+  });
+
+  group('VoiceFab — keypad visibility', () {
+    testWidgets('FAB hides while KeypadVisibilityController.isOpen is true and '
+        'reappears on hide()', (tester) async {
+      await tester.pumpWidget(
+        _wrap(session: _authSession, settingsCubit: settingsCubit),
+      );
+      await tester.pump();
+      expect(find.byType(FloatingActionButton), findsOneWidget);
+
+      keypadVisibility.show();
+      await tester.pump();
+      expect(find.byType(FloatingActionButton), findsNothing);
+
+      keypadVisibility.hide();
+      await tester.pump();
+      expect(find.byType(FloatingActionButton), findsOneWidget);
+    });
   });
 
   // Guest-mode coverage removed: the FAB is only reachable above the auth

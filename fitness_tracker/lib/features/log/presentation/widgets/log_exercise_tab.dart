@@ -9,8 +9,10 @@ import '../../../../core/constants/app_strings.dart';
 import '../../../../core/constants/muscle_groups.dart';
 import '../../../../core/constants/muscle_stimulus_constants.dart';
 import '../../../../core/themes/app_theme.dart';
+import '../../../../core/ui/keypad_visibility_controller.dart';
 import '../../../../core/utils/weight_unit_utils.dart';
 import '../../../../core/utils/week_date_utils.dart';
+import '../../../../injection/injection_container.dart';
 import '../../../../domain/entities/app_settings.dart';
 import '../../../../domain/entities/exercise.dart';
 import '../../../../domain/entities/workout_set.dart';
@@ -59,12 +61,14 @@ class _LogExerciseTabState extends State<LogExerciseTab> {
   int _selectedIntensity = MuscleStimulus.defaultIntensity;
   bool _logCooldownActive = false;
   _KeypadField? _activeKeypad;
+  late final KeypadVisibilityController _keypadVisibility;
 
   @override
   void initState() {
     super.initState();
 
     _selectedDate = widget.initialDate ?? DateTime.now();
+    _keypadVisibility = sl<KeypadVisibilityController>();
 
     final WorkoutBloc workoutBloc = context.read<WorkoutBloc>();
     _workoutEffectsSub = workoutBloc.effects.listen((WorkoutUiEffect effect) {
@@ -119,7 +123,17 @@ class _LogExerciseTabState extends State<LogExerciseTab> {
   void dispose() {
     _workoutEffectsSub?.cancel();
     _logCooldownTimer?.cancel();
+    _keypadVisibility.hide();
     super.dispose();
+  }
+
+  void _setKeypad(_KeypadField? field) {
+    setState(() => _activeKeypad = field);
+    if (field == null) {
+      _keypadVisibility.hide();
+    } else {
+      _keypadVisibility.show();
+    }
   }
 
   @override
@@ -199,9 +213,7 @@ class _LogExerciseTabState extends State<LogExerciseTab> {
                                 value: _reps,
                                 onChanged: (num v) =>
                                     setState(() => _reps = v.round()),
-                                onTapValue: () => setState(
-                                  () => _activeKeypad = _KeypadField.reps,
-                                ),
+                                onTapValue: () => _setKeypad(_KeypadField.reps),
                               ),
                             ),
                             const SizedBox(width: 12),
@@ -214,9 +226,8 @@ class _LogExerciseTabState extends State<LogExerciseTab> {
                                 allowDecimal: true,
                                 onChanged: (num v) =>
                                     setState(() => _weight = v.toDouble()),
-                                onTapValue: () => setState(
-                                  () => _activeKeypad = _KeypadField.weight,
-                                ),
+                                onTapValue: () =>
+                                    _setKeypad(_KeypadField.weight),
                               ),
                             ),
                           ],
@@ -488,15 +499,17 @@ class _LogExerciseTabState extends State<LogExerciseTab> {
           unitSuffix: isWeight ? WeightUnitUtils.unitLabel(weightUnit) : '',
           allowDecimal: isWeight,
           maxIntegerDigits: isWeight ? 4 : 3,
-          onSubmit: (num value) => setState(() {
-            if (isWeight) {
-              _weight = value.toDouble();
-            } else {
-              _reps = value.round();
-            }
-            _activeKeypad = null;
-          }),
-          onCancel: () => setState(() => _activeKeypad = null),
+          onSubmit: (num value) {
+            setState(() {
+              if (isWeight) {
+                _weight = value.toDouble();
+              } else {
+                _reps = value.round();
+              }
+            });
+            _setKeypad(null);
+          },
+          onCancel: () => _setKeypad(null),
         ),
       ),
     );

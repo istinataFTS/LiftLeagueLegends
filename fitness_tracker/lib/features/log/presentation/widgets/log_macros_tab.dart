@@ -7,8 +7,10 @@ import 'package:uuid/uuid.dart';
 
 import '../../../../core/constants/app_strings.dart';
 import '../../../../core/themes/app_theme.dart';
+import '../../../../core/ui/keypad_visibility_controller.dart';
 import '../../../../core/utils/macro_calculator.dart';
 import '../../../../core/utils/week_date_utils.dart';
+import '../../../../injection/injection_container.dart';
 import '../../../../domain/entities/nutrition_log.dart';
 import '../../application/nutrition_log_bloc.dart';
 import 'shared/log_action_bar.dart';
@@ -50,6 +52,7 @@ class _LogMacrosTabState extends State<LogMacrosTab> {
   bool _logCooldownActive = false;
   _MacroField? _editingField;
   Timer? _logCooldownTimer;
+  late final KeypadVisibilityController _keypadVisibility;
 
   StreamSubscription<NutritionLogUiEffect>? _nutritionEffectsSub;
 
@@ -58,6 +61,7 @@ class _LogMacrosTabState extends State<LogMacrosTab> {
     super.initState();
 
     _selectedDate = widget.initialDate ?? DateTime.now();
+    _keypadVisibility = sl<KeypadVisibilityController>();
 
     final NutritionLogBloc nutritionBloc = context.read<NutritionLogBloc>();
 
@@ -105,7 +109,17 @@ class _LogMacrosTabState extends State<LogMacrosTab> {
   void dispose() {
     _nutritionEffectsSub?.cancel();
     _logCooldownTimer?.cancel();
+    _keypadVisibility.hide();
     super.dispose();
+  }
+
+  void _setEditingField(_MacroField? field) {
+    setState(() => _editingField = field);
+    if (field == null) {
+      _keypadVisibility.hide();
+    } else {
+      _keypadVisibility.show();
+    }
   }
 
   @override
@@ -142,8 +156,7 @@ class _LogMacrosTabState extends State<LogMacrosTab> {
                       color: LogUiColors.protein,
                       onChanged: (num v) =>
                           setState(() => _protein = v.toDouble()),
-                      onTapValue: () =>
-                          setState(() => _editingField = _MacroField.protein),
+                      onTapValue: () => _setEditingField(_MacroField.protein),
                     ),
                     const SizedBox(height: 12),
                     _buildMacroRow(
@@ -152,8 +165,7 @@ class _LogMacrosTabState extends State<LogMacrosTab> {
                       color: LogUiColors.carbs,
                       onChanged: (num v) =>
                           setState(() => _carbs = v.toDouble()),
-                      onTapValue: () =>
-                          setState(() => _editingField = _MacroField.carbs),
+                      onTapValue: () => _setEditingField(_MacroField.carbs),
                     ),
                     const SizedBox(height: 12),
                     _buildMacroRow(
@@ -162,8 +174,7 @@ class _LogMacrosTabState extends State<LogMacrosTab> {
                       color: LogUiColors.fats,
                       onChanged: (num v) =>
                           setState(() => _fats = v.toDouble()),
-                      onTapValue: () =>
-                          setState(() => _editingField = _MacroField.fats),
+                      onTapValue: () => _setEditingField(_MacroField.fats),
                     ),
                     const SizedBox(height: 20),
                     LogTodaySoFarCard(
@@ -328,22 +339,24 @@ class _LogMacrosTabState extends State<LogMacrosTab> {
           unitSuffix: 'g',
           allowDecimal: true,
           maxIntegerDigits: _maxIntegerDigits,
-          onSubmit: (num value) => setState(() {
-            final double v = value.toDouble();
-            switch (field) {
-              case _MacroField.protein:
-                _protein = v;
-                break;
-              case _MacroField.carbs:
-                _carbs = v;
-                break;
-              case _MacroField.fats:
-                _fats = v;
-                break;
-            }
-            _editingField = null;
-          }),
-          onCancel: () => setState(() => _editingField = null),
+          onSubmit: (num value) {
+            setState(() {
+              final double v = value.toDouble();
+              switch (field) {
+                case _MacroField.protein:
+                  _protein = v;
+                  break;
+                case _MacroField.carbs:
+                  _carbs = v;
+                  break;
+                case _MacroField.fats:
+                  _fats = v;
+                  break;
+              }
+            });
+            _setEditingField(null);
+          },
+          onCancel: () => _setEditingField(null),
         ),
       ),
     );

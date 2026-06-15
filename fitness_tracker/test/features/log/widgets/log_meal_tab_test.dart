@@ -1,11 +1,13 @@
 import 'package:bloc_test/bloc_test.dart';
 import 'package:fitness_tracker/app/app.dart';
 import 'package:fitness_tracker/core/constants/app_strings.dart';
+import 'package:fitness_tracker/core/ui/keypad_visibility_controller.dart';
 import 'package:fitness_tracker/domain/entities/meal.dart';
 import 'package:fitness_tracker/domain/entities/nutrition_log.dart';
 import 'package:fitness_tracker/features/library/application/meal_bloc.dart';
 import 'package:fitness_tracker/features/log/log.dart';
 import 'package:fitness_tracker/features/log/presentation/widgets/meal_picker_sheet.dart';
+import 'package:fitness_tracker/injection/injection_container.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -28,6 +30,7 @@ class FakeMealState extends Fake implements MealState {}
 void main() {
   late MockNutritionLogBloc nutritionBloc;
   late MockMealBloc mealBloc;
+  late KeypadVisibilityController keypadVisibility;
 
   final List<Meal> meals = <Meal>[
     Meal(
@@ -62,6 +65,11 @@ void main() {
   setUp(() {
     nutritionBloc = MockNutritionLogBloc();
     mealBloc = MockMealBloc();
+    keypadVisibility = KeypadVisibilityController();
+    if (sl.isRegistered<KeypadVisibilityController>()) {
+      sl.unregister<KeypadVisibilityController>();
+    }
+    sl.registerSingleton<KeypadVisibilityController>(keypadVisibility);
 
     when(
       () => nutritionBloc.effects,
@@ -75,6 +83,12 @@ void main() {
       const Stream<NutritionLogState>.empty(),
       initialState: NutritionLogInitial(),
     );
+  });
+
+  tearDown(() {
+    if (sl.isRegistered<KeypadVisibilityController>()) {
+      sl.unregister<KeypadVisibilityController>();
+    }
   });
 
   Widget buildSubject({
@@ -300,6 +314,41 @@ void main() {
         expect(find.byType(MealPickerSheet), findsOneWidget);
         // Sectioned empty: "All Meals" header only, no rows.
         expect(find.text(AppStrings.pickerAllMeals), findsOneWidget);
+      },
+    );
+
+    testWidgets(
+      'opening the keypad flips KeypadVisibilityController.isOpen to true; '
+      'cancel restores it',
+      (tester) async {
+        await tester.pumpWidget(buildSubject(mealState: MealsLoaded(meals)));
+        await tester.pumpAndSettle();
+
+        await tester.tap(find.text(AppStrings.selectMeal));
+        await tester.pumpAndSettle();
+        await tester.tap(find.text('Chicken Breast'));
+        await tester.pumpAndSettle();
+
+        expect(keypadVisibility.isOpen.value, isFalse);
+
+        await tester.tap(
+          find.descendant(
+            of: find.byKey(const Key('mealGramsStepper')),
+            matching: find.text('100'),
+          ),
+        );
+        await tester.pumpAndSettle();
+
+        expect(keypadVisibility.isOpen.value, isTrue);
+
+        // Meal grams keypad is integer-only → confirms via ✓.
+        await tester.tap(find.text('1'));
+        await tester.tap(find.text('5'));
+        await tester.tap(find.text('0'));
+        await tester.tap(find.text('✓'));
+        await tester.pumpAndSettle();
+
+        expect(keypadVisibility.isOpen.value, isFalse);
       },
     );
   });
