@@ -3,7 +3,6 @@ import 'dart:ui';
 
 import 'package:flutter/material.dart' hide FontFeature;
 import 'package:flutter_bloc/flutter_bloc.dart';
-import 'package:intl/intl.dart';
 import 'package:uuid/uuid.dart';
 
 import '../../../../core/constants/app_strings.dart';
@@ -15,6 +14,7 @@ import '../../application/nutrition_log_bloc.dart';
 import 'shared/log_action_bar.dart';
 import 'shared/log_numeric_keypad.dart';
 import 'shared/log_stepper_field.dart';
+import 'shared/log_today_so_far_card.dart';
 import 'shared/log_ui_colors.dart';
 import 'shared/macro_composition_bar.dart';
 
@@ -168,7 +168,10 @@ class _LogMacrosTabState extends State<LogMacrosTab> {
                           setState(() => _editingField = _MacroField.fats),
                     ),
                     const SizedBox(height: 20),
-                    _buildTodaySoFar(nutritionState),
+                    LogTodaySoFarCard(
+                      state: nutritionState,
+                      selectedDate: _selectedDate,
+                    ),
                   ],
                 ),
               ),
@@ -243,123 +246,6 @@ class _LogMacrosTabState extends State<LogMacrosTab> {
             onChanged: onChanged,
             onTapValue: onTapValue,
           ),
-        ),
-      ],
-    );
-  }
-
-  // ─── Today so far (spec §5.5) ─────────────────────────────────────────────
-
-  Widget _buildTodaySoFar(NutritionLogState state) {
-    if (state is! DailyLogsLoaded) return const SizedBox.shrink();
-    if (!WeekDateUtils.isSameDay(state.date, _selectedDate)) {
-      return const SizedBox.shrink();
-    }
-
-    final DateTime today = DateTime.now();
-    final bool isToday = WeekDateUtils.isSameDay(_selectedDate, today);
-    final String header = isToday
-        ? 'Today so far'
-        : '${DateFormat('MMM d').format(_selectedDate)} so far';
-
-    final int totalCalories = state.totalCalories.round();
-    final int totalProtein = state.totalProtein.round();
-    final int totalCarbs = state.totalCarbs.round();
-    final int totalFats = state.totalFats.round();
-    final int logCount = state.logs.length;
-    final String logsLabel = logCount == 1 ? '1 log' : '$logCount logs';
-
-    return Container(
-      padding: const EdgeInsets.all(14),
-      decoration: BoxDecoration(
-        color: LogUiColors.rowSurface,
-        borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: AppTheme.borderDark),
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        mainAxisSize: MainAxisSize.min,
-        children: <Widget>[
-          Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-            children: <Widget>[
-              Text(
-                header,
-                style: const TextStyle(
-                  color: AppTheme.textLight,
-                  fontSize: 14,
-                  fontWeight: FontWeight.w700,
-                ),
-              ),
-              Text(
-                '$totalCalories kcal · $logsLabel',
-                style: const TextStyle(
-                  color: AppTheme.textDim,
-                  fontSize: 12,
-                  fontFeatures: <FontFeature>[FontFeature.tabularFigures()],
-                ),
-              ),
-            ],
-          ),
-          const SizedBox(height: 10),
-          Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-            children: <Widget>[
-              _todayCell(
-                label: AppStrings.protein,
-                grams: totalProtein,
-                color: LogUiColors.protein,
-              ),
-              _todayCell(
-                label: AppStrings.carbs,
-                grams: totalCarbs,
-                color: LogUiColors.carbs,
-              ),
-              _todayCell(
-                label: AppStrings.fats,
-                grams: totalFats,
-                color: LogUiColors.fats,
-              ),
-            ],
-          ),
-          const SizedBox(height: 10),
-          Semantics(
-            label: isToday
-                ? 'Today macro composition'
-                : '${DateFormat('MMM d').format(_selectedDate)} macro composition',
-            child: MacroCompositionBar(
-              proteinGrams: state.totalProtein,
-              carbsGrams: state.totalCarbs,
-              fatsGrams: state.totalFats,
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-
-  Widget _todayCell({
-    required String label,
-    required int grams,
-    required Color color,
-  }) {
-    return Column(
-      mainAxisSize: MainAxisSize.min,
-      crossAxisAlignment: CrossAxisAlignment.center,
-      children: <Widget>[
-        Text(
-          '${grams}g',
-          style: TextStyle(
-            color: color,
-            fontSize: 16,
-            fontWeight: FontWeight.w700,
-            fontFeatures: const <FontFeature>[FontFeature.tabularFigures()],
-          ),
-        ),
-        const SizedBox(height: 2),
-        Text(
-          label,
-          style: const TextStyle(color: AppTheme.textDim, fontSize: 11),
         ),
       ],
     );
