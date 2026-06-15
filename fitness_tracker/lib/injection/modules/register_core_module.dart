@@ -6,6 +6,7 @@ import '../../core/network/default_network_status_service.dart';
 import '../../core/network/network_status_service.dart';
 import '../../core/time/clock.dart';
 import '../../core/time/system_clock.dart';
+import '../../core/ui/keypad_visibility_controller.dart';
 import '../../core/sync/remote_sync_availability.dart';
 import '../../core/sync/remote_sync_runtime_policy.dart';
 import '../../data/datasources/local/app_metadata_local_datasource.dart';
@@ -25,6 +26,10 @@ import '../../domain/services/authenticated_data_source_preference_resolver.dart
 
 void registerCoreModule(GetIt sl) {
   sl.registerLazySingleton<Clock>(() => const SystemClock());
+
+  sl.registerLazySingleton<KeypadVisibilityController>(
+    KeypadVisibilityController.new,
+  );
 
   sl.registerLazySingleton<DatabaseHelper>(DatabaseHelper.new);
 

@@ -1,9 +1,11 @@
 import 'package:bloc_test/bloc_test.dart';
 import 'package:fitness_tracker/app/app.dart';
 import 'package:fitness_tracker/core/constants/app_strings.dart';
+import 'package:fitness_tracker/core/ui/keypad_visibility_controller.dart';
 import 'package:fitness_tracker/domain/entities/nutrition_log.dart';
 import 'package:fitness_tracker/features/log/log.dart';
 import 'package:fitness_tracker/features/log/presentation/widgets/shared/macro_composition_bar.dart';
+import 'package:fitness_tracker/injection/injection_container.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -19,6 +21,7 @@ class FakeNutritionLogState extends Fake implements NutritionLogState {}
 
 void main() {
   late MockNutritionLogBloc nutritionBloc;
+  late KeypadVisibilityController keypadVisibility;
 
   setUpAll(() {
     registerFallbackValue(FakeNutritionLogEvent());
@@ -27,6 +30,11 @@ void main() {
 
   setUp(() {
     nutritionBloc = MockNutritionLogBloc();
+    keypadVisibility = KeypadVisibilityController();
+    if (sl.isRegistered<KeypadVisibilityController>()) {
+      sl.unregister<KeypadVisibilityController>();
+    }
+    sl.registerSingleton<KeypadVisibilityController>(keypadVisibility);
 
     when(
       () => nutritionBloc.effects,
@@ -39,6 +47,12 @@ void main() {
       const Stream<NutritionLogState>.empty(),
       initialState: NutritionLogInitial(),
     );
+  });
+
+  tearDown(() {
+    if (sl.isRegistered<KeypadVisibilityController>()) {
+      sl.unregister<KeypadVisibilityController>();
+    }
   });
 
   Widget buildSubject({
@@ -400,5 +414,36 @@ void main() {
       // Two composition bars (today + this entry).
       expect(find.byType(MacroCompositionBar), findsNWidgets(2));
     });
+
+    testWidgets(
+      'opening the keypad flips KeypadVisibilityController.isOpen to true; '
+      'cancel restores it',
+      (tester) async {
+        await tester.pumpWidget(
+          buildSubject(initialDate: DateTime(2026, 6, 14)),
+        );
+        await tester.pumpAndSettle();
+
+        expect(keypadVisibility.isOpen.value, isFalse);
+
+        await tester.tap(
+          find.descendant(
+            of: find.byKey(const Key('macrosStepper-Protein')),
+            matching: find.text('0.0'),
+          ),
+        );
+        await tester.pumpAndSettle();
+
+        expect(keypadVisibility.isOpen.value, isTrue);
+
+        // Macros keypad allows decimals → confirms via Done.
+        await tester.tap(find.text('2'));
+        await tester.tap(find.text('5'));
+        await tester.tap(find.text('Done'));
+        await tester.pumpAndSettle();
+
+        expect(keypadVisibility.isOpen.value, isFalse);
+      },
+    );
   });
 }

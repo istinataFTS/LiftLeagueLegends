@@ -1,6 +1,7 @@
 import 'package:bloc_test/bloc_test.dart';
 import 'package:fitness_tracker/app/app.dart';
 import 'package:fitness_tracker/core/constants/app_strings.dart';
+import 'package:fitness_tracker/core/ui/keypad_visibility_controller.dart';
 import 'package:fitness_tracker/domain/entities/exercise.dart';
 import 'package:fitness_tracker/domain/entities/workout_set.dart';
 import 'package:fitness_tracker/domain/muscle_visual/muscle_visual_contract.dart';
@@ -9,6 +10,7 @@ import 'package:fitness_tracker/features/log/application/exercise_insight.dart';
 import 'package:fitness_tracker/features/log/log.dart';
 import 'package:fitness_tracker/features/settings/application/app_settings_cubit.dart';
 import 'package:fitness_tracker/features/settings/presentation/settings_scope.dart';
+import 'package:fitness_tracker/injection/injection_container.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -35,6 +37,7 @@ void main() {
   late MockWorkoutBloc workoutBloc;
   late MockExerciseBloc exerciseBloc;
   late MockAppSettingsCubit appSettingsCubit;
+  late KeypadVisibilityController keypadVisibility;
 
   final exercises = [
     Exercise(
@@ -88,6 +91,11 @@ void main() {
     workoutBloc = MockWorkoutBloc();
     exerciseBloc = MockExerciseBloc();
     appSettingsCubit = MockAppSettingsCubit();
+    keypadVisibility = KeypadVisibilityController();
+    if (sl.isRegistered<KeypadVisibilityController>()) {
+      sl.unregister<KeypadVisibilityController>();
+    }
+    sl.registerSingleton<KeypadVisibilityController>(keypadVisibility);
 
     when(
       () => workoutBloc.effects,
@@ -109,6 +117,12 @@ void main() {
       const Stream<WorkoutState>.empty(),
       initialState: WorkoutInitial(),
     );
+  });
+
+  tearDown(() {
+    if (sl.isRegistered<KeypadVisibilityController>()) {
+      sl.unregister<KeypadVisibilityController>();
+    }
   });
 
   Widget buildSubject({
@@ -343,6 +357,35 @@ void main() {
 
       expect(find.text('Set 1'), findsOneWidget);
       expect(find.text('100 kg × 8'), findsOneWidget);
+    });
+
+    testWidgets('tapping reps stepper value opens keypad and flips '
+        'KeypadVisibilityController.isOpen to true; cancel restores it', (
+      tester,
+    ) async {
+      await tester.pumpWidget(
+        buildSubject(exerciseState: ExercisesLoaded(exercises)),
+      );
+      await tester.pumpAndSettle();
+
+      expect(keypadVisibility.isOpen.value, isFalse);
+
+      await tester.tap(
+        find.descendant(
+          of: find.byKey(const Key('exerciseRepsStepper')),
+          matching: find.text('0'),
+        ),
+      );
+      await tester.pumpAndSettle();
+
+      expect(keypadVisibility.isOpen.value, isTrue);
+
+      // Integer keypad confirms via ✓.
+      await tester.tap(find.text('8'));
+      await tester.tap(find.text('✓'));
+      await tester.pumpAndSettle();
+
+      expect(keypadVisibility.isOpen.value, isFalse);
     });
   });
 }
