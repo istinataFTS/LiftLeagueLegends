@@ -23,7 +23,6 @@ import 'exercise_picker_sheet.dart';
 import 'exercise_set_row.dart';
 import 'log_intensity_selector.dart';
 import 'shared/log_action_bar.dart';
-import 'shared/log_date_pill.dart';
 import 'shared/log_numeric_keypad.dart';
 import 'shared/log_stepper_field.dart';
 import 'shared/log_ui_colors.dart';
@@ -36,16 +35,11 @@ class LogExerciseTab extends StatefulWidget {
     super.key,
     this.initialDate,
     this.showSuccessFeedback = true,
-    this.showDatePill = true,
     this.onLoggedSuccess,
   });
 
   final DateTime? initialDate;
   final bool showSuccessFeedback;
-
-  /// Whether to render the [LogDatePill] in the tab header. The History log
-  /// bottom sheets show their own date header, so they pass `false`.
-  final bool showDatePill;
   final ValueChanged<DateTime>? onLoggedSuccess;
 
   @override
@@ -187,17 +181,6 @@ class _LogExerciseTabState extends State<LogExerciseTab> {
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: <Widget>[
-                        if (widget.showDatePill) ...<Widget>[
-                          Align(
-                            alignment: Alignment.centerRight,
-                            child: LogDatePill(
-                              date: _selectedDate,
-                              onDateSelected: (DateTime picked) =>
-                                  setState(() => _selectedDate = picked),
-                            ),
-                          ),
-                          const SizedBox(height: 12),
-                        ],
                         _buildExerciseCard(
                           context,
                           exercises,

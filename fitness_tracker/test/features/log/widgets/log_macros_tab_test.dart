@@ -44,7 +44,6 @@ void main() {
   Widget buildSubject({
     NutritionLogState? blocState,
     DateTime? initialDate,
-    bool showDatePill = true,
     MediaQueryData? mediaQuery,
   }) {
     final NutritionLogState seed = blocState ?? NutritionLogInitial();
@@ -55,9 +54,7 @@ void main() {
       initialState: seed,
     );
 
-    Widget child = Scaffold(
-      body: LogMacrosTab(initialDate: initialDate, showDatePill: showDatePill),
-    );
+    Widget child = Scaffold(body: LogMacrosTab(initialDate: initialDate));
 
     if (mediaQuery != null) {
       child = MediaQuery(data: mediaQuery, child: child);
@@ -331,52 +328,6 @@ void main() {
         findsOneWidget,
       );
       expect(find.text('100'), findsOneWidget);
-    });
-
-    testWidgets(
-      'date pill change dispatches LoadDailyLogsEvent for the new date',
-      (tester) async {
-        final DateTime initial = DateTime(2024, 6, 15);
-        await tester.pumpWidget(buildSubject(initialDate: initial));
-        await tester.pumpAndSettle();
-
-        // Drain the initial-load dispatch so the next verify is unambiguous.
-        clearInteractions(nutritionBloc);
-
-        // Open the date picker via the pill.
-        await tester.tap(find.byIcon(Icons.calendar_today));
-        await tester.pumpAndSettle();
-
-        // Pick a different day in the same month — day 16.
-        await tester.tap(find.text('16'));
-        await tester.pumpAndSettle();
-
-        // Confirm.
-        await tester.tap(find.text('OK'));
-        await tester.pumpAndSettle();
-
-        final DateTime expected = DateTime(2024, 6, 16);
-        verify(
-          () => nutritionBloc.add(
-            any(
-              that: isA<LoadDailyLogsEvent>().having(
-                (LoadDailyLogsEvent e) => e.date,
-                'date',
-                expected,
-              ),
-            ),
-          ),
-        ).called(1);
-      },
-    );
-
-    testWidgets('hides date pill when showDatePill = false', (tester) async {
-      await tester.pumpWidget(
-        buildSubject(initialDate: DateTime(2026, 6, 14), showDatePill: false),
-      );
-      await tester.pumpAndSettle();
-
-      expect(find.byIcon(Icons.calendar_today), findsNothing);
     });
 
     testWidgets('reduced-motion: composition bar still renders (no jank)', (

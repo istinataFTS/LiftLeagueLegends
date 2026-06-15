@@ -14,7 +14,6 @@ import '../../../library/application/meal_bloc.dart';
 import '../../application/nutrition_log_bloc.dart';
 import 'meal_list_row.dart';
 import 'shared/log_action_bar.dart';
-import 'shared/log_date_pill.dart';
 import 'shared/log_numeric_keypad.dart';
 import 'shared/log_quick_chips.dart';
 import 'shared/log_stepper_field.dart';
@@ -25,16 +24,11 @@ class LogMealTab extends StatefulWidget {
     super.key,
     this.initialDate,
     this.showSuccessFeedback = true,
-    this.showDatePill = true,
     this.onLoggedSuccess,
   });
 
   final DateTime? initialDate;
   final bool showSuccessFeedback;
-
-  /// Whether to render the [LogDatePill] in the tab header. The History log
-  /// bottom sheets show their own date header, so they pass `false`.
-  final bool showDatePill;
   final ValueChanged<DateTime>? onLoggedSuccess;
 
   @override
@@ -130,17 +124,6 @@ class _LogMealTabState extends State<LogMealTab> {
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: <Widget>[
-                    if (widget.showDatePill) ...<Widget>[
-                      Align(
-                        alignment: Alignment.centerRight,
-                        child: LogDatePill(
-                          date: _selectedDate,
-                          onDateSelected: (DateTime picked) =>
-                              setState(() => _selectedDate = picked),
-                        ),
-                      ),
-                      const SizedBox(height: 12),
-                    ],
                     _buildSearchField(),
                     const SizedBox(height: 12),
                     _buildMealList(context),
