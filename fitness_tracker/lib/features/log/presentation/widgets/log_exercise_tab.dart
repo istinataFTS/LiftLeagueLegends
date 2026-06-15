@@ -229,9 +229,6 @@ class _LogExerciseTabState extends State<LogExerciseTab> {
                                 value: _weight,
                                 step: 2.5,
                                 allowDecimal: true,
-                                unitSuffix: WeightUnitUtils.unitLabel(
-                                  weightUnit,
-                                ),
                                 onChanged: (num v) =>
                                     setState(() => _weight = v.toDouble()),
                                 onTapValue: () => setState(
