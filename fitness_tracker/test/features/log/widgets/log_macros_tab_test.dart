@@ -69,6 +69,46 @@ void main() {
   }
 
   group('LogMacrosTab', () {
+    testWidgets(
+      'renders three dense steppers (no top label, − value + visible) '
+      'and no info line',
+      (tester) async {
+        await tester.pumpWidget(
+          buildSubject(initialDate: DateTime(2026, 6, 14)),
+        );
+        await tester.pumpAndSettle();
+
+        // Info line removed.
+        expect(
+          find.text('No meal in your library? Enter macros directly.'),
+          findsNothing,
+        );
+        expect(find.byIcon(Icons.info_outline), findsNothing);
+
+        // Dense flag drops the top 'grams' label inside each stepper.
+        expect(find.text('grams'), findsNothing);
+
+        // Each macro row keeps its name label + −/value/+ trio.
+        for (final String label in <String>['Protein', 'Carbs', 'Fats']) {
+          expect(find.text(label), findsOneWidget);
+          final Finder stepper = find.byKey(Key('macrosStepper-$label'));
+          expect(stepper, findsOneWidget);
+          expect(
+            find.descendant(of: stepper, matching: find.text('−')),
+            findsOneWidget,
+          );
+          expect(
+            find.descendant(of: stepper, matching: find.text('+')),
+            findsOneWidget,
+          );
+          expect(
+            find.descendant(of: stepper, matching: find.text('0.0')),
+            findsOneWidget,
+          );
+        }
+      },
+    );
+
     testWidgets('on first build dispatches LoadDailyLogsEvent for the date', (
       tester,
     ) async {
