@@ -253,29 +253,5 @@ void main() {
 
       expect(find.text('per 250 g'), findsOneWidget);
     });
-
-    testWidgets('hides date pill when showDatePill = false', (tester) async {
-      when(() => mealBloc.state).thenReturn(MealsLoaded(meals));
-      whenListen(
-        mealBloc,
-        const Stream<MealState>.empty(),
-        initialState: MealsLoaded(meals),
-      );
-
-      await tester.pumpWidget(
-        AppShell(
-          home: MultiBlocProvider(
-            providers: <BlocProvider<dynamic>>[
-              BlocProvider<NutritionLogBloc>.value(value: nutritionBloc),
-              BlocProvider<MealBloc>.value(value: mealBloc),
-            ],
-            child: const Scaffold(body: LogMealTab(showDatePill: false)),
-          ),
-        ),
-      );
-      await tester.pumpAndSettle();
-
-      expect(find.byIcon(Icons.calendar_today), findsNothing);
-    });
   });
 }

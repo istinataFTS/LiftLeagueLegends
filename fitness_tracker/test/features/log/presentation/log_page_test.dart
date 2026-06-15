@@ -75,5 +75,57 @@ void main() {
       expect(find.text('exercise-tab-content'), findsNothing);
       expect(find.text('meal-tab-content'), findsNothing);
     });
+
+    testWidgets('renders no AppBar (slim header)', (tester) async {
+      await tester.pumpWidget(buildSubject());
+      await tester.pumpAndSettle();
+
+      expect(find.byType(AppBar), findsNothing);
+      expect(find.byType(LogTabSelector), findsOneWidget);
+    });
+
+    testWidgets('shows a back button when pushed onto a route', (tester) async {
+      await tester.pumpWidget(
+        AppShell(
+          home: Builder(
+            builder: (BuildContext context) {
+              return Scaffold(
+                body: Center(
+                  child: ElevatedButton(
+                    onPressed: () => Navigator.of(context).push(
+                      MaterialPageRoute<void>(
+                        builder: (_) => LogPage(
+                          exerciseTabBuilder: (_) =>
+                              const Center(child: Text('exercise-tab-content')),
+                          mealTabBuilder: (_) =>
+                              const Center(child: Text('meal-tab-content')),
+                          macrosTabBuilder: (_) =>
+                              const Center(child: Text('macros-tab-content')),
+                        ),
+                      ),
+                    ),
+                    child: const Text('go'),
+                  ),
+                ),
+              );
+            },
+          ),
+        ),
+      );
+      await tester.pumpAndSettle();
+      await tester.tap(find.text('go'));
+      await tester.pumpAndSettle();
+
+      expect(find.byIcon(Icons.arrow_back), findsOneWidget);
+    });
+
+    testWidgets('hides the back button when rendered as a root tab', (
+      tester,
+    ) async {
+      await tester.pumpWidget(buildSubject());
+      await tester.pumpAndSettle();
+
+      expect(find.byIcon(Icons.arrow_back), findsNothing);
+    });
   });
 }

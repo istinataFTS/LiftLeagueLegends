@@ -13,7 +13,6 @@ import '../../../../core/utils/week_date_utils.dart';
 import '../../../../domain/entities/nutrition_log.dart';
 import '../../application/nutrition_log_bloc.dart';
 import 'shared/log_action_bar.dart';
-import 'shared/log_date_pill.dart';
 import 'shared/log_numeric_keypad.dart';
 import 'shared/log_stepper_field.dart';
 import 'shared/log_ui_colors.dart';
@@ -27,16 +26,11 @@ class LogMacrosTab extends StatefulWidget {
     super.key,
     this.initialDate,
     this.showSuccessFeedback = true,
-    this.showDatePill = true,
     this.onLoggedSuccess,
   });
 
   final DateTime? initialDate;
   final bool showSuccessFeedback;
-
-  /// Whether to render the [LogDatePill] in the tab header. The History log
-  /// bottom sheets show their own date header, so they pass `false`.
-  final bool showDatePill;
   final ValueChanged<DateTime>? onLoggedSuccess;
 
   @override
@@ -142,16 +136,6 @@ class _LogMacrosTabState extends State<LogMacrosTab> {
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: <Widget>[
-                    if (widget.showDatePill) ...<Widget>[
-                      Align(
-                        alignment: Alignment.centerRight,
-                        child: LogDatePill(
-                          date: _selectedDate,
-                          onDateSelected: _onDateSelected,
-                        ),
-                      ),
-                      const SizedBox(height: 12),
-                    ],
                     _buildInfoLine(context),
                     const SizedBox(height: 16),
                     _buildMacroRow(
@@ -196,12 +180,6 @@ class _LogMacrosTabState extends State<LogMacrosTab> {
         );
       },
     );
-  }
-
-  void _onDateSelected(DateTime picked) {
-    setState(() => _selectedDate = picked);
-    // D7: Load the newly-picked day so "Today so far" reflects it.
-    context.read<NutritionLogBloc>().add(LoadDailyLogsEvent(picked));
   }
 
   // ─── Info line (spec §5.3) ────────────────────────────────────────────────

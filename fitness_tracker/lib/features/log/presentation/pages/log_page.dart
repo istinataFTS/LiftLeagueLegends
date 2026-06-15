@@ -1,6 +1,5 @@
 import 'package:flutter/material.dart';
 
-import '../../../../core/constants/app_strings.dart';
 import '../../../../core/themes/app_theme.dart';
 import '../widgets/log_exercise_tab.dart';
 import '../widgets/log_macros_tab.dart';
@@ -49,21 +48,34 @@ class _LogPageState extends State<LogPage> {
 
     return Scaffold(
       backgroundColor: AppTheme.backgroundDark,
-      appBar: AppBar(
-        title: const Text(AppStrings.logTitle),
-        automaticallyImplyLeading: canPop,
-      ),
-      body: Column(
-        children: <Widget>[
-          Padding(
-            padding: const EdgeInsets.fromLTRB(20, 16, 20, 12),
-            child: LogTabSelector(
-              selectedIndex: _selectedIndex,
-              onChanged: (int i) => setState(() => _selectedIndex = i),
+      body: SafeArea(
+        bottom: false,
+        child: Column(
+          children: <Widget>[
+            Padding(
+              padding: const EdgeInsets.fromLTRB(16, 12, 16, 8),
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: <Widget>[
+                  if (canPop)
+                    Align(
+                      alignment: Alignment.centerLeft,
+                      child: IconButton(
+                        icon: const Icon(Icons.arrow_back),
+                        color: AppTheme.textLight,
+                        onPressed: () => Navigator.of(context).pop(),
+                      ),
+                    ),
+                  LogTabSelector(
+                    selectedIndex: _selectedIndex,
+                    onChanged: (int i) => setState(() => _selectedIndex = i),
+                  ),
+                ],
+              ),
             ),
-          ),
-          Expanded(child: _buildContent()),
-        ],
+            Expanded(child: _buildContent()),
+          ],
+        ),
       ),
     );
   }
