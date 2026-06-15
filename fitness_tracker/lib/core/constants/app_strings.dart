@@ -100,6 +100,7 @@ class AppStrings {
   static const String searchExercisesHint = 'Search exercises...';
   static const String pickerRecents = 'Recents';
   static const String pickerAllExercises = 'All Exercises';
+  static const String pickerAllMeals = 'All Meals';
   static const String enterReps = 'Enter reps';
   static const String enterWeight = 'Enter weight';
   static const String selectIntensity = 'Select intensity';

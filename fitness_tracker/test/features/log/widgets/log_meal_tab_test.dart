@@ -2,9 +2,10 @@ import 'package:bloc_test/bloc_test.dart';
 import 'package:fitness_tracker/app/app.dart';
 import 'package:fitness_tracker/core/constants/app_strings.dart';
 import 'package:fitness_tracker/domain/entities/meal.dart';
+import 'package:fitness_tracker/domain/entities/nutrition_log.dart';
 import 'package:fitness_tracker/features/library/application/meal_bloc.dart';
 import 'package:fitness_tracker/features/log/log.dart';
-import 'package:fitness_tracker/features/log/presentation/widgets/meal_list_row.dart';
+import 'package:fitness_tracker/features/log/presentation/widgets/meal_picker_sheet.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -76,13 +77,26 @@ void main() {
     );
   });
 
-  Widget buildSubject({required MealState mealState, DateTime? initialDate}) {
+  Widget buildSubject({
+    required MealState mealState,
+    NutritionLogState? nutritionState,
+    DateTime? initialDate,
+  }) {
     when(() => mealBloc.state).thenReturn(mealState);
     whenListen(
       mealBloc,
       const Stream<MealState>.empty(),
       initialState: mealState,
     );
+
+    if (nutritionState != null) {
+      when(() => nutritionBloc.state).thenReturn(nutritionState);
+      whenListen(
+        nutritionBloc,
+        const Stream<NutritionLogState>.empty(),
+        initialState: nutritionState,
+      );
+    }
 
     return AppShell(
       home: MultiBlocProvider(
@@ -96,70 +110,46 @@ void main() {
   }
 
   group('LogMealTab', () {
-    testWidgets('shows loading while meals load', (tester) async {
-      await tester.pumpWidget(buildSubject(mealState: MealLoading()));
-      expect(find.byType(CircularProgressIndicator), findsOneWidget);
-    });
+    testWidgets(
+      'select-meal bar shows the default prompt before any selection',
+      (tester) async {
+        await tester.pumpWidget(buildSubject(mealState: MealsLoaded(meals)));
+        await tester.pumpAndSettle();
 
-    testWidgets('shows empty state when no meals exist', (tester) async {
-      await tester.pumpWidget(
-        buildSubject(mealState: const MealsLoaded(<Meal>[])),
-      );
+        // No dock yet (no meal selected).
+        expect(find.text(AppStrings.logMealButton), findsNothing);
+        // Bar shows "Select Meal" prompt.
+        expect(find.text(AppStrings.selectMeal), findsOneWidget);
+        expect(find.byIcon(Icons.expand_more), findsOneWidget);
+      },
+    );
 
-      expect(find.text(AppStrings.noMealsInLibrary), findsOneWidget);
-      expect(find.text(AppStrings.createMealsInLibrary), findsOneWidget);
-    });
+    testWidgets(
+      'tapping the bar opens the picker sheet; selecting a meal fills the bar '
+      'and reveals the dock',
+      (tester) async {
+        await tester.pumpWidget(buildSubject(mealState: MealsLoaded(meals)));
+        await tester.pumpAndSettle();
 
-    testWidgets('shows error state with retry button', (tester) async {
-      await tester.pumpWidget(buildSubject(mealState: const MealError('boom')));
+        await tester.tap(find.text(AppStrings.selectMeal));
+        await tester.pumpAndSettle();
 
-      expect(find.text(AppStrings.errorLoadingMeals), findsOneWidget);
-      await tester.tap(find.text(AppStrings.retry));
-      await tester.pump();
+        // Picker is open.
+        expect(find.byType(MealPickerSheet), findsOneWidget);
+        // Picker shows both meals.
+        expect(find.text('Chicken Breast'), findsOneWidget);
+        expect(find.text('White Rice'), findsOneWidget);
 
-      verify(() => mealBloc.add(LoadMealsEvent())).called(1);
-    });
+        await tester.tap(find.text('Chicken Breast'));
+        await tester.pumpAndSettle();
 
-    testWidgets('search filters the meal list', (tester) async {
-      await tester.pumpWidget(buildSubject(mealState: MealsLoaded(meals)));
-      await tester.pumpAndSettle();
-
-      expect(find.byType(MealListRow), findsNWidgets(2));
-
-      await tester.enterText(find.byType(TextField), 'rice');
-      await tester.pumpAndSettle();
-
-      expect(find.text('White Rice'), findsOneWidget);
-      expect(find.text('Chicken Breast'), findsNothing);
-    });
-
-    testWidgets('shows no-results state when search has no matches', (
-      tester,
-    ) async {
-      await tester.pumpWidget(buildSubject(mealState: MealsLoaded(meals)));
-      await tester.pumpAndSettle();
-
-      await tester.enterText(find.byType(TextField), 'zzzz');
-      await tester.pumpAndSettle();
-
-      expect(find.text('No meals found'), findsOneWidget);
-    });
-
-    testWidgets('selecting a meal reveals the dock + log button', (
-      tester,
-    ) async {
-      await tester.pumpWidget(buildSubject(mealState: MealsLoaded(meals)));
-      await tester.pumpAndSettle();
-
-      expect(find.text(AppStrings.logMealButton), findsNothing);
-
-      await tester.tap(find.text('Chicken Breast'));
-      await tester.pumpAndSettle();
-
-      expect(find.text(AppStrings.logMealButton), findsOneWidget);
-      // Default grams = 100.
-      expect(find.text('per 100 g'), findsOneWidget);
-    });
+        // Picker dismissed; bar + dock both show the meal name; dock appears.
+        expect(find.byType(MealPickerSheet), findsNothing);
+        expect(find.text('Chicken Breast'), findsNWidgets(2));
+        expect(find.text(AppStrings.logMealButton), findsOneWidget);
+        expect(find.text('per 100 g'), findsOneWidget);
+      },
+    );
 
     testWidgets('tapping a quick chip updates grams and preview', (
       tester,
@@ -167,6 +157,8 @@ void main() {
       await tester.pumpWidget(buildSubject(mealState: MealsLoaded(meals)));
       await tester.pumpAndSettle();
 
+      await tester.tap(find.text(AppStrings.selectMeal));
+      await tester.pumpAndSettle();
       await tester.tap(find.text('Chicken Breast'));
       await tester.pumpAndSettle();
 
@@ -179,12 +171,13 @@ void main() {
     });
 
     testWidgets(
-      'stepper + button updates grams; log dispatches AddNutritionLogEvent with '
-      'correct grams and macros',
+      'log dispatches AddNutritionLogEvent with correct grams + macros',
       (tester) async {
         await tester.pumpWidget(buildSubject(mealState: MealsLoaded(meals)));
         await tester.pumpAndSettle();
 
+        await tester.tap(find.text(AppStrings.selectMeal));
+        await tester.pumpAndSettle();
         await tester.tap(find.text('Chicken Breast'));
         await tester.pumpAndSettle();
 
@@ -223,16 +216,15 @@ void main() {
       },
     );
 
-    testWidgets('opens keypad on value tap and submits via Done', (
-      tester,
-    ) async {
+    testWidgets('opens keypad on value tap and submits via ✓', (tester) async {
       await tester.pumpWidget(buildSubject(mealState: MealsLoaded(meals)));
       await tester.pumpAndSettle();
 
+      await tester.tap(find.text(AppStrings.selectMeal));
+      await tester.pumpAndSettle();
       await tester.tap(find.text('Chicken Breast'));
       await tester.pumpAndSettle();
 
-      // Tap the stepper value (the '100' inside the grams stepper).
       await tester.tap(
         find.descendant(
           of: find.byKey(const Key('mealGramsStepper')),
@@ -241,10 +233,8 @@ void main() {
       );
       await tester.pumpAndSettle();
 
-      // Keypad header label.
       expect(find.text('Enter grams'), findsOneWidget);
 
-      // Enter 250, confirm.
       await tester.tap(find.text('2'));
       await tester.tap(find.text('5'));
       await tester.tap(find.text('0'));
@@ -253,5 +243,64 @@ void main() {
 
       expect(find.text('per 250 g'), findsOneWidget);
     });
+
+    testWidgets(
+      'Today so far renders when nutrition state is DailyLogsLoaded for the date',
+      (tester) async {
+        final DateTime today = DateTime.now();
+        final DateTime dateOnly = DateTime(today.year, today.month, today.day);
+
+        await tester.pumpWidget(
+          buildSubject(
+            mealState: MealsLoaded(meals),
+            initialDate: dateOnly,
+            nutritionState: DailyLogsLoaded(
+              date: dateOnly,
+              logs: <NutritionLog>[
+                NutritionLog(
+                  id: 'a',
+                  mealId: null,
+                  mealName: 'x',
+                  gramsConsumed: null,
+                  proteinGrams: 30,
+                  carbsGrams: 40,
+                  fatGrams: 10,
+                  calories: 370,
+                  loggedAt: dateOnly,
+                  createdAt: dateOnly,
+                ),
+              ],
+              dailyMacros: const <String, double>{
+                'protein': 30,
+                'carbs': 40,
+                'fats': 10,
+                'calories': 370,
+              },
+            ),
+          ),
+        );
+        await tester.pumpAndSettle();
+
+        expect(find.text('Today so far'), findsOneWidget);
+        expect(find.text('370 kcal · 1 log'), findsOneWidget);
+      },
+    );
+
+    testWidgets(
+      'picker is reachable even when no meals are loaded (empty library)',
+      (tester) async {
+        await tester.pumpWidget(
+          buildSubject(mealState: const MealsLoaded(<Meal>[])),
+        );
+        await tester.pumpAndSettle();
+
+        await tester.tap(find.text(AppStrings.selectMeal));
+        await tester.pumpAndSettle();
+
+        expect(find.byType(MealPickerSheet), findsOneWidget);
+        // Sectioned empty: "All Meals" header only, no rows.
+        expect(find.text(AppStrings.pickerAllMeals), findsOneWidget);
+      },
+    );
   });
 }
