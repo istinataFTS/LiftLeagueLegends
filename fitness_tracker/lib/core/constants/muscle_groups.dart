@@ -1,48 +1,16 @@
+import 'package:fitness_tracker/core/constants/muscle_stimulus_constants.dart';
+
 class MuscleGroups {
-  static const List<String> all = [
-    'shoulder',
-    'traps',
-    'lats',
-    'chest',
-    'biceps',
-    'triceps',
-    'neck',
-    'forearms',
-    'obliques',
-    'abs',
-    'lower back',
-    'glutes',
-    'hamstring',
-    'quads',
-    'calves',
-  ];
+  /// The 18 canonical muscle groups. Delegates to [MuscleStimulus.allMuscleGroups]
+  /// so there is a single source of truth.
+  static const List<String> all = MuscleStimulus.allMuscleGroups;
 
-  /// Display names for muscle groups (for UI)
-  static const Map<String, String> displayNames = {
-    'shoulder': 'Shoulders',
-    'traps': 'Traps',
-    'lats': 'Lats',
-    'chest': 'Chest',
-    'biceps': 'Biceps',
-    'triceps': 'Triceps',
-    'neck': 'Neck',
-    'forearms': 'Forearms',
-    'obliques': 'Obliques',
-    'abs': 'Abs',
-    'lower back': 'Lower Back',
-    'glutes': 'Glutes',
-    'hamstring': 'Hamstrings',
-    'quads': 'Quads',
-    'calves': 'Calves',
-  };
+  /// Display names keyed by canonical muscle key. Delegates to
+  /// [MuscleStimulus.displayNames] to prevent contract drift.
+  static const Map<String, String> displayNames = MuscleStimulus.displayNames;
 
-  /// Maps granular taxonomy keys (used in seed data / [MuscleStimulus]) to
-  /// their corresponding simple taxonomy keys (used in [MuscleGroups.all]).
-  ///
-  /// Used when loading saved [MuscleFactor] rows into the exercise dialog so
-  /// that granular seed factors can be averaged and displayed on the simple-key
-  /// sliders.  Keys that are already simple (e.g. `'quads'`, `'biceps'`) are
-  /// listed here too so callers need only a single lookup.
+  /// Legacy mapping of granular taxonomy keys to their former simple equivalents.
+  /// Removed in A2 once all callers are migrated to canonical keys.
   static const Map<String, String> granularToSimple = <String, String>{
     // Shoulders
     'front-delts': 'shoulder',
@@ -63,22 +31,22 @@ class MuscleGroups {
     'forearms': 'forearms',
     'abs': 'abs',
     'obliques': 'obliques',
-    'lovehandles': 'obliques', // nearest simple equivalent
+    'lovehandles': 'obliques',
     'lower-back': 'lower back',
     'glutes': 'glutes',
-    'hipadductors': 'hamstring', // nearest simple equivalent
+    'hipadductors': 'hamstring',
     'quads': 'quads',
     'hamstrings': 'hamstring',
     'calves': 'calves',
   };
 
-  /// Validate if a muscle group name is valid
-  static bool isValid(String muscleGroup) {
-    return all.contains(muscleGroup.toLowerCase());
-  }
+  /// Returns true for any canonical or legacy key. Delegates to
+  /// [MuscleStimulus.isValidMuscleGroup].
+  static bool isValid(String muscleGroup) =>
+      MuscleStimulus.isValidMuscleGroup(muscleGroup);
 
-  /// Get display name for a muscle group
-  static String getDisplayName(String muscleGroup) {
-    return displayNames[muscleGroup.toLowerCase()] ?? muscleGroup;
-  }
+  /// Returns the display name for [muscleGroup], canonicalising the key first.
+  /// Delegates to [MuscleStimulus.getDisplayName].
+  static String getDisplayName(String muscleGroup) =>
+      MuscleStimulus.getDisplayName(muscleGroup);
 }

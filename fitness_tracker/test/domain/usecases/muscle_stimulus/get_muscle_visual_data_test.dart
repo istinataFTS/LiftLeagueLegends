@@ -231,7 +231,7 @@ void main() {
       'anchor decoupling: fatigueScore=60, anchor=2026-06-09, lastSetTimestamp=2026-06-13, '
       'today=2026-06-15 → decays from anchor (6 days), not lastSetTimestamp (2 days)',
       () async {
-        const targetMuscle = stimulus_constants.MuscleStimulus.midChest;
+        const targetMuscle = stimulus_constants.MuscleStimulus.chest;
         // Fixed clock: 2026-06-15. Anchor=2026-06-09, last-set=2026-06-13.
         final anchorDay = DateTime(2026, 6, 9);
         final lastSetDay = DateTime(2026, 6, 13);
@@ -415,18 +415,18 @@ void main() {
   // All-time: relative total-volume ranking
   // ---------------------------------------------------------------------------
   //
-  // Scenario: quads has 10 000 total volume (the maximum), mid-chest has
+  // Scenario: quads has 10 000 total volume (the maximum), chest has
   // 2 000, and every other muscle has 0.  Expected outcome:
-  //   quads     → maximum bucket (ratio 1.0 → red)
-  //   mid-chest → some trained bucket (ratio 0.2 → green)
-  //   others    → untrained (gray)
+  //   quads  → maximum bucket (ratio 1.0 → red)
+  //   chest  → some trained bucket (ratio 0.2 → green)
+  //   others → untrained (gray)
 
   group('All-time relative total-volume ranking', () {
     setUp(() {
       for (final m in stimulus_constants.MuscleStimulus.allMuscleGroups) {
         double volume = 0.0;
         if (m == stimulus_constants.MuscleStimulus.quads) volume = 10000.0;
-        if (m == stimulus_constants.MuscleStimulus.midChest) volume = 2000.0;
+        if (m == stimulus_constants.MuscleStimulus.chest) volume = 2000.0;
 
         when(
           () => repository.getTotalVolumeForMuscle(
@@ -451,12 +451,12 @@ void main() {
     });
 
     test(
-      'lightly-trained muscle (mid-chest, 20 % of max) is trained/green',
+      'lightly-trained muscle (chest, 20 % of max) is trained/green',
       () async {
         final result = await usecase(TimePeriod.allTime);
         final data = result.getOrElse(() => throw StateError('expected data'));
 
-        final chest = data[stimulus_constants.MuscleStimulus.midChest]!;
+        final chest = data[stimulus_constants.MuscleStimulus.chest]!;
         expect(
           chest.hasTrained,
           isTrue,
@@ -479,7 +479,7 @@ void main() {
           .where(
             (m) =>
                 m != stimulus_constants.MuscleStimulus.quads &&
-                m != stimulus_constants.MuscleStimulus.midChest,
+                m != stimulus_constants.MuscleStimulus.chest,
           )
           .toList();
 

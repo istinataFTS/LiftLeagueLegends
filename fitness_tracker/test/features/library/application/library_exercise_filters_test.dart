@@ -22,7 +22,7 @@ void main() {
     buildExercise(
       id: '1',
       name: 'Bench Press',
-      muscleGroups: const <String>['chest', 'triceps', 'front-delts'],
+      muscleGroups: const <String>['chest', 'triceps', 'lats'],
     ),
     buildExercise(
       id: '2',

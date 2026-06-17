@@ -55,6 +55,12 @@ void main() {
     testWidgets('renders muscle pills (display names, not comma text)', (
       tester,
     ) async {
+      // Use a wide viewport so all 18+ filter chips are visible and findable.
+      tester.view.physicalSize = const Size(2000, 800);
+      tester.view.devicePixelRatio = 1.0;
+      addTearDown(tester.view.resetPhysicalSize);
+      addTearDown(tester.view.resetDevicePixelRatio);
+
       await pumpPicker(tester, exercises: <Exercise>[bench]);
 
       expect(find.text('Bench Press'), findsOneWidget);

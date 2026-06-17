@@ -1,3 +1,4 @@
+import 'package:fitness_tracker/core/constants/legacy_muscle_group_map.dart';
 import 'package:flutter/foundation.dart';
 
 /// Constants for muscle stimulus calculation and visualization system.
@@ -5,18 +6,16 @@ import 'package:flutter/foundation.dart';
 class MuscleStimulus {
   MuscleStimulus._();
 
-  // ==================== MUSCLE GROUPS ====================
-  /// Complete list of muscle groups for detailed tracking
-  static const List<String> allMuscleGroups = [
-    frontDelts,
-    sideDelts,
+  // ==================== CANONICAL MUSCLE GROUPS (v26) ====================
+  /// The 18 canonical muscle-group keys — the single source of truth for
+  /// `exercise_muscle_factors.muscle_group`, `muscle_stimulus.muscle_group`,
+  /// `exercises.muscle_groups`, edit-dialog chips, and the body-map asset map.
+  static const List<String> allMuscleGroups = <String>[
+    shoulders,
     rearDelts,
     upperTraps,
-    middleTraps,
     lowerTraps,
-    upperChest,
-    midChest,
-    lowerChest,
+    chest,
     lats,
     biceps,
     triceps,
@@ -32,17 +31,12 @@ class MuscleStimulus {
     calves,
   ];
 
-  // Individual muscle group constants (kebab-case for database consistency
-  // on existing groups, plus new explicit keys for the added regions)
-  static const String frontDelts = 'front-delts';
-  static const String sideDelts = 'side-delts';
+  // ── Canonical constants ────────────────────────────────────────────────────
+  static const String shoulders = 'shoulders';
   static const String rearDelts = 'rear-delts';
   static const String upperTraps = 'upper-traps';
-  static const String middleTraps = 'middle-traps';
   static const String lowerTraps = 'lower-traps';
-  static const String upperChest = 'upper-chest';
-  static const String midChest = 'mid-chest';
-  static const String lowerChest = 'lower-chest';
+  static const String chest = 'chest';
   static const String lats = 'lats';
   static const String biceps = 'biceps';
   static const String triceps = 'triceps';
@@ -57,18 +51,21 @@ class MuscleStimulus {
   static const String hamstrings = 'hamstrings';
   static const String calves = 'calves';
 
+  // ── Legacy granular constants — migrate all callers to canonical in A2 ───
+  static const String frontDelts = 'front-delts';
+  static const String sideDelts = 'side-delts';
+  static const String upperChest = 'upper-chest';
+  static const String midChest = 'mid-chest';
+  static const String lowerChest = 'lower-chest';
+  static const String middleTraps = 'middle-traps';
+
   // ==================== DISPLAY NAMES ====================
-  /// User-friendly names for UI display
-  static const Map<String, String> displayNames = {
-    frontDelts: 'Front Delts',
-    sideDelts: 'Side Delts',
+  static const Map<String, String> displayNames = <String, String>{
+    shoulders: 'Shoulders',
     rearDelts: 'Rear Delts',
     upperTraps: 'Upper Traps',
-    middleTraps: 'Middle Traps',
     lowerTraps: 'Lower Traps',
-    upperChest: 'Upper Chest',
-    midChest: 'Mid Chest',
-    lowerChest: 'Lower Chest',
+    chest: 'Chest',
     lats: 'Lats',
     biceps: 'Biceps',
     triceps: 'Triceps',
@@ -85,38 +82,28 @@ class MuscleStimulus {
   };
 
   // ==================== RECOVERY RATES (k values) ====================
-  /// Recovery decay rates for each muscle group (per hour).
-  /// Higher k = faster recovery. Lower k = slower recovery.
-  static const Map<String, double> recoveryRates = {
+  /// Recovery decay rates for each canonical muscle group (per hour).
+  /// Merged sub-regions share the rate of their former parent group.
+  static const Map<String, double> recoveryRates = <String, double>{
     // Shoulders
-    frontDelts: 0.030,
-    sideDelts: 0.030,
+    shoulders: 0.030,
     rearDelts: 0.030,
-
     // Traps
     upperTraps: 0.028,
-    middleTraps: 0.028,
     lowerTraps: 0.028,
-
     // Chest
-    upperChest: 0.027,
-    midChest: 0.027,
-    lowerChest: 0.027,
-
+    chest: 0.027,
     // Back
     lats: 0.024,
     lowerBack: 0.023,
-
     // Arms
     biceps: 0.032,
     triceps: 0.032,
     forearms: 0.035,
-
     // Core / waist
     abs: 0.020,
     obliques: 0.020,
     lovehandles: 0.020,
-
     // Hips / legs
     glutes: 0.022,
     hipadductors: 0.021,
@@ -143,7 +130,7 @@ class MuscleStimulus {
   static const int defaultIntensity = 3;
 
   /// Intensity level descriptions (full version for dialogs)
-  static const Map<int, String> intensityDescriptions = {
+  static const Map<int, String> intensityDescriptions = <int, String>{
     0: 'No effort - Warm-up sets, technique practice, or mobility work. Minimal muscle activation.',
     1: 'Very Light - Easy sets with high reps remaining. Low muscle engagement, recovery work.',
     2: 'Light - Moderate effort with several reps in reserve. Building volume without strain.',
@@ -153,7 +140,7 @@ class MuscleStimulus {
   };
 
   /// Intensity level short labels (for UI sliders)
-  static const Map<int, String> intensityLabels = {
+  static const Map<int, String> intensityLabels = <int, String>{
     0: 'Warm-up',
     1: 'Very Light',
     2: 'Light',
@@ -191,17 +178,24 @@ class MuscleStimulus {
 
   // ==================== VALIDATION & HELPER METHODS ====================
 
+  /// Returns true for any canonical key or any legacy key that canonicalises
+  /// to a canonical key. Accepts both the granular and simple vocabularies so
+  /// existing stored data remains valid before the v26 migration runs.
   static bool isValidMuscleGroup(String muscleGroup) {
-    return allMuscleGroups.contains(muscleGroup.toLowerCase());
+    return allMuscleGroups.contains(
+      LegacyMuscleGroupMap.canonicalizeMuscleKey(muscleGroup),
+    );
   }
 
   static String getDisplayName(String muscleGroup) {
-    final String key = muscleGroup.toLowerCase();
-    final String? mapped = displayNames[key];
+    final String canonical = LegacyMuscleGroupMap.canonicalizeMuscleKey(
+      muscleGroup,
+    );
+    final String? mapped = displayNames[canonical];
     if (mapped != null) return mapped;
 
     // Fallback: title-case each word so unknown groups still render cleanly.
-    return key
+    return canonical
         .split(RegExp(r'[-\s]+'))
         .where((String w) => w.isNotEmpty)
         .map((String w) => w[0].toUpperCase() + w.substring(1))
@@ -209,17 +203,20 @@ class MuscleStimulus {
   }
 
   static double getRecoveryRate(String muscleGroup) {
-    return recoveryRates[muscleGroup.toLowerCase()] ?? defaultRecoveryRate;
+    final String canonical = LegacyMuscleGroupMap.canonicalizeMuscleKey(
+      muscleGroup,
+    );
+    return recoveryRates[canonical] ?? defaultRecoveryRate;
   }
 
   static String getIntensityDescription(int intensity) {
-    final clampedIntensity = intensity.clamp(minIntensity, maxIntensity);
+    final int clampedIntensity = intensity.clamp(minIntensity, maxIntensity);
     return intensityDescriptions[clampedIntensity] ??
         intensityDescriptions[defaultIntensity]!;
   }
 
   static String getIntensityLabel(int intensity) {
-    final clampedIntensity = intensity.clamp(minIntensity, maxIntensity);
+    final int clampedIntensity = intensity.clamp(minIntensity, maxIntensity);
     return intensityLabels[clampedIntensity] ??
         intensityLabels[defaultIntensity]!;
   }

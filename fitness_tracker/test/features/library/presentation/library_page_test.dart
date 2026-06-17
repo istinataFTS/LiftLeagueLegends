@@ -147,6 +147,12 @@ void main() {
   });
 
   testWidgets('filters exercises by muscle chip', (WidgetTester tester) async {
+    // Use a wide viewport so all 18 canonical muscle filter chips are visible.
+    tester.view.physicalSize = const Size(2000, 800);
+    tester.view.devicePixelRatio = 1.0;
+    addTearDown(tester.view.resetPhysicalSize);
+    addTearDown(tester.view.resetDevicePixelRatio);
+
     await tester.pumpWidget(buildSubject());
 
     await tester.tap(find.byKey(ExercisesTab.muscleChipKey('chest')));
