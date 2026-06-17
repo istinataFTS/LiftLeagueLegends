@@ -20,7 +20,7 @@ void main() {
   final DateTime now = DateTime(2026, 4, 20);
   const AppSettings settings = AppSettings.defaults();
 
-  // Uses fine-grained MuscleStimulus slugs so _frontBodyAssetMap / _backBodyAssetMap
+  // Uses canonical MuscleStimulus keys so _frontBodyAssetMap / _backBodyAssetMap
   // produce actual overlay entries and bodyVisual.hasHighlights returns true.
   MuscleVisualData trained(String group, {double stimulus = 18}) {
     return MuscleVisualData(
@@ -77,12 +77,12 @@ void main() {
       // Before Phase 3, Sets came from a raw repo list and Muscles came from
       // factor-aware stimulus, so they could disagree.  Now both muscle summary
       // and body visual are sourced from the same MuscleVisualLoaded state.
-      // 'mid-chest' is a fine-grained slug that exists in _frontBodyAssetMap.
+      // 'chest' is a canonical key that exists in _frontBodyAssetMap.
       final HomePageViewData result = HomeViewDataMapper.map(
         homeData: homeDataWith(weeklySetCount: 3),
         muscleVisualState: loadedState(
           muscleData: <String, MuscleVisualData>{
-            'mid-chest': trained('mid-chest'),
+            'chest': trained('chest'),
             'lats': untrained('lats'),
           },
         ),
@@ -127,9 +127,7 @@ void main() {
     final HomePageViewData result = HomeViewDataMapper.map(
       homeData: homeDataWith(weeklySetCount: 4),
       muscleVisualState: loadedState(
-        muscleData: <String, MuscleVisualData>{
-          'mid-chest': trained('mid-chest'),
-        },
+        muscleData: <String, MuscleVisualData>{'chest': trained('chest')},
       ),
       settings: settings,
       userName: 'Tester',

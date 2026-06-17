@@ -12,24 +12,23 @@ import '../models/home_view_data.dart';
 class HomeViewDataMapper {
   const HomeViewDataMapper._();
 
-  /// Maps fine-grained muscle-group slugs (from [MuscleStimulus] constants) to
-  /// the front-side body overlay assets.  Keys are typed constants — any key
+  /// Maps the 18 canonical muscle-group keys (from [MuscleStimulus] constants)
+  /// to the front-side body overlay assets.  Keys are typed constants — any key
   /// mismatch (slug changed, typo) fails at compile-time, not silently at
-  /// runtime.
+  /// runtime.  Merged regions (shoulders, traps) list every PNG they tint so a
+  /// single canonical value colours the whole region uniformly.
   static const Map<String, List<String>>
   _frontBodyAssetMap = <String, List<String>>{
-    MuscleStimulus.frontDelts: <String>['assets/images/body/front_delts.png'],
-    MuscleStimulus.sideDelts: <String>[
+    // Shoulders = anterior + lateral deltoid heads (there is no front rear
+    // delt; front_sidedelt.png is the lateral head viewed from the front).
+    MuscleStimulus.shoulders: <String>[
       'assets/images/body/front_delts.png',
-      'assets/images/body/front_reardelt.png',
+      'assets/images/body/front_sidedelt.png',
     ],
     MuscleStimulus.upperTraps: <String>[
       'assets/images/body/front_uppertraps.png',
-      'assets/images/body/front_neck.png',
     ],
-    MuscleStimulus.upperChest: <String>['assets/images/body/front_chest.png'],
-    MuscleStimulus.midChest: <String>['assets/images/body/front_chest.png'],
-    MuscleStimulus.lowerChest: <String>['assets/images/body/front_chest.png'],
+    MuscleStimulus.chest: <String>['assets/images/body/front_chest.png'],
     MuscleStimulus.biceps: <String>['assets/images/body/front_biceps.png'],
     MuscleStimulus.forearms: <String>['assets/images/body/front_forearms.png'],
     MuscleStimulus.abs: <String>['assets/images/body/front_abs.png'],
@@ -44,18 +43,18 @@ class HomeViewDataMapper {
     MuscleStimulus.calves: <String>['assets/images/body/front_calves.png'],
   };
 
-  /// Maps fine-grained muscle-group slugs to the back-side body overlay assets.
+  /// Maps the 18 canonical muscle-group keys to the back-side body overlay
+  /// assets.
   static const Map<String, List<String>>
   _backBodyAssetMap = <String, List<String>>{
+    // Rear delts are the only deltoid head shown on the back face.
     MuscleStimulus.rearDelts: <String>['assets/images/body/back_reardelt.png'],
-    MuscleStimulus.sideDelts: <String>['assets/images/body/back_reardelt.png'],
     MuscleStimulus.upperTraps: <String>[
       'assets/images/body/back_uppertraps.png',
     ],
-    MuscleStimulus.middleTraps: <String>[
-      'assets/images/body/back_middletraps.png',
-    ],
+    // Lower traps = former middle + lower trap regions.
     MuscleStimulus.lowerTraps: <String>[
+      'assets/images/body/back_middletraps.png',
       'assets/images/body/back_lowertraps.png',
     ],
     MuscleStimulus.lats: <String>[

@@ -3,6 +3,8 @@ import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:uuid/uuid.dart';
 
 import '../../../../core/constants/app_strings.dart';
+import '../../../../core/constants/legacy_muscle_group_map.dart';
+import '../../../../core/constants/muscle_factor_combine.dart';
 import '../../../../core/constants/muscle_groups.dart';
 import '../../../../core/themes/app_theme.dart';
 import '../../../../domain/entities/exercise.dart';
@@ -676,25 +678,22 @@ class _ExerciseDialogState extends State<_ExerciseDialog> {
 
   /// Called when [ExerciseFactorsLoaded] arrives.
   ///
-  /// Raw factors may use granular keys (seed data) or simple keys (user
-  /// exercises). Granular keys are mapped to their simple equivalents via
-  /// [MuscleGroups.granularToSimple] and multiple granular contributions to
-  /// the same simple key are averaged.
+  /// Keys are now 1:1 with the canonical taxonomy, so loaded factors map
+  /// directly onto the sliders. Any stray legacy key is canonicalised (and
+  /// duplicates collapsed with the MAX rule) defensively before matching.
   void _applyLoadedFactors(Map<String, double> rawFactors) {
-    final Map<String, List<double>> grouped = <String, List<double>>{};
-    for (final entry in rawFactors.entries) {
-      final String simpleKey =
-          MuscleGroups.granularToSimple[entry.key] ?? entry.key;
-      grouped.putIfAbsent(simpleKey, () => <double>[]).add(entry.value);
-    }
+    final Map<String, double> canonical = combineCanonicalFactors(
+      rawFactors.entries.map(
+        (MapEntry<String, double> e) => MapEntry(e.key, e.value),
+      ),
+    );
 
     setState(() {
-      for (final entry in grouped.entries) {
-        if (_selectedMuscleFactors.containsKey(entry.key)) {
-          final double avg =
-              entry.value.reduce((double a, double b) => a + b) /
-              entry.value.length;
-          _selectedMuscleFactors[entry.key] = avg;
+      for (final String key in _selectedMuscleFactors.keys.toList()) {
+        final double? loaded =
+            canonical[LegacyMuscleGroupMap.canonicalizeMuscleKey(key)];
+        if (loaded != null) {
+          _selectedMuscleFactors[key] = loaded;
         }
       }
     });

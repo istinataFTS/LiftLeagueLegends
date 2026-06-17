@@ -3,6 +3,7 @@ import 'package:flutter_bloc/flutter_bloc.dart';
 
 import '../../../../core/bloc/bloc_effects_mixin.dart';
 import '../../../../core/constants/app_strings.dart';
+import '../../../../core/constants/legacy_muscle_group_map.dart';
 import '../../../../core/constants/muscle_groups.dart';
 import '../../../../core/logging/app_logger.dart';
 import '../../../../core/utils/week_date_utils.dart';
@@ -286,7 +287,7 @@ class WorkoutBloc extends Bloc<WorkoutEvent, WorkoutState>
     }, (set) => set);
 
     final muscleResult = await muscleFuture;
-    final Map<String, MuscleVisualData> visualByGranular = muscleResult.fold((
+    final Map<String, MuscleVisualData> visualByMuscle = muscleResult.fold((
       failure,
     ) {
       AppLogger.warning(
@@ -296,25 +297,26 @@ class WorkoutBloc extends Bloc<WorkoutEvent, WorkoutState>
       return <String, MuscleVisualData>{};
     }, (map) => map);
 
+    // Keys are now 1:1 with the canonical taxonomy on both sides, so each
+    // selected muscle reads its visual data directly (legacy keys are
+    // canonicalised defensively).
     final List<MuscleFatigue> muscles = <MuscleFatigue>[];
-    for (final coarse in exercise.muscleGroups) {
-      MuscleVisualData? top;
-      for (final entry in MuscleGroups.granularToSimple.entries) {
-        if (entry.value != coarse) continue;
-        final data = visualByGranular[entry.key];
-        if (data == null) continue;
-        if (top == null || data.visualIntensity > top.visualIntensity) {
-          top = data;
-        }
-      }
-      if (top == null) continue;
+    final Set<String> seenCanonical = <String>{};
+    for (final muscle in exercise.muscleGroups) {
+      final String canonical = LegacyMuscleGroupMap.canonicalizeMuscleKey(
+        muscle,
+      );
+      // Two legacy keys can fold to one canonical key — emit each muscle once.
+      if (!seenCanonical.add(canonical)) continue;
+      final data = visualByMuscle[canonical];
+      if (data == null) continue;
       muscles.add(
         MuscleFatigue(
-          coarseGroup: coarse,
-          displayName: MuscleGroups.getDisplayName(coarse),
-          percent: (top.visualIntensity * 100).round().clamp(0, 100),
-          bucket: top.bucket,
-          color: top.color,
+          coarseGroup: canonical,
+          displayName: MuscleGroups.getDisplayName(canonical),
+          percent: (data.visualIntensity * 100).round().clamp(0, 100),
+          bucket: data.bucket,
+          color: data.color,
         ),
       );
     }

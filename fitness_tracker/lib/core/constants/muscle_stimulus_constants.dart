@@ -51,7 +51,11 @@ class MuscleStimulus {
   static const String hamstrings = 'hamstrings';
   static const String calves = 'calves';
 
-  // ── Legacy granular constants — migrate all callers to canonical in A2 ───
+  // ── Granular seed-authoring vocabulary ──────────────────────────────────
+  // Retained solely so `exercise_muscle_factors_data.dart` can author the seed
+  // at biomechanical granularity (e.g. upper/mid/lower-chest). These keys never
+  // reach storage or the runtime: `getAllFactors` folds them onto canonical
+  // keys via `combineCanonicalFactors` at read time. Do not use elsewhere.
   static const String frontDelts = 'front-delts';
   static const String sideDelts = 'side-delts';
   static const String upperChest = 'upper-chest';

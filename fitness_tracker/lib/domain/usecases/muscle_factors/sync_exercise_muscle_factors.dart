@@ -1,7 +1,8 @@
 import 'package:dartz/dartz.dart';
 import 'package:uuid/uuid.dart';
 
-import '../../../core/constants/muscle_groups.dart';
+import '../../../core/constants/legacy_muscle_group_map.dart';
+import '../../../core/constants/muscle_factor_combine.dart';
 import '../../../core/constants/muscle_stimulus_constants.dart';
 import '../../../core/errors/failures.dart';
 import '../../entities/exercise.dart';
@@ -16,7 +17,12 @@ class SyncExerciseMuscleFactors {
 
   /// Replaces all [MuscleFactor] rows for [exercise] with up-to-date values.
   ///
-  /// When [muscleFactors] is supplied (simple-key → factor), each entry
+  /// Every incoming key — both `exercise.muscleGroups` and the [muscleFactors]
+  /// map — is canonicalised at the boundary so any stray legacy key from an
+  /// in-flight edit is normalised before storage. Only canonical keys are
+  /// persisted (the v26 taxonomy).
+  ///
+  /// When [muscleFactors] is supplied (canonical-key → factor), each entry
   /// is clamped to [0.0, 1.0] and entries with factor ≤ 0 are skipped.
   /// When [muscleFactors] is null, every selected muscle receives factor 1.0
   /// (the original behaviour — preserves backwards-compatibility for callers
@@ -29,21 +35,36 @@ class SyncExerciseMuscleFactors {
         .deleteMuscleFactorsByExerciseId(exercise.id);
 
     return deleteResult.fold((failure) async => Left(failure), (_) async {
-      final normalizedMuscles = exercise.muscleGroups
-          .map((muscle) => muscle.trim().toLowerCase())
-          .where(_isKnownMuscle)
+      final List<String> canonicalMuscles = exercise.muscleGroups
+          .map(
+            (muscle) => LegacyMuscleGroupMap.canonicalizeMuscleKey(
+              muscle.trim().toLowerCase(),
+            ),
+          )
+          .where(MuscleStimulus.isValidMuscleGroup)
           .toSet()
           .toList();
 
-      if (normalizedMuscles.isEmpty) {
+      if (canonicalMuscles.isEmpty) {
         return const Right(null);
       }
 
+      // Canonicalise the supplied factor keys too, collapsing any legacy
+      // duplicates with the same MAX rule used by the seed and migration.
+      final Map<String, double>? canonicalFactors = muscleFactors == null
+          ? null
+          : combineCanonicalFactors(
+              muscleFactors.entries.map(
+                (entry) =>
+                    MapEntry(entry.key.trim().toLowerCase(), entry.value),
+              ),
+            );
+
       final List<MuscleFactor> factors = [];
-      for (final muscleGroup in normalizedMuscles) {
+      for (final muscleGroup in canonicalMuscles) {
         final double factor;
-        if (muscleFactors != null) {
-          final raw = (muscleFactors[muscleGroup] ?? 1.0).clamp(0.0, 1.0);
+        if (canonicalFactors != null) {
+          final raw = (canonicalFactors[muscleGroup] ?? 1.0).clamp(0.0, 1.0);
           if (raw <= 0.0) continue; // skip zero-weight entries per spec
           factor = raw;
         } else {
@@ -66,10 +87,4 @@ class SyncExerciseMuscleFactors {
       return muscleFactorRepository.addMuscleFactorsBatch(factors);
     });
   }
-
-  /// Accepts both granular taxonomy keys (e.g. `'mid-chest'` from seed data)
-  /// and simple taxonomy keys (e.g. `'chest'` from user-created exercises) so
-  /// that both exercise sources store muscle factors correctly.
-  static bool _isKnownMuscle(String muscle) =>
-      MuscleStimulus.isValidMuscleGroup(muscle) || MuscleGroups.isValid(muscle);
 }

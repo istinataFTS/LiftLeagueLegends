@@ -251,8 +251,7 @@ void main() {
         when(() => mockGetMuscleVisualData(TimePeriod.week)).thenAnswer(
           (_) async => Right<Failure, Map<String, MuscleVisualData>>(
             <String, MuscleVisualData>{
-              'upper-chest': visual(muscle: 'upper-chest', intensity: 0.55),
-              'mid-chest': visual(muscle: 'mid-chest', intensity: 0.30),
+              'chest': visual(muscle: 'chest', intensity: 0.55),
               'triceps': visual(muscle: 'triceps', intensity: 0.20),
             },
           ),
@@ -278,7 +277,7 @@ void main() {
         expect(insight.setsToday, 2);
         expect(insight.volumeTodayKg, 80 * 10 + 80 * 8);
         expect(insight.muscles.length, 2);
-        // chest picked the max sub-muscle (upper-chest 0.55 → 55%).
+        // chest reads its canonical visual data directly (0.55 → 55%).
         final chest = insight.muscles.firstWhere(
           (m) => m.coarseGroup == 'chest',
         );
@@ -299,7 +298,7 @@ void main() {
       when(() => mockGetMuscleVisualData(TimePeriod.week)).thenAnswer(
         (_) async => Right<Failure, Map<String, MuscleVisualData>>(
           <String, MuscleVisualData>{
-            'upper-chest': visual(muscle: 'upper-chest', intensity: 0.20),
+            'chest': visual(muscle: 'chest', intensity: 0.20),
           },
         ),
       );
@@ -319,7 +318,7 @@ void main() {
       when(() => mockGetMuscleVisualData(TimePeriod.week)).thenAnswer(
         (_) async => Right<Failure, Map<String, MuscleVisualData>>(
           <String, MuscleVisualData>{
-            'upper-chest': visual(muscle: 'upper-chest', intensity: 0.80),
+            'chest': visual(muscle: 'chest', intensity: 0.80),
           },
         ),
       );

@@ -28,7 +28,8 @@ void main() {
     createdAt: DateTime(2026, 3, 27),
   );
 
-  // Exercise with simple-taxonomy muscle groups (matches user-created style).
+  // Exercise with legacy simple-taxonomy muscle groups (matches user-created
+  // style). 'shoulder' is a legacy key that canonicalises to 'shoulders'.
   final exerciseSimple = Exercise(
     id: 'exercise-2',
     name: 'Bench Press',
@@ -70,17 +71,21 @@ void main() {
       expect(savedFactors.every((f) => f.factor == 1.0), isTrue);
     });
 
-    test('creates factor 1.0 for each simple muscle group', () async {
-      final result = await usecase(exerciseSimple);
+    test(
+      'creates factor 1.0 for each simple muscle group (canonicalised)',
+      () async {
+        final result = await usecase(exerciseSimple);
 
-      expect(result, const Right(null));
-      expect(savedFactors, hasLength(3));
-      expect(
-        savedFactors.map((f) => f.muscleGroup),
-        containsAll(<String>['chest', 'shoulder', 'triceps']),
-      );
-      expect(savedFactors.every((f) => f.factor == 1.0), isTrue);
-    });
+        expect(result, const Right(null));
+        expect(savedFactors, hasLength(3));
+        // Legacy 'shoulder' is stored as canonical 'shoulders'.
+        expect(
+          savedFactors.map((f) => f.muscleGroup),
+          containsAll(<String>['chest', 'shoulders', 'triceps']),
+        );
+        expect(savedFactors.every((f) => f.factor == 1.0), isTrue);
+      },
+    );
   });
 
   group('muscleFactors map supplied (user-edited weights)', () {
@@ -101,7 +106,7 @@ void main() {
         for (final f in savedFactors) f.muscleGroup: f.factor,
       };
       expect(byMuscle['chest'], closeTo(0.8, 0.001));
-      expect(byMuscle['shoulder'], closeTo(0.5, 0.001));
+      expect(byMuscle['shoulders'], closeTo(0.5, 0.001));
       expect(byMuscle['triceps'], closeTo(0.3, 0.001));
     });
 
@@ -117,7 +122,7 @@ void main() {
         for (final f in savedFactors) f.muscleGroup: f.factor,
       };
       expect(byMuscle['chest'], closeTo(0.6, 0.001));
-      expect(byMuscle['shoulder'], closeTo(1.0, 0.001));
+      expect(byMuscle['shoulders'], closeTo(1.0, 0.001));
       expect(byMuscle['triceps'], closeTo(1.0, 0.001));
     });
 

@@ -95,4 +95,10 @@ class DatabaseTables {
   static const String metadataKey = 'key';
   static const String metadataValue = 'value';
   static const String metadataUpdatedAt = 'updated_at';
+
+  /// Metadata flag set by the v26 migration; consumed once at next launch to
+  /// rebuild `muscle_stimulus` even when remote sync (and its post-sync hooks)
+  /// cannot run — e.g. an offline launch right after the upgrade.
+  static const String metadataPendingStimulusRebuild =
+      'pending_stimulus_rebuild';
 }
