@@ -685,7 +685,19 @@ class DatabaseHelper {
         final Object? rawGroups = row[DatabaseTables.exerciseMuscleGroups];
         if (rawGroups is! String || rawGroups.isEmpty) continue;
 
-        final dynamic decoded = jsonDecode(rawGroups);
+        // A single malformed legacy row must not abort the whole upgrade
+        // transaction (which would block startup). Skip it instead.
+        final dynamic decoded;
+        try {
+          decoded = jsonDecode(rawGroups);
+        } on FormatException catch (error) {
+          AppLogger.warning(
+            'v26 migration: skipping exercise $id with invalid '
+            '${DatabaseTables.exerciseMuscleGroups} JSON: ${error.message}',
+            category: 'database',
+          );
+          continue;
+        }
         if (decoded is! List) continue;
 
         final List<String> canonical = <String>[];

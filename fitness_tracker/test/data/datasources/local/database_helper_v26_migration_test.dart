@@ -224,6 +224,44 @@ void main() {
     await db.close();
   });
 
+  test(
+    'skips a row with malformed muscle_groups JSON without aborting',
+    () async {
+      final db = await openV25();
+      // Malformed JSON in an existing row must not abort the whole upgrade.
+      await db.insert(DatabaseTables.exercises, <String, Object?>{
+        DatabaseTables.exerciseId: 'broken',
+        DatabaseTables.exerciseName: 'Broken',
+        DatabaseTables.exerciseMuscleGroups: '{not valid json',
+        DatabaseTables.exerciseCreatedAt: '2026-01-01T00:00:00.000Z',
+        DatabaseTables.exerciseUpdatedAt: '2026-01-01T00:00:00.000Z',
+      });
+      await insertExercise(
+        db,
+        id: 'ok',
+        name: 'Ok',
+        muscleGroups: <String>['mid-chest', 'upper-chest'],
+      );
+
+      await DatabaseHelper.runOnUpgradeForTesting(db, 25, 26);
+
+      // The valid row is still canonicalised; the broken row is left untouched.
+      expect(await muscleGroupsFor(db, 'ok'), <String>['chest']);
+      final brokenRows = await db.query(
+        DatabaseTables.exercises,
+        columns: <String>[DatabaseTables.exerciseMuscleGroups],
+        where: '${DatabaseTables.exerciseId} = ?',
+        whereArgs: <Object?>['broken'],
+      );
+      expect(
+        brokenRows.first[DatabaseTables.exerciseMuscleGroups],
+        '{not valid json',
+      );
+
+      await db.close();
+    },
+  );
+
   test('empties muscle_stimulus and sets the pending-rebuild flag', () async {
     final db = await openV25();
     await db.insert(DatabaseTables.muscleStimulus, <String, Object?>{

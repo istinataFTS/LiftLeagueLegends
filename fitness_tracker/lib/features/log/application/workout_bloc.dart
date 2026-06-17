@@ -301,10 +301,13 @@ class WorkoutBloc extends Bloc<WorkoutEvent, WorkoutState>
     // selected muscle reads its visual data directly (legacy keys are
     // canonicalised defensively).
     final List<MuscleFatigue> muscles = <MuscleFatigue>[];
+    final Set<String> seenCanonical = <String>{};
     for (final muscle in exercise.muscleGroups) {
       final String canonical = LegacyMuscleGroupMap.canonicalizeMuscleKey(
         muscle,
       );
+      // Two legacy keys can fold to one canonical key — emit each muscle once.
+      if (!seenCanonical.add(canonical)) continue;
       final data = visualByMuscle[canonical];
       if (data == null) continue;
       muscles.add(
