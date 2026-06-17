@@ -124,10 +124,10 @@ void main() {
       for (final alias in knownAliases) {
         final resolved = VoiceMuscleGroupGrammar.resolve(alias);
         expect(
-          MuscleStimulus.allMuscleGroups.contains(resolved),
+          MuscleStimulus.isValidMuscleGroup(resolved ?? ''),
           isTrue,
           reason:
-              '"$alias" → "$resolved" must be in MuscleStimulus.allMuscleGroups',
+              '"$alias" → "$resolved" must be a valid MuscleStimulus group string',
         );
       }
     });
