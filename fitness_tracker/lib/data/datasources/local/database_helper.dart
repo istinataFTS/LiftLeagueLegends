@@ -1,3 +1,5 @@
+import 'dart:convert';
+
 import 'package:flutter/foundation.dart' show kIsWeb, visibleForTesting;
 import 'package:path/path.dart';
 import 'package:sqflite/sqflite.dart';
@@ -7,8 +9,11 @@ import '../../../config/env_config.dart';
 import '../../../core/constants/database_tables.dart';
 import '../../../core/constants/default_exercises_data.dart';
 import '../../../core/constants/default_meals_data.dart';
+import '../../../core/constants/legacy_muscle_group_map.dart';
+import '../../../core/constants/muscle_factor_combine.dart';
 import '../../../core/constants/muscle_stimulus_constants.dart';
 import '../../../core/logging/app_logger.dart';
+import '../../../core/utils/date_serialization.dart';
 import '../../../core/utils/deterministic_catalog_id.dart';
 
 class UnsupportedDatabaseVersionException implements Exception {
@@ -575,7 +580,144 @@ class DatabaseHelper {
       );
     }
 
+    // Gate on newVersion as well: this is the first *destructive* branch (it
+    // clears the derived muscle_stimulus projection), so it must only fire when
+    // the upgrade actually targets v26+. Earlier branches are purely additive
+    // and safe to over-run in a cascade; production always passes
+    // newVersion = EnvConfig.databaseVersion, so this is a no-op gate there.
+    if (oldVersion < 26 && newVersion >= 26) {
+      // Unify the muscle taxonomy onto the 18 canonical keys. Pre-existing
+      // installs hold a mix of granular (`mid-chest`, `front-delts`,
+      // `middle-traps`) and simple (`chest`, `shoulder`, `traps`) keys; the
+      // body map + fatigue read path only iterate canonical keys, so legacy
+      // rows silently read 0 fatigue. This remap collapses both vocabularies
+      // and clears the derived projection so it refills with canonical keys.
+      await migrateMuscleTaxonomyToCanonicalV26(db);
+    }
+
     await _createIndexes(db);
+  }
+
+  /// Remaps every stored muscle key to the canonical 18-key taxonomy (db v26).
+  ///
+  /// Exposed as a static entry point — like [createSchema] — so the data
+  /// migration can be exercised directly in tests without reaching into the
+  /// private upgrade path.
+  ///
+  /// Steps (all in one transaction):
+  /// - `exercise_muscle_factors`: per exercise, canonicalise every key and
+  ///   collapse duplicates with [combineCanonicalFactors] (MAX rule), then
+  ///   replace the exercise's rows. This honours `UNIQUE(exercise_id,
+  ///   muscle_group)` — three chest rows become one — and writes the MAX
+  ///   factor onto the survivor (not an arbitrary one).
+  /// - `exercises.muscle_groups` (JSON array): canonicalise + de-duplicate
+  ///   each element, preserving order.
+  /// - `muscle_stimulus`: cleared entirely — it is derived from factors +
+  ///   workout history and is rebuilt by
+  ///   `RebuildMuscleStimulusFromWorkoutHistory`.
+  /// - sets [DatabaseTables.metadataPendingStimulusRebuild] so the rebuild
+  ///   fires on the next launch even without a remote sync.
+  ///
+  /// Idempotent: a second run finds canonical keys (canonicalisation is the
+  /// identity on canonical keys), collapses nothing further, and produces the
+  /// same logical factor tuples and the same emptied projection.
+  static Future<void> migrateMuscleTaxonomyToCanonicalV26(Database db) async {
+    await db.transaction((txn) async {
+      // 1. Factor rows → canonical, deduped with MAX.
+      final List<Map<String, Object?>> factorRows = await txn.query(
+        DatabaseTables.exerciseMuscleFactors,
+        columns: <String>[
+          DatabaseTables.factorExerciseId,
+          DatabaseTables.factorMuscleGroup,
+          DatabaseTables.factorValue,
+        ],
+      );
+
+      final Map<String, List<MapEntry<String, double>>> byExercise =
+          <String, List<MapEntry<String, double>>>{};
+      for (final Map<String, Object?> row in factorRows) {
+        final String exerciseId =
+            row[DatabaseTables.factorExerciseId] as String;
+        final String muscleGroup =
+            row[DatabaseTables.factorMuscleGroup] as String;
+        final double factor = (row[DatabaseTables.factorValue] as num)
+            .toDouble();
+        byExercise
+            .putIfAbsent(exerciseId, () => <MapEntry<String, double>>[])
+            .add(MapEntry(muscleGroup, factor));
+      }
+
+      const Uuid uuid = Uuid();
+      for (final MapEntry<String, List<MapEntry<String, double>>> entry
+          in byExercise.entries) {
+        final Map<String, double> canonical = combineCanonicalFactors(
+          entry.value,
+        );
+
+        await txn.delete(
+          DatabaseTables.exerciseMuscleFactors,
+          where: '${DatabaseTables.factorExerciseId} = ?',
+          whereArgs: <Object?>[entry.key],
+        );
+
+        for (final MapEntry<String, double> factor in canonical.entries) {
+          await txn
+              .insert(DatabaseTables.exerciseMuscleFactors, <String, Object?>{
+                DatabaseTables.factorId: uuid.v4(),
+                DatabaseTables.factorExerciseId: entry.key,
+                DatabaseTables.factorMuscleGroup: factor.key,
+                DatabaseTables.factorValue: factor.value,
+              });
+        }
+      }
+
+      // 2. exercises.muscle_groups JSON list → canonical + de-duplicated.
+      final List<Map<String, Object?>> exerciseRows = await txn.query(
+        DatabaseTables.exercises,
+        columns: <String>[
+          DatabaseTables.exerciseId,
+          DatabaseTables.exerciseMuscleGroups,
+        ],
+      );
+
+      for (final Map<String, Object?> row in exerciseRows) {
+        final String id = row[DatabaseTables.exerciseId] as String;
+        final Object? rawGroups = row[DatabaseTables.exerciseMuscleGroups];
+        if (rawGroups is! String || rawGroups.isEmpty) continue;
+
+        final dynamic decoded = jsonDecode(rawGroups);
+        if (decoded is! List) continue;
+
+        final List<String> canonical = <String>[];
+        for (final dynamic element in decoded) {
+          if (element is! String) continue;
+          final String key = LegacyMuscleGroupMap.canonicalizeMuscleKey(
+            element,
+          );
+          if (!canonical.contains(key)) canonical.add(key);
+        }
+
+        await txn.update(
+          DatabaseTables.exercises,
+          <String, Object?>{
+            DatabaseTables.exerciseMuscleGroups: jsonEncode(canonical),
+          },
+          where: '${DatabaseTables.exerciseId} = ?',
+          whereArgs: <Object?>[id],
+        );
+      }
+
+      // 3. Clear the derived projection — it refills with canonical keys.
+      await txn.delete(DatabaseTables.muscleStimulus);
+
+      // 4. Flag the one-time rebuild for the next launch.
+      await txn.insert(DatabaseTables.appMetadata, <String, Object?>{
+        DatabaseTables.metadataKey:
+            DatabaseTables.metadataPendingStimulusRebuild,
+        DatabaseTables.metadataValue: 'true',
+        DatabaseTables.metadataUpdatedAt: DateTime.now().toStorageIso(),
+      }, conflictAlgorithm: ConflictAlgorithm.replace);
+    });
   }
 
   /// Rewrites every default exercise/meal row to its deterministic,

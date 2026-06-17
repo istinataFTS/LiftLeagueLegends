@@ -42,7 +42,7 @@ class EnvConfig {
 
   static const int databaseVersion = int.fromEnvironment(
     'DATABASE_VERSION',
-    defaultValue: 25,
+    defaultValue: 26,
   );
 
   static const bool seedDefaultData = bool.fromEnvironment(

@@ -14,6 +14,7 @@ import '../../core/sync/sync_orchestrator.dart';
 import '../../core/utils/app_lifecycle_manager.dart';
 import '../../core/utils/performance_monitor.dart';
 import '../../domain/services/voice_permission_service.dart';
+import '../../domain/usecases/muscle_stimulus/run_pending_stimulus_rebuild.dart';
 import '../../injection/injection_container.dart' as di;
 import 'app_data_seeder.dart';
 import 'app_debug_diagnostics_runner.dart';
@@ -176,9 +177,36 @@ class AppBootstrapper {
   void _schedulePostFrameTasks() {
     WidgetsBinding.instance.addPostFrameCallback((_) {
       unawaited(_seedDefaultDataIfNeeded());
+      unawaited(_runPendingStimulusRebuildIfNeeded());
       unawaited(_runDiagnosticsIfNeeded());
       unawaited(_requestVoicePermissionIfNeeded());
     });
+  }
+
+  /// Runs the one-time `muscle_stimulus` rebuild flagged by the v26 migration.
+  /// No-op unless the flag is set and a session is available, so it is cheap on
+  /// every other launch. Independent of remote sync so an offline launch right
+  /// after the upgrade still rebuilds the fatigue projection.
+  Future<void> _runPendingStimulusRebuildIfNeeded() async {
+    if (kIsWeb) return;
+
+    try {
+      final result = await di.sl<RunPendingStimulusRebuild>()();
+      result.fold(
+        (failure) => AppLogger.warning(
+          'Pending muscle stimulus rebuild skipped: ${failure.message}',
+          category: 'bootstrap',
+        ),
+        (_) {},
+      );
+    } catch (error, stackTrace) {
+      AppLogger.warning(
+        'Pending muscle stimulus rebuild failed',
+        category: 'bootstrap',
+        error: error,
+        stackTrace: stackTrace,
+      );
+    }
   }
 
   /// Trigger the OS microphone permission dialog upfront so the user grants

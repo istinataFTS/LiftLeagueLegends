@@ -17,8 +17,8 @@ void main() {
       ),
       muscleVisualState: MuscleVisualLoaded(
         muscleData: <String, MuscleVisualData>{
-          'mid-chest': const MuscleVisualData(
-            muscleGroup: 'mid-chest',
+          'chest': const MuscleVisualData(
+            muscleGroup: 'chest',
             totalStimulus: 18,
             threshold: 25,
             visualIntensity: 0.72,

@@ -1,4 +1,5 @@
 import '../../domain/entities/muscle_factor.dart';
+import 'muscle_factor_combine.dart';
 import 'muscle_stimulus_constants.dart';
 
 class ExerciseMuscleFactorsData {
@@ -41,8 +42,32 @@ class ExerciseMuscleFactorsData {
     return _cachedFactorsByNormalizedName = built;
   }
 
+  /// Canonical seed factors: the authored granular data ([_rawSeedFactors])
+  /// folded onto the 18-key canonical taxonomy via [combineCanonicalFactors]
+  /// (MAX rule). Computed once and cached.
   static Map<String, List<MuscleFactorData>> getAllFactors() {
-    return _cachedFactors ??= {
+    return _cachedFactors ??= _rawSeedFactors().map(
+      (String name, List<MuscleFactorData> factors) => MapEntry(
+        name,
+        combineCanonicalFactors(
+              factors.map(
+                (MuscleFactorData f) => MapEntry(f.muscleGroup, f.factor),
+              ),
+            ).entries
+            .map(
+              (MapEntry<String, double> e) => MuscleFactorData(e.key, e.value),
+            )
+            .toList(),
+      ),
+    );
+  }
+
+  /// The authored, biomechanically fine-grained seed data. Keys use the
+  /// granular vocabulary (e.g. `mid-chest`, `front-delts`, `middle-traps`);
+  /// [getAllFactors] collapses them to canonical keys at read time so the seed
+  /// stays readable while storage/runtime see only canonical keys.
+  static Map<String, List<MuscleFactorData>> _rawSeedFactors() {
+    return {
       // ==================== CHEST EXERCISES ====================
       'Bench Press': [
         const MuscleFactorData(MuscleStimulus.midChest, 1.0),
