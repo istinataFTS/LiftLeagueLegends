@@ -10,15 +10,25 @@ LiftLeagueLegends is making sure recording workouts and nutrition is effortless 
 
 Users can log workouts, record meals, monitor nutrition, create/remove/edit exercises and meals, track progress, set personal targets for training and nutrition, and interact with an AI voice assistant for hands-free logging.
 
+## Platform Support
+
+- **Android** – shipping. Full Gradle/Kotlin/AndroidManifest setup; built and tested in CI.
+- **iOS** – not buildable yet. The cross-platform Dart code is iOS-ready, but the Xcode project, Podfile, and asset catalog still need to be scaffolded.
+
 ## Technologies Used
 
 - Flutter – cross-platform framework for building the mobile app
 - Dart – primary programming language
 - flutter_bloc – state management
-- sqflite – local database support
+- sqflite – local database support (offline-first, source of truth synced from Supabase)
 - Supabase – primary backend for authenticated users (Auth, Database, Edge Functions)
-- OpenAI – AI provider for voice speech-to-text, chat, and text-to-speech
-- http – HTTP client for multipart STT uploads and binary TTS downloads
+- OpenAI – AI provider for voice speech-to-text (Whisper) and chat (GPT-4o-mini), called server-side via Supabase Edge Functions
+- flutter_tts – on-device text-to-speech for voice replies (no server cost)
+- speech_to_text – on-device speech-to-text used as an offline fallback
+- sherpa_onnx – on-device wake-word keyword spotting (offline, no access key)
+- record – microphone capture for remote Whisper transcription
+- permission_handler – runtime microphone and speech permissions
+- http – HTTP client for multipart STT uploads
 - get_it – dependency injection
 - dartz – functional programming utilities
 - connectivity_plus – network connectivity detection
@@ -32,9 +42,9 @@ Users can log workouts, record meals, monitor nutrition, create/remove/edit exer
 - ✅ Exercise library management
 - ✅ Meal library management
 - ✅ History and progress tracking
-- ✅ Personal targets and goal tracking
 - ✅ Profile and app session support
 - ✅ Voice-based AI assistant for hands-free workout, meal, and nutrition logging
+- ✅ On-device wake word and headphone tap-to-wake (Android) for hands-free activation
 - ✅ Supabase-powered synchronization for authenticated users
 - ✅ Offline fallback support when internet connection is unavailable
 
@@ -44,14 +54,22 @@ Users can log workouts, record meals, monitor nutrition, create/remove/edit exer
 - Log – log exercises, meals, and macros
 - History – review past activity and tracking data
 - Library – manage reusable exercises and meals
-- Targets – manage training and nutrition goals
 - Profile – user and app-related information
+- Settings – app preferences and voice configuration
+
+## Voice Assistant
+
+The voice feature is split between on-device I/O and a single Supabase Edge Function:
+
+- **Speech-to-text** – remote Whisper when online for better gym-jargon recognition, with an on-device fallback when offline.
+- **Chat** – GPT-4o-mini behind a Supabase Edge Function, with a server-enforced daily spend cap.
+- **Text-to-speech** – fully on-device, no server call.
+- **Wake word** – on-device keyword spotting, offline and with no access key required.
+
+If Supabase is not configured, the voice module degrades gracefully and remote calls return a server failure.
 
 ## Planned Features
 - Deeper AI integration for personalized workout and nutrition recommendations
 - Push notifications for goal reminders and training streaks
 - Social features for sharing progress and competing with friends
-
-## Developer Reference
-
-- [`fitness_tracker/KNOWN_ISSUES.md`](fitness_tracker/KNOWN_ISSUES.md) — recurring stack gotchas (sync quirks, SQLite migration rules, voice constraints, DI pitfalls, CI tooling); consult before debugging, update after any fix that took >15 minutes
+- Full iOS support (Xcode project, icons, and CI build)
