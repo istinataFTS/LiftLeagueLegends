@@ -146,10 +146,14 @@ class RebuildMuscleStimulusFromWorkoutHistory {
           );
         }
 
-        // Volume: Σ weight × reps × factor (intensity not part of volume).
+        // Volume: Σ effectiveLoad × reps × factor (intensity not part of
+        // volume). effectiveLoad adds the bodyweight floor so bodyweight sets
+        // count toward Month/All-time volume, consistent with fatigue.
         dayVolume[entry.key] =
             (dayVolume[entry.key] ?? 0.0) +
-            workoutSet.weight * workoutSet.reps * entry.value;
+            StimulusCalculationRules.effectiveLoad(workoutSet.weight) *
+                workoutSet.reps *
+                entry.value;
 
         // Fatigue: per-set gain accumulated into daily total.
         dayFatigueGain[entry.key] =
