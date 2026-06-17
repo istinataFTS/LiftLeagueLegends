@@ -644,7 +644,7 @@ void main() {
         );
         expect(
           pastChest.dailyVolume,
-          closeTo(576.0, 0.001), // 80*8*0.9
+          closeTo(756.0, 0.001), // effectiveLoad(80)=105 → 105*8*0.9
           reason: 'dailyVolume must be unaffected by fatigue addition',
         );
         expect(
@@ -660,13 +660,14 @@ void main() {
     // -------------------------------------------------------------------------
 
     test(
-      'weighted set day A then bodyweight set day A+N: anchor stays at dayA, '
-      'lastSetTimestamp advances to A+N',
+      'weighted set day A then bodyweight set day A+N: anchor advances to A+N '
+      '(bodyweight now accumulates fatigue), lastSetTimestamp advances to A+N',
       () async {
-        // This is the core regression for the bodyweight/zero-gain anchor bug.
-        // bench (weight=80): gain > 0 → anchor advances to dayA.
-        // bodyweight-push (weight=0): gain == 0 → anchor must NOT advance.
-        // lastSetTimestamp advances on any set, so it should be at dayA+4.
+        // Post-A3 the bodyweight floor makes weight==0 sets accumulate gain > 0,
+        // so the anchor — the last day fatigue actually grew — must advance to
+        // the bodyweight day too (the old behaviour left it stuck at dayA).
+        // bench (weight=80): gain > 0 on dayA.
+        // bodyweight-push (weight=0): gain > 0 on dayA+4 via the rep-load floor.
         final todayMidnight = CalendarDay.startOfDay(fixedToday);
         final dayA = DateTime(
           todayMidnight.year,
@@ -699,7 +700,7 @@ void main() {
             date: dayA.add(const Duration(hours: 9)),
             createdAt: dayA.add(const Duration(hours: 9)),
           ),
-          // Bodyweight set on dayA+4 (weight == 0 → fatigueGain == 0)
+          // Bodyweight set on dayA+4 (weight == 0 → fatigueGain > 0 post-A3)
           WorkoutSet(
             id: 'bw-push-today',
             exerciseId: 'bw-push',
@@ -721,13 +722,13 @@ void main() {
               r.muscleGroup == stimulus_constants.MuscleStimulus.midChest,
         );
 
-        // Anchor must stay at dayA (the last weighted/gain>0 day).
+        // Anchor advances to dayA+4 — the bodyweight set now grows fatigue.
         expect(
           todayChest.fatigueAnchorTimestamp,
-          dayA.millisecondsSinceEpoch,
+          dayAplus4.millisecondsSinceEpoch,
           reason:
-              'fatigueAnchorTimestamp must not advance on a zero-gain '
-              '(bodyweight) set — it must stay at the last gain>0 day',
+              'fatigueAnchorTimestamp must advance to the bodyweight day — '
+              'post-A3 a weight==0 set has gain > 0',
         );
         // lastSetTimestamp must advance to dayA+4 (any set advances it).
         expect(
@@ -784,9 +785,10 @@ void main() {
     );
 
     test(
-      'bodyweight-only muscle: fatigueScore == 0.0 and fatigueAnchorTimestamp == null',
+      'bodyweight-only muscle: fatigueScore > 0 and fatigueAnchorTimestamp set',
       () async {
-        // weight=0 throughout → fatigueGain always 0 → anchor never set.
+        // weight=0 throughout → post-A3 fatigueGain > 0 via the rep-load floor,
+        // so the muscle accumulates fatigue and the anchor is set to the set day.
         final todayMidnight = CalendarDay.startOfDay(fixedToday);
 
         when(
@@ -822,15 +824,23 @@ void main() {
               r.date == todayMidnight &&
               r.muscleGroup == stimulus_constants.MuscleStimulus.midChest,
         );
+        // effectiveLoad(0)=25 → gain = (25*20)*1.25*0.9/250 = 2.25
+        final expectedGain = StimulusCalculationRules.fatigueGain(
+          weight: 0.0,
+          reps: 20,
+          intensity: 3,
+          muscleFactor: 0.9,
+        );
+        expect(expectedGain, greaterThan(0.0));
         expect(
           todayChest.fatigueScore,
-          closeTo(0.0, 1e-9),
-          reason: 'bodyweight-only: fatigueScore must be 0',
+          closeTo(expectedGain, 1e-9),
+          reason: 'bodyweight-only: fatigueScore must equal the rep-floor gain',
         );
         expect(
           todayChest.fatigueAnchorTimestamp,
-          isNull,
-          reason: 'bodyweight-only: fatigueAnchorTimestamp must be null',
+          todayMidnight.millisecondsSinceEpoch,
+          reason: 'bodyweight-only: anchor must be set to the set day',
         );
       },
     );
@@ -839,12 +849,12 @@ void main() {
     // daily_volume correctness
     // -------------------------------------------------------------------------
 
-    test('workout-day record has dailyVolume == weight*reps*factor; '
+    test('workout-day record has dailyVolume == effectiveLoad*reps*factor; '
         'carry-forward days have dailyVolume == 0.0; '
         'dailyStimulus is unchanged by the refactor', () async {
-      // bench: weight=80, reps=8, intensity=4
-      //   factor(mid-chest)  = 0.9  → volume contribution = 80*8*0.9 = 576.0
-      //   factor(triceps)    = 0.55 → volume contribution = 80*8*0.55 = 352.0
+      // bench: weight=80 → effectiveLoad=105, reps=8, intensity=4
+      //   factor(mid-chest)  = 0.9  → volume contribution = 105*8*0.9 = 756.0
+      //   factor(triceps)    = 0.55 → volume contribution = 105*8*0.55 = 462.0
       //
       // dailyStimulus for mid-chest (intensity=4, factor=0.9):
       //   calculateSetStimulus(sets:1, intensity:4, exerciseFactor:0.9)
@@ -886,13 +896,13 @@ void main() {
 
       expect(
         pastChest.dailyVolume,
-        closeTo(576.0, 0.001), // 80 * 8 * 0.9
-        reason: 'mid-chest daily_volume = weight*reps*factor',
+        closeTo(756.0, 0.001), // 105 * 8 * 0.9 (effectiveLoad=80+25)
+        reason: 'mid-chest daily_volume = effectiveLoad*reps*factor',
       );
       expect(
         pastTriceps.dailyVolume,
-        closeTo(352.0, 0.001), // 80 * 8 * 0.55
-        reason: 'triceps daily_volume = weight*reps*factor',
+        closeTo(462.0, 0.001), // 105 * 8 * 0.55 (effectiveLoad=80+25)
+        reason: 'triceps daily_volume = effectiveLoad*reps*factor',
       );
 
       // Stimulus is unchanged — same math as the old calculateForSet path.

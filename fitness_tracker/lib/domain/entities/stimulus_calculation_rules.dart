@@ -158,16 +158,24 @@ class StimulusCalculationRules {
     return 1.0 + x * x;
   }
 
+  /// Effective per-rep load: external weight plus a nominal bodyweight floor,
+  /// so a set logged at `weight == 0` still carries load. Used by both fatigue
+  /// and volume so the two stay consistent.
+  static double effectiveLoad(double weight) =>
+      weight + MuscleStimulus.bodyweightRepLoad;
+
   /// Fatigue contributed by one set to one muscle (before accumulation/decay).
-  /// volumeLoad = weight*reps; stress = volumeLoad * intensityMultiplier * muscleFactor;
-  /// gain = stress / NORMALIZATION_CONSTANT. Bodyweight (weight==0) → 0.
+  /// volumeLoad = effectiveLoad(weight)*reps;
+  /// stress = volumeLoad * intensityMultiplier * muscleFactor;
+  /// gain = stress / NORMALIZATION_CONSTANT.
+  /// Bodyweight (weight==0) accumulates via the [effectiveLoad] floor.
   static double fatigueGain({
     required double weight,
     required int reps,
     required int intensity,
     required double muscleFactor,
   }) {
-    final volumeLoad = weight * reps;
+    final volumeLoad = effectiveLoad(weight) * reps;
     final stress =
         volumeLoad * fatigueIntensityMultiplier(intensity) * muscleFactor;
     return stress / MuscleStimulus.fatigueNormalizationConstant;

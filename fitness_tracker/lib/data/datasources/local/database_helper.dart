@@ -595,7 +595,30 @@ class DatabaseHelper {
       await migrateMuscleTaxonomyToCanonicalV26(db);
     }
 
+    if (oldVersion < 27) {
+      // The bodyweight fatigue formula changed (sets logged at weight == 0 now
+      // accumulate fatigue/volume via a per-rep load floor). Derived fatigue is
+      // recomputed from workout history, so flag a one-time rebuild on the next
+      // launch — reuses the same pending-flag + bootstrap mechanism as v26 so
+      // the new formula applies to past bodyweight sets even offline.
+      await flagPendingStimulusRebuildV27(db);
+    }
+
     await _createIndexes(db);
+  }
+
+  /// Sets [DatabaseTables.metadataPendingStimulusRebuild] so the next launch
+  /// rebuilds derived fatigue/volume under the v27 bodyweight formula (db v27).
+  ///
+  /// Exposed as a static entry point — like [migrateMuscleTaxonomyToCanonicalV26]
+  /// — so the migration can be exercised directly in tests. Idempotent: it just
+  /// (re)writes the flag value to `'true'`.
+  static Future<void> flagPendingStimulusRebuildV27(Database db) async {
+    await db.insert(DatabaseTables.appMetadata, <String, Object?>{
+      DatabaseTables.metadataKey: DatabaseTables.metadataPendingStimulusRebuild,
+      DatabaseTables.metadataValue: 'true',
+      DatabaseTables.metadataUpdatedAt: DateTime.now().toStorageIso(),
+    }, conflictAlgorithm: ConflictAlgorithm.replace);
   }
 
   /// Remaps every stored muscle key to the canonical 18-key taxonomy (db v26).

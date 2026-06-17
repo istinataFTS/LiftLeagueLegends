@@ -168,6 +168,17 @@ class MuscleStimulus {
   /// Divisor that maps raw exercise stress to the 0–100 fatigue scale.
   static const double fatigueNormalizationConstant = 250.0;
 
+  /// Nominal per-rep load (kg) added to every set's external weight when
+  /// computing fatigue and volume, so bodyweight sets (`weight == 0`) still
+  /// accumulate load. `effectiveLoad = weight + bodyweightRepLoad`.
+  ///
+  /// Tuned to 25 kg: a pure-bodyweight set scales meaningfully with
+  /// reps/intensity/factor, while non-trivial weighted sets shift only
+  /// modestly (e.g. a 100 kg set's effective load rises ~25%). Without this,
+  /// `weight * reps == 0` made every bodyweight movement contribute exactly
+  /// zero fatigue regardless of muscle activation.
+  static const double bodyweightRepLoad = 25.0;
+
   /// Recovery decay coefficients: fatigue *= e^(-(linear*t + quadratic*t^2)), t in days.
   static const double fatigueDecayLinearCoeff = 0.25;
   static const double fatigueDecayQuadraticCoeff = 0.06;

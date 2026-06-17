@@ -224,9 +224,9 @@ void main() {
       },
     );
 
-    // Regression: bodyweight set advances lastSetTimestamp (2026-06-13) but anchor
-    // stays at the last weighted day (2026-06-09).  The read must decay from the
-    // anchor (6 days), not lastSetTimestamp (2 days).
+    // Regression: lastSetTimestamp (2026-06-13) can sit ahead of the fatigue
+    // anchor (2026-06-09) — e.g. a later set that added no fatigue gain. The
+    // read must decay from the anchor (6 days), not lastSetTimestamp (2 days).
     test(
       'anchor decoupling: fatigueScore=60, anchor=2026-06-09, lastSetTimestamp=2026-06-13, '
       'today=2026-06-15 → decays from anchor (6 days), not lastSetTimestamp (2 days)',
