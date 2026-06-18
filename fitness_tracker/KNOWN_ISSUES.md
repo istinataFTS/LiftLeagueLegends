@@ -110,6 +110,7 @@ Numbered steps or a short paragraph. State what to do and what *not* to do.
 38. [voice-wake-word-first-words-clipped-during-mic-handoff](#voice-wake-word-first-words-clipped-during-mic-handoff)
 
 ### Database
+
 1. [sqflite-version-15-rejects-incompatible-legacy-databases](#sqflite-version-15-rejects-incompatible-legacy-databases)
 2. [conflict-algorithm-replace-needed-for-deterministic-default-ids](#conflict-algorithm-replace-needed-for-deterministic-default-ids)
 3. [pull-before-push-for-sign-in-sync](#pull-before-push-for-sign-in-sync)
@@ -119,22 +120,26 @@ Numbered steps or a short paragraph. State what to do and what *not* to do.
 7. [muscle-taxonomy-vocabulary-split-hid-fatigue](#muscle-taxonomy-vocabulary-split-hid-fatigue)
 
 ### Dependency Injection
+
 1. [blocs-must-be-factories-repositories-singletons](#blocs-must-be-factories-repositories-singletons)
 2. [duplicate-di-registration-causes-silent-bugs](#duplicate-di-registration-causes-silent-bugs)
 3. [fire-and-forget-futures-in-startup-cause-race-conditions](#fire-and-forget-futures-in-startup-cause-race-conditions)
 4. [widget-state-must-not-field-capture-factory-blocs-or-cubits](#widget-state-must-not-field-capture-factory-blocs-or-cubits)
 
 ### CI & Local Tooling
+
 1. [crlf-line-endings-cause-false-positive-dart-format-locally](#crlf-line-endings-cause-false-positive-dart-format-locally)
 2. [flutter-analyze-info-issues-do-not-fail-ci](#flutter-analyze-info-issues-do-not-fail-ci)
 3. [main-branch-is-pr-only-direct-push-blocked](#main-branch-is-pr-only-direct-push-blocked)
 4. [convention-checker-regexes-must-have-multiline-test-fixtures](#convention-checker-regexes-must-have-multiline-test-fixtures)
 
 ### Platform
+
 1. [dart-define-is-build-time-not-runtime](#dart-define-is-build-time-not-runtime)
 2. [supabase-disabled-by-default](#supabase-disabled-by-default)
 
 ### Other
+
 1. [history-renders-orphaned-sets-not-hides-them](#history-renders-orphaned-sets-not-hides-them)
 2. [voice-slider-persists-on-every-drag-tick](#voice-slider-persists-on-every-drag-tick)
 3. [cross-feature-presentation-imports-are-architectural-cycles](#cross-feature-presentation-imports-are-architectural-cycles)
