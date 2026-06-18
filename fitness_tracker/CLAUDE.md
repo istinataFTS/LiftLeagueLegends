@@ -238,7 +238,7 @@ Three datasources are **exempt** (documented in the base class doc comment): `Ap
 
 ### Local database
 
-SQLite via `sqflite`. Current schema version: **25**. Migration history is documented inline in `EnvConfig.databaseVersion`. Version upgrades are additive; version 15+ rejects incompatible legacy databases rather than destroying data.
+SQLite via `sqflite`. Current schema version: **27**. Migration history is documented inline in `EnvConfig.databaseVersion`. Version upgrades are additive; version 15+ rejects incompatible legacy databases rather than destroying data.
 
 ### Voice bot
 

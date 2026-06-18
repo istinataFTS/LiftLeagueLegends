@@ -116,6 +116,7 @@ Numbered steps or a short paragraph. State what to do and what *not* to do.
 14. [default-catalog-ids-must-be-owner-scoped](#default-catalog-ids-must-be-owner-scoped)
 15. [guest-catalog-pk-collision-blocks-initial-sign-in](#guest-catalog-pk-collision-blocks-initial-sign-in)
 16. [migration-add-column-must-be-idempotent](#migration-add-column-must-be-idempotent)
+17. [muscle-taxonomy-vocabulary-split-hid-fatigue](#muscle-taxonomy-vocabulary-split-hid-fatigue)
 
 ### Dependency Injection
 15. [blocs-must-be-factories-repositories-singletons](#blocs-must-be-factories-repositories-singletons)
@@ -1680,6 +1681,44 @@ Every `ALTER TABLE ... ADD COLUMN` in `_onUpgrade` must be wrapped in an existen
 - `lib/data/datasources/local/database_helper.dart` — `_addColumnIfMissing` helper, v6/v7 idempotent branches
 - `test/data/datasources/local/database_helper_migration_replay_test.dart` — end-to-end cascade test
 - Found by: the very first run of the replay test on 2026-05-29
+
+---
+
+### muscle-taxonomy-vocabulary-split-hid-fatigue
+
+- **Severity:** High
+- **Status:** Resolved-but-monitor
+- **First observed:** 2026-06-17
+- **Last verified:** 2026-06-18
+- **Area:** db
+
+**Symptom**
+
+Muscles selected on custom or hand-edited exercises never accumulate fatigue and never light up on the body map, even after many logged sets. Editing a seeded exercise (e.g. Bench Press) and re-saving it also resets all its fatigue to zero going forward. Volume and fatigue for bodyweight exercises (weight == 0) similarly read as zero regardless of reps.
+
+**Root cause**
+
+Two vocabulary mismatches existed in parallel:
+
+1. **Taxonomy split.** `exercise_muscle_factors.muscle_group` was written by two separate vocabularies that were never reconciled. The edit dialog and custom-exercise path wrote *simple* keys (`chest`, `shoulder`, `traps`, `hamstring`, `lower back`, `neck`). The seeded data and body-map overlay used *granular* keys (`upper-chest`, `mid-chest`, `lower-chest`, `front-delts`, `side-delts`, `upper-traps`, etc.). The fatigue read path iterated only granular keys, so any row carrying a simple key was silently skipped — `fatigueGain` was computed correctly but never read back. `SyncExerciseMuscleFactors._isKnownMuscle` accepted both vocabularies without canonicalising, so the divergence was invisible at write time.
+
+2. **Zero-weight formula.** `StimulusCalculationRules.fatigueGain` (`lib/domain/entities/stimulus_calculation_rules.dart`) computed `gain = (weight * reps) * intensityMult * factor / NORM`. Any set with `weight == 0` (bodyweight exercise) produced exactly zero gain, so bodyweight work never contributed to fatigue or volume regardless of reps or muscle activation.
+
+**Workaround / fix**
+
+v26 migration (`lib/data/datasources/local/database_helper.dart`) canonicalises all existing `exercise_muscle_factors.muscle_group` and `exercises.muscle_groups` rows to the 18-key canonical taxonomy via `canonicalizeMuscleKey` (`lib/core/constants/legacy_muscle_group_map.dart`), collapses duplicate rows per `(exercise_id, canonical_key)` with MAX factor, and clears `muscle_stimulus` for a full rebuild. All write paths — the edit dialog chip list, `SyncExerciseMuscleFactors`, and seed data — now use only the 18 canonical keys. The canonical-key invariant: every value in `exercise_muscle_factors.muscle_group` and `muscle_stimulus.muscle_group` must be a member of `MuscleStimulus.allMuscleGroups` (18 keys). For bodyweight sets, `effectiveLoad = weight + bodyweightRepLoad` (25 kg constant in `MuscleStimulus.bodyweightRepLoad`) is substituted consistently in both `fatigueGain` and `dailyVolume`; a v27 logic migration triggers a one-time rebuild so the new formula applies to past sets.
+
+**References**
+
+- `lib/core/constants/legacy_muscle_group_map.dart` — `legacyToCanonical` map and `canonicalizeMuscleKey` helper
+- `lib/core/constants/muscle_stimulus_constants.dart` — 18 canonical keys and `bodyweightRepLoad` constant
+- `lib/data/datasources/local/database_helper.dart` — v26 taxonomy migration, v27 rebuild trigger
+- `lib/domain/entities/stimulus_calculation_rules.dart` — `fatigueGain` and `dailyVolume` with `effectiveLoad`
+- `test/data/datasources/local/database_helper_v26_migration_test.dart` — taxonomy migration coverage
+- `test/core/constants/legacy_muscle_group_map_test.dart` — full key-coverage and idempotency tests
+- PR `#180` — A1: canonical constants + legacy map
+- PR `#181` — A2: taxonomy cutover + v26 migration
+- PR `#182` — A3: bodyweight fatigue fix + v27 rebuild trigger
 
 ---
 
