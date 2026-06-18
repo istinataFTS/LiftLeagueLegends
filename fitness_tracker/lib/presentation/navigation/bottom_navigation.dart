@@ -34,8 +34,6 @@ class _BottomNavigationState extends State<BottomNavigation> {
 
   final Set<int> _visitedTabs = <int>{_homeTabIndex};
 
-  bool _didRequestExerciseData = false;
-  bool _didRequestMealData = false;
   bool _didRequestNutritionLogData = false;
 
   void _onItemTapped(int index) {
@@ -52,11 +50,6 @@ class _BottomNavigationState extends State<BottomNavigation> {
   }
 
   void _initializeTabIfNeeded(int index) {
-    final bool isFirstVisit = !_visitedTabs.contains(index);
-    if (!isFirstVisit) {
-      return;
-    }
-
     switch (index) {
       case _logTabIndex:
         _ensureExerciseDataLoaded();
@@ -64,9 +57,6 @@ class _BottomNavigationState extends State<BottomNavigation> {
         _ensureNutritionLogDataLoaded();
         break;
       case _historyTabIndex:
-        _ensureExerciseDataLoaded();
-        _ensureMealDataLoaded();
-        break;
       case _libraryTabIndex:
         _ensureExerciseDataLoaded();
         _ensureMealDataLoaded();
@@ -77,21 +67,25 @@ class _BottomNavigationState extends State<BottomNavigation> {
     }
   }
 
+  /// Dispatches [LoadExercisesEvent] unless the bloc already holds a healthy
+  /// (non-empty) loaded state. Guarding on state rather than a one-shot bool
+  /// means a transient empty or error result is re-queried on the next tab
+  /// entry without requiring an app restart.
   void _ensureExerciseDataLoaded() {
-    if (_didRequestExerciseData) {
+    final state = context.read<ExerciseBloc>().state;
+    if (state is ExercisesLoaded && state.exercises.isNotEmpty) {
       return;
     }
-
-    _didRequestExerciseData = true;
     context.read<ExerciseBloc>().add(LoadExercisesEvent());
   }
 
+  /// Dispatches [LoadMealsEvent] unless the bloc already holds a healthy
+  /// (non-empty) loaded state.
   void _ensureMealDataLoaded() {
-    if (_didRequestMealData) {
+    final state = context.read<MealBloc>().state;
+    if (state is MealsLoaded && state.meals.isNotEmpty) {
       return;
     }
-
-    _didRequestMealData = true;
     context.read<MealBloc>().add(LoadMealsEvent());
   }
 

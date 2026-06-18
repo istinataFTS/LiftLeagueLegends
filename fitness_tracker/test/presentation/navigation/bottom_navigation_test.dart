@@ -3,6 +3,8 @@ import 'dart:async';
 import 'package:bloc_test/bloc_test.dart';
 import 'package:fitness_tracker/domain/entities/app_session.dart';
 import 'package:fitness_tracker/domain/entities/app_user.dart';
+import 'package:fitness_tracker/domain/entities/exercise.dart';
+import 'package:fitness_tracker/domain/entities/meal.dart';
 import 'package:fitness_tracker/core/ui/keypad_visibility_controller.dart';
 import 'package:fitness_tracker/domain/entities/voice_settings.dart';
 import 'package:fitness_tracker/features/history/history.dart';
@@ -343,4 +345,97 @@ void main() {
     verify(() => exerciseBloc.add(LoadExercisesEvent())).called(1);
     verify(() => mealBloc.add(LoadMealsEvent())).called(1);
   });
+
+  testWidgets(
+    're-entering Library re-dispatches LoadExercisesEvent when state is empty',
+    (WidgetTester tester) async {
+      // Start with non-initial (empty) state so the guard sees it.
+      when(
+        () => exerciseBloc.state,
+      ).thenReturn(ExercisesLoaded(const <Exercise>[]));
+      whenListen<ExerciseState>(
+        exerciseBloc,
+        const Stream<ExerciseState>.empty(),
+        initialState: ExercisesLoaded(const <Exercise>[]),
+      );
+      when(() => mealBloc.state).thenReturn(MealsLoaded(const <Meal>[]));
+      whenListen<MealState>(
+        mealBloc,
+        const Stream<MealState>.empty(),
+        initialState: MealsLoaded(const <Meal>[]),
+      );
+
+      await tester.pumpWidget(buildSubject());
+      await tester.pump();
+
+      // First visit to Library.
+      await tester.tap(find.text('Library'));
+      await tester.pump();
+      // Navigate away.
+      await tester.tap(find.text('Home'));
+      await tester.pump();
+      // Re-enter Library — state is still empty, so another dispatch expected.
+      await tester.tap(find.text('Library'));
+      await tester.pump();
+
+      verify(() => exerciseBloc.add(LoadExercisesEvent())).called(2);
+    },
+  );
+
+  testWidgets(
+    're-entering Library does NOT re-dispatch when state is healthy',
+    (WidgetTester tester) async {
+      final exercise = Exercise(
+        id: 'ex-1',
+        name: 'Bench Press',
+        muscleGroups: const <String>['chest'],
+        createdAt: DateTime(2026),
+      );
+      when(() => exerciseBloc.state).thenReturn(ExercisesLoaded([exercise]));
+      whenListen<ExerciseState>(
+        exerciseBloc,
+        const Stream<ExerciseState>.empty(),
+        initialState: ExercisesLoaded([exercise]),
+      );
+
+      await tester.pumpWidget(buildSubject());
+      await tester.pump();
+
+      await tester.tap(find.text('Library'));
+      await tester.pump();
+      await tester.tap(find.text('Home'));
+      await tester.pump();
+      await tester.tap(find.text('Library'));
+      await tester.pump();
+
+      // Healthy state: state-gate skips dispatch on every visit.
+      verifyNever(() => exerciseBloc.add(LoadExercisesEvent()));
+    },
+  );
+
+  testWidgets(
+    're-entering Library re-dispatches LoadExercisesEvent when state is error',
+    (WidgetTester tester) async {
+      when(
+        () => exerciseBloc.state,
+      ).thenReturn(const ExerciseError('db error'));
+      whenListen<ExerciseState>(
+        exerciseBloc,
+        const Stream<ExerciseState>.empty(),
+        initialState: const ExerciseError('db error'),
+      );
+
+      await tester.pumpWidget(buildSubject());
+      await tester.pump();
+
+      await tester.tap(find.text('Library'));
+      await tester.pump();
+      await tester.tap(find.text('Home'));
+      await tester.pump();
+      await tester.tap(find.text('Library'));
+      await tester.pump();
+
+      verify(() => exerciseBloc.add(LoadExercisesEvent())).called(2);
+    },
+  );
 }
