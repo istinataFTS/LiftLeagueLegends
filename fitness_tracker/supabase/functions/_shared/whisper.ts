@@ -95,12 +95,19 @@ export interface TranscriptionResponse {
   durationSeconds: number;
 }
 
-// Confidence thresholds for the silence/hallucination gate. OpenAI's own docs
-// flag `avg_logprob < -1` as unreliable and high `no_speech_prob` combined with
-// low `avg_logprob` as a silent segment. A real one-word confirm ("Confirm.")
-// in practice has no_speech_prob ≈ 0.05 and avg_logprob ≈ -0.4, well clear of
-// these bounds — the gate only catches genuine silence/noise hallucinations.
-const NO_SPEECH_PROB_MAX = 0.6;
+// Confidence thresholds for the silence/hallucination gate. Two clauses
+// combined with OR (was AND): hallucinations on near-silent noise can have
+// LOW `no_speech_prob` (Whisper is "confident" in the fake phrase) and so the
+// old AND-only gate let them through. A real one-word confirm ("Confirm.") in
+// practice has no_speech_prob ≈ 0.05 and avg_logprob ≈ -0.4, well clear of
+// both clauses.
+//
+// PROPOSED values — must be validated against real verbose_json captures of
+// (1) genuine short commands and (2) silence captures that previously
+// produced alien messages. See KNOWN_ISSUES.md
+// #voice-whisper-hallucinates-on-silent-audio for tuning notes.
+const NO_SPEECH_PROB_HARD = 0.8; // standalone silence verdict (clause a)
+const NO_SPEECH_PROB_SOFT = 0.5; // combined-with-low-logprob verdict (clause b)
 const AVG_LOGPROB_MIN = -1.0;
 
 /**
@@ -138,8 +145,13 @@ export function gateHallucinatedTranscript(json: unknown): string {
   if (noSpeechProbs.length === 0 || avgLogprobs.length === 0) return rawText;
   const maxNoSpeech = Math.max(...noSpeechProbs);
   const minAvgLogprob = Math.min(...avgLogprobs);
-  const isSilence = maxNoSpeech >= NO_SPEECH_PROB_MAX &&
+  // (a) Very high no-speech probability alone ⇒ pure silence/noise.
+  const isPureSilence = maxNoSpeech >= NO_SPEECH_PROB_HARD;
+  // (b) Moderately high no-speech AND low logprob ⇒ low-confidence
+  // hallucination.
+  const isLowConfidence = maxNoSpeech >= NO_SPEECH_PROB_SOFT &&
     minAvgLogprob <= AVG_LOGPROB_MIN;
+  const isSilence = isPureSilence || isLowConfidence;
   return isSilence ? "" : rawText;
 }
 
@@ -172,12 +184,12 @@ export async function transcribeAudio(
   if (!res.ok) mapOpenAiStatus(res.status);
 
   const json = await res.json();
-  // Gate on Whisper's per-segment confidence — when no_speech_prob is high
-  // AND avg_logprob is low, the clip is silence/noise that Whisper
-  // hallucinated into a fluent sentence. Empty text falls through to the
-  // client's existing `text.isEmpty` branch (reprompt-once-then-idle), so
-  // the user never sees a phantom turn. Billing still uses the raw duration
-  // because the audio was processed regardless of gating.
+  // Gate on Whisper's per-segment confidence — clause (a) very high
+  // no_speech_prob alone OR clause (b) moderately high no_speech_prob
+  // combined with low avg_logprob. Empty text falls through to the client's
+  // existing `text.isEmpty` branch (reprompt-once-then-idle), so the user
+  // never sees a phantom turn. Billing still uses the raw duration because
+  // the audio was processed regardless of gating.
   const text = gateHallucinatedTranscript(json);
   // `duration` is a float in seconds; bill the ceiling so partial seconds
   // are not free.
