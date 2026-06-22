@@ -110,40 +110,45 @@ Numbered steps or a short paragraph. State what to do and what *not* to do.
 38. [voice-wake-word-first-words-clipped-during-mic-handoff](#voice-wake-word-first-words-clipped-during-mic-handoff)
 
 ### Database
-11. [sqflite-version-15-rejects-incompatible-legacy-databases](#sqflite-version-15-rejects-incompatible-legacy-databases)
-12. [conflict-algorithm-replace-needed-for-deterministic-default-ids](#conflict-algorithm-replace-needed-for-deterministic-default-ids)
-13. [pull-before-push-for-sign-in-sync](#pull-before-push-for-sign-in-sync)
-14. [default-catalog-ids-must-be-owner-scoped](#default-catalog-ids-must-be-owner-scoped)
-15. [guest-catalog-pk-collision-blocks-initial-sign-in](#guest-catalog-pk-collision-blocks-initial-sign-in)
-16. [migration-add-column-must-be-idempotent](#migration-add-column-must-be-idempotent)
-17. [muscle-taxonomy-vocabulary-split-hid-fatigue](#muscle-taxonomy-vocabulary-split-hid-fatigue)
+
+1. [sqflite-version-15-rejects-incompatible-legacy-databases](#sqflite-version-15-rejects-incompatible-legacy-databases)
+2. [conflict-algorithm-replace-needed-for-deterministic-default-ids](#conflict-algorithm-replace-needed-for-deterministic-default-ids)
+3. [pull-before-push-for-sign-in-sync](#pull-before-push-for-sign-in-sync)
+4. [default-catalog-ids-must-be-owner-scoped](#default-catalog-ids-must-be-owner-scoped)
+5. [guest-catalog-pk-collision-blocks-initial-sign-in](#guest-catalog-pk-collision-blocks-initial-sign-in)
+6. [migration-add-column-must-be-idempotent](#migration-add-column-must-be-idempotent)
+7. [muscle-taxonomy-vocabulary-split-hid-fatigue](#muscle-taxonomy-vocabulary-split-hid-fatigue)
 
 ### Dependency Injection
-15. [blocs-must-be-factories-repositories-singletons](#blocs-must-be-factories-repositories-singletons)
-16. [duplicate-di-registration-causes-silent-bugs](#duplicate-di-registration-causes-silent-bugs)
-17. [fire-and-forget-futures-in-startup-cause-race-conditions](#fire-and-forget-futures-in-startup-cause-race-conditions)
-18. [widget-state-must-not-field-capture-factory-blocs-or-cubits](#widget-state-must-not-field-capture-factory-blocs-or-cubits)
+
+1. [blocs-must-be-factories-repositories-singletons](#blocs-must-be-factories-repositories-singletons)
+2. [duplicate-di-registration-causes-silent-bugs](#duplicate-di-registration-causes-silent-bugs)
+3. [fire-and-forget-futures-in-startup-cause-race-conditions](#fire-and-forget-futures-in-startup-cause-race-conditions)
+4. [widget-state-must-not-field-capture-factory-blocs-or-cubits](#widget-state-must-not-field-capture-factory-blocs-or-cubits)
 
 ### CI & Local Tooling
-19. [crlf-line-endings-cause-false-positive-dart-format-locally](#crlf-line-endings-cause-false-positive-dart-format-locally)
-20. [flutter-analyze-info-issues-do-not-fail-ci](#flutter-analyze-info-issues-do-not-fail-ci)
-21. [main-branch-is-pr-only-direct-push-blocked](#main-branch-is-pr-only-direct-push-blocked)
-22. [convention-checker-regexes-must-have-multiline-test-fixtures](#convention-checker-regexes-must-have-multiline-test-fixtures)
+
+1. [crlf-line-endings-cause-false-positive-dart-format-locally](#crlf-line-endings-cause-false-positive-dart-format-locally)
+2. [flutter-analyze-info-issues-do-not-fail-ci](#flutter-analyze-info-issues-do-not-fail-ci)
+3. [main-branch-is-pr-only-direct-push-blocked](#main-branch-is-pr-only-direct-push-blocked)
+4. [convention-checker-regexes-must-have-multiline-test-fixtures](#convention-checker-regexes-must-have-multiline-test-fixtures)
 
 ### Platform
-23. [dart-define-is-build-time-not-runtime](#dart-define-is-build-time-not-runtime)
-24. [supabase-disabled-by-default](#supabase-disabled-by-default)
+
+1. [dart-define-is-build-time-not-runtime](#dart-define-is-build-time-not-runtime)
+2. [supabase-disabled-by-default](#supabase-disabled-by-default)
 
 ### Other
-25. [history-renders-orphaned-sets-not-hides-them](#history-renders-orphaned-sets-not-hides-them)
-26. [voice-slider-persists-on-every-drag-tick](#voice-slider-persists-on-every-drag-tick)
-27. [cross-feature-presentation-imports-are-architectural-cycles](#cross-feature-presentation-imports-are-architectural-cycles)
-28. [empty-state-columns-need-scrollable-centering](#empty-state-columns-need-scrollable-centering)
-29. [muscle-stimulus-repository-userid-parameter-silently-dropped](#muscle-stimulus-repository-userid-parameter-silently-dropped)
-30. [history-calendar-dot-disagrees-with-day-detail-for-orphan-sets](#history-calendar-dot-disagrees-with-day-detail-for-orphan-sets)
-31. [signin-does-not-navigate-until-restart](#signin-does-not-navigate-until-restart)
-32. [auth-gate-must-not-flash-signin-before-session-resolves](#auth-gate-must-not-flash-signin-before-session-resolves)
-33. [muscle-stimulus-rebuild-dst-day-iteration](#muscle-stimulus-rebuild-dst-day-iteration)
+
+1. [history-renders-orphaned-sets-not-hides-them](#history-renders-orphaned-sets-not-hides-them)
+2. [voice-slider-persists-on-every-drag-tick](#voice-slider-persists-on-every-drag-tick)
+3. [cross-feature-presentation-imports-are-architectural-cycles](#cross-feature-presentation-imports-are-architectural-cycles)
+4. [empty-state-columns-need-scrollable-centering](#empty-state-columns-need-scrollable-centering)
+5. [muscle-stimulus-repository-userid-parameter-silently-dropped](#muscle-stimulus-repository-userid-parameter-silently-dropped)
+6. [history-calendar-dot-disagrees-with-day-detail-for-orphan-sets](#history-calendar-dot-disagrees-with-day-detail-for-orphan-sets)
+7. [signin-does-not-navigate-until-restart](#signin-does-not-navigate-until-restart)
+8. [auth-gate-must-not-flash-signin-before-session-resolves](#auth-gate-must-not-flash-signin-before-session-resolves)
+9. [muscle-stimulus-rebuild-dst-day-iteration](#muscle-stimulus-rebuild-dst-day-iteration)
 
 ---
 
