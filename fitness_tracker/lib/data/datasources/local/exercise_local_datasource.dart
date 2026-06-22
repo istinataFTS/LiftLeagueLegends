@@ -501,6 +501,10 @@ class ExerciseLocalDataSourceImpl extends UserScopedLocalDatasource
       whereArgs: f.whereArgs,
       orderBy: '${DatabaseTables.exerciseName} ASC',
     );
+    AppLogger.info(
+      'getAllExercises: owner=$ownerId rows=${maps.length}',
+      category: 'exercise_datasource',
+    );
     return maps.map(ExerciseModel.fromMap).toList();
   }
 
