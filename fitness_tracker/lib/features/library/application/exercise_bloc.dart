@@ -225,6 +225,11 @@ class ExerciseBloc extends Bloc<ExerciseEvent, ExerciseState> {
         // (e.g. fresh device, second user on a shared device, cloud account
         // with no exercises). The flag prevents an infinite re-seed loop.
         if (exercises.isEmpty && !_hasEnsuredDefaults) {
+          AppLogger.info(
+            'LoadExercisesEvent: empty result — running default-exercise '
+            'reseed (first time this session)',
+            category: 'exercise_bloc',
+          );
           _hasEnsuredDefaults = true;
           await ensureDefaultExercises();
 
@@ -251,6 +256,11 @@ class ExerciseBloc extends Bloc<ExerciseEvent, ExerciseState> {
           AppLogger.warning(
             'LoadExercisesEvent: getAllExercises returned 0 rows '
             '(reseed already ran this session — skipping)',
+            category: 'exercise_bloc',
+          );
+        } else {
+          AppLogger.info(
+            'LoadExercisesEvent: loaded ${exercises.length} exercise(s)',
             category: 'exercise_bloc',
           );
         }
