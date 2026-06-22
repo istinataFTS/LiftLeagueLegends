@@ -9,40 +9,54 @@ enum VoiceReplyKind { confirm, cancel, correction }
 abstract final class VoiceReplyClassifier {
   VoiceReplyClassifier._();
 
-  /// Strips leading/trailing Unicode whitespace and punctuation before
-  /// matching so that Whisper's capitalisation and trailing period
-  /// ("Confirm." / "I confirm.") do not cause a miss on the anchored regexes.
-  static final RegExp _edgePunct = RegExp(
-    r'^[\s\p{P}]+|[\s\p{P}]+$',
-    unicode: true,
-  );
+  /// All Unicode punctuation. Stripped (not space-replaced) before matching so
+  /// both Whisper edge artefacts ("Confirm.") AND internal punctuation
+  /// ("yes, do it", "let's go") normalise to the bare phrase. Removing rather
+  /// than space-replacing keeps contractions intact ("let's" → "lets",
+  /// "that's" → "thats").
+  static final RegExp _punct = RegExp(r'\p{P}', unicode: true);
+
+  /// Collapses any run of whitespace to a single space so a stripped comma
+  /// ("yes, do it" → "yes  do it") does not leave a double space that would
+  /// break the anchored match.
+  static final RegExp _whitespace = RegExp(r'\s+');
 
   /// Pure affirmations — anchored ^…$ so anything carrying extra data
   /// ("yes but make it 8") falls through to [VoiceReplyKind.correction].
   /// H2: deliberately NOT the server's `\b`-based AFFIRMATION_REGEX.
+  /// Phrases are stored in normalised (apostrophe-free, lowercase) form to
+  /// match [_normalize]'s output.
   static final RegExp _confirm = RegExp(
-    r'^(yes|yeah|yep|yup|yes please|do it|go ahead|confirm|confirmed|'
-    r'sounds good|log it|save it|i confirm|please confirm|yes confirm|'
-    "okay|ok|correct|that's right|thats right|sure)\$",
+    r'^(yes|yeah|yep|yup|yes please|yes do it|yep do it|do it|lets do it|'
+    r'go ahead|go for it|lets go|confirm|confirmed|i confirm|please confirm|'
+    r'yes confirm|sounds good|looks good|log it|save it|okay|ok|correct|'
+    r'thats right|thats correct|sure|absolutely|definitely|for sure|perfect)$',
     caseSensitive: false,
   );
 
   /// Pure cancels — anchored so "cancel my membership" does NOT cancel.
   /// Lifted verbatim from the former `_verbalCancelPattern` plus done-words.
   static final RegExp _cancel = RegExp(
-    r'^(cancel|nevermind|never mind|no|stop|no thanks|nope|forget it)$',
+    r'^(cancel|nevermind|never mind|no|stop|no thanks|no thank you|nope|'
+    r'forget it|forget that)$',
     caseSensitive: false,
   );
 
   /// Classifies [transcript] as a pure affirmation, a pure cancellation, or
   /// a correction that should be forwarded to the LLM. Normalises the input
-  /// (lowercase, strip leading/trailing punctuation) so that Whisper
-  /// artefacts such as capitalisation and a trailing period do not cause a
-  /// miss.
+  /// (lowercase, strip ALL punctuation, collapse whitespace) so that Whisper
+  /// artefacts (capitalisation, trailing period) and natural internal
+  /// punctuation ("yes, do it") do not cause a miss.
   static VoiceReplyKind classify(String transcript) {
-    final t = transcript.toLowerCase().trim().replaceAll(_edgePunct, '');
+    final t = _normalize(transcript);
     if (_confirm.hasMatch(t)) return VoiceReplyKind.confirm;
     if (_cancel.hasMatch(t)) return VoiceReplyKind.cancel;
     return VoiceReplyKind.correction;
   }
+
+  static String _normalize(String transcript) => transcript
+      .toLowerCase()
+      .replaceAll(_punct, '')
+      .replaceAll(_whitespace, ' ')
+      .trim();
 }
