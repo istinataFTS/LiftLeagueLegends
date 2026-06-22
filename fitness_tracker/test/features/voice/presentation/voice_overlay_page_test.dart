@@ -279,6 +279,28 @@ void main() {
       expect(startCount, greaterThanOrEqualTo(2));
     });
 
+    testWidgets('re-arms engine when status transitions to error', (
+      tester,
+    ) async {
+      // After a no-speech / failed turn the bot lands at VoiceStatus.error
+      // (the "Try again" card). The mic is free there, so the wake engine must
+      // be armed — otherwise the user can only re-wake by tapping "Try again".
+      final stateCtrl = StreamController<VoiceState>.broadcast();
+      addTearDown(stateCtrl.close);
+      whenListen(voiceBloc, stateCtrl.stream, initialState: const VoiceState());
+
+      await tester.pumpWidget(buildSubject());
+      await tester.pumpAndSettle();
+
+      stateCtrl.add(const VoiceState(status: VoiceStatus.listening));
+      await tester.pumpAndSettle();
+      stateCtrl.add(const VoiceState(status: VoiceStatus.error));
+      await tester.pumpAndSettle();
+
+      final startCount = wakeService.calls.where((c) => c == 'start').length;
+      expect(startCount, greaterThanOrEqualTo(2));
+    });
+
     testWidgets('does not arm engine when wake word is disabled', (
       tester,
     ) async {
@@ -313,9 +335,29 @@ void main() {
       ).called(1);
     });
 
-    testWidgets('press while not idle does not dispatch VoiceListenRequested', (
+    testWidgets('press while in error state dispatches VoiceListenRequested', (
       tester,
     ) async {
+      // The "Try again" state must accept a headset tap to re-wake, not only
+      // the on-screen button.
+      whenListen(
+        voiceBloc,
+        Stream<VoiceState>.empty(),
+        initialState: const VoiceState(status: VoiceStatus.error),
+      );
+
+      await tester.pumpWidget(buildSubject());
+      await tester.pumpAndSettle();
+
+      mediaButtonService.emitPress();
+      await tester.pump();
+
+      verify(
+        () => voiceBloc.add(const VoiceListenRequested(fromWakeWord: true)),
+      ).called(1);
+    });
+
+    testWidgets('press while not idle/error does not dispatch', (tester) async {
       whenListen(
         voiceBloc,
         Stream<VoiceState>.empty(),
@@ -326,6 +368,47 @@ void main() {
       await tester.pumpAndSettle();
 
       mediaButtonService.emitPress();
+      await tester.pump();
+
+      verifyNever(
+        () => voiceBloc.add(const VoiceListenRequested(fromWakeWord: true)),
+      );
+    });
+  });
+
+  group('VoiceOverlayPage — wake word re-trigger', () {
+    testWidgets(
+      'detection while in error state dispatches VoiceListenRequested',
+      (tester) async {
+        whenListen(
+          voiceBloc,
+          Stream<VoiceState>.empty(),
+          initialState: const VoiceState(status: VoiceStatus.error),
+        );
+
+        await tester.pumpWidget(buildSubject());
+        await tester.pumpAndSettle();
+
+        wakeService._detected.add(WakeWordPreset.thomas);
+        await tester.pump();
+
+        verify(
+          () => voiceBloc.add(const VoiceListenRequested(fromWakeWord: true)),
+        ).called(1);
+      },
+    );
+
+    testWidgets('detection while listening does not dispatch', (tester) async {
+      whenListen(
+        voiceBloc,
+        Stream<VoiceState>.empty(),
+        initialState: const VoiceState(status: VoiceStatus.listening),
+      );
+
+      await tester.pumpWidget(buildSubject());
+      await tester.pumpAndSettle();
+
+      wakeService._detected.add(WakeWordPreset.thomas);
       await tester.pump();
 
       verifyNever(
