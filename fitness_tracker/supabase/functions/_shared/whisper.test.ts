@@ -182,34 +182,47 @@ Deno.test("gateHallucinatedTranscript: does NOT gate a real one-word confirm", (
   assertEquals(gateHallucinatedTranscript(json), "Confirm.");
 });
 
-Deno.test("gateHallucinatedTranscript: requires BOTH thresholds to gate", () => {
-  // High no_speech_prob alone is not enough — many short clips have elevated
-  // no_speech_prob but normal avg_logprob.
-  const lowConfNoiseProb = {
+Deno.test("gateHallucinatedTranscript: high no_speech_prob alone gates (clause a)", () => {
+  // Clause (a): very high no_speech_prob alone is enough — this is the case
+  // the previous AND-only gate missed. A hallucinated phrase on pure noise
+  // can have a normal-looking avg_logprob, so we cannot require both.
+  const json = {
     text: "thanks for watching",
     duration: 1.0,
     segments: [{ no_speech_prob: 0.9, avg_logprob: -0.3 }],
   };
-  assertEquals(
-    gateHallucinatedTranscript(lowConfNoiseProb),
-    "thanks for watching",
-  );
-  // Low avg_logprob alone is not enough either.
-  const lowLogprob = {
+  assertEquals(gateHallucinatedTranscript(json), "");
+});
+
+Deno.test("gateHallucinatedTranscript: SOFT no_speech + low avg_logprob gates (clause b)", () => {
+  // Clause (b): a moderately high no_speech_prob combined with a low
+  // avg_logprob is the classic low-confidence hallucination signature.
+  const json = {
+    text: "you",
+    duration: 0.4,
+    segments: [{ no_speech_prob: 0.55, avg_logprob: -1.2 }],
+  };
+  assertEquals(gateHallucinatedTranscript(json), "");
+});
+
+Deno.test("gateHallucinatedTranscript: low no_speech + low avg_logprob does NOT gate", () => {
+  // Regression guard: a real but acoustically difficult word can produce a
+  // low avg_logprob with a low no_speech_prob. Neither clause should fire.
+  const json = {
     text: "log squat",
     duration: 1.0,
     segments: [{ no_speech_prob: 0.4, avg_logprob: -1.5 }],
   };
-  assertEquals(gateHallucinatedTranscript(lowLogprob), "log squat");
+  assertEquals(gateHallucinatedTranscript(json), "log squat");
 });
 
 Deno.test("gateHallucinatedTranscript: exact boundary (== thresholds) gates", () => {
-  // The thresholds use `>=` / `<=`, so a value sitting exactly on the line
-  // is treated as silence. Documented so future tuning is intentional.
+  // Clause (b) thresholds use `>=` / `<=`, so a value sitting exactly on the
+  // line is treated as silence. Documented so future tuning is intentional.
   const json = {
     text: "you",
     duration: 0.4,
-    segments: [{ no_speech_prob: 0.6, avg_logprob: -1.0 }],
+    segments: [{ no_speech_prob: 0.5, avg_logprob: -1.0 }],
   };
   assertEquals(gateHallucinatedTranscript(json), "");
 });
