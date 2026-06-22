@@ -30,6 +30,9 @@ class ExercisesTab extends StatefulWidget {
   static const Key retryButtonKey = ValueKey<String>(
     'library_exercises_retry_button',
   );
+  static const Key reloadButtonKey = ValueKey<String>(
+    'library_exercises_reload_button',
+  );
   static const Key clearFiltersButtonKey = ValueKey<String>(
     'library_exercises_clear_filters_button',
   );
@@ -322,6 +325,15 @@ class _ExercisesTabState extends State<ExercisesTab> {
                       ),
                     ),
                   ),
+                  const SizedBox(height: 12),
+                  TextButton.icon(
+                    key: ExercisesTab.reloadButtonKey,
+                    onPressed: () {
+                      context.read<ExerciseBloc>().add(LoadExercisesEvent());
+                    },
+                    icon: const Icon(Icons.refresh),
+                    label: const Text('Reload'),
+                  ),
                 ],
               ),
             ),
@@ -410,12 +422,24 @@ class _ExercisesTabState extends State<ExercisesTab> {
     BuildContext context,
     List<LibraryExerciseItemViewData> items,
   ) {
-    return ListView.builder(
-      padding: const EdgeInsets.fromLTRB(20, 8, 20, 20),
-      itemCount: items.length,
-      itemBuilder: (BuildContext context, int index) {
-        return _buildExerciseCard(context, items[index]);
+    return RefreshIndicator(
+      color: AppTheme.primaryOrange,
+      onRefresh: () {
+        final bloc = context.read<ExerciseBloc>();
+        bloc.add(LoadExercisesEvent());
+        return bloc.stream
+            .firstWhere(
+              (ExerciseState s) => s is ExercisesLoaded || s is ExerciseError,
+            )
+            .then((_) {});
       },
+      child: ListView.builder(
+        padding: const EdgeInsets.fromLTRB(20, 8, 20, 20),
+        itemCount: items.length,
+        itemBuilder: (BuildContext context, int index) {
+          return _buildExerciseCard(context, items[index]);
+        },
+      ),
     );
   }
 

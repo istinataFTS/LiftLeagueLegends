@@ -116,6 +116,61 @@ void main() {
         act: (bloc) => bloc.add(LoadExercisesEvent()),
         expect: () => [isA<ExerciseLoading>(), const ExerciseError('db error')],
       );
+
+      blocTest<ExerciseBloc, ExerciseState>(
+        'emits [Loading, ExercisesLoaded([])] on second empty after prior seed',
+        build: buildBloc,
+        setUp: () {
+          when(
+            () => mockGetAll(),
+          ).thenAnswer((_) async => const Right(<Exercise>[]));
+          when(
+            () => mockEnsureDefaultExercises(),
+          ).thenAnswer((_) async => const Right(0));
+        },
+        act: (bloc) async {
+          // First load: triggers seed, post-seed reload also returns empty.
+          bloc.add(LoadExercisesEvent());
+          await Future<void>.delayed(Duration.zero);
+          // Second explicit reload: seed already ran, should re-query only.
+          bloc.add(LoadExercisesEvent());
+        },
+        expect: () => [
+          isA<ExerciseLoading>(),
+          ExercisesLoaded(const <Exercise>[]),
+          isA<ExerciseLoading>(),
+          ExercisesLoaded(const <Exercise>[]),
+        ],
+      );
+
+      blocTest<ExerciseBloc, ExerciseState>(
+        'second LoadExercisesEvent recovers when db now returns data',
+        build: buildBloc,
+        setUp: () {
+          var callCount = 0;
+          when(() => mockGetAll()).thenAnswer((_) async {
+            callCount++;
+            // First two calls (initial + post-seed reload) return empty.
+            if (callCount <= 2) return const Right(<Exercise>[]);
+            // Third call (explicit reload) returns data.
+            return Right([_exercise]);
+          });
+          when(
+            () => mockEnsureDefaultExercises(),
+          ).thenAnswer((_) async => const Right(0));
+        },
+        act: (bloc) async {
+          bloc.add(LoadExercisesEvent());
+          await Future<void>.delayed(Duration.zero);
+          bloc.add(LoadExercisesEvent());
+        },
+        expect: () => [
+          isA<ExerciseLoading>(),
+          ExercisesLoaded(const <Exercise>[]),
+          isA<ExerciseLoading>(),
+          ExercisesLoaded([_exercise]),
+        ],
+      );
     });
 
     group('LoadExerciseByIdEvent', () {

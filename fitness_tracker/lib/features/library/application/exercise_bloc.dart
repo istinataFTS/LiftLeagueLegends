@@ -230,13 +230,30 @@ class ExerciseBloc extends Bloc<ExerciseEvent, ExerciseState> {
 
           // Reload after seeding so the UI shows the freshly inserted exercises.
           final reloadResult = await getAllExercises();
-          reloadResult.fold((failure) {
-            _logFailure('LoadExercisesEvent (post-seed reload)', failure);
-            emit(ExerciseError(failure.message));
-          }, (seeded) => emit(ExercisesLoaded(seeded)));
+          reloadResult.fold(
+            (failure) {
+              _logFailure('LoadExercisesEvent (post-seed reload)', failure);
+              emit(ExerciseError(failure.message));
+            },
+            (seeded) {
+              AppLogger.info(
+                'LoadExercisesEvent: post-seed reload returned '
+                '${seeded.length} exercise(s)',
+                category: 'exercise_bloc',
+              );
+              emit(ExercisesLoaded(seeded));
+            },
+          );
           return;
         }
 
+        if (exercises.isEmpty) {
+          AppLogger.warning(
+            'LoadExercisesEvent: getAllExercises returned 0 rows '
+            '(reseed already ran this session — skipping)',
+            category: 'exercise_bloc',
+          );
+        }
         emit(ExercisesLoaded(exercises));
       },
     );
