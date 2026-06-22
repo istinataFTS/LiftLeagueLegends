@@ -86,11 +86,29 @@ abstract final class VoiceConstants {
   /// that recording has ended.
   static const Duration whisperSilenceTimeout = Duration(milliseconds: 2000);
 
-  /// Amplitude (dBFS) below which the recorder is considered to be picking
-  /// up silence. Values near 0 dBFS are loud; values near -160 dBFS are
-  /// effectively silent. -45 dBFS is quiet-room background noise on most
-  /// phone microphones — speech reliably exceeds it.
-  static const double whisperSilenceAmplitudeDbfs = -45.0;
+  /// Amplitude (dBFS) at/above which a sample counts toward confirming the
+  /// user is speaking. Higher (less negative) than a single-threshold value so
+  /// quiet-room background noise no longer registers as voice. PROPOSED — must
+  /// be validated against real device captures (see KNOWN_ISSUES.md
+  /// #voice-whisper-vad-thresholds-are-device-tuned).
+  static const double whisperVoiceOnsetDbfs = -40.0;
+
+  /// Amplitude (dBFS) strictly below which silence accrues. Lower than
+  /// [whisperVoiceOnsetDbfs] to form a hysteresis dead-band that ignores
+  /// borderline flicker. PROPOSED — validate on device.
+  static const double whisperVoiceReleaseDbfs = -50.0;
+
+  /// Consecutive onset-or-louder samples required before voice is "confirmed".
+  /// Debounces isolated spikes (a single clank must not confirm voice or
+  /// reset the silence clock). At a 200 ms poll, 2 samples = 400 ms.
+  static const int whisperVoiceConfirmSamples = 2;
+
+  /// Minimum total confirmed-voiced duration a clip must contain before it is
+  /// uploaded for transcription. Below this the clip is treated as noise-only
+  /// and dropped (emits noSpeech) so Whisper is never asked to transcribe
+  /// silence. PROPOSED — validate against the shortest real one-word command
+  /// ("done", "stop") so legitimate short utterances are NOT dropped.
+  static const Duration whisperMinVoicedDuration = Duration(milliseconds: 300);
 
   /// Polling interval for the recorder's amplitude monitor. 200 ms gives a
   /// responsive auto-stop without burning CPU on every frame.

@@ -108,6 +108,7 @@ Numbered steps or a short paragraph. State what to do and what *not* to do.
 36. [voice-recent-nutrition-tool-was-misclassified-as-mutation-on-client](#voice-recent-nutrition-tool-was-misclassified-as-mutation-on-client)
 37. [voice-kws-engine-reinit-per-arm-causes-ui-jank](#voice-kws-engine-reinit-per-arm-causes-ui-jank)
 38. [voice-wake-word-first-words-clipped-during-mic-handoff](#voice-wake-word-first-words-clipped-during-mic-handoff)
+39. [voice-whisper-vad-thresholds-are-device-tuned](#voice-whisper-vad-thresholds-are-device-tuned)
 
 ### Database
 
@@ -1506,6 +1507,38 @@ Residual ~300 ms gap remains (mic-release → Whisper-mic-open) — acceptable f
 - `lib/features/voice/application/voice_bloc.dart` — `VoiceListenRequested.fromWakeWord`, `stripLeadingWakePhrase`
 - `lib/core/constants/voice_constants.dart` — `wakeWordPreRoll*` constants
 - `[[voice-wake-word-keyword-miss-rate]]` — distinct problem (phrase/model, not handoff timing)
+
+---
+
+### voice-whisper-vad-thresholds-are-device-tuned
+
+- **Severity:** Medium
+- **Status:** Mitigated
+- **First observed:** 2026-06-22
+- **Last verified:** 2026-06-22
+- **Area:** voice
+
+**Symptom**
+
+In noisy environments (gym fans, music, TTS tail) the Whisper-backed recorder ran to its 15 s hard cap instead of silence-stopping ~2 s after the user finished speaking. Separately, near-silent clips with room noise were uploaded and Whisper hallucinated canned phrases (e.g. "Thank you for watching", "For more information visit www.FEMA.gov").
+
+**Root cause**
+
+`WhisperVoiceSttService` used a single-threshold amplitude test (`amp.current > whisperSilenceAmplitudeDbfs`, −45 dBFS) for both the silence-stop decision and the "did the user actually speak" upload gate. One sample above the threshold reset `_lastVoiceAt`, so any noise spike during the 2 s silence window restarted the countdown; and a single ambient spike was enough to flip `_voiceDetected = true` and forward a noise-only clip to Whisper.
+
+**Workaround / fix**
+
+Replaced the single-threshold logic with `VoiceSilenceEndpointer` — a debounced hysteresis state machine fed one amplitude sample at a time. Two thresholds (`whisperVoiceOnsetDbfs` = −40 dBFS / `whisperVoiceReleaseDbfs` = −50 dBFS) form a dead-band so borderline flicker accrues neither voice nor silence. Voice is only "confirmed" after `whisperVoiceConfirmSamples` (= 2, i.e. 400 ms) consecutive onset-or-louder samples; lone spikes can no longer confirm voice or reset the silence clock. The upload gate now requires `whisperMinVoicedDuration` (= 300 ms) of confirmed-voiced time, so noise-only clips are dropped before they reach Whisper. The wake-word pre-roll still force-passes the gate.
+
+The four constants (`whisperVoiceOnsetDbfs`, `whisperVoiceReleaseDbfs`, `whisperVoiceConfirmSamples`, `whisperMinVoicedDuration`) are PROPOSED values — they should be re-measured on a target device whenever a miss (legit short word dropped) or over-capture (gym noise still confirming voice) is reported. `whisperSilenceTimeout` remains 2000 ms.
+
+**References**
+
+- `lib/features/voice/data/services/voice_silence_endpointer.dart` — pure algorithm
+- `lib/features/voice/data/services/whisper_voice_stt_service.dart` — recorder wiring + `shouldTranscribe`
+- `lib/core/constants/voice_constants.dart` — the four PROPOSED thresholds
+- `test/features/voice/data/services/voice_silence_endpointer_test.dart` — table-driven coverage
+- `[[voice-whisper-hallucinates-on-silent-audio]]` — the bug class this entry locks down
 
 ---
 

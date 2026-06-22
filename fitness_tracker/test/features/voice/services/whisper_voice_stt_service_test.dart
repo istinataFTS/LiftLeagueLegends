@@ -146,11 +146,11 @@ void main() {
 
   group('shouldTranscribe', () {
     test(
-      'no voice detected, non-empty bytes → false (silence clip, the FEMA case)',
+      'insufficient voice, non-empty bytes → false (silence clip, the FEMA case)',
       () {
         expect(
           WhisperVoiceSttService.shouldTranscribe(
-            voiceDetected: false,
+            hasSufficientVoice: false,
             byteCount: 7100,
           ),
           isFalse,
@@ -158,30 +158,30 @@ void main() {
       },
     );
 
-    test('no voice detected, zero bytes → false', () {
+    test('insufficient voice, zero bytes → false', () {
       expect(
         WhisperVoiceSttService.shouldTranscribe(
-          voiceDetected: false,
+          hasSufficientVoice: false,
           byteCount: 0,
         ),
         isFalse,
       );
     });
 
-    test('voice detected, zero bytes → false (defensive)', () {
+    test('sufficient voice, zero bytes → false (defensive)', () {
       expect(
         WhisperVoiceSttService.shouldTranscribe(
-          voiceDetected: true,
+          hasSufficientVoice: true,
           byteCount: 0,
         ),
         isFalse,
       );
     });
 
-    test('voice detected, non-empty bytes → true', () {
+    test('sufficient voice, non-empty bytes → true', () {
       expect(
         WhisperVoiceSttService.shouldTranscribe(
-          voiceDetected: true,
+          hasSufficientVoice: true,
           byteCount: 5000,
         ),
         isTrue,
