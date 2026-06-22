@@ -73,6 +73,9 @@ class _BottomNavigationState extends State<BottomNavigation> {
   /// entry without requiring an app restart.
   void _ensureExerciseDataLoaded() {
     final state = context.read<ExerciseBloc>().state;
+    if (state is ExerciseLoading) {
+      return;
+    }
     if (state is ExercisesLoaded && state.exercises.isNotEmpty) {
       return;
     }
@@ -83,6 +86,9 @@ class _BottomNavigationState extends State<BottomNavigation> {
   /// (non-empty) loaded state.
   void _ensureMealDataLoaded() {
     final state = context.read<MealBloc>().state;
+    if (state is MealLoading) {
+      return;
+    }
     if (state is MealsLoaded && state.meals.isNotEmpty) {
       return;
     }

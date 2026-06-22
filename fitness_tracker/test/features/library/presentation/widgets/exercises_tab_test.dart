@@ -154,35 +154,34 @@ void main() {
     });
 
     group('pull-to-refresh', () {
-      testWidgets(
-        'RefreshIndicator dispatches LoadExercisesEvent and completes',
-        (WidgetTester tester) async {
-          await tester.binding.setSurfaceSize(const Size(800, 1200));
-          addTearDown(() => tester.binding.setSurfaceSize(null));
+      testWidgets('RefreshIndicator onRefresh invokes the reload path', (
+        WidgetTester tester,
+      ) async {
+        await tester.binding.setSurfaceSize(const Size(800, 1200));
+        addTearDown(() => tester.binding.setSurfaceSize(null));
 
-          // Simulate: first load returns data so list renders;
-          // pull-to-refresh reloads and returns same data.
-          when(() => mockGetAll()).thenAnswer((_) async => Right([_exercise]));
+        // mockGetAll resolves to the same list — onRefresh dispatches
+        // LoadExercisesEvent, which calls getAllExercises on the bloc.
+        when(() => mockGetAll()).thenAnswer((_) async => Right([_exercise]));
 
-          final bloc = _makeBloc(mockGetAll: mockGetAll);
+        final bloc = _makeBloc(mockGetAll: mockGetAll);
 
-          await tester.pumpWidget(_buildHarness(bloc));
-          bloc.emit(ExercisesLoaded([_exercise]));
-          await tester.pump();
+        await tester.pumpWidget(_buildHarness(bloc));
+        bloc.emit(ExercisesLoaded([_exercise]));
+        await tester.pump();
 
-          // The list is present; trigger pull-to-refresh.
-          await tester.drag(find.text(_exercise.name), const Offset(0, 300));
-          await tester.pump();
-          await tester.pump(const Duration(milliseconds: 100));
+        // The initial emit bypassed the use case; reset the call count so
+        // we only count invocations from the RefreshIndicator path.
+        reset(mockGetAll);
+        when(() => mockGetAll()).thenAnswer((_) async => Right([_exercise]));
 
-          // Bloc receives a new LoadExercisesEvent and transitions back to
-          // loaded; verify the list is still visible after settle.
-          bloc.emit(ExercisesLoaded([_exercise]));
-          await tester.pumpAndSettle();
+        // Trigger pull-to-refresh on the visible list.
+        await tester.drag(find.text(_exercise.name), const Offset(0, 300));
+        await tester.pumpAndSettle();
 
-          expect(find.text(_exercise.name), findsOneWidget);
-        },
-      );
+        verify(() => mockGetAll()).called(greaterThanOrEqualTo(1));
+        expect(find.text(_exercise.name), findsOneWidget);
+      });
     });
   });
 }

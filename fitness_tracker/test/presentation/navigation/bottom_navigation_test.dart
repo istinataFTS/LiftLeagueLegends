@@ -414,6 +414,30 @@ void main() {
   );
 
   testWidgets(
+    're-entering Library does NOT re-dispatch while a load is in flight',
+    (WidgetTester tester) async {
+      when(() => exerciseBloc.state).thenReturn(ExerciseLoading());
+      whenListen<ExerciseState>(
+        exerciseBloc,
+        const Stream<ExerciseState>.empty(),
+        initialState: ExerciseLoading(),
+      );
+
+      await tester.pumpWidget(buildSubject());
+      await tester.pump();
+
+      await tester.tap(find.text('Library'));
+      await tester.pump();
+      await tester.tap(find.text('Home'));
+      await tester.pump();
+      await tester.tap(find.text('Library'));
+      await tester.pump();
+
+      verifyNever(() => exerciseBloc.add(LoadExercisesEvent()));
+    },
+  );
+
+  testWidgets(
     're-entering Library re-dispatches LoadExercisesEvent when state is error',
     (WidgetTester tester) async {
       when(
