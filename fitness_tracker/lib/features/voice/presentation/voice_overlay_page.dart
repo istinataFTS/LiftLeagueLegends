@@ -78,6 +78,15 @@ class _VoiceOverlayView extends StatefulWidget {
   State<_VoiceOverlayView> createState() => _VoiceOverlayViewState();
 }
 
+/// Statuses from which a wake word / headset tap may (re)start a listen, and
+/// in which the wake engine is safe to arm. Both are terminal, mic-free
+/// states: [VoiceStatus.idle] (turn finished) and [VoiceStatus.error] (the
+/// "Try again" card after a no-speech / failed turn). Without `error` here the
+/// user was forced to tap "Try again" to re-wake — see KNOWN_ISSUES.md
+/// #voice-try-again-state-ignored-wake-word.
+bool _canRetriggerFrom(VoiceStatus status) =>
+    status == VoiceStatus.idle || status == VoiceStatus.error;
+
 class _VoiceOverlayViewState extends State<_VoiceOverlayView> {
   StreamSubscription<bool>? _connectivitySub;
   StreamSubscription<WakeWordPreset>? _wakeWordSub;
@@ -151,7 +160,7 @@ class _VoiceOverlayViewState extends State<_VoiceOverlayView> {
     _wakeWordSub = sl<VoiceWakeWordService>().onWakeWordDetected.listen((_) {
       if (!mounted) return;
       final bloc = context.read<VoiceBloc>();
-      if (bloc.state.status == VoiceStatus.idle) {
+      if (_canRetriggerFrom(bloc.state.status)) {
         bloc.add(const VoiceListenRequested(fromWakeWord: true));
       }
     });
@@ -162,7 +171,7 @@ class _VoiceOverlayViewState extends State<_VoiceOverlayView> {
       (_) {
         if (!mounted) return;
         final bloc = context.read<VoiceBloc>();
-        if (bloc.state.status == VoiceStatus.idle) {
+        if (_canRetriggerFrom(bloc.state.status)) {
           // Tap-to-wake is the wake-word equivalent on Android headsets —
           // same handoff, same earcon-skip / wake-phrase-strip semantics.
           bloc.add(const VoiceListenRequested(fromWakeWord: true));
@@ -201,9 +210,11 @@ class _VoiceOverlayViewState extends State<_VoiceOverlayView> {
         final wake = sl<VoiceWakeWordService>();
         final mediaButton = sl<VoiceMediaButtonService>();
         final settings = context.read<VoiceSettingsCubit>().state;
-        if (state.status == VoiceStatus.idle &&
+        if (_canRetriggerFrom(state.status) &&
             settings.wakeWordArmedInForeground) {
-          // Re-arm while idle so the user can re-wake without tapping (bug #4).
+          // Re-arm while idle OR error so the user can re-wake without tapping
+          // "Try again". A no-speech / failed turn lands at [VoiceStatus.error]
+          // with the mic free, so the wake engine is safe to run there too.
           unawaited(wake.start(settings.wakeWordPreset));
           unawaited(mediaButton.start());
         } else {

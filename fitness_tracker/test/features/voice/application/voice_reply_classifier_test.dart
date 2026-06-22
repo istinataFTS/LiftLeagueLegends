@@ -31,6 +31,19 @@ void main() {
         "that's right",
         'thats right',
         'sure',
+        // widened in fix/voice-confirm-phrases — free-form affirmations
+        'go for it',
+        "let's go",
+        'lets go',
+        'lets do it',
+        'yes do it',
+        'yep do it',
+        'absolutely',
+        'definitely',
+        'for sure',
+        'looks good',
+        'thats correct',
+        'perfect',
       ];
 
       for (final phrase in confirms) {
@@ -197,6 +210,50 @@ void main() {
         expect(
           VoiceReplyClassifier.classify('forget it all'),
           VoiceReplyKind.correction,
+        );
+      });
+
+      test('"go for it now" — free-form confirm not anchored to end', () {
+        expect(
+          VoiceReplyClassifier.classify('go for it now'),
+          VoiceReplyKind.correction,
+        );
+      });
+
+      test('"absolutely not" — refusal must NOT confirm', () {
+        // Anchored, so "absolutely not" != "absolutely" and falls through to
+        // correction (forwarded to the LLM) rather than confirming.
+        expect(
+          VoiceReplyClassifier.classify('absolutely not'),
+          VoiceReplyKind.correction,
+        );
+      });
+    });
+
+    // -------------------------------------------------------------------------
+    // Internal punctuation — natural commas / contractions must not break the
+    // anchored match (the bug this fix closes).
+    // -------------------------------------------------------------------------
+
+    group('internal punctuation normalisation', () {
+      test('"yes, do it" — internal comma still confirms', () {
+        expect(
+          VoiceReplyClassifier.classify('yes, do it'),
+          VoiceReplyKind.confirm,
+        );
+      });
+
+      test('"Go for it!" — capital + internal + trailing punct → confirm', () {
+        expect(
+          VoiceReplyClassifier.classify('Go for it!'),
+          VoiceReplyKind.confirm,
+        );
+      });
+
+      test('"Let\'s go." — contraction apostrophe → confirm', () {
+        expect(
+          VoiceReplyClassifier.classify("Let's go."),
+          VoiceReplyKind.confirm,
         );
       });
     });

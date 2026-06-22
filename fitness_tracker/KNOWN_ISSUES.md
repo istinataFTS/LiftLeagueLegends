@@ -109,6 +109,7 @@ Numbered steps or a short paragraph. State what to do and what *not* to do.
 37. [voice-kws-engine-reinit-per-arm-causes-ui-jank](#voice-kws-engine-reinit-per-arm-causes-ui-jank)
 38. [voice-wake-word-first-words-clipped-during-mic-handoff](#voice-wake-word-first-words-clipped-during-mic-handoff)
 39. [voice-whisper-vad-thresholds-are-device-tuned](#voice-whisper-vad-thresholds-are-device-tuned)
+40. [voice-try-again-state-ignored-wake-word](#voice-try-again-state-ignored-wake-word)
 
 ### Database
 
@@ -1539,6 +1540,34 @@ The four threshold constants are PROPOSED values — re-measure on a target devi
 - `lib/core/constants/voice_constants.dart` — the four PROPOSED thresholds
 - `test/features/voice/data/services/voice_silence_endpointer_test.dart` — table-driven coverage
 - `[[voice-whisper-hallucinates-on-silent-audio]]` — the bug class this entry locks down
+
+---
+
+### voice-try-again-state-ignored-wake-word
+
+- **Severity:** Medium
+- **Status:** Resolved-but-monitor
+- **First observed:** 2026-06-22
+- **Last verified:** 2026-06-22
+- **Area:** voice
+
+**Symptom**
+
+After a no-speech / failed turn the overlay shows the "Try again" card (`VoiceStatus.error`). From that state the wake word and the headset tap-to-wake were ignored — the only way to re-listen was to physically tap the on-screen "Try again" button.
+
+**Root cause**
+
+`_VoiceOverlayViewState` in `voice_overlay_page.dart` gated both the re-trigger handlers (`_subscribeToWakeWord`, `_subscribeToMediaButton`) and the wake-engine arm/stop `BlocListener` on `status == VoiceStatus.idle` only. On entering `VoiceStatus.error` the listener took the else-branch and called `wake.stop()` / `mediaButton.stop()`, so the engine was off; even had it been running, the detection handlers would have dropped the event because the status was not `idle`.
+
+**Workaround / fix**
+
+Introduced `_canRetriggerFrom(VoiceStatus)` = `idle || error` and routed all three sites through it. Both are terminal, mic-free states, so arming the wake engine and accepting a re-trigger in `error` is safe. Do NOT add `listening`/`transcribing`/`thinking`/`speaking` — those own the mic for STT or are mid-turn.
+
+**References**
+
+- `lib/features/voice/presentation/voice_overlay_page.dart` — `_canRetriggerFrom`, the two subscriptions, the arm/stop `BlocListener`
+- `test/features/voice/presentation/voice_overlay_page_test.dart` — error-state re-arm + re-trigger coverage
+- `lib/features/voice/application/voice_bloc.dart` — `_onTranscriptFailed` emits `VoiceStatus.error` on noSpeech outside a continuous turn
 
 ---
 
