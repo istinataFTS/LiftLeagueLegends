@@ -22,10 +22,30 @@ void main() {
       );
     });
 
-    test('whisperSilenceTimeout matches sttSilenceTimeout in milliseconds', () {
+    test(
+      'whisperSilenceTimeout is 1.5s and tighter than sttSilenceTimeout',
+      () {
+        // The Whisper path adds an upload + transcribe round-trip after the
+        // endpoint, so its silence window is intentionally shorter than the
+        // on-device backend's. Device-tuned — see KNOWN_ISSUES.md
+        // #voice-whisper-vad-thresholds-are-device-tuned.
+        expect(
+          VoiceConstants.whisperSilenceTimeout,
+          const Duration(milliseconds: 1500),
+        );
+        expect(
+          VoiceConstants.whisperSilenceTimeout <
+              VoiceConstants.sttSilenceTimeout,
+          isTrue,
+        );
+      },
+    );
+
+    test('whisper VAD dead-band is ordered: release below onset', () {
       expect(
-        VoiceConstants.whisperSilenceTimeout,
-        VoiceConstants.sttSilenceTimeout,
+        VoiceConstants.whisperVoiceReleaseDbfs <
+            VoiceConstants.whisperVoiceOnsetDbfs,
+        isTrue,
       );
     });
   });

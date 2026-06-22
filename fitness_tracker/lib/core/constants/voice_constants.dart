@@ -80,11 +80,13 @@ abstract final class VoiceConstants {
   /// is identical between the two STT backends.
   static const Duration whisperMaxAudioDuration = Duration(seconds: 15);
 
-  /// Silence window that auto-stops the recorder. Matches [sttSilenceTimeout]
-  /// so both backends end the turn at the same moment of silence — Whisper
-  /// has no incremental partials, so this is the only signal the user has
-  /// that recording has ended.
-  static const Duration whisperSilenceTimeout = Duration(milliseconds: 2000);
+  /// Silence window that auto-stops the recorder. Shorter than
+  /// [sttSilenceTimeout] (the on-device backend's window) because the Whisper
+  /// path adds an upload + transcribe round-trip on top, so a 2 s endpoint
+  /// felt sluggish on device. 1.5 s endpoints promptly after the user stops
+  /// without truncating a brief mid-utterance pause. PROPOSED — device-tuned;
+  /// see KNOWN_ISSUES.md #voice-whisper-vad-thresholds-are-device-tuned.
+  static const Duration whisperSilenceTimeout = Duration(milliseconds: 1500);
 
   /// Amplitude (dBFS) at/above which a sample counts toward confirming the
   /// user is speaking. Higher (less negative) than a single-threshold value so
@@ -95,8 +97,12 @@ abstract final class VoiceConstants {
 
   /// Amplitude (dBFS) strictly below which silence accrues. Lower than
   /// [whisperVoiceOnsetDbfs] to form a hysteresis dead-band that ignores
-  /// borderline flicker. PROPOSED — validate on device.
-  static const double whisperVoiceReleaseDbfs = -50.0;
+  /// borderline flicker. Raised from -50 to -45 after on-device captures:
+  /// a quiet room floors around -46 to -50 dBFS, which at -50 sat inside the
+  /// dead-band so silence never accrued and the recorder ran to the hard cap.
+  /// At -45 the ambient floor counts as silence and the recorder endpoints
+  /// promptly. PROPOSED — device-tuned, validate per device.
+  static const double whisperVoiceReleaseDbfs = -45.0;
 
   /// Consecutive onset-or-louder samples required before voice is "confirmed".
   /// Debounces isolated spikes (a single clank must not confirm voice or
