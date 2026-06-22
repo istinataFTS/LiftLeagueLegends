@@ -13,6 +13,7 @@ import '../../../../core/logging/app_logger.dart';
 import '../../../../data/datasources/remote/voice_remote_datasource.dart';
 import '../../../../domain/services/voice_pre_roll_store.dart';
 import '../../../../domain/services/voice_stt_service.dart';
+import 'voice_silence_endpointer.dart';
 import 'wav_utils.dart';
 
 /// Whisper-backed [VoiceSttService] — records audio locally, uploads to the
@@ -50,18 +51,16 @@ class WhisperVoiceSttService implements VoiceSttService {
   String? _activePath;
   StreamSubscription<Amplitude>? _amplitudeSub;
   Timer? _hardCapTimer;
-  DateTime? _lastVoiceAt;
   bool _isInitialized = false;
   bool _isListeningInternal = false;
   bool _cancelled = false;
   bool _firstAmplitudeLogged = false;
 
-  /// True once any amplitude sample crossed [VoiceConstants.whisperSilenceAmplitudeDbfs]
-  /// during this recording. When it stays false the clip is silence-only and
-  /// must NOT be uploaded — Whisper hallucinates canned phrases (e.g.
-  /// "For more information visit www.FEMA.gov") on silent audio.
-  /// See KNOWN_ISSUES.md #voice-whisper-hallucinates-on-silent-audio.
-  bool _voiceDetected = false;
+  /// Hysteresis VAD endpointer fed every amplitude poll. Owns the silence-stop
+  /// decision AND the "did we capture enough real speech to upload" decision.
+  /// See KNOWN_ISSUES.md #voice-whisper-hallucinates-on-silent-audio and
+  /// #voice-whisper-vad-thresholds-are-device-tuned.
+  VoiceSilenceEndpointer? _endpointer;
 
   /// Log category for all events from this service. Tagged so a developer
   /// running `adb logcat | grep voice/stt/whisper` sees the entire recording
@@ -90,7 +89,6 @@ class WhisperVoiceSttService implements VoiceSttService {
       );
     }
     _cancelled = false;
-    _lastVoiceAt = null;
 
     // Single-subscription stream — the bloc attaches one listener and gets
     // exactly one terminal event (final result, error, or onDone).
@@ -115,7 +113,14 @@ class WhisperVoiceSttService implements VoiceSttService {
     if (controller == null) return;
 
     _firstAmplitudeLogged = false;
-    _voiceDetected = false;
+    _endpointer = VoiceSilenceEndpointer(
+      onsetDbfs: VoiceConstants.whisperVoiceOnsetDbfs,
+      releaseDbfs: VoiceConstants.whisperVoiceReleaseDbfs,
+      confirmSamples: VoiceConstants.whisperVoiceConfirmSamples,
+      pollInterval: VoiceConstants.whisperAmplitudePollInterval,
+      silenceTimeout: VoiceConstants.whisperSilenceTimeout,
+      minVoicedDuration: VoiceConstants.whisperMinVoicedDuration,
+    );
 
     try {
       if (!await _recorder.hasPermission()) {
@@ -177,21 +182,16 @@ class WhisperVoiceSttService implements VoiceSttService {
               AppLogger.info(
                 'WhisperVoiceSttService: first amplitude '
                 '${amp.current.toStringAsFixed(1)} dBFS '
-                '(silence threshold ${VoiceConstants.whisperSilenceAmplitudeDbfs} dBFS)',
+                '(onset ${VoiceConstants.whisperVoiceOnsetDbfs} / '
+                'release ${VoiceConstants.whisperVoiceReleaseDbfs} dBFS)',
                 category: _logCategory,
               );
             }
-            final now = DateTime.now();
-            if (amp.current > VoiceConstants.whisperSilenceAmplitudeDbfs) {
-              _voiceDetected = true;
-              _lastVoiceAt = now;
-            } else if (_lastVoiceAt != null) {
-              final silenceFor = now.difference(_lastVoiceAt!);
-              if (silenceFor >= VoiceConstants.whisperSilenceTimeout) {
-                unawaited(
-                  _stopAndTranscribe(language: language, stopReason: 'silence'),
-                );
-              }
+            final verdict = _endpointer!.onSample(amp.current);
+            if (verdict == EndpointVerdict.stopForSilence) {
+              unawaited(
+                _stopAndTranscribe(language: language, stopReason: 'silence'),
+              );
             }
           });
     } catch (error, stackTrace) {
@@ -306,16 +306,20 @@ class WhisperVoiceSttService implements VoiceSttService {
     }
 
     // A one-breath command can finish during the pre-roll window, leaving the
-    // live clip nearly silent (`_voiceDetected == false`). The wake word firing
-    // is itself proof of speech, so a fresh pre-roll forces the voiced verdict.
+    // live clip with insufficient confirmed voice. The wake word firing is
+    // itself proof of speech, so a fresh pre-roll forces the voiced verdict.
+    final endpointerVoiced = _endpointer?.hasSufficientVoice ?? false;
+    final voicedMs = _endpointer?.voicedAccumulated.inMilliseconds ?? 0;
     if (!shouldTranscribe(
-      voiceDetected: _voiceDetected || hasPre,
+      hasSufficientVoice: endpointerVoiced || hasPre,
       byteCount: uploadBytes.length,
     )) {
       AppLogger.info(
-        'WhisperVoiceSttService: no voice detected during recording '
-        '(voiceDetected=$_voiceDetected, ${uploadBytes.length} bytes) — '
-        'skipping upload to avoid silence hallucination',
+        'WhisperVoiceSttService: insufficient confirmed voice during '
+        'recording (voicedMs=$voicedMs, '
+        'min=${VoiceConstants.whisperMinVoicedDuration.inMilliseconds}, '
+        '${uploadBytes.length} bytes) — skipping upload to avoid silence '
+        'hallucination',
         category: _logCategory,
       );
       _emitError(
@@ -413,15 +417,16 @@ class WhisperVoiceSttService implements VoiceSttService {
 
   /// Whether a finished recording should be uploaded for transcription.
   ///
-  /// A clip is uploaded only if (1) at least one amplitude sample crossed the
-  /// voice threshold during recording and (2) the file is non-empty. Silence-
-  /// only clips are dropped to prevent Whisper hallucinating canned phrases on
-  /// silence. Pure so it is unit-testable without the `record` plugin.
+  /// A clip is uploaded only if (1) the endpointer accumulated enough
+  /// confirmed-voiced time to qualify as sustained speech and (2) the file is
+  /// non-empty. Silence-only clips are dropped to prevent Whisper
+  /// hallucinating canned phrases on silence. Pure so it is unit-testable
+  /// without the `record` plugin.
   @visibleForTesting
   static bool shouldTranscribe({
-    required bool voiceDetected,
+    required bool hasSufficientVoice,
     required int byteCount,
-  }) => voiceDetected && byteCount > 0;
+  }) => hasSufficientVoice && byteCount > 0;
 
   /// Decides the bytes to upload given the recorded [liveBytes] (a WAV buffer)
   /// and an optional wake-word [preRoll]. When a non-empty pre-roll is present
@@ -519,7 +524,6 @@ class WhisperVoiceSttService implements VoiceSttService {
     _hardCapTimer = null;
     await _amplitudeSub?.cancel();
     _amplitudeSub = null;
-    _lastVoiceAt = null;
   }
 
   Future<void> _closeController() async {
