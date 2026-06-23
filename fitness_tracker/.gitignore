@@ -92,6 +92,9 @@ lib/generated_plugin_registrant.dart
 # Copy dart_defines.example.json → dart_defines.json and fill in real values.
 dart_defines.json
 
+# VS Code launch config embeds the Supabase anon key — keep it untracked.
+.vscode/launch.json
+
 # Coverage
 coverage/
 *.lcov
