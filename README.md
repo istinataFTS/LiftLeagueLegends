@@ -59,10 +59,10 @@ Users can log workouts, record meals, monitor nutrition, create/remove/edit exer
 
 ## Voice Assistant
 
-The voice feature is split between on-device I/O and a single Supabase Edge Function:
+The voice assistant is split between on-device I/O and a single Supabase Edge Function. **An internet connection is currently required** — the assistant is driven by a server-side LLM, so it does not yet function offline.
 
-- **Speech-to-text** – remote Whisper when online for better gym-jargon recognition, with an on-device fallback when offline.
-- **Chat** – GPT-4o-mini behind a Supabase Edge Function, with a server-enforced daily spend cap.
+- **Chat** – GPT-4o-mini behind a Supabase Edge Function, with a server-enforced daily spend cap. This is the brain of the assistant and requires connectivity.
+- **Speech-to-text** – remote Whisper for better gym-jargon recognition, with an on-device engine also in place. The on-device path is groundwork for a future fully-offline assistant rather than a runtime fallback today (there's no value in offline STT while the chat model still needs the network).
 - **Text-to-speech** – fully on-device, no server call.
 - **Wake word** – on-device keyword spotting, offline and with no access key required.
 
@@ -70,6 +70,7 @@ If Supabase is not configured, the voice module degrades gracefully and remote c
 
 ## Planned Features
 - Deeper AI integration for personalized workout and nutrition recommendations
+- Fully offline voice assistant (on-device LLM) so the bot works without a network connection
 - Push notifications for goal reminders and training streaks
 - Social features for sharing progress and competing with friends
 - Full iOS support (Xcode project, icons, and CI build)
