@@ -1516,7 +1516,7 @@ Residual ~300 ms gap remains (mic-release → Whisper-mic-open) — acceptable f
 - **Severity:** Medium
 - **Status:** Mitigated
 - **First observed:** 2026-06-22
-- **Last verified:** 2026-06-22
+- **Last verified:** 2026-06-23
 - **Area:** voice
 
 **Symptom**
@@ -1531,7 +1531,7 @@ In noisy environments (gym fans, music, TTS tail) the Whisper-backed recorder ra
 
 Replaced the single-threshold logic with `VoiceSilenceEndpointer` — a debounced hysteresis state machine fed one amplitude sample at a time. Two thresholds (`whisperVoiceOnsetDbfs` = −40 dBFS / `whisperVoiceReleaseDbfs` = −45 dBFS) form a dead-band so borderline flicker accrues neither voice nor silence. Voice is only "confirmed" after `whisperVoiceConfirmSamples` (= 2, i.e. 400 ms) consecutive onset-or-louder samples; lone spikes can no longer confirm voice or reset the silence clock. The upload gate now requires `whisperMinVoicedDuration` (= 300 ms) of confirmed-voiced time, so noise-only clips are dropped before they reach Whisper. The wake-word pre-roll still force-passes the gate.
 
-The four threshold constants are PROPOSED values — re-measure on a target device whenever a miss (legit short word dropped) or over-capture (gym noise still confirming voice) is reported. Tuning history from a Samsung S908B test: quiet-room ambient floored at −46 to −50 dBFS and speech onset registered −31 to −35 dBFS, so `whisperVoiceReleaseDbfs` was raised −50 → −45 (ambient now accrues as silence instead of sitting in the dead-band) and `whisperSilenceTimeout` lowered 2000 → 1500 ms (the Whisper upload+transcribe round-trip stacks on top of the endpoint, so 2 s felt sluggish).
+The four threshold constants are PROPOSED values — re-measure on a target device whenever a miss (legit short word dropped) or over-capture (gym noise still confirming voice) is reported. Tuning history from a Samsung S908B test: quiet-room ambient floored at −46 to −50 dBFS and speech onset registered −31 to −35 dBFS, so `whisperVoiceReleaseDbfs` was raised −50 → −45 (ambient now accrues as silence instead of sitting in the dead-band) and `whisperSilenceTimeout` lowered 2000 → 1500 → 1000 ms (the Whisper upload+transcribe round-trip stacks on top of the endpoint, so the window felt sluggish; 1 s = 5 amplitude polls still clears a normal < 700 ms inter-word pause). If a thoughtful mid-utterance pause starts getting truncated, bump back toward 1200 ms.
 
 **References**
 

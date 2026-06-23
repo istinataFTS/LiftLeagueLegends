@@ -80,13 +80,17 @@ abstract final class VoiceConstants {
   /// is identical between the two STT backends.
   static const Duration whisperMaxAudioDuration = Duration(seconds: 15);
 
-  /// Silence window that auto-stops the recorder. Shorter than
+  /// Silence window that auto-stops the recorder. Much shorter than
   /// [sttSilenceTimeout] (the on-device backend's window) because the Whisper
-  /// path adds an upload + transcribe round-trip on top, so a 2 s endpoint
-  /// felt sluggish on device. 1.5 s endpoints promptly after the user stops
-  /// without truncating a brief mid-utterance pause. PROPOSED — device-tuned;
-  /// see KNOWN_ISSUES.md #voice-whisper-vad-thresholds-are-device-tuned.
-  static const Duration whisperSilenceTimeout = Duration(milliseconds: 1500);
+  /// path adds an upload + transcribe round-trip on top, so the *perceived*
+  /// endpoint latency is this window plus the server round-trip — only this
+  /// window is client-tunable. Lowered 2000 → 1500 → 1000 ms across device
+  /// tests; 1 s (5 amplitude polls) still clears a normal inter-word pause
+  /// (typically < 700 ms) without truncating. If a thoughtful mid-utterance
+  /// pause starts getting cut, bump back toward 1200 ms. PROPOSED —
+  /// device-tuned; see KNOWN_ISSUES.md
+  /// #voice-whisper-vad-thresholds-are-device-tuned.
+  static const Duration whisperSilenceTimeout = Duration(milliseconds: 1000);
 
   /// Amplitude (dBFS) at/above which a sample counts toward confirming the
   /// user is speaking. Higher (less negative) than a single-threshold value so
