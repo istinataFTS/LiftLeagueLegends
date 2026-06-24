@@ -75,6 +75,15 @@ abstract final class VoiceConstants {
   /// instead of being masked by a client-side abort.
   static const Duration voiceTranscribeHttpTimeout = Duration(seconds: 35);
 
+  /// Upper bound on how long a manual Stop waits for the backend's post-stop
+  /// final/error before giving up, speaking the no-speech line, and returning
+  /// to idle. Derived from [voiceTranscribeHttpTimeout] plus a small margin so
+  /// a slow upload still resolves through the normal pipeline before the
+  /// watchdog fires. Stop can therefore never hang the transcribing spinner.
+  static const Duration manualStopFinalizeTimeout = Duration(
+    seconds: 35 + 3,
+  ); // voiceTranscribeHttpTimeout + 3s margin
+
   /// Hard upper bound for a Whisper-backed recording session. Audio beyond
   /// this point is dropped. Matches [sttListenTimeout] so the UX envelope
   /// is identical between the two STT backends.

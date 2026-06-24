@@ -110,6 +110,7 @@ Numbered steps or a short paragraph. State what to do and what *not* to do.
 38. [voice-wake-word-first-words-clipped-during-mic-handoff](#voice-wake-word-first-words-clipped-during-mic-handoff)
 39. [voice-whisper-vad-thresholds-are-device-tuned](#voice-whisper-vad-thresholds-are-device-tuned)
 40. [voice-try-again-state-ignored-wake-word](#voice-try-again-state-ignored-wake-word)
+41. [voice-manual-stop-must-finalize-not-cancel](#voice-manual-stop-must-finalize-not-cancel)
 
 ### Database
 
@@ -1568,6 +1569,34 @@ Introduced `_canRetriggerFrom(VoiceStatus)` = `idle || error` and routed all thr
 - `lib/features/voice/presentation/voice_overlay_page.dart` — `_canRetriggerFrom`, the two subscriptions, the arm/stop `BlocListener`
 - `test/features/voice/presentation/voice_overlay_page_test.dart` — error-state re-arm + re-trigger coverage
 - `lib/features/voice/application/voice_bloc.dart` — `_onTranscriptFailed` emits `VoiceStatus.error` on noSpeech outside a continuous turn
+
+---
+
+### voice-manual-stop-must-finalize-not-cancel
+
+- **Severity:** Medium
+- **Status:** Resolved-but-monitor
+- **First observed:** 2026-06-24
+- **Last verified:** 2026-06-24
+- **Area:** voice
+
+**Symptom**
+
+Tapping Stop while the bot was listening often produced no response at all, and never told the user it heard nothing — the turn silently died. Occasionally a response did appear (a timing race), which made the bug feel intermittent.
+
+**Root cause**
+
+Both STT backends emit their final transcript (or a noSpeech error) *after* `stop()` is called — Whisper during the `stop()` await, the on-device engine slightly later via `_onStatus('done')`. The old `_onListenStopRequested` in `voice_bloc.dart` cancelled `_sttSubscription` and forced `VoiceStatus.idle` immediately, so that post-stop final was either undelivered or dropped by `_onTranscriptReceived`'s `status == listening` guard. The turn was thrown away.
+
+**Workaround / fix**
+
+Manual Stop now means "finalize now", not "cancel". `_onListenStopRequested` early-returns unless `status == listening`, sets `_manualStopFinalize`, emits `VoiceStatus.transcribing`, keeps the subscription alive, and arms a `Timer` watchdog (`VoiceConstants.manualStopFinalizeTimeout`). `_onTranscriptReceived` / `_onTranscriptFailed` relax their `listening`-only guard while `_manualStopFinalize` is set: a non-empty final flows through the normal `VoiceSendMessage` pipeline; an empty final or a noSpeech error speaks `AppStrings.voiceSpokenNoSpeech` then goes idle. The watchdog dispatches `VoiceListenEnded` if nothing is consumed — and must NOT clear `_manualStopFinalize` itself, because `_onListenEnded` clears it and speaks under that flag. Do NOT re-introduce a subscription-cancel-and-idle in the stop handler. Manual Stop deliberately wins over the continuous-turn re-prompt and never lands on the `error` card for a noSpeech result.
+
+**References**
+
+- `lib/features/voice/application/voice_bloc.dart` — `_onListenStopRequested`, `_onListenEnded`, `_onTranscriptReceived`, `_onTranscriptFailed`, `_manualStopFinalize`, `_finalizeWatchdog`
+- `lib/core/constants/voice_constants.dart` — `VoiceConstants.manualStopFinalizeTimeout`
+- `test/features/voice/application/voice_bloc_test.dart` — `VoiceListenStopRequested finalize` group (non-empty/empty/noSpeech/watchdog/no-op)
 
 ---
 
