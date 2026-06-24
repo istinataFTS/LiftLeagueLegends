@@ -5,11 +5,6 @@ import 'package:flutter/foundation.dart';
 /// These are domain rules, not deployment/runtime configuration.
 class MuscleStimulus {
   MuscleStimulus._();
-
-  // ==================== CANONICAL MUSCLE GROUPS (v26) ====================
-  /// The 18 canonical muscle-group keys — the single source of truth for
-  /// `exercise_muscle_factors.muscle_group`, `muscle_stimulus.muscle_group`,
-  /// `exercises.muscle_groups`, edit-dialog chips, and the body-map asset map.
   static const List<String> allMuscleGroups = <String>[
     shoulders,
     rearDelts,

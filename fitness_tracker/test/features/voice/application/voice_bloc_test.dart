@@ -67,10 +67,26 @@ class MockOfflineVoiceCoordinator extends Mock
 
 class FakeVoiceTtsService implements VoiceTtsService {
   int speakCount = 0;
+  int stopCount = 0;
   String? lastSpoken;
   final List<String> spokenHistory = <String>[];
   double lastVolume = 1.0;
   double lastSpeechRate = 1.0;
+  Completer<void>? _speechCompleter;
+
+  /// Mirrors the production [FlutterTtsVoiceTtsService] behaviour: the
+  /// awaited [speak] future only completes when the TTS engine reports
+  /// completion or when [stop] is called. Tests that need to simulate the
+  /// "still speaking" state can set [holdSpeechCompletion] before adding the
+  /// event and call [completePendingSpeech] manually.
+  bool holdSpeechCompletion = false;
+
+  void completePendingSpeech() {
+    if (_speechCompleter != null && !_speechCompleter!.isCompleted) {
+      _speechCompleter!.complete();
+    }
+    _speechCompleter = null;
+  }
 
   @override
   Future<void> initialize({
@@ -83,10 +99,21 @@ class FakeVoiceTtsService implements VoiceTtsService {
     speakCount++;
     lastSpoken = text;
     spokenHistory.add(text);
+    // Mirror production [FlutterTtsVoiceTtsService.speak]: complete any
+    // in-flight speech before arming a new completer, so back-to-back
+    // speak() calls behave the same in tests as on device.
+    completePendingSpeech();
+    if (!holdSpeechCompletion) return;
+    final completer = Completer<void>();
+    _speechCompleter = completer;
+    return completer.future;
   }
 
   @override
-  Future<void> stop() async {}
+  Future<void> stop() async {
+    stopCount++;
+    completePendingSpeech();
+  }
 
   @override
   Future<void> setVolume(double volume) async {
@@ -4870,5 +4897,171 @@ void main() {
 
       await bloc.close();
     });
+  });
+
+  // ---------------------------------------------------------------------------
+  // VoiceInterruptRequested — Issue #4
+  //
+  // The Interrupt button used to dispatch [VoiceListenStopRequested], which
+  // no-ops while the bot is speaking and never stops TTS. The new
+  // [VoiceInterruptRequested] event must stop TTS, return to idle, and — in a
+  // clarify scenario — must NOT re-open the mic after the awaited speak
+  // completer is unblocked by stop().
+  // ---------------------------------------------------------------------------
+  group('VoiceInterruptRequested', () {
+    late MockSendVoiceMessage sendVoiceMessage;
+    late MockGetVoiceBudget getBudget;
+    late MockDeleteVoiceHistory deleteHistory;
+    late MockAppSettingsRepository settingsRepo;
+
+    setUp(() {
+      sendVoiceMessage = MockSendVoiceMessage();
+      getBudget = MockGetVoiceBudget();
+      deleteHistory = MockDeleteVoiceHistory();
+      settingsRepo = MockAppSettingsRepository();
+      when(
+        () => settingsRepo.getSettings(),
+      ).thenAnswer((_) async => const Right(AppSettings.defaults()));
+      when(() => getBudget()).thenAnswer(
+        (_) async => const Right(VoiceBudget(usedUsd: 0, dailyCapUsd: 0.5)),
+      );
+      when(() => deleteHistory()).thenAnswer((_) async => const Right(null));
+    });
+
+    test(
+      'mid-clarify: stops TTS, returns to idle, does not re-open the mic',
+      () async {
+        const clarifyQuestion = 'Which exercise?';
+        when(
+          () => sendVoiceMessage(
+            userMessage: any(named: 'userMessage'),
+            sessionId: any(named: 'sessionId'),
+            history: any(named: 'history'),
+            settings: any(named: 'settings'),
+            weightUnit: any(named: 'weightUnit'),
+            recentSets: any(named: 'recentSets'),
+            recentNutritionLogs: any(named: 'recentNutritionLogs'),
+          ),
+        ).thenAnswer(
+          (_) async => Right(
+            VoiceChatClarifyResponse(
+              message: VoiceMessage(
+                role: VoiceRole.assistant,
+                content: clarifyQuestion,
+                createdAt: _now,
+              ),
+            ),
+          ),
+        );
+
+        final stt = FakeVoiceSttService();
+        final tts = FakeVoiceTtsService()..holdSpeechCompletion = true;
+        final bloc = _makeBloc(
+          sendVoiceMessage: sendVoiceMessage,
+          getVoiceBudget: getBudget,
+          deleteVoiceHistory: deleteHistory,
+          appSettingsRepository: settingsRepo,
+          stt: stt,
+          tts: tts,
+        );
+
+        bloc.add(
+          const VoiceSessionStarted(
+            AppSession(
+              user: AppUser(id: 'u1', email: 'a@b.com'),
+            ),
+          ),
+        );
+        await Future<void>.delayed(const Duration(milliseconds: 50));
+        bloc.add(const VoiceSendMessage('log it'));
+        // Let the bloc reach `speaking` and suspend inside `await _speak`.
+        await Future<void>.delayed(const Duration(milliseconds: 150));
+
+        expect(bloc.state.status, VoiceStatus.speaking);
+        expect(tts.lastSpoken, clarifyQuestion);
+        expect(stt.isListening, isFalse);
+
+        bloc.add(const VoiceInterruptRequested());
+        await Future<void>.delayed(const Duration(milliseconds: 100));
+
+        expect(tts.stopCount, greaterThanOrEqualTo(1));
+        expect(bloc.state.status, VoiceStatus.idle);
+        // Critical: the mic must NOT have re-opened after the interrupt
+        // unblocked the awaited speak inside _speakThenListen.
+        expect(stt.isListening, isFalse);
+
+        await bloc.close();
+      },
+    );
+
+    test(
+      'idle: no-op (does not call tts.stop, does not change state)',
+      () async {
+        final stt = FakeVoiceSttService();
+        final tts = FakeVoiceTtsService();
+        final bloc = _makeBloc(
+          sendVoiceMessage: sendVoiceMessage,
+          getVoiceBudget: getBudget,
+          deleteVoiceHistory: deleteHistory,
+          appSettingsRepository: settingsRepo,
+          stt: stt,
+          tts: tts,
+        );
+
+        bloc.add(
+          const VoiceSessionStarted(
+            AppSession(
+              user: AppUser(id: 'u1', email: 'a@b.com'),
+            ),
+          ),
+        );
+        await Future<void>.delayed(const Duration(milliseconds: 50));
+
+        bloc.add(const VoiceInterruptRequested());
+        await Future<void>.delayed(const Duration(milliseconds: 50));
+
+        expect(tts.stopCount, 0);
+        expect(bloc.state.status, VoiceStatus.idle);
+
+        await bloc.close();
+      },
+    );
+
+    test(
+      'listening: no-op (Stop, not Interrupt, finalises an open listen)',
+      () async {
+        final stt = FakeVoiceSttService();
+        final tts = FakeVoiceTtsService();
+        final bloc = _makeBloc(
+          sendVoiceMessage: sendVoiceMessage,
+          getVoiceBudget: getBudget,
+          deleteVoiceHistory: deleteHistory,
+          appSettingsRepository: settingsRepo,
+          stt: stt,
+          tts: tts,
+        );
+
+        bloc.add(
+          const VoiceSessionStarted(
+            AppSession(
+              user: AppUser(id: 'u1', email: 'a@b.com'),
+            ),
+          ),
+        );
+        await Future<void>.delayed(const Duration(milliseconds: 50));
+        bloc.add(const VoiceListenRequested());
+        await Future<void>.delayed(const Duration(milliseconds: 50));
+
+        expect(bloc.state.status, VoiceStatus.listening);
+
+        bloc.add(const VoiceInterruptRequested());
+        await Future<void>.delayed(const Duration(milliseconds: 50));
+
+        expect(tts.stopCount, 0);
+        expect(bloc.state.status, VoiceStatus.listening);
+
+        await bloc.close();
+      },
+    );
   });
 }

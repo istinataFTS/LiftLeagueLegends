@@ -315,7 +315,7 @@ class _VoiceOverlayViewState extends State<_VoiceOverlayView> {
                     onStopListening: () =>
                         bloc.add(const VoiceListenStopRequested()),
                     onInterrupt: () =>
-                        bloc.add(const VoiceListenStopRequested()),
+                        bloc.add(const VoiceInterruptRequested()),
                     onRetry: () => bloc.add(const VoiceListenRequested()),
                     onWorkoutModeToggle: () => bloc.add(
                       VoiceWorkoutModeToggled(
