@@ -99,6 +99,10 @@ class FakeVoiceTtsService implements VoiceTtsService {
     speakCount++;
     lastSpoken = text;
     spokenHistory.add(text);
+    // Mirror production [FlutterTtsVoiceTtsService.speak]: complete any
+    // in-flight speech before arming a new completer, so back-to-back
+    // speak() calls behave the same in tests as on device.
+    completePendingSpeech();
     if (!holdSpeechCompletion) return;
     final completer = Completer<void>();
     _speechCompleter = completer;
