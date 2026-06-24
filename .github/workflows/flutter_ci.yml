@@ -46,23 +46,33 @@ jobs:
       - name: Install dependencies
         run: flutter pub get
 
-      # dart_defines.json is gitignored (contains secrets).
-      # For CI we create it from repository secrets so `flutter run`/`flutter build`
-      # commands work. `flutter test` does not need this file, but having it
-      # present avoids surprises if test helpers ever call EnvConfig.
-      - name: Create dart_defines.json from secrets
+      - name: Create dart_defines.json
         env:
-          PICOVOICE_ACCESS_KEY: ${{ secrets.PICOVOICE_ACCESS_KEY }}
+          SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+          SUPABASE_ANON_KEY: ${{ secrets.SUPABASE_ANON_KEY }}
         run: |
-          cat > dart_defines.json <<EOF
+          # In the upstream repo these secrets are always set.
+          # In a fork they may be absent — GitHub expands an unset secret to an
+          # empty string. An empty string written to dart_defines.json would
+          # override the production defaults in env_config.dart with empty
+          # strings, breaking the APK build. We write secret overrides only
+          # when they are actually set; otherwise we write a minimal file and
+          # let the code fall through to the production defaults baked into
+          # env_config.dart. ENVIRONMENT must be one of development/staging/
+          # production (validated by EnvConfig.ensureValidRuntimeConfig at
+          # bootstrap), so we use "development" rather than "ci".
+          if [ -n "$SUPABASE_URL" ] && [ -n "$SUPABASE_ANON_KEY" ]; then
+            cat > dart_defines.json <<EOF
           {
-            "APP_ENV": "development",
+            "ENVIRONMENT": "development",
             "ENABLE_SUPABASE": "true",
-            "SUPABASE_URL": "${{ secrets.SUPABASE_URL }}",
-            "SUPABASE_ANON_KEY": "${{ secrets.SUPABASE_ANON_KEY }}",
-            "PICOVOICE_ACCESS_KEY": "${{ secrets.PICOVOICE_ACCESS_KEY }}"
+            "SUPABASE_URL": "$SUPABASE_URL",
+            "SUPABASE_ANON_KEY": "$SUPABASE_ANON_KEY"
           }
           EOF
+          else
+            printf '{"ENVIRONMENT":"development"}\n' > dart_defines.json
+          fi
 
       - name: Verify formatting
         run: dart format --output=none --set-exit-if-changed lib test
@@ -83,7 +93,10 @@ jobs:
         # The instrumented run is meaningfully slower than a bare
         # `flutter test`; if CI minutes become a concern, split this into
         # a separate parallel job.
-        run: flutter test --coverage
+        # --dart-define=ENABLE_SUPABASE=false keeps unit tests self-contained
+        # and prevents them from reaching the live backend even though the
+        # production defaults baked into env_config.dart enable it by default.
+        run: flutter test --coverage --dart-define=ENABLE_SUPABASE=false
 
       - name: Check coverage thresholds
         # Per-directory minimums declared in tool/check_coverage.dart.
