@@ -101,7 +101,24 @@ abstract class VoiceSttService {
   /// Pass null to use the device default.
   Stream<VoiceSttResult> listen({String? localeId});
 
-  /// Stop listening gracefully. Any pending partial result is discarded.
+  /// Stop listening gracefully and **commit** the utterance. Unlike [cancel],
+  /// `stop()` is not a discard: the implementation MUST deliver the captured
+  /// utterance's outcome AFTER this call, reaching the caller's existing
+  /// result/error handlers, by emitting either:
+  ///   - a final [VoiceSttResult] (`isFinal == true`) — a pending partial is
+  ///     promoted to a final (on-device), or the recorded clip is transcribed
+  ///     and emitted (Whisper); or
+  ///   - a terminal error via `onError` — e.g. network / unavailable, or
+  ///     [VoiceSttErrorKind.noSpeech] / an empty final when nothing
+  ///     intelligible was captured.
+  ///
+  /// This post-stop emission is what [VoiceBloc] relies on to finalize a manual
+  /// Stop (see `_onListenStopRequested` + the `_manualStopFinalize` path in
+  /// `voice_bloc.dart`) instead of dropping the turn. NOTE: an explicit `stop()`
+  /// is the one path where a `noSpeech` outcome MAY surface via `onError` — the
+  /// in-envelope absorption described on [listen] applies only while listening,
+  /// not once the caller has committed with `stop()`.
+  ///
   /// Completes the stream returned by the most recent [listen] call
   /// (see stream-completion contract on [listen]).
   Future<void> stop();

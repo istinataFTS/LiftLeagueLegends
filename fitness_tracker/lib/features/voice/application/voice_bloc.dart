@@ -584,6 +584,21 @@ class VoiceBloc extends Bloc<VoiceEvent, VoiceState>
   /// fresh listen/send/session start.
   bool _interrupted = false;
 
+  /// True between a manual Stop ([VoiceListenStopRequested] while listening)
+  /// and consuming the resulting final transcript (or noSpeech). Lets
+  /// [_onTranscriptReceived] / [_onTranscriptFailed] accept the backend's
+  /// post-stop emission even though status is no longer `listening`, and makes
+  /// the empty/noSpeech case speak a "didn't catch that" line then go idle
+  /// instead of ending silently. Cleared on consume, on watchdog timeout, and
+  /// on every fresh listen/send/session/interrupt and on close.
+  bool _manualStopFinalize = false;
+
+  /// Bounds the [_manualStopFinalize] wait: if no final/error is consumed
+  /// within [VoiceConstants.manualStopFinalizeTimeout] the watchdog dispatches
+  /// [VoiceListenEnded] so a manual Stop can never hang the UI on the
+  /// transcribing spinner. Cancelled wherever [_manualStopFinalize] is cleared.
+  Timer? _finalizeWatchdog;
+
   /// The last day the user explicitly referenced in this conversation,
   /// resolved from an incoming day-scoped query's `date` argument. When a
   /// later day-scoped query arrives WITHOUT a `date` (the model omitted it
@@ -610,6 +625,8 @@ class VoiceBloc extends Bloc<VoiceEvent, VoiceState>
     _repromptedThisTurn = false;
     _stripWakePhraseOnNextFinal = false;
     _interrupted = false;
+    _manualStopFinalize = false;
+    _finalizeWatchdog?.cancel();
     _lastReferencedDate = null;
     emit(
       state.copyWith(
@@ -631,6 +648,8 @@ class VoiceBloc extends Bloc<VoiceEvent, VoiceState>
     Emitter<VoiceState> emit,
   ) async {
     _interrupted = false;
+    _manualStopFinalize = false;
+    _finalizeWatchdog?.cancel();
     if (!event.isContinuation && _rejectBusy()) return;
     _currentListenIsContinuation = event.isContinuation;
     _ensureSessionId(emit);
@@ -715,24 +734,48 @@ class VoiceBloc extends Bloc<VoiceEvent, VoiceState>
         );
   }
 
+  /// Manual Stop = "finalize now", not "cancel". Both STT backends emit their
+  /// final transcript (or a noSpeech error) AFTER `stop()` is called, so the
+  /// old behaviour — cancel the subscription and force idle — threw that final
+  /// away and the user often got no response (Issue #3).
+  ///
+  /// Instead we show the transcribing spinner, keep the subscription alive so
+  /// the post-stop final/error reaches [_onTranscriptReceived] /
+  /// [_onTranscriptFailed] (both relax their `listening`-only guard while
+  /// [_manualStopFinalize] is set), and arm a watchdog so a backend that never
+  /// emits cannot hang the UI. A captured command flows through the normal
+  /// pipeline; an empty/noSpeech capture speaks the no-speech line and goes
+  /// idle (see DoD in plan B §3).
   Future<void> _onListenStopRequested(
     VoiceListenStopRequested event,
     Emitter<VoiceState> emit,
   ) async {
-    // Stop the engine first. The STT service is contracted to complete the
-    // listen stream in response, which will dispatch [VoiceListenEnded] via
-    // the onDone hook — but we also cancel the subscription and revert state
-    // synchronously here, in case the underlying plugin does not honour the
-    // contract on every platform.
-    await _stt.stop();
-    await _sttSubscription?.cancel();
-    _sttSubscription = null;
-    // Manual stop — no final will arrive on this turn, so an armed strip must
-    // not bleed into the next FAB-tap turn.
+    // Only act on an actually-open listen. If the turn already moved past
+    // listening (a final is already in flight, or a card button tore the turn
+    // down), let it complete naturally.
+    if (state.status != VoiceStatus.listening) return;
+
+    _manualStopFinalize = true;
+    // Manual stop consumes the turn here — an armed wake-phrase strip must not
+    // bleed into the next FAB-tap turn.
     _stripWakePhraseOnNextFinal = false;
-    if (state.status == VoiceStatus.listening) {
-      emit(state.copyWith(status: VoiceStatus.idle, clearTranscript: true));
-    }
+    // Show the processing spinner; keep the subscription ALIVE so the backend's
+    // post-stop final/error reaches _onTranscriptReceived / _onTranscriptFailed.
+    emit(
+      state.copyWith(status: VoiceStatus.transcribing, clearTranscript: true),
+    );
+
+    // Watchdog: if no final/error is consumed within the transcribe envelope,
+    // speak the no-speech line and return to idle so Stop can never hang. The
+    // watchdog does NOT clear [_manualStopFinalize] itself — it dispatches
+    // [VoiceListenEnded], whose handler clears the flag and speaks under it.
+    _finalizeWatchdog?.cancel();
+    _finalizeWatchdog = Timer(VoiceConstants.manualStopFinalizeTimeout, () {
+      if (_manualStopFinalize) add(const VoiceListenEnded());
+    });
+
+    await _stt
+        .stop(); // Whisper emits its final during this await; on-device later.
   }
 
   /// Handles a user tap on the Interrupt button while the bot is speaking.
@@ -753,6 +796,8 @@ class VoiceBloc extends Bloc<VoiceEvent, VoiceState>
   ) async {
     if (state.status != VoiceStatus.speaking) return;
     _interrupted = true;
+    _manualStopFinalize = false;
+    _finalizeWatchdog?.cancel();
     await _tts.stop();
     await _sttSubscription?.cancel();
     _sttSubscription = null;
@@ -763,9 +808,29 @@ class VoiceBloc extends Bloc<VoiceEvent, VoiceState>
     emit(state.copyWith(status: VoiceStatus.idle, clearTranscript: true));
   }
 
-  void _onListenEnded(VoiceListenEnded event, Emitter<VoiceState> emit) {
+  Future<void> _onListenEnded(
+    VoiceListenEnded event,
+    Emitter<VoiceState> emit,
+  ) async {
     _sttSubscription?.cancel();
     _sttSubscription = null;
+
+    // Manual-stop finalize that ended with nothing consumed (the stream closed
+    // without a usable final, or the watchdog fired): speak the no-speech line
+    // and go idle so Stop always resolves with feedback (Issue #3 DoD).
+    if (_manualStopFinalize) {
+      _manualStopFinalize = false;
+      _finalizeWatchdog?.cancel();
+      _stripWakePhraseOnNextFinal = false;
+      _consecutiveRelistens = 0;
+      _awaitingUserReply = false;
+      _repromptedThisTurn = false;
+      emit(state.copyWith(status: VoiceStatus.speaking, clearTranscript: true));
+      await _speak(AppStrings.voiceSpokenNoSpeech);
+      emit(state.copyWith(status: VoiceStatus.idle));
+      return;
+    }
+
     // Only revert if we are still in the listening phase. If a final
     // transcript already moved us to [VoiceStatus.transcribing] (or
     // beyond), the natural stream completion that follows must NOT yank
@@ -794,7 +859,9 @@ class VoiceBloc extends Bloc<VoiceEvent, VoiceState>
     // The only state during an open mic is [VoiceStatus.listening] (set by
     // _onListenRequested). See KNOWN_ISSUES.md
     // #voice-confirmation-card-buttons-must-cancel-the-open-listen.
-    if (state.status != VoiceStatus.listening) {
+    // A manual Stop deliberately moves status to `transcribing` while keeping
+    // the subscription alive, so [_manualStopFinalize] re-admits that final.
+    if (state.status != VoiceStatus.listening && !_manualStopFinalize) {
       _sttSubscription?.cancel();
       _sttSubscription = null;
       return;
@@ -810,18 +877,39 @@ class VoiceBloc extends Bloc<VoiceEvent, VoiceState>
       // No final to consume — drop any armed strip so a later FAB-tap turn
       // cannot inherit it.
       _stripWakePhraseOnNextFinal = false;
-      // During a live continuous turn, offer one local re-prompt before ending
-      // (redesign-overview §6).
-      if (_awaitingUserReply && !_repromptedThisTurn) {
+      // An explicit manual Stop ends the turn: speak the no-speech line and go
+      // idle. It wins over the continuous-turn re-prompt below — re-opening the
+      // mic would defeat the point of Stop (Issue #3 DoD).
+      final wasManualStop = _manualStopFinalize;
+      if (!wasManualStop && _awaitingUserReply && !_repromptedThisTurn) {
+        // During a live continuous turn, offer one local re-prompt before
+        // ending (redesign-overview §6).
         _repromptedThisTurn = true;
         await _speakThenListen(AppStrings.voiceSpokenReprompt, emit);
         return;
       }
+      _manualStopFinalize = false;
+      _finalizeWatchdog?.cancel();
       _consecutiveRelistens = 0;
       _awaitingUserReply = false;
+      if (wasManualStop) {
+        emit(
+          state.copyWith(status: VoiceStatus.speaking, clearTranscript: true),
+        );
+        await _speak(AppStrings.voiceSpokenNoSpeech);
+        emit(state.copyWith(status: VoiceStatus.idle));
+        return;
+      }
       emit(state.copyWith(status: VoiceStatus.idle, clearTranscript: true));
       return;
     }
+
+    // A non-empty final during a manual-stop finalize is a real captured
+    // command: clear the finalize flag/watchdog here so every downstream return
+    // (stop-word, confirm/cancel, LLM forward) leaves it cleared, and the
+    // speech is sent through the normal VoiceSendMessage pipeline below.
+    _manualStopFinalize = false;
+    _finalizeWatchdog?.cancel();
 
     // Wake-initiated turn: strip the leading wake phrase ("thomas, ",
     // "hey thomas, ") FIRST so every downstream endpoint check (stop-word,
@@ -909,12 +997,31 @@ class VoiceBloc extends Bloc<VoiceEvent, VoiceState>
     // already ended the turn must not surface an error or re-prompt. The only
     // state during an open mic is [VoiceStatus.listening]. See KNOWN_ISSUES.md
     // #voice-confirmation-card-buttons-must-cancel-the-open-listen.
-    if (state.status != VoiceStatus.listening) return;
+    // A manual Stop ([_manualStopFinalize]) deliberately leaves `listening` for
+    // `transcribing`, so it re-admits the backend's post-stop error here.
+    if (state.status != VoiceStatus.listening && !_manualStopFinalize) return;
 
     // STT errored on a wake-initiated listen — no final will reach
     // _onTranscriptReceived, so an armed strip would otherwise leak into the
     // next manual turn.
     _stripWakePhraseOnNextFinal = false;
+
+    // Manual Stop that resolved as noSpeech: speak the no-speech line and go
+    // idle (Issue #3 DoD — Stop always resolves with feedback, never the error
+    // card). Wins over the continuous-turn re-prompt below. A genuine
+    // network/server error during a manual stop falls through to the normal
+    // error path so a real failure still surfaces as an error.
+    if (_manualStopFinalize && event.kind == VoiceSttErrorKind.noSpeech) {
+      _manualStopFinalize = false;
+      _finalizeWatchdog?.cancel();
+      _consecutiveRelistens = 0;
+      _awaitingUserReply = false;
+      _repromptedThisTurn = false;
+      emit(state.copyWith(status: VoiceStatus.speaking, clearTranscript: true));
+      await _speak(AppStrings.voiceSpokenNoSpeech);
+      emit(state.copyWith(status: VoiceStatus.idle));
+      return;
+    }
 
     // noSpeech during a live continuous turn: re-prompt once then end quietly
     // at idle — do not surface an error (redesign-overview §6).
@@ -933,7 +1040,10 @@ class VoiceBloc extends Bloc<VoiceEvent, VoiceState>
     }
 
     // All other errors (and noSpeech outside a continuous turn): reset loop
-    // state and surface the error as usual.
+    // state and surface the error as usual. Clear the finalize flag/watchdog
+    // too — a genuine error ending a manual stop must not leave them armed.
+    _manualStopFinalize = false;
+    _finalizeWatchdog?.cancel();
     _consecutiveRelistens = 0;
     _awaitingUserReply = false;
     _repromptedThisTurn = false;
@@ -964,6 +1074,8 @@ class VoiceBloc extends Bloc<VoiceEvent, VoiceState>
     Emitter<VoiceState> emit,
   ) async {
     _interrupted = false;
+    _manualStopFinalize = false;
+    _finalizeWatchdog?.cancel();
     final sid = _ensureSessionId(emit);
 
     final userMsg = VoiceMessage(
@@ -2317,6 +2429,7 @@ class VoiceBloc extends Bloc<VoiceEvent, VoiceState>
 
   @override
   Future<void> close() async {
+    _finalizeWatchdog?.cancel();
     await _sttSubscription?.cancel();
     _sttSubscription = null;
     await _tts.stop();

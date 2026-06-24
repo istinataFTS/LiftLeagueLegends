@@ -146,6 +146,17 @@ class FakeVoiceSttService implements VoiceSttService {
   bool _listening = false;
   StreamController<VoiceSttResult>? _controller;
 
+  /// Mirrors the Whisper backend, which emits its final transcript (or a
+  /// noSpeech error) AFTER `stop()` is called. When [finalOnStop] is set,
+  /// `stop()` emits it as a final before closing; when [errorOnStop] is set,
+  /// `stop()` emits that error. When [hangOnStop] is true, `stop()` neither
+  /// emits nor closes — simulating a backend that never responds, so the
+  /// manual-stop watchdog must fire. All default to "no post-stop emission",
+  /// so existing tests (which expect `stop()` to just close) are unaffected.
+  String? finalOnStop;
+  VoiceSttErrorKind? errorOnStop;
+  bool hangOnStop = false;
+
   void simulateUnavailable() => _available = false;
 
   void emitPartial(String text) =>
@@ -192,6 +203,12 @@ class FakeVoiceSttService implements VoiceSttService {
   @override
   Future<void> stop() async {
     _listening = false;
+    if (hangOnStop) return; // backend never responds → watchdog must fire
+    if (errorOnStop != null) {
+      _controller?.addError(VoiceSttException(errorOnStop!));
+    } else if (finalOnStop != null) {
+      _controller?.add(VoiceSttResult(transcript: finalOnStop!, isFinal: true));
+    }
     await _controller?.close();
   }
 
@@ -825,13 +842,13 @@ void main() {
       },
     );
 
-    // Regression: VoiceListenStopRequested must revert state. Before this
-    // fix the handler only called _stt.stop() without cancelling the
-    // subscription or emitting state, so the overlay stayed on
-    // "Listening…" forever and wake-word re-trigger (gated on idle)
-    // never fired again.
+    // Regression: VoiceListenStopRequested must always resolve the turn. Here
+    // the backend emits no final after stop() (only a partial was seen), so the
+    // manual-stop finalize path drives transcribing -> (no-speech spoken) ->
+    // idle via the watchdog-free VoiceListenEnded route. The overlay must not
+    // stay stuck on "Listening…" / "Transcribing…".
     blocTest<VoiceBloc, VoiceState>(
-      'VoiceListenStopRequested reverts listening -> idle',
+      'VoiceListenStopRequested with no final resolves to idle',
       build: () => _makeBloc(
         sendVoiceMessage: sendVoiceMessage,
         getVoiceBudget: getBudget,
@@ -5063,5 +5080,297 @@ void main() {
         await bloc.close();
       },
     );
+  });
+
+  // ---------------------------------------------------------------------------
+  // VoiceListenStopRequested finalize — Issue #3
+  //
+  // Stop used to cancel the subscription and force idle, dropping the final
+  // both STT backends emit AFTER stop(). Stop now shows the transcribing
+  // spinner, lets that final (or noSpeech) flow through the normal pipeline,
+  // and speaks a "did not catch that" line + idle when nothing usable was
+  // captured. A watchdog bounds the wait so Stop can never hang.
+  // ---------------------------------------------------------------------------
+  group('VoiceListenStopRequested finalize', () {
+    late MockSendVoiceMessage sendVoiceMessage;
+    late MockGetVoiceBudget getBudget;
+    late MockDeleteVoiceHistory deleteHistory;
+    late MockAppSettingsRepository settingsRepo;
+
+    setUp(() {
+      sendVoiceMessage = MockSendVoiceMessage();
+      getBudget = MockGetVoiceBudget();
+      deleteHistory = MockDeleteVoiceHistory();
+      settingsRepo = MockAppSettingsRepository();
+      when(
+        () => settingsRepo.getSettings(),
+      ).thenAnswer((_) async => const Right(AppSettings.defaults()));
+      when(() => getBudget()).thenAnswer(
+        (_) async => const Right(VoiceBudget(usedUsd: 0, dailyCapUsd: 0.5)),
+      );
+      when(() => deleteHistory()).thenAnswer((_) async => const Right(null));
+    });
+
+    AppSession session() => const AppSession(
+      user: AppUser(id: 'u1', email: 'a@b.com'),
+    );
+
+    test(
+      'non-empty final after stop is sent through the normal LLM pipeline',
+      () async {
+        const reply = 'Logged it.';
+        when(
+          () => sendVoiceMessage(
+            userMessage: any(named: 'userMessage'),
+            sessionId: any(named: 'sessionId'),
+            history: any(named: 'history'),
+            settings: any(named: 'settings'),
+            weightUnit: any(named: 'weightUnit'),
+            recentSets: any(named: 'recentSets'),
+            recentNutritionLogs: any(named: 'recentNutritionLogs'),
+          ),
+        ).thenAnswer(
+          (_) async => Right(
+            VoiceChatTextResponse(
+              message: VoiceMessage(
+                role: VoiceRole.assistant,
+                content: reply,
+                createdAt: _now,
+              ),
+            ),
+          ),
+        );
+
+        final stt = FakeVoiceSttService()..finalOnStop = 'log bench 80 by 8';
+        final tts = FakeVoiceTtsService();
+        final bloc = _makeBloc(
+          sendVoiceMessage: sendVoiceMessage,
+          getVoiceBudget: getBudget,
+          deleteVoiceHistory: deleteHistory,
+          appSettingsRepository: settingsRepo,
+          stt: stt,
+          tts: tts,
+        );
+
+        bloc.add(VoiceSessionStarted(session()));
+        await Future<void>.delayed(const Duration(milliseconds: 50));
+        bloc.add(const VoiceListenRequested());
+        await Future<void>.delayed(const Duration(milliseconds: 50));
+        expect(bloc.state.status, VoiceStatus.listening);
+
+        bloc.add(const VoiceListenStopRequested());
+        await Future<void>.delayed(const Duration(milliseconds: 150));
+
+        // The captured command was sent and answered like a normal turn.
+        verify(
+          () => sendVoiceMessage(
+            userMessage: 'log bench 80 by 8',
+            sessionId: any(named: 'sessionId'),
+            history: any(named: 'history'),
+            settings: any(named: 'settings'),
+            weightUnit: any(named: 'weightUnit'),
+            recentSets: any(named: 'recentSets'),
+            recentNutritionLogs: any(named: 'recentNutritionLogs'),
+          ),
+        ).called(1);
+        expect(tts.lastSpoken, reply);
+        expect(bloc.state.status, VoiceStatus.idle);
+
+        await bloc.close();
+      },
+    );
+
+    test('empty final after stop speaks no-speech then idle', () async {
+      final stt = FakeVoiceSttService()..finalOnStop = '';
+      final tts = FakeVoiceTtsService();
+      final bloc = _makeBloc(
+        sendVoiceMessage: sendVoiceMessage,
+        getVoiceBudget: getBudget,
+        deleteVoiceHistory: deleteHistory,
+        appSettingsRepository: settingsRepo,
+        stt: stt,
+        tts: tts,
+      );
+
+      bloc.add(VoiceSessionStarted(session()));
+      await Future<void>.delayed(const Duration(milliseconds: 50));
+      bloc.add(const VoiceListenRequested());
+      await Future<void>.delayed(const Duration(milliseconds: 50));
+
+      bloc.add(const VoiceListenStopRequested());
+      await Future<void>.delayed(const Duration(milliseconds: 100));
+
+      expect(tts.spokenHistory, contains(AppStrings.voiceSpokenNoSpeech));
+      expect(bloc.state.status, VoiceStatus.idle);
+      verifyNever(
+        () => sendVoiceMessage(
+          userMessage: any(named: 'userMessage'),
+          sessionId: any(named: 'sessionId'),
+          history: any(named: 'history'),
+          settings: any(named: 'settings'),
+          weightUnit: any(named: 'weightUnit'),
+          recentSets: any(named: 'recentSets'),
+          recentNutritionLogs: any(named: 'recentNutritionLogs'),
+        ),
+      );
+
+      await bloc.close();
+    });
+
+    test(
+      'noSpeech error after stop speaks no-speech then idle (not error)',
+      () async {
+        final stt = FakeVoiceSttService()
+          ..errorOnStop = VoiceSttErrorKind.noSpeech;
+        final tts = FakeVoiceTtsService();
+        final bloc = _makeBloc(
+          sendVoiceMessage: sendVoiceMessage,
+          getVoiceBudget: getBudget,
+          deleteVoiceHistory: deleteHistory,
+          appSettingsRepository: settingsRepo,
+          stt: stt,
+          tts: tts,
+        );
+
+        bloc.add(VoiceSessionStarted(session()));
+        await Future<void>.delayed(const Duration(milliseconds: 50));
+        bloc.add(const VoiceListenRequested());
+        await Future<void>.delayed(const Duration(milliseconds: 50));
+
+        bloc.add(const VoiceListenStopRequested());
+        await Future<void>.delayed(const Duration(milliseconds: 100));
+
+        expect(tts.spokenHistory, contains(AppStrings.voiceSpokenNoSpeech));
+        expect(bloc.state.status, VoiceStatus.idle);
+
+        await bloc.close();
+      },
+    );
+
+    test(
+      'genuine error after stop surfaces an error state, not no-speech',
+      () async {
+        // A real network/server failure during a manual-stop upload must NOT be
+        // masked as "I didn't hear anything" — it falls through to the normal
+        // error path so the user sees a real error (and the "Try again" card).
+        final stt = FakeVoiceSttService()
+          ..errorOnStop = VoiceSttErrorKind.network;
+        final tts = FakeVoiceTtsService();
+        final bloc = _makeBloc(
+          sendVoiceMessage: sendVoiceMessage,
+          getVoiceBudget: getBudget,
+          deleteVoiceHistory: deleteHistory,
+          appSettingsRepository: settingsRepo,
+          stt: stt,
+          tts: tts,
+        );
+
+        bloc.add(VoiceSessionStarted(session()));
+        await Future<void>.delayed(const Duration(milliseconds: 50));
+        bloc.add(const VoiceListenRequested());
+        await Future<void>.delayed(const Duration(milliseconds: 50));
+
+        bloc.add(const VoiceListenStopRequested());
+        await Future<void>.delayed(const Duration(milliseconds: 100));
+
+        expect(bloc.state.status, VoiceStatus.error);
+        expect(
+          tts.spokenHistory,
+          isNot(contains(AppStrings.voiceSpokenNoSpeech)),
+        );
+
+        await bloc.close();
+      },
+    );
+
+    test('watchdog: backend never responds → no-speech spoken then idle', () {
+      fakeAsync((fake) {
+        final stt = FakeVoiceSttService()..hangOnStop = true;
+        final tts = FakeVoiceTtsService();
+        final bloc = _makeBloc(
+          sendVoiceMessage: sendVoiceMessage,
+          getVoiceBudget: getBudget,
+          deleteVoiceHistory: deleteHistory,
+          appSettingsRepository: settingsRepo,
+          stt: stt,
+          tts: tts,
+        );
+
+        bloc.add(VoiceSessionStarted(session()));
+        fake.elapse(const Duration(milliseconds: 50));
+        bloc.add(const VoiceListenRequested());
+        fake.elapse(const Duration(milliseconds: 50));
+
+        bloc.add(const VoiceListenStopRequested());
+        fake.elapse(const Duration(milliseconds: 50));
+        // Backend hung — still on the transcribing spinner, nothing spoken yet.
+        expect(bloc.state.status, VoiceStatus.transcribing);
+        expect(tts.spokenHistory, isEmpty);
+
+        // Advance past the watchdog envelope.
+        fake.elapse(
+          VoiceConstants.manualStopFinalizeTimeout + const Duration(seconds: 1),
+        );
+
+        expect(tts.spokenHistory, contains(AppStrings.voiceSpokenNoSpeech));
+        expect(bloc.state.status, VoiceStatus.idle);
+
+        bloc.close();
+        fake.flushMicrotasks();
+      });
+    });
+
+    test('stop while speaking (not listening) is a no-op', () async {
+      // Drive a clarify turn so the bloc is suspended in the `speaking` state
+      // (TTS held open), then issue Stop. The early-return guard must leave the
+      // turn untouched — status stays `speaking`, no transcribing spinner.
+      const clarifyQuestion = 'Which exercise?';
+      when(
+        () => sendVoiceMessage(
+          userMessage: any(named: 'userMessage'),
+          sessionId: any(named: 'sessionId'),
+          history: any(named: 'history'),
+          settings: any(named: 'settings'),
+          weightUnit: any(named: 'weightUnit'),
+          recentSets: any(named: 'recentSets'),
+          recentNutritionLogs: any(named: 'recentNutritionLogs'),
+        ),
+      ).thenAnswer(
+        (_) async => Right(
+          VoiceChatClarifyResponse(
+            message: VoiceMessage(
+              role: VoiceRole.assistant,
+              content: clarifyQuestion,
+              createdAt: _now,
+            ),
+          ),
+        ),
+      );
+
+      final stt = FakeVoiceSttService();
+      final tts = FakeVoiceTtsService()..holdSpeechCompletion = true;
+      final bloc = _makeBloc(
+        sendVoiceMessage: sendVoiceMessage,
+        getVoiceBudget: getBudget,
+        deleteVoiceHistory: deleteHistory,
+        appSettingsRepository: settingsRepo,
+        stt: stt,
+        tts: tts,
+      );
+
+      bloc.add(VoiceSessionStarted(session()));
+      await Future<void>.delayed(const Duration(milliseconds: 50));
+      bloc.add(const VoiceSendMessage('log it'));
+      await Future<void>.delayed(const Duration(milliseconds: 150));
+      expect(bloc.state.status, VoiceStatus.speaking);
+
+      bloc.add(const VoiceListenStopRequested());
+      await Future<void>.delayed(const Duration(milliseconds: 50));
+
+      // No-op: the speaking turn is untouched (not yanked to transcribing/idle).
+      expect(bloc.state.status, VoiceStatus.speaking);
+
+      await bloc.close();
+    });
   });
 }
