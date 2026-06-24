@@ -5247,6 +5247,42 @@ void main() {
       },
     );
 
+    test(
+      'genuine error after stop surfaces an error state, not no-speech',
+      () async {
+        // A real network/server failure during a manual-stop upload must NOT be
+        // masked as "I didn't hear anything" — it falls through to the normal
+        // error path so the user sees a real error (and the "Try again" card).
+        final stt = FakeVoiceSttService()
+          ..errorOnStop = VoiceSttErrorKind.network;
+        final tts = FakeVoiceTtsService();
+        final bloc = _makeBloc(
+          sendVoiceMessage: sendVoiceMessage,
+          getVoiceBudget: getBudget,
+          deleteVoiceHistory: deleteHistory,
+          appSettingsRepository: settingsRepo,
+          stt: stt,
+          tts: tts,
+        );
+
+        bloc.add(VoiceSessionStarted(session()));
+        await Future<void>.delayed(const Duration(milliseconds: 50));
+        bloc.add(const VoiceListenRequested());
+        await Future<void>.delayed(const Duration(milliseconds: 50));
+
+        bloc.add(const VoiceListenStopRequested());
+        await Future<void>.delayed(const Duration(milliseconds: 100));
+
+        expect(bloc.state.status, VoiceStatus.error);
+        expect(
+          tts.spokenHistory,
+          isNot(contains(AppStrings.voiceSpokenNoSpeech)),
+        );
+
+        await bloc.close();
+      },
+    );
+
     test('watchdog: backend never responds → no-speech spoken then idle', () {
       fakeAsync((fake) {
         final stt = FakeVoiceSttService()..hangOnStop = true;
