@@ -70,8 +70,8 @@ class EnvConfig {
   // Override with --dart-define flags or --dart-define-from-file for local
   // Supabase stacks, staging environments, or CI isolation.
   // The ANON key is safe to embed: it is a public client key (Supabase design),
-  // RLS policies enforce per-user data isolation, and OPENAI_API_KEY never
-  // leaves the server.
+  // RLS policies enforce per-user data isolation, and all backend secrets stay
+  // server-side as Supabase function secrets, never present in the client.
   static const bool enableSupabase = bool.fromEnvironment(
     'ENABLE_SUPABASE',
     defaultValue: true,
