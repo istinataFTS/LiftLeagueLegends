@@ -13,6 +13,7 @@ import 'package:fitness_tracker/features/log/application/nutrition_log_bloc.dart
 import 'package:fitness_tracker/features/log/application/workout_bloc.dart';
 import 'package:fitness_tracker/features/voice/application/voice_bloc.dart';
 import 'package:fitness_tracker/features/voice/application/voice_settings_cubit.dart';
+import 'package:fitness_tracker/features/voice/presentation/voice_overlay_keys.dart';
 import 'package:fitness_tracker/features/voice/presentation/voice_overlay_page.dart';
 import 'package:fitness_tracker/injection/injection_container.dart';
 import 'package:flutter/material.dart';
@@ -415,5 +416,36 @@ void main() {
         () => voiceBloc.add(const VoiceListenRequested(fromWakeWord: true)),
       );
     });
+  });
+
+  // ---------------------------------------------------------------------------
+  // Interrupt button wiring — Issue #4
+  //
+  // Tapping the interrupt button in the speaking state must dispatch
+  // VoiceInterruptRequested (not VoiceListenStopRequested, which was the old
+  // wiring and is a no-op while the bot is speaking).
+  // ---------------------------------------------------------------------------
+  group('VoiceOverlayPage — interrupt button', () {
+    testWidgets(
+      'speaking state: tapping interrupt dispatches VoiceInterruptRequested',
+      (tester) async {
+        final stateCtrl = StreamController<VoiceState>.broadcast();
+        addTearDown(stateCtrl.close);
+        whenListen(
+          voiceBloc,
+          stateCtrl.stream,
+          initialState: const VoiceState(status: VoiceStatus.speaking),
+        );
+
+        await tester.pumpWidget(buildSubject());
+        await tester.pumpAndSettle();
+
+        await tester.tap(find.byKey(VoiceOverlayKeys.interruptButtonKey));
+        await tester.pump();
+
+        verify(() => voiceBloc.add(const VoiceInterruptRequested())).called(1);
+        verifyNever(() => voiceBloc.add(const VoiceListenStopRequested()));
+      },
+    );
   });
 }

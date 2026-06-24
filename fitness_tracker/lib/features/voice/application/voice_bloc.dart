@@ -94,6 +94,13 @@ class VoiceListenStopRequested extends VoiceEvent {
   const VoiceListenStopRequested();
 }
 
+/// Interrupts the bot while it is speaking: stops TTS immediately and ends the
+/// current turn at idle WITHOUT re-opening the mic. Distinct from
+/// [VoiceListenStopRequested], which finalizes an open STT listen.
+class VoiceInterruptRequested extends VoiceEvent {
+  const VoiceInterruptRequested();
+}
+
 /// Internal: dispatched by the bloc when the STT stream completes without
 /// having emitted a final transcript — e.g. the user fell silent past
 /// `pauseFor`, the engine's hard `listenFor` cap fired, or `stop()` was
@@ -457,6 +464,7 @@ class VoiceBloc extends Bloc<VoiceEvent, VoiceState>
     on<VoiceSessionStarted>(_onSessionStarted);
     on<VoiceListenRequested>(_onListenRequested);
     on<VoiceListenStopRequested>(_onListenStopRequested);
+    on<VoiceInterruptRequested>(_onInterruptRequested);
     on<VoiceListenEnded>(_onListenEnded);
     on<VoiceTranscriptReceived>(_onTranscriptReceived);
     on<VoiceTranscriptFailed>(_onTranscriptFailed);
@@ -570,6 +578,12 @@ class VoiceBloc extends Bloc<VoiceEvent, VoiceState>
   /// cleared after one use so a later FAB-tap turn is never stripped.
   bool _stripWakePhraseOnNextFinal = false;
 
+  /// Set by [VoiceInterruptRequested] so the in-flight speak path (suspended
+  /// at `await _speak`) aborts instead of re-listening when TTS is stopped
+  /// out from under it. Cleared by [_speakThenListen] on consume and on every
+  /// fresh listen/send/session start.
+  bool _interrupted = false;
+
   /// The last day the user explicitly referenced in this conversation,
   /// resolved from an incoming day-scoped query's `date` argument. When a
   /// later day-scoped query arrives WITHOUT a `date` (the model omitted it
@@ -595,6 +609,7 @@ class VoiceBloc extends Bloc<VoiceEvent, VoiceState>
     _awaitingUserReply = false;
     _repromptedThisTurn = false;
     _stripWakePhraseOnNextFinal = false;
+    _interrupted = false;
     _lastReferencedDate = null;
     emit(
       state.copyWith(
@@ -615,6 +630,7 @@ class VoiceBloc extends Bloc<VoiceEvent, VoiceState>
     VoiceListenRequested event,
     Emitter<VoiceState> emit,
   ) async {
+    _interrupted = false;
     if (!event.isContinuation && _rejectBusy()) return;
     _currentListenIsContinuation = event.isContinuation;
     _ensureSessionId(emit);
@@ -717,6 +733,34 @@ class VoiceBloc extends Bloc<VoiceEvent, VoiceState>
     if (state.status == VoiceStatus.listening) {
       emit(state.copyWith(status: VoiceStatus.idle, clearTranscript: true));
     }
+  }
+
+  /// Handles a user tap on the Interrupt button while the bot is speaking.
+  ///
+  /// The button is only shown in the `speaking` view
+  /// ([VoiceOverlayStatusView]), so the handler no-ops outside that status to
+  /// avoid clobbering an open mic or a thinking turn.
+  ///
+  /// Calling `_tts.stop()` here completes the [Completer] inside
+  /// [FlutterTtsVoiceTtsService.speak], which unblocks any `await _speak(...)`
+  /// suspended in [_speakThenListen] / [_dispatchVoiceResult] /
+  /// [_onConfirmationAccepted]. The [_interrupted] flag tells
+  /// [_speakThenListen] to abort instead of re-opening the mic — without it,
+  /// stopping mid-clarify would immediately start a fresh listen.
+  Future<void> _onInterruptRequested(
+    VoiceInterruptRequested event,
+    Emitter<VoiceState> emit,
+  ) async {
+    if (state.status != VoiceStatus.speaking) return;
+    _interrupted = true;
+    await _tts.stop();
+    await _sttSubscription?.cancel();
+    _sttSubscription = null;
+    _consecutiveRelistens = 0;
+    _awaitingUserReply = false;
+    _repromptedThisTurn = false;
+    _stripWakePhraseOnNextFinal = false;
+    emit(state.copyWith(status: VoiceStatus.idle, clearTranscript: true));
   }
 
   void _onListenEnded(VoiceListenEnded event, Emitter<VoiceState> emit) {
@@ -919,6 +963,7 @@ class VoiceBloc extends Bloc<VoiceEvent, VoiceState>
     VoiceSendMessage event,
     Emitter<VoiceState> emit,
   ) async {
+    _interrupted = false;
     final sid = _ensureSessionId(emit);
 
     final userMsg = VoiceMessage(
@@ -1141,6 +1186,15 @@ class VoiceBloc extends Bloc<VoiceEvent, VoiceState>
   /// reached, the conversation ends at [VoiceStatus.idle] instead.
   Future<void> _speakThenListen(String text, Emitter<VoiceState> emit) async {
     await _speak(text);
+    // If the user interrupted the bot mid-speech, [_onInterruptRequested]
+    // already set the state to idle; the awaited _speak above returned early
+    // because _tts.stop() completed its completer. Skip the re-listen so the
+    // mic does not reopen.
+    if (_interrupted) {
+      _interrupted = false;
+      emit(state.copyWith(status: VoiceStatus.idle));
+      return;
+    }
     if (_consecutiveRelistens >= VoiceConstants.maxConsecutiveRelistens) {
       _consecutiveRelistens = 0;
       emit(state.copyWith(status: VoiceStatus.idle));

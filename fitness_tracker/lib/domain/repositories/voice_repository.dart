@@ -8,11 +8,6 @@ import '../entities/voice_message.dart';
 import '../entities/voice_settings.dart';
 import '../../core/errors/failures.dart';
 
-/// Domain port to the voice-bot server side.
-///
-/// Scope after the device-native STT/TTS switch: ONLY the LLM chat
-/// call hits the server. STT and TTS are device services (see
-/// `features/voice/data/services/`) and never touch this port.
 abstract class VoiceRepository {
   /// Sends the user message + recent history to the `voice-chat`
   /// Edge Function and returns either a text reply, a mutation tool
