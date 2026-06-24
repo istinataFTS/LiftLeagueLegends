@@ -65,19 +65,29 @@ class EnvConfig {
     defaultValue: false,
   );
 
+  // Production credentials are the compile-time default so that `flutter run`
+  // (and any fork build) connects to the shared backend without configuration.
+  // Override with --dart-define flags or --dart-define-from-file for local
+  // Supabase stacks, staging environments, or CI isolation.
+  // The ANON key is safe to embed: it is a public client key (Supabase design),
+  // RLS policies enforce per-user data isolation, and all backend secrets stay
+  // server-side as Supabase function secrets, never present in the client.
   static const bool enableSupabase = bool.fromEnvironment(
     'ENABLE_SUPABASE',
-    defaultValue: false,
+    defaultValue: true,
   );
 
   static const String supabaseUrl = String.fromEnvironment(
     'SUPABASE_URL',
-    defaultValue: '',
+    defaultValue: 'https://liftleaguelegends.com',
   );
 
   static const String supabaseAnonKey = String.fromEnvironment(
     'SUPABASE_ANON_KEY',
-    defaultValue: '',
+    defaultValue:
+        'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9'
+        '.eyJyb2xlIjoiYW5vbiIsImlzcyI6InN1cGFiYXNlIiwiaWF0IjoxNzc1MDc5NTYzLCJleHAiOjE5MzI3NTk1NjN9'
+        '.Pchm8XcfRaT0xAD7JHOE_53IJPoIuV1V6qGPK8dQZO4',
   );
 
   static bool get isSupabaseConfigured =>

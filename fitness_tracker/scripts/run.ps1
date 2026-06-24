@@ -8,8 +8,13 @@ $ErrorActionPreference = 'Stop'
 $repoRoot = Split-Path -Parent $PSScriptRoot
 $definesFile = Join-Path $repoRoot 'dart_defines.json'
 
-if (-not (Test-Path $definesFile)) {
-    throw "dart_defines.json not found at $definesFile. Copy dart_defines.example.json if present, or see CLAUDE.md."
+if (Test-Path $definesFile) {
+    # dart_defines.json present — override production defaults (local Supabase
+    # stack, staging, or custom backend).
+    & flutter run "--dart-define-from-file=$definesFile" @args
+} else {
+    # No dart_defines.json — run with production defaults baked into env_config.dart.
+    # This is the standard path for a fresh fork that has not configured a
+    # custom backend.
+    & flutter run @args
 }
-
-& flutter run "--dart-define-from-file=$definesFile" @args

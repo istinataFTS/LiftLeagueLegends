@@ -56,14 +56,15 @@ void main() {
     });
 
     group('Supabase', () {
-      test('Supabase is disabled by default', () {
-        // Remote sync must be opt-in. A default of true would cause every
-        // clean checkout to attempt remote calls without credentials.
-        expect(EnvConfig.enableSupabase, isFalse);
-      });
-
-      test('isSupabaseConfigured is false when Supabase is disabled', () {
-        expect(EnvConfig.isSupabaseConfigured, isFalse);
+      test('Supabase is enabled by default with production credentials', () {
+        // Production URL and ANON key are baked in as defaults so that any
+        // fork build connects to the shared backend without configuration.
+        // The ANON key is public by design (Supabase client-side key);
+        // RLS enforces per-user data isolation server-side.
+        expect(EnvConfig.enableSupabase, isTrue);
+        expect(EnvConfig.supabaseUrl, isNotEmpty);
+        expect(EnvConfig.supabaseAnonKey, isNotEmpty);
+        expect(EnvConfig.isSupabaseConfigured, isTrue);
       });
     });
 
