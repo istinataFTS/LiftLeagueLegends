@@ -1,8 +1,10 @@
 import { assertAlmostEquals, assertEquals, assertRejects } from "@std/assert";
 import {
   assertWithinBudget,
+  assertWithinGlobalBudget,
   getBudgetState,
   resolvedDailyCap,
+  resolvedGlobalDailyCap,
 } from "./budget.ts";
 import { ErrorCodes, VoiceError } from "./errors.ts";
 import type { SupabaseClient } from "./deps.ts";
@@ -171,5 +173,106 @@ Deno.test("resolvedDailyCap: trailing garbage rejects to fallback (strict parse)
     assertEquals(resolvedDailyCap(), 0.50);
   } finally {
     Deno.env.delete("DAILY_BUDGET_CAP_USD");
+  }
+});
+
+// ---------------------------------------------------------------------------
+// resolvedGlobalDailyCap — env-driven global cap resolver
+// ---------------------------------------------------------------------------
+
+Deno.test("resolvedGlobalDailyCap: env var absent → falls back to 10.00", () => {
+  Deno.env.delete("GLOBAL_DAILY_CAP_USD");
+  assertEquals(resolvedGlobalDailyCap(), 10.00);
+});
+
+Deno.test("resolvedGlobalDailyCap: positive numeric value → parsed", () => {
+  Deno.env.set("GLOBAL_DAILY_CAP_USD", "25");
+  try {
+    assertEquals(resolvedGlobalDailyCap(), 25);
+  } finally {
+    Deno.env.delete("GLOBAL_DAILY_CAP_USD");
+  }
+});
+
+Deno.test("resolvedGlobalDailyCap: non-positive value → falls back to 10.00", () => {
+  Deno.env.set("GLOBAL_DAILY_CAP_USD", "0");
+  try {
+    assertEquals(resolvedGlobalDailyCap(), 10.00);
+  } finally {
+    Deno.env.delete("GLOBAL_DAILY_CAP_USD");
+  }
+});
+
+Deno.test("resolvedGlobalDailyCap: trailing garbage rejects to fallback (strict parse)", () => {
+  Deno.env.set("GLOBAL_DAILY_CAP_USD", "10x");
+  try {
+    assertEquals(resolvedGlobalDailyCap(), 10.00);
+  } finally {
+    Deno.env.delete("GLOBAL_DAILY_CAP_USD");
+  }
+});
+
+// ---------------------------------------------------------------------------
+// assertWithinGlobalBudget — service-wide aggregate ceiling
+// ---------------------------------------------------------------------------
+
+// The global check aggregates across ALL users, so its query chain omits the
+// per-user `.eq()` filter: from().select().gte() (no .eq()).
+function makeGlobalSupabase(
+  rows: Array<{ cost_usd: number }>,
+  error: unknown = null,
+) {
+  return {
+    from: () => ({
+      select: () => ({
+        gte: () => Promise.resolve({ data: rows, error }),
+      }),
+    }),
+  } as unknown as SupabaseClient;
+}
+
+Deno.test("assertWithinGlobalBudget: total below cap → passes (no throw)", async () => {
+  await assertWithinGlobalBudget(
+    makeGlobalSupabase([{ cost_usd: 4.0 }, { cost_usd: 3.0 }]),
+  );
+});
+
+Deno.test("assertWithinGlobalBudget: total at cap → throws BUDGET_EXCEEDED 402", async () => {
+  const rows = [{ cost_usd: 6.0 }, { cost_usd: 4.0 }]; // = 10.00 default cap
+  const err = await assertRejects(
+    () => assertWithinGlobalBudget(makeGlobalSupabase(rows)),
+    VoiceError,
+  );
+  assertEquals(err.code, ErrorCodes.BUDGET_EXCEEDED);
+  assertEquals(err.httpStatus, 402);
+});
+
+Deno.test("assertWithinGlobalBudget: total over cap → throws BUDGET_EXCEEDED", async () => {
+  const err = await assertRejects(
+    () => assertWithinGlobalBudget(makeGlobalSupabase([{ cost_usd: 12.5 }])),
+    VoiceError,
+  );
+  assertEquals(err.code, ErrorCodes.BUDGET_EXCEEDED);
+});
+
+Deno.test("assertWithinGlobalBudget: DB error → fails open (no throw)", async () => {
+  // A transient DB failure must NOT block legitimate users. The function logs
+  // a warning and returns without throwing.
+  await assertWithinGlobalBudget(
+    makeGlobalSupabase([], { message: "db error" }),
+  );
+});
+
+Deno.test("assertWithinGlobalBudget: GLOBAL_DAILY_CAP_USD env var respected", async () => {
+  Deno.env.set("GLOBAL_DAILY_CAP_USD", "5.00");
+  try {
+    // 6.00 spent is under the default 10 but at/over the configured 5 → throws.
+    const err = await assertRejects(
+      () => assertWithinGlobalBudget(makeGlobalSupabase([{ cost_usd: 6.0 }])),
+      VoiceError,
+    );
+    assertEquals(err.code, ErrorCodes.BUDGET_EXCEEDED);
+  } finally {
+    Deno.env.delete("GLOBAL_DAILY_CAP_USD");
   }
 });

@@ -27,6 +27,78 @@ export function resolvedDailyCap(): number {
     : _DEFAULT_DAILY_CAP_USD;
 }
 
+const _DEFAULT_GLOBAL_DAILY_CAP_USD = 10.00;
+
+/**
+ * Reads `GLOBAL_DAILY_CAP_USD` from the edge-function environment.
+ * Falls back to `_DEFAULT_GLOBAL_DAILY_CAP_USD` if the variable is absent,
+ * empty, non-numeric, or non-positive. Mirrors `resolvedDailyCap` so the
+ * owner can tune the service-wide ceiling from the Supabase dashboard
+ * without a code change or redeployment.
+ */
+export function resolvedGlobalDailyCap(): number {
+  const raw = Deno.env.get("GLOBAL_DAILY_CAP_USD");
+  if (!raw || raw.trim() === "") return _DEFAULT_GLOBAL_DAILY_CAP_USD;
+  // Use Number() rather than parseFloat() so trailing garbage ("10x")
+  // rejects to NaN instead of silently parsing as 10.
+  const parsed = Number(raw.trim());
+  return Number.isFinite(parsed) && parsed > 0
+    ? parsed
+    : _DEFAULT_GLOBAL_DAILY_CAP_USD;
+}
+
+/**
+ * Asserts that the total voice spend across ALL users today has not reached
+ * the global daily ceiling (`GLOBAL_DAILY_CAP_USD`, default $10.00). Per-user
+ * caps bound individual misuse but not N users × their full quota at once;
+ * this is the aggregate backstop on total OpenAI exposure.
+ *
+ * Fails open on database error: a query failure logs a warning and returns
+ * without throwing, so legitimate users are not blocked by a transient DB
+ * issue. The error is surfaced in Edge Function logs for monitoring.
+ *
+ * Call this BEFORE `assertWithinBudget` (per-user check) so the global
+ * ceiling is always the first gate.
+ */
+export async function assertWithinGlobalBudget(
+  supabase: SupabaseClient,
+): Promise<void> {
+  const globalCapUsd = resolvedGlobalDailyCap();
+
+  const today = new Date();
+  today.setUTCHours(0, 0, 0, 0);
+
+  const { data, error } = await supabase
+    .from("voice_usage_log")
+    .select("cost_usd")
+    .gte("created_at", today.toISOString());
+
+  if (error) {
+    // Fail open: do not block legitimate users for a transient DB failure.
+    console.warn(
+      "[budget] Global budget check failed — failing open:",
+      error.message,
+    );
+    return;
+  }
+
+  const usedUsd = (data ?? []).reduce(
+    (sum: number, row: { cost_usd: number | string }) =>
+      sum + Number(row.cost_usd),
+    0,
+  );
+
+  if (usedUsd >= globalCapUsd) {
+    throw new VoiceError(
+      ErrorCodes.BUDGET_EXCEEDED,
+      `Service daily budget of $${
+        globalCapUsd.toFixed(2)
+      } has been reached. Try again tomorrow.`,
+      402,
+    );
+  }
+}
+
 /**
  * Reads (without throwing) the user's voice-budget state for the current
  * UTC day. Use this AFTER a successful OpenAI call to compute the
