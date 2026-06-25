@@ -20,3 +20,12 @@ as $$
   from public.voice_usage_log
   where created_at >= p_since;
 $$;
+
+-- A SECURITY DEFINER function is granted EXECUTE to PUBLIC by default, which
+-- would let any signed-in client call it directly and read service-wide
+-- financial totals across all users. Lock it down to the service-role client
+-- the edge functions use; standard anon/authenticated clients must not see it.
+revoke execute on function public.global_voice_spend_since(timestamptz)
+  from public;
+grant execute on function public.global_voice_spend_since(timestamptz)
+  to service_role;

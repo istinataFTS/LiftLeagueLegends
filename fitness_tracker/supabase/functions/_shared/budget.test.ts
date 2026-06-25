@@ -217,14 +217,22 @@ Deno.test("resolvedGlobalDailyCap: trailing garbage rejects to fallback (strict 
 // ---------------------------------------------------------------------------
 
 // The global check aggregates across ALL users server-side via the
-// `global_voice_spend_since` RPC, which returns a single scalar sum.
+// `global_voice_spend_since` RPC, which returns a single scalar sum. The mock
+// asserts the contract (RPC name + a `p_since` ISO timestamp argument) so a
+// regression that called the wrong procedure or dropped the parameter fails
+// here instead of silently passing.
 function makeGlobalSupabase(
   total: number | string | null,
   error: unknown = null,
 ) {
   return {
-    rpc: (_fn: string, _args: unknown) =>
-      Promise.resolve({ data: total, error }),
+    rpc: (fn: string, args: Record<string, unknown>) => {
+      assertEquals(fn, "global_voice_spend_since");
+      assertEquals(typeof args?.p_since, "string");
+      // p_since must be a parseable timestamp at the UTC day boundary.
+      assertEquals(Number.isNaN(Date.parse(args.p_since as string)), false);
+      return Promise.resolve({ data: total, error });
+    },
   } as unknown as SupabaseClient;
 }
 

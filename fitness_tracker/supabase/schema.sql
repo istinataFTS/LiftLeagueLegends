@@ -265,14 +265,15 @@ create policy "user_profiles: owner delete"
 -- =============================================================================
 
 -- ---------------------------------------------------------------------------
--- voice_usage_log — per voice-chat call cost + metadata, always written
--- Only voice-chat (GPT-4o-mini) incurs cost. STT and TTS are device-native.
+-- voice_usage_log — per billed-call cost + metadata, always written.
+-- voice-chat (GPT-4o-mini) and voice-transcribe (Whisper STT) both incur cost
+-- and are logged here. On-device TTS and on-device STT fallback are free.
 -- ---------------------------------------------------------------------------
 create table public.voice_usage_log (
   id              uuid          primary key default gen_random_uuid(),
   user_id         uuid          not null references auth.users(id) on delete cascade,
   function_name   text          not null
-                                  check (function_name in ('voice-chat')),
+                                  check (function_name in ('voice-chat', 'voice-transcribe')),
   model           text          not null,
   input_tokens    integer       null check (input_tokens  is null or input_tokens  >= 0),
   output_tokens   integer       null check (output_tokens is null or output_tokens >= 0),
@@ -374,3 +375,11 @@ as $$
   from public.voice_usage_log
   where created_at >= p_since;
 $$;
+
+-- Lock the SECURITY DEFINER aggregate down to the edge functions' service-role
+-- client. Without this, the default EXECUTE-to-PUBLIC grant would let any
+-- signed-in client read service-wide spend totals across all users.
+revoke execute on function public.global_voice_spend_since(timestamptz)
+  from public;
+grant execute on function public.global_voice_spend_since(timestamptz)
+  to service_role;
