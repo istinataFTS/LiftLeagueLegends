@@ -61,6 +61,8 @@ All config is injected at build time via `--dart-define`. `EnvConfig` (`lib/conf
 | `ENABLE_SUPABASE` | `true` / `false` (default: `true`) |
 | `SUPABASE_URL` | Supabase project URL (default: production URL) |
 | `SUPABASE_ANON_KEY` | Supabase anon/public key (default: production key) |
+| `ENABLE_DEBUG_LOGS` | Force `AppLogger` debug output in release builds (default: `false`; always on in `development` or debug mode) |
+| `LOG_LEVEL` | `AppLogger` minimum level: `debug` / `info` / `warning` / `error` (default: `debug`) |
 
 ## Platform support
 
