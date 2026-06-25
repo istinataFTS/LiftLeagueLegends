@@ -229,8 +229,15 @@ function makeGlobalSupabase(
     rpc: (fn: string, args: Record<string, unknown>) => {
       assertEquals(fn, "global_voice_spend_since");
       assertEquals(typeof args?.p_since, "string");
-      // p_since must be a parseable timestamp at the UTC day boundary.
-      assertEquals(Number.isNaN(Date.parse(args.p_since as string)), false);
+      // p_since must be exactly the start of a UTC day (setUTCHours(0,0,0,0)),
+      // not just any parseable timestamp — a current-time or local-offset
+      // value would scope the aggregate to the wrong window and undercount.
+      const since = new Date(args.p_since as string);
+      assertEquals(Number.isNaN(since.getTime()), false);
+      assertEquals(since.getUTCHours(), 0);
+      assertEquals(since.getUTCMinutes(), 0);
+      assertEquals(since.getUTCSeconds(), 0);
+      assertEquals(since.getUTCMilliseconds(), 0);
       return Promise.resolve({ data: total, error });
     },
   } as unknown as SupabaseClient;
