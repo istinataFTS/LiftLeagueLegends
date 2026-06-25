@@ -42,34 +42,25 @@ Supabase deploy is manual — trigger the `Supabase Deploy` GitHub Action (`work
 
 ### Flutter compile-time config (`--dart-define`)
 
-All config is injected at build time via `--dart-define`. `EnvConfig` (`lib/config/env_config.dart`) is the single source of truth. Supabase is **off by default** (`ENABLE_SUPABASE=false`) — a bare `flutter run` produces a local-only build whose sign-in surface fails with "Remote auth is not configured".
+All config is injected at build time via `--dart-define`. `EnvConfig` (`lib/config/env_config.dart`) is the single source of truth. Supabase is **on by default** with the production credentials baked in — `flutter run` with no extra flags connects to the shared backend and supports full sign-in and voice-bot use.
 
-**`dart_defines.json` is gitignored** — it contains secrets and must never be committed. A `dart_defines.example.json` template is committed instead. On a fresh clone:
-
-```powershell
-copy dart_defines.example.json dart_defines.json   # Windows
-cp  dart_defines.example.json dart_defines.json    # macOS/Linux
-# then edit dart_defines.json and fill in real values
-```
-
-Use the wrapper script so a single command does the right thing on every machine:
+`dart_defines.json` is **optional**. Use it only when you want to override the production defaults (e.g. point at a local Supabase stack or a separate project). It is gitignored and must never be committed.
 
 ```powershell
-./scripts/run.ps1                    # debug, default device, Supabase enabled
+./scripts/run.ps1                    # uses dart_defines.json if present,
+                                     # otherwise runs with production defaults
 ./scripts/run.ps1 --release          # forwards extra flags to `flutter run`
 ./scripts/run.ps1 -d chrome          # pick a device
 ```
 
-The script errors if `dart_defines.json` is missing. Equivalent raw command: `flutter run --dart-define-from-file=dart_defines.json`. VS Code launch configs in `.vscode/launch.json` mirror the same values for IDE-driven runs.
-
-**Required keys in `dart_defines.json`:**
+**Keys for `dart_defines.json` (all optional — used to override production defaults):**
 
 | Key | Description |
 |---|---|
-| `APP_ENV` | `development` / `production` |
-| `ENABLE_SUPABASE` | `true` / `false` |
-| `SUPABASE_URL` | Your Supabase project URL |
-| `SUPABASE_ANON_KEY` | Supabase anon/public key |
+| `ENVIRONMENT` | `development` / `staging` / `production` (default: `development`) |
+| `ENABLE_SUPABASE` | `true` / `false` (default: `true`) |
+| `SUPABASE_URL` | Supabase project URL (default: production URL) |
+| `SUPABASE_ANON_KEY` | Supabase anon/public key (default: production key) |
 
 ## Platform support
 

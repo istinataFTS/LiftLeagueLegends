@@ -2,42 +2,36 @@
   "version": "0.2.0",
   "configurations": [
     {
-      "name": "Run (local only)",
+      "name": "Run (production backend)",
       "request": "launch",
       "type": "dart",
       "args": [
-        "--dart-define=APP_ENV=development"
+        "--dart-define=ENVIRONMENT=development"
       ]
     },
     {
-      "name": "Run (Supabase enabled)",
+      "name": "Run (production backend + debug logs)",
       "request": "launch",
       "type": "dart",
       "args": [
-        "--dart-define=APP_ENV=development",
-        "--dart-define=ENABLE_SUPABASE=true",
-        "--dart-define=SUPABASE_URL=https://liftleaguelegends.com",
-        "--dart-define=SUPABASE_ANON_KEY=eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJyb2xlIjoiYW5vbiIsImlzcyI6InN1cGFiYXNlIiwiaWF0IjoxNzc1MDc5NTYzLCJleHAiOjE5MzI3NTk1NjN9.Pchm8XcfRaT0xAD7JHOE_53IJPoIuV1V6qGPK8dQZO4"
-      ]
-    },
-    {
-      "name": "Run (Supabase + debug logs)",
-      "request": "launch",
-      "type": "dart",
-      "args": [
-        "--dart-define=APP_ENV=development",
-        "--dart-define=ENABLE_SUPABASE=true",
-        "--dart-define=SUPABASE_URL=https://liftleaguelegends.com",
-        "--dart-define=SUPABASE_ANON_KEY=eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJyb2xlIjoiYW5vbiIsImlzcyI6InN1cGFiYXNlIiwiaWF0IjoxNzc1MDc5NTYzLCJleHAiOjE5MzI3NTk1NjN9.Pchm8XcfRaT0xAD7JHOE_53IJPoIuV1V6qGPK8dQZO4",
+        "--dart-define=ENVIRONMENT=development",
         "--dart-define=ENABLE_DEBUG_LOGS=true"
       ]
     },
     {
-      "name": "Run (staging)",
+      "name": "Run (custom backend — copy dart_defines.example.json to dart_defines.json first)",
       "request": "launch",
       "type": "dart",
       "args": [
-        "--dart-define=APP_ENV=staging",
+        "--dart-define-from-file=dart_defines.json"
+      ]
+    },
+    {
+      "name": "Run (staging — same Supabase project, ENVIRONMENT=staging)",
+      "request": "launch",
+      "type": "dart",
+      "args": [
+        "--dart-define=ENVIRONMENT=staging",
         "--dart-define=ENABLE_SUPABASE=true",
         "--dart-define=SUPABASE_URL=https://liftleaguelegends.com",
         "--dart-define=SUPABASE_ANON_KEY=eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJyb2xlIjoiYW5vbiIsImlzcyI6InN1cGFiYXNlIiwiaWF0IjoxNzc1MDc5NTYzLCJleHAiOjE5MzI3NTk1NjN9.Pchm8XcfRaT0xAD7JHOE_53IJPoIuV1V6qGPK8dQZO4"
