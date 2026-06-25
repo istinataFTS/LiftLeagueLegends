@@ -356,3 +356,21 @@ begin
     updated_at     = now();
 end;
 $$;
+
+-- ---------------------------------------------------------------------------
+-- Helper: total voice spend across ALL users since a timestamp. Aggregates
+-- server-side so the global-budget guard is immune to PostgREST row limits
+-- (a client-side row fetch truncates at 1000 rows and undercounts spend).
+-- SECURITY DEFINER so it sums every user's rows regardless of RLS scope.
+-- ---------------------------------------------------------------------------
+create or replace function public.global_voice_spend_since(p_since timestamptz)
+returns numeric
+language sql
+stable
+security definer
+set search_path = public
+as $$
+  select coalesce(sum(cost_usd), 0)
+  from public.voice_usage_log
+  where created_at >= p_since;
+$$;

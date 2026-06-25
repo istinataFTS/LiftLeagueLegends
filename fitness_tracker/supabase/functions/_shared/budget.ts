@@ -68,10 +68,13 @@ export async function assertWithinGlobalBudget(
   const today = new Date();
   today.setUTCHours(0, 0, 0, 0);
 
-  const { data, error } = await supabase
-    .from("voice_usage_log")
-    .select("cost_usd")
-    .gte("created_at", today.toISOString());
+  // Aggregate server-side via RPC rather than fetching one row per call and
+  // summing here. A client-side row fetch is truncated at PostgREST's default
+  // 1000-row cap, which would undercount total spend across all users and let
+  // the ceiling be silently bypassed at scale.
+  const { data, error } = await supabase.rpc("global_voice_spend_since", {
+    p_since: today.toISOString(),
+  });
 
   if (error) {
     // Fail open: do not block legitimate users for a transient DB failure.
@@ -82,11 +85,15 @@ export async function assertWithinGlobalBudget(
     return;
   }
 
-  const usedUsd = (data ?? []).reduce(
-    (sum: number, row: { cost_usd: number | string }) =>
-      sum + Number(row.cost_usd),
-    0,
-  );
+  const usedUsd = Number(data);
+  if (!Number.isFinite(usedUsd)) {
+    // A malformed aggregate is not a budget signal — fail open like a DB error.
+    console.warn(
+      "[budget] Global budget aggregate was non-numeric — failing open:",
+      data,
+    );
+    return;
+  }
 
   if (usedUsd >= globalCapUsd) {
     throw new VoiceError(

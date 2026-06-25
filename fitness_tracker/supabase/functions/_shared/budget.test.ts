@@ -216,31 +216,25 @@ Deno.test("resolvedGlobalDailyCap: trailing garbage rejects to fallback (strict 
 // assertWithinGlobalBudget — service-wide aggregate ceiling
 // ---------------------------------------------------------------------------
 
-// The global check aggregates across ALL users, so its query chain omits the
-// per-user `.eq()` filter: from().select().gte() (no .eq()).
+// The global check aggregates across ALL users server-side via the
+// `global_voice_spend_since` RPC, which returns a single scalar sum.
 function makeGlobalSupabase(
-  rows: Array<{ cost_usd: number }>,
+  total: number | string | null,
   error: unknown = null,
 ) {
   return {
-    from: () => ({
-      select: () => ({
-        gte: () => Promise.resolve({ data: rows, error }),
-      }),
-    }),
+    rpc: (_fn: string, _args: unknown) =>
+      Promise.resolve({ data: total, error }),
   } as unknown as SupabaseClient;
 }
 
 Deno.test("assertWithinGlobalBudget: total below cap → passes (no throw)", async () => {
-  await assertWithinGlobalBudget(
-    makeGlobalSupabase([{ cost_usd: 4.0 }, { cost_usd: 3.0 }]),
-  );
+  await assertWithinGlobalBudget(makeGlobalSupabase(7.0));
 });
 
 Deno.test("assertWithinGlobalBudget: total at cap → throws BUDGET_EXCEEDED 402", async () => {
-  const rows = [{ cost_usd: 6.0 }, { cost_usd: 4.0 }]; // = 10.00 default cap
   const err = await assertRejects(
-    () => assertWithinGlobalBudget(makeGlobalSupabase(rows)),
+    () => assertWithinGlobalBudget(makeGlobalSupabase(10.0)), // = default cap
     VoiceError,
   );
   assertEquals(err.code, ErrorCodes.BUDGET_EXCEEDED);
@@ -249,7 +243,16 @@ Deno.test("assertWithinGlobalBudget: total at cap → throws BUDGET_EXCEEDED 402
 
 Deno.test("assertWithinGlobalBudget: total over cap → throws BUDGET_EXCEEDED", async () => {
   const err = await assertRejects(
-    () => assertWithinGlobalBudget(makeGlobalSupabase([{ cost_usd: 12.5 }])),
+    () => assertWithinGlobalBudget(makeGlobalSupabase(12.5)),
+    VoiceError,
+  );
+  assertEquals(err.code, ErrorCodes.BUDGET_EXCEEDED);
+});
+
+Deno.test("assertWithinGlobalBudget: numeric RPC result as string → parsed", async () => {
+  // Postgres `numeric` can deserialize as a string; Number() must still parse it.
+  const err = await assertRejects(
+    () => assertWithinGlobalBudget(makeGlobalSupabase("11.0")),
     VoiceError,
   );
   assertEquals(err.code, ErrorCodes.BUDGET_EXCEEDED);
@@ -259,8 +262,12 @@ Deno.test("assertWithinGlobalBudget: DB error → fails open (no throw)", async 
   // A transient DB failure must NOT block legitimate users. The function logs
   // a warning and returns without throwing.
   await assertWithinGlobalBudget(
-    makeGlobalSupabase([], { message: "db error" }),
+    makeGlobalSupabase(null, { message: "db error" }),
   );
+});
+
+Deno.test("assertWithinGlobalBudget: non-numeric aggregate → fails open (no throw)", async () => {
+  await assertWithinGlobalBudget(makeGlobalSupabase("notanumber"));
 });
 
 Deno.test("assertWithinGlobalBudget: GLOBAL_DAILY_CAP_USD env var respected", async () => {
@@ -268,7 +275,7 @@ Deno.test("assertWithinGlobalBudget: GLOBAL_DAILY_CAP_USD env var respected", as
   try {
     // 6.00 spent is under the default 10 but at/over the configured 5 → throws.
     const err = await assertRejects(
-      () => assertWithinGlobalBudget(makeGlobalSupabase([{ cost_usd: 6.0 }])),
+      () => assertWithinGlobalBudget(makeGlobalSupabase(6.0)),
       VoiceError,
     );
     assertEquals(err.code, ErrorCodes.BUDGET_EXCEEDED);
