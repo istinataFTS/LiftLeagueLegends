@@ -1,5 +1,9 @@
 import { authenticate } from "../_shared/auth.ts";
-import { assertWithinBudget, getBudgetState } from "../_shared/budget.ts";
+import {
+  assertWithinBudget,
+  assertWithinGlobalBudget,
+  getBudgetState,
+} from "../_shared/budget.ts";
 import { costForWhisper } from "../_shared/cost.ts";
 import { preflight } from "../_shared/cors.ts";
 import { ErrorCodes, errorResponse, VoiceError } from "../_shared/errors.ts";
@@ -99,7 +103,8 @@ async function handleTranscription(
   const parsed = await parseTranscription(req);
   const supabase = serviceClient();
 
-  await assertWithinBudget(supabase, user.id);
+  await assertWithinGlobalBudget(supabase); // global ceiling first
+  await assertWithinBudget(supabase, user.id); // then per-user cap
 
   let transcription: Awaited<ReturnType<typeof transcribeAudio>>;
   try {
