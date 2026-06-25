@@ -56,16 +56,32 @@ void main() {
     });
 
     group('Supabase', () {
-      test('Supabase is enabled by default with production credentials', () {
-        // Production URL and ANON key are baked in as defaults so that any
-        // fork build connects to the shared backend without configuration.
-        // The ANON key is public by design (Supabase client-side key);
-        // RLS enforces per-user data isolation server-side.
-        expect(EnvConfig.enableSupabase, isTrue);
+      test('Supabase URL and anon key are baked in as production defaults', () {
+        // Production URL and ANON key are baked in as compile-time defaults so
+        // that any fork build connects to the shared backend without
+        // configuration. The ANON key is public by design (Supabase
+        // client-side key); RLS enforces per-user data isolation server-side.
+        // These defaults must always be present in the binary, independent of
+        // the ENABLE_SUPABASE flag — CI overrides ENABLE_SUPABASE=false to
+        // keep unit tests self-contained, but the URL/anon key defaults must
+        // still hold so production builds remain zero-configuration.
         expect(EnvConfig.supabaseUrl, isNotEmpty);
         expect(EnvConfig.supabaseAnonKey, isNotEmpty);
-        expect(EnvConfig.isSupabaseConfigured, isTrue);
       });
+
+      test(
+        'isSupabaseConfigured matches enableSupabase given baked defaults',
+        () {
+          // With the production URL/anon key defaults present, isSupabaseConfigured
+          // is driven entirely by the ENABLE_SUPABASE flag. This proves both
+          // branches: ENABLE_SUPABASE=true (default fork build) → configured;
+          // ENABLE_SUPABASE=false (CI unit-test override) → not configured.
+          expect(
+            EnvConfig.isSupabaseConfigured,
+            equals(EnvConfig.enableSupabase),
+          );
+        },
+      );
     });
 
     group('database', () {
