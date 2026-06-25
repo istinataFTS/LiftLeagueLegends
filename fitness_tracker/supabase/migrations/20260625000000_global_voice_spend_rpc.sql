@@ -25,7 +25,14 @@ $$;
 -- would let any signed-in client call it directly and read service-wide
 -- financial totals across all users. Lock it down to the service-role client
 -- the edge functions use; standard anon/authenticated clients must not see it.
+--
+-- Supabase ALSO grants EXECUTE to the `anon` and `authenticated` roles
+-- explicitly (via ALTER DEFAULT PRIVILEGES on the public schema), separately
+-- from the PUBLIC grant. Revoking from PUBLIC alone does NOT remove those, so
+-- they must be named explicitly or any signed-in client retains access.
+-- Revoking a privilege a role does not hold is a harmless no-op, so this stays
+-- correct on a fresh database where those default grants are absent.
 revoke execute on function public.global_voice_spend_since(timestamptz)
-  from public;
+  from public, anon, authenticated;
 grant execute on function public.global_voice_spend_since(timestamptz)
   to service_role;

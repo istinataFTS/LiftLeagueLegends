@@ -16,9 +16,6 @@ begin
 end;
 $$;
 
--- =============================================================================
--- Phase 3 — Core user-data tables
--- =============================================================================
 
 -- ---------------------------------------------------------------------------
 -- exercises
@@ -261,7 +258,6 @@ create policy "user_profiles: owner delete"
   using (id = auth.uid());
 
 -- =============================================================================
--- Voice assistant tables (Plan C-1)
 -- =============================================================================
 
 -- ---------------------------------------------------------------------------
@@ -378,8 +374,10 @@ $$;
 
 -- Lock the SECURITY DEFINER aggregate down to the edge functions' service-role
 -- client. Without this, the default EXECUTE-to-PUBLIC grant would let any
--- signed-in client read service-wide spend totals across all users.
+-- signed-in client read service-wide spend totals across all users. Supabase
+-- additionally grants EXECUTE to `anon` and `authenticated` explicitly, so
+-- those roles must be named here too — revoking from PUBLIC alone leaves them.
 revoke execute on function public.global_voice_spend_since(timestamptz)
-  from public;
+  from public, anon, authenticated;
 grant execute on function public.global_voice_spend_since(timestamptz)
   to service_role;
