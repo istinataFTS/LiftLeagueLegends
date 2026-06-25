@@ -19,7 +19,9 @@ const _DEFAULT_DAILY_CAP_USD = 0.50;
 export function resolvedDailyCap(): number {
   const raw = Deno.env.get("DAILY_BUDGET_CAP_USD");
   if (!raw || raw.trim() === "") return _DEFAULT_DAILY_CAP_USD;
-  const parsed = parseFloat(raw.trim());
+  // Use Number() rather than parseFloat() so trailing garbage ("0.50x")
+  // rejects to NaN instead of silently parsing as 0.50.
+  const parsed = Number(raw.trim());
   return Number.isFinite(parsed) && parsed > 0
     ? parsed
     : _DEFAULT_DAILY_CAP_USD;

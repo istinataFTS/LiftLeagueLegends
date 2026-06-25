@@ -161,3 +161,15 @@ Deno.test("resolvedDailyCap: non-numeric value → falls back to 0.50", () => {
     Deno.env.delete("DAILY_BUDGET_CAP_USD");
   }
 });
+
+Deno.test("resolvedDailyCap: trailing garbage rejects to fallback (strict parse)", () => {
+  // parseFloat("0.50x") would silently return 0.50; Number() rejects to NaN
+  // so a malformed secret falls back to the default cap rather than applying
+  // an attacker-controlled prefix.
+  Deno.env.set("DAILY_BUDGET_CAP_USD", "0.50x");
+  try {
+    assertEquals(resolvedDailyCap(), 0.50);
+  } finally {
+    Deno.env.delete("DAILY_BUDGET_CAP_USD");
+  }
+});
