@@ -1,5 +1,9 @@
 import { assertAlmostEquals, assertEquals, assertRejects } from "@std/assert";
-import { assertWithinBudget, getBudgetState } from "./budget.ts";
+import {
+  assertWithinBudget,
+  getBudgetState,
+  resolvedDailyCap,
+} from "./budget.ts";
 import { ErrorCodes, VoiceError } from "./errors.ts";
 import type { SupabaseClient } from "./deps.ts";
 
@@ -111,4 +115,49 @@ Deno.test("getBudgetState: DB error → throws INTERNAL (DB error is not a budge
     VoiceError,
   );
   assertEquals(err.code, ErrorCodes.INTERNAL);
+});
+
+// ---------------------------------------------------------------------------
+// resolvedDailyCap — env-driven cap resolver
+// ---------------------------------------------------------------------------
+
+Deno.test("resolvedDailyCap: env var absent → falls back to 0.50", () => {
+  Deno.env.delete("DAILY_BUDGET_CAP_USD");
+  assertEquals(resolvedDailyCap(), 0.50);
+});
+
+Deno.test("resolvedDailyCap: env var empty → falls back to 0.50", () => {
+  Deno.env.set("DAILY_BUDGET_CAP_USD", "");
+  try {
+    assertEquals(resolvedDailyCap(), 0.50);
+  } finally {
+    Deno.env.delete("DAILY_BUDGET_CAP_USD");
+  }
+});
+
+Deno.test("resolvedDailyCap: positive numeric value → parsed", () => {
+  Deno.env.set("DAILY_BUDGET_CAP_USD", "1.25");
+  try {
+    assertEquals(resolvedDailyCap(), 1.25);
+  } finally {
+    Deno.env.delete("DAILY_BUDGET_CAP_USD");
+  }
+});
+
+Deno.test("resolvedDailyCap: non-positive value → falls back to 0.50", () => {
+  Deno.env.set("DAILY_BUDGET_CAP_USD", "-1");
+  try {
+    assertEquals(resolvedDailyCap(), 0.50);
+  } finally {
+    Deno.env.delete("DAILY_BUDGET_CAP_USD");
+  }
+});
+
+Deno.test("resolvedDailyCap: non-numeric value → falls back to 0.50", () => {
+  Deno.env.set("DAILY_BUDGET_CAP_USD", "notanumber");
+  try {
+    assertEquals(resolvedDailyCap(), 0.50);
+  } finally {
+    Deno.env.delete("DAILY_BUDGET_CAP_USD");
+  }
 });

@@ -7,9 +7,13 @@
 abstract final class VoiceConstants {
   VoiceConstants._();
 
-  /// Daily voice-chat budget cap per user, in USD. Enforced server-side
-  /// by the `voice-chat` Edge Function. Mirrored here only for UI
-  /// presentation (budget meter, "remaining today" label).
+  /// Default daily voice-chat budget cap shown in the UI (budget meter,
+  /// "remaining today" label). The server reads the authoritative cap from
+  /// the `DAILY_BUDGET_CAP_USD` Edge Function secret and enforces it
+  /// regardless of this value. To raise or lower the cap, set the secret in
+  /// the Supabase dashboard (Project → Edge Functions → Manage secrets) — no
+  /// code change or redeployment needed. Update this constant only to keep
+  /// the UI display in sync with the server value.
   ///
   /// STT and TTS are device-native and cost nothing.
   static const double dailyBudgetCapUsd = 0.50;

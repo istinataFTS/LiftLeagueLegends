@@ -7,6 +7,24 @@ export interface BudgetState {
   readonly exceeded: boolean;
 }
 
+const _DEFAULT_DAILY_CAP_USD = 0.50;
+
+/**
+ * Reads `DAILY_BUDGET_CAP_USD` from the edge-function environment.
+ * Falls back to `_DEFAULT_DAILY_CAP_USD` if the variable is absent, empty,
+ * non-numeric, or non-positive. This lets the owner adjust the cap in the
+ * Supabase dashboard (Project → Edge Functions → Manage secrets) without a
+ * code change or redeployment.
+ */
+export function resolvedDailyCap(): number {
+  const raw = Deno.env.get("DAILY_BUDGET_CAP_USD");
+  if (!raw || raw.trim() === "") return _DEFAULT_DAILY_CAP_USD;
+  const parsed = parseFloat(raw.trim());
+  return Number.isFinite(parsed) && parsed > 0
+    ? parsed
+    : _DEFAULT_DAILY_CAP_USD;
+}
+
 /**
  * Reads (without throwing) the user's voice-budget state for the current
  * UTC day. Use this AFTER a successful OpenAI call to compute the
@@ -20,7 +38,7 @@ export interface BudgetState {
 export async function getBudgetState(
   supabase: SupabaseClient,
   userId: string,
-  dailyCapUsd = 0.50,
+  dailyCapUsd = resolvedDailyCap(),
 ): Promise<BudgetState> {
   const today = new Date();
   today.setUTCHours(0, 0, 0, 0);
@@ -62,7 +80,7 @@ export async function getBudgetState(
 export async function assertWithinBudget(
   supabase: SupabaseClient,
   userId: string,
-  dailyCapUsd = 0.50,
+  dailyCapUsd = resolvedDailyCap(),
 ): Promise<{ usedUsd: number; remainingUsd: number }> {
   const state = await getBudgetState(supabase, userId, dailyCapUsd);
 
