@@ -95,7 +95,16 @@ class EnvConfig {
       supabaseUrl.trim().isNotEmpty &&
       supabaseAnonKey.trim().isNotEmpty;
 
-  static bool get enableDebugLogs => isDevelopment || kDebugMode;
+  // ENABLE_DEBUG_LOGS is an explicit opt-in for release builds (where
+  // kDebugMode is false and the environment is not 'development'). In debug
+  // mode or the development environment, debug logs are on regardless.
+  static const bool _enableDebugLogsFlag = bool.fromEnvironment(
+    'ENABLE_DEBUG_LOGS',
+    defaultValue: false,
+  );
+
+  static bool get enableDebugLogs =>
+      _enableDebugLogsFlag || isDevelopment || kDebugMode;
 
   static const String logLevel = String.fromEnvironment(
     'LOG_LEVEL',
