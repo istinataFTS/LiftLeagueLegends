@@ -79,15 +79,12 @@ class EnvConfig {
 
   static const String supabaseUrl = String.fromEnvironment(
     'SUPABASE_URL',
-    defaultValue: 'https://liftleaguelegends.com',
+    defaultValue: 'https://wxgmhxfqeftfuahhavbi.supabase.co',
   );
 
   static const String supabaseAnonKey = String.fromEnvironment(
     'SUPABASE_ANON_KEY',
-    defaultValue:
-        'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9'
-        '.eyJyb2xlIjoiYW5vbiIsImlzcyI6InN1cGFiYXNlIiwiaWF0IjoxNzc1MDc5NTYzLCJleHAiOjE5MzI3NTk1NjN9'
-        '.Pchm8XcfRaT0xAD7JHOE_53IJPoIuV1V6qGPK8dQZO4',
+    defaultValue: 'sb_publishable_tTjWJK6P1FSPKZyCZTWc4Q_l3j53U3g',
   );
 
   static bool get isSupabaseConfigured =>

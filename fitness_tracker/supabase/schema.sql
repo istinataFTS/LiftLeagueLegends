@@ -285,7 +285,7 @@ create index idx_voice_usage_log_user_created
   on public.voice_usage_log (user_id, created_at desc);
 
 create index idx_voice_usage_log_user_day
-  on public.voice_usage_log (user_id, (date_trunc('day', created_at)));
+  on public.voice_usage_log (user_id, ((created_at at time zone 'utc')::date));
 
 alter table public.voice_usage_log enable row level security;
 
