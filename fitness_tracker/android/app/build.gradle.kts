@@ -24,7 +24,8 @@ android {
         applicationId = "com.example.fitness_tracker"
         // You can update the following values to match your application needs.
         // For more information, see: https://flutter.dev/to/review-gradle-config.
-        // minSdk 23 required by permission_handler and record packages.
+        // minSdk floor is retained deliberately; lowering it was out of
+        // scope for this deletion PR.
         minSdk = flutter.minSdkVersion
         targetSdk = flutter.targetSdkVersion
         versionCode = flutter.versionCode
@@ -45,7 +46,4 @@ flutter {
 }
 
 dependencies {
-    // MediaSessionCompat — receive headset/Bluetooth media-button presses so a
-    // single tap can wake the voice bot (Plan 3). Foreground-only; no service.
-    implementation("androidx.media:media:1.7.0")
 }
