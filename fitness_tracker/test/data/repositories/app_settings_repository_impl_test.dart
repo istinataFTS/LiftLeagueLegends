@@ -19,8 +19,8 @@ void main() {
     repository = AppSettingsRepositoryImpl(localDataSource: mockDataSource);
 
     // General fallbacks so that fields added after this test was written
-    // (e.g. voice settings, uiExpansionState) do not cause MissingStubError
-    // when a specific test only stubs the keys it cares about.
+    // (e.g. uiExpansionState) do not cause MissingStubError when a specific
+    // test only stubs the keys it cares about.
     when(() => mockDataSource.readString(any())).thenAnswer((_) async => null);
     when(() => mockDataSource.readBool(any())).thenAnswer((_) async => null);
     when(

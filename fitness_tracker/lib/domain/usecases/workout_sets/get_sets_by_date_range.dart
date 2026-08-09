@@ -30,7 +30,7 @@ class GetSetsByDateRange {
   ///   filtering. When combined with [muscleGroup], the cap is applied first
   ///   and the muscle filter runs on the already-limited list — callers that
   ///   need both should pass a [limit] large enough to survive the filter.
-  ///   Voice uses [limit] without [muscleGroup]; volume aggregations use
+  ///   [limit] may be used without [muscleGroup]; volume aggregations use
   ///   [muscleGroup] without [limit].
   ///
   /// Returns: Either a Failure or a List of WorkoutSets

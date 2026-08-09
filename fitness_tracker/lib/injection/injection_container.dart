@@ -36,7 +36,6 @@ import 'modules/register_muscle_load_module.dart';
 import 'modules/register_muscle_stimulus_module.dart';
 import 'modules/register_profile_module.dart';
 import 'modules/register_settings_module.dart';
-import 'modules/register_voice_module.dart';
 import 'modules/register_workout_module.dart';
 
 final sl = GetIt.instance;
@@ -52,7 +51,6 @@ Future<void> init({
   registerCoreModule(sl);
   registerSettingsModule(sl);
   registerProfileModule(sl);
-  registerVoiceModule(sl);
   registerWorkoutModule(sl);
   registerExercisesModule(sl);
   registerMealsNutritionModule(sl);

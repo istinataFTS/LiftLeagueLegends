@@ -90,8 +90,8 @@ abstract class WorkoutUiEffect {
 }
 
 /// Emitted alongside [WorkoutError] state when [AddWorkoutSetEvent] fails.
-/// [VoiceCommandRouter] listens for this to complete the in-flight mutation
-/// completer with a failure outcome so [VoiceBloc] can speak an error reply.
+/// Emitted when a workout mutation fails, so the UI can surface the error
+/// separately from the state channel.
 class WorkoutMutationFailedEffect extends WorkoutUiEffect {
   const WorkoutMutationFailedEffect(this.message);
 
