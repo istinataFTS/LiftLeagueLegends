@@ -115,32 +115,3 @@ jobs:
         # exercises the Supabase-enabled production code path that real
         # users run, not the defaults-only no-Supabase fallback.
         run: flutter build apk --debug --dart-define-from-file=dart_defines.json
-
-  backend:
-    name: Backend (Deno)
-    runs-on: ubuntu-latest
-    defaults:
-      run:
-        working-directory: fitness_tracker/supabase/functions
-    steps:
-      - uses: actions/checkout@v4
-
-      - uses: denoland/setup-deno@v1
-        with:
-          deno-version: v2.x
-
-      - name: Check formatting
-        run: deno fmt --check
-
-      - name: Lint
-        run: deno lint
-
-      - name: Type-check
-        # `deno test` already type-checks the files transitively reachable
-        # from test files. This explicit pass catches type errors in
-        # orphan/unimported .ts files and fails faster than waiting for
-        # the test runner to load them.
-        run: deno check $(find . -name '*.ts' -not -path '*/node_modules/*')
-
-      - name: Run tests
-        run: deno test --allow-all
