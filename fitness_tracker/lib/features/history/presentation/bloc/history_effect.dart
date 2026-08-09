@@ -9,8 +9,8 @@ class HistorySuccessEffect extends HistoryUiEffect {
 }
 
 /// Emitted alongside [HistoryError] state when a mutation fails.
-/// [VoiceCommandRouter] listens for this to complete the in-flight mutation
-/// completer with a failure outcome so [VoiceBloc] can speak an error reply.
+/// Emitted when a history mutation fails, so the UI can surface the error
+/// separately from the state channel.
 class HistoryMutationFailedEffect extends HistoryUiEffect {
   const HistoryMutationFailedEffect(this.message);
 

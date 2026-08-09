@@ -12,7 +12,6 @@ import 'package:fitness_tracker/domain/usecases/exercises/get_exercises_for_musc
 import 'package:fitness_tracker/domain/usecases/exercises/update_exercise.dart';
 import 'package:fitness_tracker/domain/usecases/muscle_factors/get_muscle_factors_for_exercise.dart';
 import 'package:fitness_tracker/features/library/application/exercise_bloc.dart';
-import 'package:fitness_tracker/features/voice/data/lookup/exercise_lookup.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:mocktail/mocktail.dart';
 
@@ -33,8 +32,6 @@ class MockEnsureDefaultExercises extends Mock
 
 class MockGetMuscleFactorsForExercise extends Mock
     implements GetMuscleFactorsForExercise {}
-
-class MockExerciseLookup extends Mock implements ExerciseLookup {}
 
 // ---------------------------------------------------------------------------
 // Fixtures
@@ -58,7 +55,6 @@ void main() {
   late MockDeleteExercise mockDelete;
   late MockEnsureDefaultExercises mockEnsureDefaultExercises;
   late MockGetMuscleFactorsForExercise mockGetFactors;
-  late MockExerciseLookup mockExerciseLookup;
 
   ExerciseBloc buildBloc() => ExerciseBloc(
     getAllExercises: mockGetAll,
@@ -69,7 +65,6 @@ void main() {
     deleteExercise: mockDelete,
     ensureDefaultExercises: mockEnsureDefaultExercises,
     getMuscleFactorsForExercise: mockGetFactors,
-    exerciseLookup: mockExerciseLookup,
   );
 
   setUpAll(() {
@@ -85,9 +80,6 @@ void main() {
     mockDelete = MockDeleteExercise();
     mockEnsureDefaultExercises = MockEnsureDefaultExercises();
     mockGetFactors = MockGetMuscleFactorsForExercise();
-    mockExerciseLookup = MockExerciseLookup();
-    // invalidate() is a void fire-and-forget; stub it to do nothing by default.
-    when(() => mockExerciseLookup.invalidate()).thenReturn(null);
   });
 
   group('ExerciseBloc', () {
@@ -336,83 +328,6 @@ void main() {
         act: (bloc) => bloc.add(const DeleteExerciseEvent('ex-1')),
         expect: () => [const ExerciseError('db error')],
         verify: (_) => verifyNever(() => mockGetAll()),
-      );
-    });
-
-    group('ExerciseLookup invalidation on mutations', () {
-      blocTest<ExerciseBloc, ExerciseState>(
-        'calls invalidate() exactly once on successful AddExerciseEvent',
-        build: buildBloc,
-        setUp: () {
-          when(
-            () => mockAdd(_exercise),
-          ).thenAnswer((_) async => const Right(null));
-          when(() => mockGetAll()).thenAnswer((_) async => Right([_exercise]));
-        },
-        act: (bloc) => bloc.add(AddExerciseEvent(_exercise)),
-        verify: (_) => verify(() => mockExerciseLookup.invalidate()).called(1),
-      );
-
-      blocTest<ExerciseBloc, ExerciseState>(
-        'does NOT call invalidate() when AddExerciseEvent fails',
-        build: buildBloc,
-        setUp: () {
-          when(
-            () => mockAdd(_exercise),
-          ).thenAnswer((_) async => const Left(_dbFailure));
-        },
-        act: (bloc) => bloc.add(AddExerciseEvent(_exercise)),
-        verify: (_) => verifyNever(() => mockExerciseLookup.invalidate()),
-      );
-
-      blocTest<ExerciseBloc, ExerciseState>(
-        'calls invalidate() exactly once on successful UpdateExerciseEvent',
-        build: buildBloc,
-        setUp: () {
-          when(
-            () => mockUpdate(_exercise),
-          ).thenAnswer((_) async => const Right(null));
-          when(() => mockGetAll()).thenAnswer((_) async => Right([_exercise]));
-        },
-        act: (bloc) => bloc.add(UpdateExerciseEvent(_exercise)),
-        verify: (_) => verify(() => mockExerciseLookup.invalidate()).called(1),
-      );
-
-      blocTest<ExerciseBloc, ExerciseState>(
-        'does NOT call invalidate() when UpdateExerciseEvent fails',
-        build: buildBloc,
-        setUp: () {
-          when(
-            () => mockUpdate(_exercise),
-          ).thenAnswer((_) async => const Left(_dbFailure));
-        },
-        act: (bloc) => bloc.add(UpdateExerciseEvent(_exercise)),
-        verify: (_) => verifyNever(() => mockExerciseLookup.invalidate()),
-      );
-
-      blocTest<ExerciseBloc, ExerciseState>(
-        'calls invalidate() exactly once on successful DeleteExerciseEvent',
-        build: buildBloc,
-        setUp: () {
-          when(
-            () => mockDelete('ex-1'),
-          ).thenAnswer((_) async => const Right(null));
-          when(() => mockGetAll()).thenAnswer((_) async => Right([_exercise]));
-        },
-        act: (bloc) => bloc.add(const DeleteExerciseEvent('ex-1')),
-        verify: (_) => verify(() => mockExerciseLookup.invalidate()).called(1),
-      );
-
-      blocTest<ExerciseBloc, ExerciseState>(
-        'does NOT call invalidate() when DeleteExerciseEvent fails',
-        build: buildBloc,
-        setUp: () {
-          when(
-            () => mockDelete('ex-1'),
-          ).thenAnswer((_) async => const Left(_dbFailure));
-        },
-        act: (bloc) => bloc.add(const DeleteExerciseEvent('ex-1')),
-        verify: (_) => verifyNever(() => mockExerciseLookup.invalidate()),
       );
     });
 

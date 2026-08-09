@@ -24,8 +24,8 @@ abstract class AppSettingsRepository {
   ///   subscriber.
   ///
   /// This stream is the single propagation channel for cross-cubit
-  /// observability: cubits that mirror a slice of [AppSettings] (e.g.
-  /// `VoiceSettingsCubit`) listen here instead of depending on another
-  /// cubit, eliminating cross-feature application-layer imports.
+  /// observability: cubits that mirror a slice of [AppSettings] listen
+  /// here instead of depending on another cubit, eliminating
+  /// cross-feature application-layer imports.
   Stream<AppSettings> watchSettings();
 }

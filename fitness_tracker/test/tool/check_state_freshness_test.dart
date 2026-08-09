@@ -50,7 +50,7 @@ String _topFp(Map<String, String> featureFps) {
 // ---------------------------------------------------------------------------
 
 /// Builds a complete, valid FakeRepoView for the pass-case test.
-/// Eight features, one source file each, matching fingerprints.
+/// Seven features, one source file each, matching fingerprints.
 (FakeRepoView, String) _buildPassRepo() {
   // ── Source files ──────────────────────────────────────────────────────────
   final sourceFiles = <String, String>{
@@ -73,9 +73,6 @@ String _topFp(Map<String, String> featureFps) {
         'class ProfileCubit extends Cubit<ProfileState> {}\n',
     'lib/features/settings/application/app_settings_cubit.dart':
         'class AppSettingsCubit extends Cubit<AppSettingsState> {}\n',
-    'lib/features/voice/application/voice_bloc.dart':
-        'class VoiceBloc extends Bloc<VoiceEvent, VoiceState> {}\n'
-        'class VoiceSettingsCubit extends Cubit<VoiceSettings> {}\n',
     // Repo / use-case / module stubs (existence-checked, content ignored)
     'lib/domain/repositories/app_session_repository.dart': '// stub\n',
     'lib/domain/repositories/exercise_repository.dart': '// stub\n',
@@ -84,14 +81,12 @@ String _topFp(Map<String, String> featureFps) {
     'lib/domain/repositories/muscle_stimulus_repository.dart': '// stub\n',
     'lib/domain/repositories/nutrition_log_repository.dart': '// stub\n',
     'lib/domain/repositories/user_profile_repository.dart': '// stub\n',
-    'lib/domain/repositories/voice_repository.dart': '// stub\n',
     'lib/domain/repositories/workout_set_repository.dart': '// stub\n',
     'lib/domain/repositories/app_settings_repository.dart': '// stub\n',
     'lib/domain/usecases/workout_sets/add_workout_set.dart': '// stub\n',
     'lib/domain/usecases/nutrition_logs/add_nutrition_log.dart': '// stub\n',
     'lib/domain/usecases/muscle_stimulus/get_muscle_visual_data.dart':
         '// stub\n',
-    'lib/domain/usecases/voice/send_voice_message.dart': '// stub\n',
     'lib/injection/modules/register_core_module.dart': '// stub\n',
     'lib/injection/modules/register_exercises_module.dart': '// stub\n',
     'lib/injection/modules/register_history_module.dart': '// stub\n',
@@ -99,7 +94,6 @@ String _topFp(Map<String, String> featureFps) {
     'lib/injection/modules/register_muscle_stimulus_module.dart': '// stub\n',
     'lib/injection/modules/register_profile_module.dart': '// stub\n',
     'lib/injection/modules/register_settings_module.dart': '// stub\n',
-    'lib/injection/modules/register_voice_module.dart': '// stub\n',
     'lib/injection/modules/register_workout_module.dart': '// stub\n',
     'lib/injection/injection_container.dart': '// stub\n',
   };
@@ -201,15 +195,6 @@ String _topFp(Map<String, String> featureFps) {
     tables: ['app_metadata'],
   );
 
-  final voiceFp = _featureFp(
-    files: ['lib/features/voice/application/voice_bloc.dart'],
-    classes: ['VoiceBloc', 'VoiceSettingsCubit'],
-    repositories: ['lib/domain/repositories/voice_repository.dart'],
-    useCases: ['lib/domain/usecases/voice/send_voice_message.dart'],
-    injectionModule: ['lib/injection/modules/register_voice_module.dart'],
-    tables: [],
-  );
-
   final featureFps = {
     'auth': authFp,
     'history': historyFp,
@@ -218,7 +203,6 @@ String _topFp(Map<String, String> featureFps) {
     'log': logFp,
     'profile': profileFp,
     'settings': settingsFp,
-    'voice': voiceFp,
   };
   final topFp = _topFp(featureFps);
 
@@ -340,17 +324,6 @@ String _topFp(Map<String, String> featureFps) {
         'notes': '',
         'fingerprint': settingsFp,
       },
-      'voice': {
-        'summary': 'Voice bot.',
-        'paths': ['lib/features/voice/'],
-        'blocs': ['VoiceBloc', 'VoiceSettingsCubit'],
-        'repositories': ['lib/domain/repositories/voice_repository.dart'],
-        'useCases': ['lib/domain/usecases/voice/send_voice_message.dart'],
-        'injectionModule': 'lib/injection/modules/register_voice_module.dart',
-        'tables': [],
-        'notes': '',
-        'fingerprint': voiceFp,
-      },
     },
   });
 
@@ -366,7 +339,7 @@ void main() {
   group('StateFreshnessChecker', () {
     // ── Pass ─────────────────────────────────────────────────────────────────
     test(
-      'pass — all eight features consistent with source, fingerprints match',
+      'pass — all seven features consistent with source, fingerprints match',
       () async {
         final (repo, _) = _buildPassRepo();
         final checker = StateFreshnessChecker(repo);
@@ -437,24 +410,28 @@ void main() {
     });
 
     // ── Missing feature ───────────────────────────────────────────────────────
-    test('fail — required feature "voice" missing from features map', () async {
-      final (fullRepo, _) = _buildPassRepo();
-      // Parse, remove voice, re-serialize
-      final raw = await fullRepo.readFile('.claude/memory/state.json');
-      final data = jsonDecode(raw!) as Map<String, dynamic>;
-      (data['features'] as Map<String, dynamic>).remove('voice');
-      final repo = FakeRepoView({
-        ...fullRepo.files,
-        '.claude/memory/state.json': jsonEncode(data),
-      });
-      final violations = await StateFreshnessChecker(repo).run();
-      expect(
-        violations.any(
-          (v) => v.message.contains('Missing required feature entry: "voice"'),
-        ),
-        isTrue,
-      );
-    });
+    test(
+      'fail — required feature "library" missing from features map',
+      () async {
+        final (fullRepo, _) = _buildPassRepo();
+        // Parse, remove library, re-serialize
+        final raw = await fullRepo.readFile('.claude/memory/state.json');
+        final data = jsonDecode(raw!) as Map<String, dynamic>;
+        (data['features'] as Map<String, dynamic>).remove('library');
+        final repo = FakeRepoView({
+          ...fullRepo.files,
+          '.claude/memory/state.json': jsonEncode(data),
+        });
+        final violations = await StateFreshnessChecker(repo).run();
+        expect(
+          violations.any(
+            (v) =>
+                v.message.contains('Missing required feature entry: "library"'),
+          ),
+          isTrue,
+        );
+      },
+    );
 
     // ── Unexpected feature ────────────────────────────────────────────────────
     test('fail — unexpected feature "marketing" in features map', () async {
@@ -659,11 +636,11 @@ void main() {
     );
 
     // ── Repository path does not exist ────────────────────────────────────────
-    test('fail — "voice" repository path does not exist', () async {
+    test('fail — "history" repository path does not exist', () async {
       final (fullRepo, _) = _buildPassRepo();
       final raw = await fullRepo.readFile('.claude/memory/state.json');
       final data = jsonDecode(raw!) as Map<String, dynamic>;
-      (data['features']['voice'] as Map<String, dynamic>)['repositories'] = [
+      (data['features']['history'] as Map<String, dynamic>)['repositories'] = [
         'lib/domain/repositories/ghost_repository.dart',
       ];
       final repo = FakeRepoView({

@@ -66,16 +66,16 @@ The effect is emitted **after** the state update (line 143 before 145), so the w
 
 ## Cross-BLoC round-trip via Completer-bearing effect
 
-When a BLoC dispatches a mutation to another BLoC through a router widget (see `lib/app/voice/voice_command_router.dart`) and needs an authoritative success/failure outcome before proceeding, thread a `Completer<Outcome>` through the dispatch effect:
+When a BLoC dispatches a mutation to another BLoC through a router widget and needs an authoritative success/failure outcome before proceeding, thread a `Completer<Outcome>` through the dispatch effect:
 
-1. The **originating BLoC** (`VoiceBloc`) creates a `Completer<VoiceMutationOutcome>`, attaches it to the effect, and `await`s the future with a finite timeout.
-2. The **router widget** (`VoiceCommandRouter`) receives the effect, dispatches the corresponding event to the **target BLoC** (`WorkoutBloc`, `HistoryBloc`, etc.), and listens for that BLoC's next success or failure effect.
-3. The **target BLoC** emits both a state change (e.g. `WorkoutError`) and a new failure effect (e.g. `WorkoutMutationFailedEffect`) on failure — so both the state channel (for the UI) and the effect channel (for the router) are notified.
-4. The **router** completes the originating BLoC's completer when the outcome effect arrives. On `dispose()`, any in-flight or queued completers are completed with `VoiceMutationTimeout` so the originating BLoC is never permanently suspended.
+1. **The originating BLoC** creates a `Completer<Outcome>`, attaches it to the effect, and `await`s the future with a finite timeout.
+2. **The router widget** receives the effect, dispatches the corresponding event to the **target BLoC** (`WorkoutBloc`, `HistoryBloc`, etc.), and listens for that BLoC's next success or failure effect.
+3. **The target BLoC** emits both a state change (e.g. `WorkoutError`) and a new failure effect (e.g. `WorkoutMutationFailedEffect`) on failure — so both the state channel (for the UI) and the effect channel (for the router) are notified.
+4. **The router** completes the originating BLoC's completer when the outcome effect arrives. On `dispose()`, any in-flight or queued completers are completed with a timeout outcome so the originating BLoC is never permanently suspended.
 
-This keeps the architecture's directional flow (voice → router → target → router → voice) without introducing direct cross-feature BLoC references. Document the contract in the effect-class docstring and reference both producer and awaiter.
+This keeps the architecture's directional flow (originator → router → target → router → originator) without introducing direct cross-feature BLoC references. Document the contract in the effect-class docstring and reference both producer and awaiter.
 
-**Concrete example:** `voice_bloc.dart` `_dispatchMutationTool`, `voice_command_router.dart` `_onVoiceEffect` / `_completeInflight`, `workout_bloc.dart` `WorkoutMutationFailedEffect`. See Commit 3 of `plan-2-post-guest-removal-cleanups.md`.
+**Concrete example:** none currently in the tree. The pattern's original consumer — a command router that dispatched mutations across BLoCs — was removed in Spec A. Preserved here because any future cross-BLoC mutation dispatch must follow it.
 
 ---
 
@@ -97,17 +97,3 @@ This keeps the architecture's directional flow (voice → router → target → 
 If the effects contract changes — for example, `BlocEffectsMixin` is replaced, the Equatable requirement is dropped, or the load/refresh split moves to a different mechanism — update this file in the same PR and update the companion playbook in `.claude/skills/add-bloc-effect.md`.
 
 ---
-
-## Voice-specific: clarify-loop for multi-field edits
-
-`VoiceBloc` is *not* the canonical BLoC, but it adds two voice-specific contracts that any future tool-call BLoC must respect:
-
-1. **Spoken readback before confirmation.** When the LLM proposes a mutation tool call, `VoiceBloc` first speaks a deterministic readback (`"I heard: log Bench Press, 80 kilograms, 8 reps. Confirm or cancel."`) built **locally** from the parsed `VoiceToolCall.args` and the user's `WeightUnit`. The LLM never supplies the readback string — this closes the class of attack where the assistant's natural-language message says one thing and the `tool_call` args say another. After the readback finishes, the bloc transitions to `VoiceStatus.awaitingConfirmation` and sets `pendingConfirmation`. The visual `VoiceConfirmationCard` is keyed by `pendingConfirmation`; the status enum exists for test assertions and future UI hooks.
-
-2. **Clarify-per-field for multi-field edits.** When the LLM is ambiguous on multiple fields of an edit (e.g. "change my breakfast macros"), it should issue **one `clarify` per ambiguous field** rather than asking the user to dictate every field at once. The 15-second `VoiceConstants.sttListenTimeout` accepts short multi-field utterances, but the round-trip-per-field loop is more reliable than a single multi-field utterance against on-device STT. The bullet is enforced in the `voice-chat` Edge Function's `SYSTEM_PROMPT_TEMPLATE`, not in Dart — there is no client-side tool yet that *requires* the clarify loop, but library-edit tools added in the next plan should be designed around it.
-
-Both contracts live in `voice_bloc.dart` (`_buildReadback`, `_onPendingConfirmationSet`) and the `voice-chat` system prompt. If you add a new voice mutation tool, you must:
-
-- Add an arm to `_buildReadback` so the user hears the parsed values before the card appears.
-- Confirm the system prompt's clarify-loop bullet still makes sense for your tool's argument shape.
-- Add a test that asserts the readback fires *before* `pendingConfirmation` is set (use `FakeVoiceTtsService.spokenHistory` to check ordering).

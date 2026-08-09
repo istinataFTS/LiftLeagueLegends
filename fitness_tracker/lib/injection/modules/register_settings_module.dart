@@ -4,9 +4,11 @@ import '../../domain/repositories/app_settings_repository.dart';
 import '../../features/settings/application/app_settings_cubit.dart';
 
 /// Registers [AppSettingsCubit] as a lazy singleton so every injection point
-/// (Settings page, VoiceSettingsCubit) shares the same instance and state.
+/// shares the same instance and state. Settings values (weight unit, week
+/// start day, expansion state) are read from multiple pages and must not
+/// diverge between them.
 void registerSettingsModule(GetIt sl) {
-  // convention-checker:allow=bloc-factory-registration reason=shared cross-page state for Settings and VoiceSettings pages
+  // convention-checker:allow=bloc-factory-registration reason=app-wide settings state read by multiple pages; a factory would let instances diverge
   sl.registerLazySingleton<AppSettingsCubit>(
     () => AppSettingsCubit(repository: sl<AppSettingsRepository>()),
   );

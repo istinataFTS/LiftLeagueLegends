@@ -5,7 +5,6 @@ import 'package:fitness_tracker/domain/entities/app_session.dart';
 import 'package:fitness_tracker/domain/entities/app_user.dart';
 import 'package:fitness_tracker/domain/entities/exercise.dart';
 import 'package:fitness_tracker/domain/entities/meal.dart';
-import 'package:fitness_tracker/domain/entities/voice_settings.dart';
 import 'package:fitness_tracker/features/history/history.dart';
 import 'package:fitness_tracker/features/home/application/home_bloc.dart';
 import 'package:fitness_tracker/features/home/application/muscle_visual_bloc.dart';
@@ -15,10 +14,6 @@ import 'package:fitness_tracker/features/log/log.dart';
 import 'package:fitness_tracker/features/profile/application/profile_cubit.dart';
 import 'package:fitness_tracker/features/settings/application/app_settings_cubit.dart';
 import 'package:fitness_tracker/features/settings/presentation/settings_scope.dart';
-import 'package:fitness_tracker/domain/services/voice_media_button_service.dart';
-import 'package:fitness_tracker/domain/services/voice_wake_word_service.dart';
-import 'package:fitness_tracker/features/voice/application/voice_settings_cubit.dart';
-import 'package:fitness_tracker/injection/injection_container.dart';
 import 'package:fitness_tracker/presentation/navigation/bottom_navigation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
@@ -34,9 +29,6 @@ class MockAppSettingsCubit extends MockCubit<AppSettingsState>
 
 class MockProfileCubit extends MockCubit<ProfileState>
     implements ProfileCubit {}
-
-class MockVoiceSettingsCubit extends MockCubit<VoiceSettings>
-    implements VoiceSettingsCubit {}
 
 class MockHomeBloc extends MockBloc<HomeEvent, HomeState> implements HomeBloc {}
 
@@ -92,65 +84,12 @@ class FakeNutritionLogEvent extends Fake implements NutritionLogEvent {}
 class FakeNutritionLogState extends Fake implements NutritionLogState {}
 
 // ---------------------------------------------------------------------------
-// Fake service stubs — no-op, stream-safe, no native binaries.
-// ---------------------------------------------------------------------------
-
-class _FakeVoiceMediaButtonService implements VoiceMediaButtonService {
-  final StreamController<void> _pressCtrl = StreamController<void>.broadcast();
-
-  @override
-  Stream<void> get onMediaButtonPressed => _pressCtrl.stream;
-
-  @override
-  bool get isRunning => false;
-
-  @override
-  Future<void> start() async {}
-
-  @override
-  Future<void> stop() async {}
-
-  Future<void> dispose() => _pressCtrl.close();
-}
-
-class _FakeVoiceWakeWordService implements VoiceWakeWordService {
-  final StreamController<WakeWordPreset> _detectedCtrl =
-      StreamController<WakeWordPreset>.broadcast();
-  final StreamController<VoiceWakeWordException> _errorCtrl =
-      StreamController<VoiceWakeWordException>.broadcast();
-
-  @override
-  Stream<WakeWordPreset> get onWakeWordDetected => _detectedCtrl.stream;
-
-  @override
-  Stream<VoiceWakeWordException> get onError => _errorCtrl.stream;
-
-  @override
-  bool get isRunning => false;
-
-  @override
-  Future<void> start(WakeWordPreset preset) async {}
-
-  @override
-  Future<void> stop() async {}
-
-  @override
-  Future<void> dispose() async {
-    await _detectedCtrl.close();
-    await _errorCtrl.close();
-  }
-}
-
-// ---------------------------------------------------------------------------
 // Tests
 // ---------------------------------------------------------------------------
 
 void main() {
   late MockAppSettingsCubit appSettingsCubit;
   late MockProfileCubit profileCubit;
-  late MockVoiceSettingsCubit voiceSettingsCubit;
-  late _FakeVoiceWakeWordService voiceWakeWordService;
-  late _FakeVoiceMediaButtonService voiceMediaButtonService;
   late MockHomeBloc homeBloc;
   late MockMuscleVisualBloc muscleVisualBloc;
   late MockExerciseBloc exerciseBloc;
@@ -179,9 +118,6 @@ void main() {
   setUp(() {
     appSettingsCubit = MockAppSettingsCubit();
     profileCubit = MockProfileCubit();
-    voiceSettingsCubit = MockVoiceSettingsCubit();
-    voiceWakeWordService = _FakeVoiceWakeWordService();
-    voiceMediaButtonService = _FakeVoiceMediaButtonService();
     homeBloc = MockHomeBloc();
     muscleVisualBloc = MockMuscleVisualBloc();
     exerciseBloc = MockExerciseBloc();
@@ -211,14 +147,6 @@ void main() {
       profileCubit,
       const Stream<ProfileState>.empty(),
       initialState: authedState,
-    );
-
-    when(() => voiceSettingsCubit.state).thenReturn(const VoiceSettings());
-    when(() => voiceSettingsCubit.ready).thenAnswer((_) => Future.value());
-    whenListen<VoiceSettings>(
-      voiceSettingsCubit,
-      const Stream<VoiceSettings>.empty(),
-      initialState: const VoiceSettings(),
     );
 
     when(() => homeBloc.state).thenReturn(const HomeInitial());
@@ -279,29 +207,6 @@ void main() {
     when(() => exerciseBloc.add(any())).thenReturn(null);
     when(() => mealBloc.add(any())).thenReturn(null);
     when(() => historyBloc.add(any())).thenReturn(null);
-
-    // GetIt singletons formerly required by VoiceFab, which this task
-    // removed from BottomNavigation's build(); left registered here pending
-    // the full voice-feature teardown in a later PR.
-    if (sl.isRegistered<VoiceWakeWordService>()) {
-      sl.unregister<VoiceWakeWordService>();
-    }
-    if (sl.isRegistered<VoiceMediaButtonService>()) {
-      sl.unregister<VoiceMediaButtonService>();
-    }
-    sl.registerSingleton<VoiceWakeWordService>(voiceWakeWordService);
-    sl.registerSingleton<VoiceMediaButtonService>(voiceMediaButtonService);
-  });
-
-  tearDown(() async {
-    if (sl.isRegistered<VoiceWakeWordService>()) {
-      sl.unregister<VoiceWakeWordService>();
-    }
-    if (sl.isRegistered<VoiceMediaButtonService>()) {
-      sl.unregister<VoiceMediaButtonService>();
-    }
-    await voiceWakeWordService.dispose();
-    await voiceMediaButtonService.dispose();
   });
 
   Widget buildSubject() {
@@ -316,10 +221,6 @@ void main() {
         BlocProvider<WorkoutBloc>.value(value: workoutBloc),
         BlocProvider<HistoryBloc>.value(value: historyBloc),
         BlocProvider<NutritionLogBloc>.value(value: nutritionLogBloc),
-        // Provided for voice-feature widgets reachable from this tree (e.g.
-        // ProfilePage's voice-assistant entry point); BottomNavigation
-        // itself no longer reads it directly.
-        BlocProvider<VoiceSettingsCubit>.value(value: voiceSettingsCubit),
       ],
       child: SettingsScope(child: MaterialApp(home: const BottomNavigation())),
     );

@@ -9,10 +9,8 @@ import '../../../../core/constants/app_strings.dart';
 import '../../../../core/constants/muscle_groups.dart';
 import '../../../../core/constants/muscle_stimulus_constants.dart';
 import '../../../../core/themes/app_theme.dart';
-import '../../../../core/ui/keypad_visibility_controller.dart';
 import '../../../../core/utils/weight_unit_utils.dart';
 import '../../../../core/utils/week_date_utils.dart';
-import '../../../../injection/injection_container.dart';
 import '../../../../domain/entities/app_settings.dart';
 import '../../../../domain/entities/exercise.dart';
 import '../../../../domain/entities/workout_set.dart';
@@ -61,14 +59,12 @@ class _LogExerciseTabState extends State<LogExerciseTab> {
   int _selectedIntensity = MuscleStimulus.defaultIntensity;
   bool _logCooldownActive = false;
   _KeypadField? _activeKeypad;
-  late final KeypadVisibilityController _keypadVisibility;
 
   @override
   void initState() {
     super.initState();
 
     _selectedDate = widget.initialDate ?? DateTime.now();
-    _keypadVisibility = sl<KeypadVisibilityController>();
 
     final WorkoutBloc workoutBloc = context.read<WorkoutBloc>();
     _workoutEffectsSub = workoutBloc.effects.listen((WorkoutUiEffect effect) {
@@ -123,17 +119,11 @@ class _LogExerciseTabState extends State<LogExerciseTab> {
   void dispose() {
     _workoutEffectsSub?.cancel();
     _logCooldownTimer?.cancel();
-    _keypadVisibility.hide();
     super.dispose();
   }
 
   void _setKeypad(_KeypadField? field) {
     setState(() => _activeKeypad = field);
-    if (field == null) {
-      _keypadVisibility.hide();
-    } else {
-      _keypadVisibility.show();
-    }
   }
 
   @override

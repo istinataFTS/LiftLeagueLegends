@@ -10,7 +10,6 @@ import 'package:fitness_tracker/domain/usecases/exercises/update_exercise.dart';
 import 'package:fitness_tracker/domain/usecases/muscle_factors/get_muscle_factors_for_exercise.dart';
 import 'package:fitness_tracker/features/library/application/exercise_bloc.dart';
 import 'package:fitness_tracker/features/library/presentation/widgets/exercises_tab.dart';
-import 'package:fitness_tracker/features/voice/data/lookup/exercise_lookup.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -37,8 +36,6 @@ class MockEnsureDefaultExercises extends Mock
 
 class MockGetMuscleFactorsForExercise extends Mock
     implements GetMuscleFactorsForExercise {}
-
-class MockExerciseLookup extends Mock implements ExerciseLookup {}
 
 // ---------------------------------------------------------------------------
 // Fixtures
@@ -67,8 +64,6 @@ Widget _buildHarness(ExerciseBloc bloc) {
 }
 
 ExerciseBloc _makeBloc({required MockGetAllExercises mockGetAll}) {
-  final mockLookup = MockExerciseLookup();
-  when(() => mockLookup.invalidate()).thenReturn(null);
   return ExerciseBloc(
     getAllExercises: mockGetAll,
     getExerciseById: MockGetExerciseById(),
@@ -78,7 +73,6 @@ ExerciseBloc _makeBloc({required MockGetAllExercises mockGetAll}) {
     deleteExercise: MockDeleteExercise(),
     ensureDefaultExercises: MockEnsureDefaultExercises(),
     getMuscleFactorsForExercise: MockGetMuscleFactorsForExercise(),
-    exerciseLookup: mockLookup,
   );
 }
 

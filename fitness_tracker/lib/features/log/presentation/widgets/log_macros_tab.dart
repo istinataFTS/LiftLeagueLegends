@@ -7,10 +7,8 @@ import 'package:uuid/uuid.dart';
 
 import '../../../../core/constants/app_strings.dart';
 import '../../../../core/themes/app_theme.dart';
-import '../../../../core/ui/keypad_visibility_controller.dart';
 import '../../../../core/utils/macro_calculator.dart';
 import '../../../../core/utils/week_date_utils.dart';
-import '../../../../injection/injection_container.dart';
 import '../../../../domain/entities/nutrition_log.dart';
 import '../../application/nutrition_log_bloc.dart';
 import 'shared/log_action_bar.dart';
@@ -52,7 +50,6 @@ class _LogMacrosTabState extends State<LogMacrosTab> {
   bool _logCooldownActive = false;
   _MacroField? _editingField;
   Timer? _logCooldownTimer;
-  late final KeypadVisibilityController _keypadVisibility;
 
   StreamSubscription<NutritionLogUiEffect>? _nutritionEffectsSub;
 
@@ -61,7 +58,6 @@ class _LogMacrosTabState extends State<LogMacrosTab> {
     super.initState();
 
     _selectedDate = widget.initialDate ?? DateTime.now();
-    _keypadVisibility = sl<KeypadVisibilityController>();
 
     final NutritionLogBloc nutritionBloc = context.read<NutritionLogBloc>();
 
@@ -109,17 +105,11 @@ class _LogMacrosTabState extends State<LogMacrosTab> {
   void dispose() {
     _nutritionEffectsSub?.cancel();
     _logCooldownTimer?.cancel();
-    _keypadVisibility.hide();
     super.dispose();
   }
 
   void _setEditingField(_MacroField? field) {
     setState(() => _editingField = field);
-    if (field == null) {
-      _keypadVisibility.hide();
-    } else {
-      _keypadVisibility.show();
-    }
   }
 
   @override
