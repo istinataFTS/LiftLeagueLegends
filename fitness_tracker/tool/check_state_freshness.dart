@@ -55,7 +55,7 @@ final class StateFreshnessChecker {
 
   static const String _stateJsonPath = '.claude/memory/state.json';
 
-  /// The eight features tracked in the codebase map. Alphabetical.
+  /// The seven features tracked in the codebase map. Alphabetical.
   static const Set<String> _requiredFeatures = {
     'auth',
     'history',
@@ -64,7 +64,6 @@ final class StateFreshnessChecker {
     'log',
     'profile',
     'settings',
-    'voice',
   };
 
   /// Fields every feature entry must declare.
