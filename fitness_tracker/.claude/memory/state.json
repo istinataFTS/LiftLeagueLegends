@@ -1,7 +1,7 @@
 {
   "schemaVersion": 1,
   "generatedAt": "2026-05-25",
-  "fingerprint": "a30a62887b616211",
+  "fingerprint": "0bfc7ba94e78c818",
   "features": {
     "auth": {
       "summary": "Authentication cubits for sign-in, sign-up, and OTP verification.",
@@ -195,7 +195,7 @@
         "app_metadata"
       ],
       "notes": "AppSettingsCubit is registered as lazySingleton (intentional waiver — see register_settings_module.dart:9 and KNOWN_ISSUES.md #blocs-must-be-factories-repositories-singletons). AppSettingsRepository now exposes Stream<AppSettings> watchSettings() with behavior-subject semantics (replay-last-value on subscribe, re-emit after each successful save). AppSettingsCubit subscribes to this stream so writes from any cubit (including VoiceSettingsCubit) are observable.",
-      "fingerprint": "e56e70ae91480f9b"
+      "fingerprint": "156c97a24e604fb5"
     },
     "voice": {
       "summary": "Wake-word-triggered voice bot: STT on-device, LLM via edge function, TTS on-device.",
