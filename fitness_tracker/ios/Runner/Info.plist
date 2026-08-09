@@ -52,15 +52,6 @@
 	<!-- Privacy - Required for App Store -->
 	<key>NSUserTrackingUsageDescription</key>
 	<string>This app does not track user data.</string>
-	<!-- Voice bot: on-device STT uses SFSpeechRecognizer, which
-	     requires BOTH the microphone permission and the speech
-	     recognition permission. The mic prompt fires first; the
-	     speech recognition prompt fires the first time we initialize
-	     the recognizer. -->
-	<key>NSMicrophoneUsageDescription</key>
-	<string>The voice assistant uses the microphone so you can log workouts and meals hands-free.</string>
-	<key>NSSpeechRecognitionUsageDescription</key>
-	<string>The voice assistant transcribes your speech on this device to log workouts and meals.</string>
 	<!-- Prevent backup of database to iCloud -->
 	<key>UIFileSharingEnabled</key>
 	<false/>

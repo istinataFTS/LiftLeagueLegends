@@ -1,12 +1,6 @@
 <manifest xmlns:android="http://schemas.android.com/apk/res/android">
-    <!-- Voice bot: device-native STT (SpeechRecognizer) and TTS (TextToSpeech)
-         require microphone access and the ability to query installed TTS / STT
-         services. INTERNET is required by the LLM (`voice-chat`) Edge-Function
-         call, but not by the on-device STT/TTS themselves. -->
-    <uses-permission android:name="android.permission.RECORD_AUDIO"/>
+    <!-- Supabase sync and auth. -->
     <uses-permission android:name="android.permission.INTERNET"/>
-    <!-- wakelock_plus: keep screen on during Workout Mode -->
-    <uses-permission android:name="android.permission.WAKE_LOCK"/>
     <application
         android:label="Lift League Legends"
         android:name="${applicationName}"
@@ -48,14 +42,6 @@
         <intent>
             <action android:name="android.intent.action.PROCESS_TEXT"/>
             <data android:mimeType="text/plain"/>
-        </intent>
-        <!-- speech_to_text package: query the system speech recognizer. -->
-        <intent>
-            <action android:name="android.speech.RecognitionService" />
-        </intent>
-        <!-- flutter_tts package: query the system TTS engine. -->
-        <intent>
-            <action android:name="android.intent.action.TTS_SERVICE" />
         </intent>
     </queries>
 </manifest>
