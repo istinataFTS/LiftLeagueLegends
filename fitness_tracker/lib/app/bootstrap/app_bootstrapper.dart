@@ -13,7 +13,6 @@ import '../../core/sync/remote_sync_runtime_policy.dart';
 import '../../core/sync/sync_orchestrator.dart';
 import '../../core/utils/app_lifecycle_manager.dart';
 import '../../core/utils/performance_monitor.dart';
-import '../../domain/services/voice_permission_service.dart';
 import '../../domain/usecases/muscle_stimulus/run_pending_stimulus_rebuild.dart';
 import '../../injection/injection_container.dart' as di;
 import 'app_data_seeder.dart';
@@ -179,7 +178,6 @@ class AppBootstrapper {
       unawaited(_seedDefaultDataIfNeeded());
       unawaited(_runPendingStimulusRebuildIfNeeded());
       unawaited(_runDiagnosticsIfNeeded());
-      unawaited(_requestVoicePermissionIfNeeded());
     });
   }
 
@@ -202,34 +200,6 @@ class AppBootstrapper {
     } catch (error, stackTrace) {
       AppLogger.warning(
         'Pending muscle stimulus rebuild failed',
-        category: 'bootstrap',
-        error: error,
-        stackTrace: stackTrace,
-      );
-    }
-  }
-
-  /// Trigger the OS microphone permission dialog upfront so the user grants
-  /// it once, at first launch, rather than mid-session when the wake word
-  /// fires or the FAB is tapped. The OS dedupes on subsequent launches —
-  /// `request()` is a no-op when permission is already granted or has been
-  /// permanently denied.
-  ///
-  /// Non-fatal: if the user denies, voice features show a SnackBar with
-  /// "Open Settings" the first time they're invoked.
-  Future<void> _requestVoicePermissionIfNeeded() async {
-    if (kIsWeb) return;
-
-    try {
-      final permissionService = di.sl<VoicePermissionService>();
-      final status = await permissionService.checkMicrophonePermission();
-      if (status == VoicePermissionStatus.granted) {
-        return;
-      }
-      await permissionService.requestMicrophonePermission();
-    } catch (error, stackTrace) {
-      AppLogger.warning(
-        'Failed to request microphone permission at startup',
         category: 'bootstrap',
         error: error,
         stackTrace: stackTrace,

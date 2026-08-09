@@ -3,7 +3,6 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 
-import '../../../app/routes/app_routes.dart';
 import '../../../app/voice/voice_command_router.dart';
 import '../../../core/constants/app_strings.dart';
 import '../../../core/network/network_status_service.dart';
@@ -242,10 +241,7 @@ class _VoiceOverlayViewState extends State<_VoiceOverlayView> {
                     ),
 
                   // ── Header ───────────────────────────────────────────────
-                  _OverlayHeader(
-                    onClose: () => Navigator.of(context).pop(),
-                    onSettings: () => _openSettings(context),
-                  ),
+                  _OverlayHeader(onClose: () => Navigator.of(context).pop()),
 
                   // ── Budget indicator ─────────────────────────────────────
                   const VoiceBudgetIndicator(
@@ -331,13 +327,6 @@ class _VoiceOverlayViewState extends State<_VoiceOverlayView> {
       ),
     );
   }
-
-  void _openSettings(BuildContext context) {
-    // VoiceSettingsCubit is provided at the auth-session shell level —
-    // pushed routes resolve it via `context.read` without a nested
-    // BlocProvider.
-    Navigator.of(context).pushNamed(AppRoutes.voiceSettings);
-  }
 }
 
 // ---------------------------------------------------------------------------
@@ -416,10 +405,9 @@ class _VoiceEditBar extends StatelessWidget {
 // ---------------------------------------------------------------------------
 
 class _OverlayHeader extends StatelessWidget {
-  const _OverlayHeader({required this.onClose, required this.onSettings});
+  const _OverlayHeader({required this.onClose});
 
   final VoidCallback onClose;
-  final VoidCallback onSettings;
 
   @override
   Widget build(BuildContext context) {
@@ -444,13 +432,6 @@ class _OverlayHeader extends StatelessWidget {
                 fontWeight: FontWeight.w600,
               ),
             ),
-          ),
-          IconButton(
-            key: VoiceOverlayKeys.settingsButtonKey,
-            icon: const Icon(Icons.tune_rounded),
-            color: AppTheme.textMedium,
-            onPressed: onSettings,
-            tooltip: AppStrings.voiceSettingsPageTitle,
           ),
         ],
       ),

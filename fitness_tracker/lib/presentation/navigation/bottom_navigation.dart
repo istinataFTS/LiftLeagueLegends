@@ -13,7 +13,6 @@ import '../../features/log/application/nutrition_log_bloc.dart';
 import '../../features/log/presentation/pages/log_page.dart';
 import '../../features/profile/profile.dart';
 import '../../features/settings/presentation/settings_scope.dart';
-import '../../features/voice/presentation/widgets/voice_fab.dart';
 
 class BottomNavigation extends StatefulWidget {
   const BottomNavigation({super.key});
@@ -129,20 +128,7 @@ class _BottomNavigationState extends State<BottomNavigation> {
 
   @override
   Widget build(BuildContext context) {
-    final session = context.watch<ProfileCubit>().state.session;
-    if (session == null) {
-      // AuthGate should prevent this; render the body without the FAB as a
-      // belt-and-braces fallback during a sign-out transition.
-      return Scaffold(
-        body: IndexedStack(
-          index: _selectedIndex,
-          children: List<Widget>.generate(_tabCount, _buildPageForIndex),
-        ),
-      );
-    }
     return Scaffold(
-      floatingActionButton: VoiceFab(session: session),
-      floatingActionButtonLocation: FloatingActionButtonLocation.endFloat,
       body: IndexedStack(
         index: _selectedIndex,
         children: List<Widget>.generate(_tabCount, _buildPageForIndex),

@@ -32,7 +32,6 @@ class SettingsPageViewData extends Equatable {
     required this.isLoading,
     required this.isSaving,
     required this.errorMessage,
-    this.voiceSettings = const VoiceSettingsViewData(),
   });
 
   final String infoMessage;
@@ -68,7 +67,6 @@ class SettingsPageViewData extends Equatable {
   final bool isLoading;
   final bool isSaving;
   final String? errorMessage;
-  final VoiceSettingsViewData voiceSettings;
 
   @override
   List<Object?> get props => <Object?>[
@@ -100,32 +98,6 @@ class SettingsPageViewData extends Equatable {
     isLoading,
     isSaving,
     errorMessage,
-    voiceSettings,
-  ];
-}
-
-/// Subset of voice settings the main Settings page shows.
-///
-/// Note: this is a *trimmed* projection — the full wake-word picker,
-/// volume slider, and credential UI live on the dedicated Voice
-/// Settings page (added in C-3). The main page only exposes the
-/// two most-frequently-toggled fields.
-class VoiceSettingsViewData extends Equatable {
-  const VoiceSettingsViewData({
-    this.sessionLoggingEnabled = false,
-    this.ttsSpeechRate = 1.0,
-    this.ttsSpeechRatePreview = '1.0×',
-  });
-
-  final bool sessionLoggingEnabled;
-  final double ttsSpeechRate;
-  final String ttsSpeechRatePreview;
-
-  @override
-  List<Object?> get props => <Object?>[
-    sessionLoggingEnabled,
-    ttsSpeechRate,
-    ttsSpeechRatePreview,
   ];
 }
 

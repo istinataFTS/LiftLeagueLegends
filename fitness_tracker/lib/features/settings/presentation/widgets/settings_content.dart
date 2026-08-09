@@ -1,6 +1,5 @@
 import 'package:flutter/material.dart';
 
-import '../../../../core/constants/app_strings.dart';
 import '../../../../core/themes/app_theme.dart';
 import '../models/settings_page_view_data.dart';
 import '../settings_page_keys.dart';
@@ -13,7 +12,6 @@ class SettingsContent extends StatelessWidget {
     required this.onNotificationsChanged,
     required this.onWeekStartTapped,
     required this.onWeightUnitTapped,
-    required this.onOpenVoiceSettings,
     required this.onUsernameTapped,
   });
 
@@ -22,7 +20,6 @@ class SettingsContent extends StatelessWidget {
   final ValueChanged<bool> onNotificationsChanged;
   final VoidCallback onWeekStartTapped;
   final VoidCallback onWeightUnitTapped;
-  final VoidCallback onOpenVoiceSettings;
   final VoidCallback onUsernameTapped;
 
   @override
@@ -117,21 +114,6 @@ class SettingsContent extends StatelessWidget {
                 icon: Icons.storage_outlined,
                 title: viewData.storageModeTitle,
                 subtitle: viewData.storageModeSubtitle,
-              ),
-            ],
-          ),
-          const SizedBox(height: 24),
-          _Section(
-            title: AppStrings.voiceSectionTitle,
-            children: <Widget>[
-              _SelectionTile(
-                tileKey: SettingsPageKeys.voiceAssistantTileKey,
-                icon: Icons.mic_rounded,
-                title: AppStrings.voiceProfileTileTitle,
-                subtitle: AppStrings.voiceProfileTileSubtitle,
-                helperText: '',
-                enabled: true,
-                onTap: onOpenVoiceSettings,
               ),
             ],
           ),

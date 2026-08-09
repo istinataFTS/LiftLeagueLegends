@@ -5,7 +5,6 @@ import 'package:fitness_tracker/domain/entities/app_session.dart';
 import 'package:fitness_tracker/domain/entities/app_user.dart';
 import 'package:fitness_tracker/domain/entities/exercise.dart';
 import 'package:fitness_tracker/domain/entities/meal.dart';
-import 'package:fitness_tracker/core/ui/keypad_visibility_controller.dart';
 import 'package:fitness_tracker/domain/entities/voice_settings.dart';
 import 'package:fitness_tracker/features/history/history.dart';
 import 'package:fitness_tracker/features/home/application/home_bloc.dart';
@@ -281,23 +280,17 @@ void main() {
     when(() => mealBloc.add(any())).thenReturn(null);
     when(() => historyBloc.add(any())).thenReturn(null);
 
-    // VoiceFab (rendered by BottomNavigation) reads VoiceWakeWordService
-    // and VoiceMediaButtonService from GetIt in initState; register fakes
-    // before each pump.
+    // GetIt singletons formerly required by VoiceFab, which this task
+    // removed from BottomNavigation's build(); left registered here pending
+    // the full voice-feature teardown in a later PR.
     if (sl.isRegistered<VoiceWakeWordService>()) {
       sl.unregister<VoiceWakeWordService>();
     }
     if (sl.isRegistered<VoiceMediaButtonService>()) {
       sl.unregister<VoiceMediaButtonService>();
     }
-    if (sl.isRegistered<KeypadVisibilityController>()) {
-      sl.unregister<KeypadVisibilityController>();
-    }
     sl.registerSingleton<VoiceWakeWordService>(voiceWakeWordService);
     sl.registerSingleton<VoiceMediaButtonService>(voiceMediaButtonService);
-    sl.registerSingleton<KeypadVisibilityController>(
-      KeypadVisibilityController(),
-    );
   });
 
   tearDown(() async {
@@ -306,9 +299,6 @@ void main() {
     }
     if (sl.isRegistered<VoiceMediaButtonService>()) {
       sl.unregister<VoiceMediaButtonService>();
-    }
-    if (sl.isRegistered<KeypadVisibilityController>()) {
-      sl.unregister<KeypadVisibilityController>();
     }
     await voiceWakeWordService.dispose();
     await voiceMediaButtonService.dispose();
@@ -326,12 +316,25 @@ void main() {
         BlocProvider<WorkoutBloc>.value(value: workoutBloc),
         BlocProvider<HistoryBloc>.value(value: historyBloc),
         BlocProvider<NutritionLogBloc>.value(value: nutritionLogBloc),
-        // VoiceFab inside BottomNavigation reads this cubit from context.
+        // Provided for voice-feature widgets reachable from this tree (e.g.
+        // ProfilePage's voice-assistant entry point); BottomNavigation
+        // itself no longer reads it directly.
         BlocProvider<VoiceSettingsCubit>.value(value: voiceSettingsCubit),
       ],
       child: SettingsScope(child: MaterialApp(home: const BottomNavigation())),
     );
   }
+
+  testWidgets('renders no floating action button', (WidgetTester tester) async {
+    await tester.pumpWidget(buildSubject());
+    // Not pumpAndSettle(): HomePage shows an indeterminate
+    // CircularProgressIndicator while HomeBloc is HomeInitial (this file's
+    // fixture state), which never settles — same reason every other test in
+    // this file uses a single pump().
+    await tester.pump();
+
+    expect(find.byType(FloatingActionButton), findsNothing);
+  });
 
   testWidgets('opening History eagerly loads exercise and meal library data', (
     WidgetTester tester,

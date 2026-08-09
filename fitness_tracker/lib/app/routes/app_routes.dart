@@ -16,11 +16,6 @@ abstract final class AppRoutes {
   /// Main settings page.
   static const String settings = '/settings';
 
-  /// Voice-specific settings page. The required [VoiceSettingsCubit] is
-  /// provided once at the auth-session shell level, so this route does
-  /// not need a nested `BlocProvider`.
-  static const String voiceSettings = '/settings/voice';
-
   /// Sign-in form. Returns `bool` via `Navigator.pop(context, true|false)`
   /// — `true` indicates a successful sign-in. Callers should treat any
   /// other value (including `null`) as "user cancelled".

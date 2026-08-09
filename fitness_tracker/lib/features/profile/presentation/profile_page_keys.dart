@@ -13,9 +13,6 @@ class ProfilePageKeys {
     'profile_session_banner',
   );
   static const Key settingsTileKey = ValueKey<String>('profile_settings_tile');
-  static const Key voiceAssistantTileKey = ValueKey<String>(
-    'profile_voice_assistant_tile',
-  );
   static const Key accountModeBannerKey = ValueKey<String>(
     'profile_account_mode_banner',
   );

@@ -3,11 +3,9 @@ import 'package:fitness_tracker/domain/entities/app_session.dart';
 import 'package:fitness_tracker/domain/entities/app_settings.dart';
 import 'package:fitness_tracker/domain/entities/app_user.dart';
 import 'package:fitness_tracker/domain/entities/user_profile.dart';
-import 'package:fitness_tracker/domain/entities/voice_settings.dart';
 import 'package:fitness_tracker/features/profile/application/profile_cubit.dart';
 import 'package:fitness_tracker/features/settings/application/app_settings_cubit.dart';
 import 'package:fitness_tracker/features/settings/presentation/settings_page.dart';
-import 'package:fitness_tracker/features/voice/application/voice_settings_cubit.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -15,9 +13,6 @@ import 'package:mocktail/mocktail.dart';
 
 class MockAppSettingsCubit extends MockCubit<AppSettingsState>
     implements AppSettingsCubit {}
-
-class MockVoiceSettingsCubit extends MockCubit<VoiceSettings>
-    implements VoiceSettingsCubit {}
 
 class MockProfileCubit extends MockCubit<ProfileState>
     implements ProfileCubit {}
@@ -53,7 +48,6 @@ void main() {
   });
 
   late MockAppSettingsCubit cubit;
-  late MockVoiceSettingsCubit voiceCubit;
   late MockProfileCubit profileCubit;
 
   AppSettingsState buildState({
@@ -76,7 +70,6 @@ void main() {
     return MultiBlocProvider(
       providers: [
         BlocProvider<AppSettingsCubit>.value(value: cubit),
-        BlocProvider<VoiceSettingsCubit>.value(value: voiceCubit),
         BlocProvider<ProfileCubit>.value(value: profileCubit),
       ],
       child: const MaterialApp(home: SettingsPage()),
@@ -85,7 +78,6 @@ void main() {
 
   setUp(() {
     cubit = MockAppSettingsCubit();
-    voiceCubit = MockVoiceSettingsCubit();
     profileCubit = MockProfileCubit();
 
     final ProfileState guestState = _guestProfileState();
@@ -95,18 +87,6 @@ void main() {
       const Stream<ProfileState>.empty(),
       initialState: guestState,
     );
-
-    const VoiceSettings initialVoiceSettings = VoiceSettings.defaults();
-    when(() => voiceCubit.state).thenReturn(initialVoiceSettings);
-    whenListen<VoiceSettings>(
-      voiceCubit,
-      const Stream<VoiceSettings>.empty(),
-      initialState: initialVoiceSettings,
-    );
-    when(
-      () => voiceCubit.setSessionLoggingEnabled(any()),
-    ).thenAnswer((_) async => true);
-    when(() => voiceCubit.setTtsVolume(any())).thenAnswer((_) async => true);
 
     final AppSettingsState initialState = buildState(
       settings: const AppSettings(
@@ -270,8 +250,8 @@ void main() {
     'saving state disables selection tiles and shows saving indicator',
     (WidgetTester tester) async {
       // Use a tall viewport so that the saving indicator (rendered at the bottom
-      // of the list, after the voice section added in C-2) is within Flutter's
-      // build cache extent and findable in the widget tree.
+      // of the list) is within Flutter's build cache extent and findable in
+      // the widget tree.
       tester.view.physicalSize = const Size(800, 3000);
       tester.view.devicePixelRatio = 1.0;
       addTearDown(tester.view.resetPhysicalSize);

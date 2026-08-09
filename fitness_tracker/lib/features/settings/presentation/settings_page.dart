@@ -1,11 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 
-import '../../../app/routes/app_routes.dart';
 import '../../../core/themes/app_theme.dart';
 import '../../../core/validation/username_validator.dart';
 import '../../../domain/entities/app_settings.dart';
-import '../../../domain/entities/voice_settings.dart';
 // convention-checker:allow=cross-feature-presentation-import reason=settings observes ProfileCubit (app-level singleton) for username display; data-observation pattern, not navigation
 import '../../../features/profile/application/profile_cubit.dart';
 import '../application/app_settings_cubit.dart';
@@ -71,18 +69,12 @@ class _SettingsPageState extends State<SettingsPage> {
         context.read<AppSettingsCubit>().clearError();
       },
       builder: (BuildContext context, AppSettingsState state) {
-        // Voice settings live inside [AppSettings]; reading them off the
-        // same cubit avoids depending on `VoiceSettingsCubit` here. Both
-        // cubits subscribe to `AppSettingsRepository.watchSettings()`,
-        // so the values stay in sync.
-        final VoiceSettings voiceSettings = state.settings.voiceSettings;
         final ProfileState profileState = context.watch<ProfileCubit>().state;
         final String? username = profileState.session != null
             ? profileState.userProfile?.username
             : null;
         final SettingsPageViewData viewData = SettingsPageViewDataMapper.map(
           state,
-          voiceSettings: voiceSettings,
           username: username,
         );
 
@@ -108,7 +100,6 @@ class _SettingsPageState extends State<SettingsPage> {
             onWeightUnitTapped: state.isSaving
                 ? () {}
                 : () => _selectWeightUnit(context, viewData, state.settings),
-            onOpenVoiceSettings: () => _openVoiceSettings(context),
             onUsernameTapped: profileState.isLoading
                 ? () {}
                 : () => _editUsername(context, username ?? ''),
@@ -116,13 +107,6 @@ class _SettingsPageState extends State<SettingsPage> {
         );
       },
     );
-  }
-
-  void _openVoiceSettings(BuildContext context) {
-    // VoiceSettingsCubit is provided at the auth-session shell level,
-    // so pushed routes resolve it via `context.read` automatically —
-    // no nested BlocProvider needed here.
-    Navigator.of(context).pushNamed(AppRoutes.voiceSettings);
   }
 
   Future<void> _editUsername(
