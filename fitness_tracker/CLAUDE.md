@@ -20,7 +20,7 @@ flutter analyze                         # static analysis
 ### Local Supabase stack
 
 ```sh
-supabase start                          # start local Postgres + Edge Function runtime
+supabase start                          # start the local Postgres + Supabase stack
 supabase db push                        # apply pending migrations
 ```
 
@@ -32,7 +32,7 @@ Supabase deploy is manual — trigger the `Supabase Deploy` GitHub Action (`work
 
 ### Flutter compile-time config (`--dart-define`)
 
-All config is injected at build time via `--dart-define`. `EnvConfig` (`lib/config/env_config.dart`) is the single source of truth. Supabase is **on by default** with the production credentials baked in — `flutter run` with no extra flags connects to the shared backend and supports full sign-in and voice-bot use.
+All config is injected at build time via `--dart-define`. `EnvConfig` (`lib/config/env_config.dart`) is the single source of truth. Supabase is **on by default** with the production credentials baked in — `flutter run` with no extra flags connects to the shared backend and supports full sign-in.
 
 `dart_defines.json` is **optional**. Use it only when you want to override the production defaults (e.g. point at a local Supabase stack or a separate project). It is gitignored and must never be committed.
 
@@ -58,7 +58,7 @@ All config is injected at build time via `--dart-define`. `EnvConfig` (`lib/conf
 
 **Android: shipping.** Full Gradle/Kotlin/AndroidManifest setup under `android/`. CI builds and tests Android on `ubuntu-latest`.
 
-**iOS: not buildable yet — half-scaffolded.** Only `ios/Runner/Info.plist` (privacy strings: mic, speech recognition, tracking) and the auto-generated `GeneratedPluginRegistrant.{h,m}` exist. The following are intentionally **absent** and must be generated before iOS can build:
+**iOS: not buildable yet — half-scaffolded.** Only `ios/Runner/Info.plist` (privacy strings: tracking) and the auto-generated `GeneratedPluginRegistrant.{h,m}` exist. The following are intentionally **absent** and must be generated before iOS can build:
 
 - `ios/Runner.xcodeproj/` and `ios/Runner.xcworkspace/`
 - `ios/Podfile` and `ios/Podfile.lock`
@@ -68,12 +68,12 @@ All config is injected at build time via `--dart-define`. `EnvConfig` (`lib/conf
 
 **To fully scaffold iOS** (when ready, in its own PR — do **not** bundle with feature work):
 
-1. From `fitness_tracker/`, run `flutter create --platforms=ios .` — generates ~30 files including the Xcode project, Podfile, AppDelegate, asset catalog, and storyboards. Do **not** overwrite the existing `ios/Runner/Info.plist` (it has hand-written voice privacy strings).
+1. From `fitness_tracker/`, run `flutter create --platforms=ios .` — generates ~30 files including the Xcode project, Podfile, AppDelegate, asset catalog, and storyboards. Do **not** overwrite the existing `ios/Runner/Info.plist` (it has hand-written privacy strings).
 2. Flip `ios: true` in `pubspec.yaml` under `flutter_launcher_icons`, then run `dart run flutter_launcher_icons` to generate the iOS icon set from `assets/branding/app_icon.png`.
 3. Add a `macos-latest` job to `.github/workflows/flutter-ci.yml` running `flutter build ios --no-codesign` so iOS regressions surface in CI.
 4. Document any iOS-specific quirks in `KNOWN_ISSUES.md` under a new `### iOS` section.
 
-**Cross-platform code in this repo is already written to be iOS-ready** — every voice plugin (`record`, `speech_to_text`, `flutter_tts`, `permission_handler`) supports iOS, and all platform-specific behaviour goes through domain-layer abstractions (`VoiceSttService`, `VoiceTtsService`, `VoicePermissionService`, etc.). When iOS scaffolding lands, the voice feature should work without further Dart changes.
+**Cross-platform code in this repo is already written to be iOS-ready** — all platform-specific behaviour goes through domain-layer abstractions rather than `Platform.is*` checks. When iOS scaffolding lands, no Dart changes should be needed.
 
 **Platform-specific source files** live under `android/` only. Anything platform-specific belongs in:
 - `android/app/src/main/res/...` — Android resources (icons, themes, strings)
@@ -81,13 +81,13 @@ All config is injected at build time via `--dart-define`. `EnvConfig` (`lib/conf
 - `ios/Runner/Info.plist` — iOS permissions and bundle config (already present)
 - `ios/Runner/Assets.xcassets/` — iOS icons (does not exist yet)
 
-Do not introduce platform-specific Dart code via `Platform.isAndroid` / `Platform.isIOS` checks unless the platform abstraction layer (a `VoiceXxxService` interface in `lib/domain/services/`) cannot reasonably express the difference. Prefer one interface, two implementations registered per platform in DI.
+Do not introduce platform-specific Dart code via `Platform.isAndroid` / `Platform.isIOS` checks unless the platform abstraction layer (a domain-layer service interface) cannot reasonably express the difference. Prefer one interface, two implementations registered per platform in DI.
 
 ## Known issues and the 15-minute rule
 
 **The 15-minute rule.** If you spend more than 15 minutes debugging something that is specific to this codebase's stack (not generic Flutter behaviour), add an entry to [`KNOWN_ISSUES.md`](KNOWN_ISSUES.md) using the template at the top of that file. Do this *before* opening a PR with the fix — the entry is part of the PR.
 
-`KNOWN_ISSUES.md` covers recurring traps: SQLite migration quirks, sync-ordering constraints, voice budget enforcement, dart-define behaviour, DI registration rules, and CI tooling gotchas. Consult it at the start of any debugging session — the problem may already be documented.
+`KNOWN_ISSUES.md` covers recurring traps: SQLite migration quirks, sync-ordering constraints, dart-define behaviour, DI registration rules, and CI tooling gotchas. Consult it at the start of any debugging session — the problem may already be documented.
 
 ## Canonical examples
 
@@ -115,7 +115,7 @@ Before starting any of the recurring tasks below, read the matching playbook in 
 
 ## Codebase map
 
-Before exploring the codebase, read [`.claude/memory/state.json`](.claude/memory/state.json). It lists every feature (`home`, `log`, `history`, `library`, `profile`, `settings`, `auth`, `voice`) with its BLoC class names, repository interfaces, use case files, injection module path, and database tables. Loading this file first eliminates the exploration phase for common questions about feature wiring.
+Before exploring the codebase, read [`.claude/memory/state.json`](.claude/memory/state.json). It lists every feature (`home`, `log`, `history`, `library`, `profile`, `settings`, `auth`) with its BLoC class names, repository interfaces, use case files, injection module path, and database tables. Loading this file first eliminates the exploration phase for common questions about feature wiring.
 
 **If you change feature wiring** (add a BLoC, rename a use case, add a table, change an injection module), update `state.json` in the same PR. `tool/check_state_freshness.dart` runs as a CI step after `check_conventions` and fails the build if any per-feature fingerprint is stale. Run it locally to get the expected fingerprint values to paste in:
 
@@ -222,23 +222,9 @@ Three datasources are **exempt** (documented in the base class doc comment): `Ap
 
 SQLite via `sqflite`. Current schema version: **27**. Migration history is documented inline in `EnvConfig.databaseVersion`. Version upgrades are additive; version 15+ rejects incompatible legacy databases rather than destroying data.
 
-### Voice bot
-
-The voice feature is split across Flutter (on-device I/O) and a single Supabase Edge Function (LLM):
-
-- **STT** — `NetworkAwareVoiceSttService` routes each `listen()` to a remote **Whisper** backend (`voice-transcribe` Supabase edge function, `WhisperVoiceSttService`) when online (better gym-jargon recognition, billed server-side and logged to `voice_usage_log`), and falls back to the on-device `speech_to_text` plugin (`SpeechToTextVoiceSttService`) when offline. Hard-capped at 15 s per utterance (`VoiceConstants.sttListenTimeout`).
-- **LLM** — one Deno Edge Function (`supabase/functions/voice-chat/`) backed by GPT-4o-mini. Receives the transcript + up to 3 turns of history, returns plain text or a structured tool call. Daily cap: $0.50/UTC-day enforced server-side.
-- **TTS** — on-device via `flutter_tts` (`FlutterTtsVoiceTtsService`). No server call, no cost.
-- **Wake word** — on-device sherpa-onnx (k2-fsa) keyword spotting (`SherpaOnnxVoiceWakeWordService`), offline, **no access key**; 3 presets (samoLevski / trainer / thomas) bundled as a tokenised `keywords.txt` over the `sherpa-onnx-kws-zipformer-gigaspeech` int8 model under `assets/wake_words/kws/`.
-- **Tap-to-wake (Android only, foreground)** — a single headphone/headset media-button press (`KEYCODE_HEADSETHOOK` / `KEYCODE_MEDIA_PLAY_PAUSE`) starts a conversation the same way the wake word does. Implemented via a `MediaSessionCompat` owned by `MainActivity` and surfaced to Dart through `PlatformChannelVoiceMediaButtonService` (`VoiceMediaButtonService` port). Active only while the wake word is armed in the foreground; not available on iOS (no-op via `NoopVoiceMediaButtonService`). Reliability limits: AirPods on Android do not expose tap gestures as standard media events; another app holding media focus may intercept the press. See `KNOWN_ISSUES.md #headphone-tap-to-wake-unreliable-on-airpods-and-when-another-app-holds-media-focus`.
-- **`VoiceBloc`** (`features/voice/application/`) orchestrates the full STT → chat → TTS sequence and owns the tool dispatcher. Tool calls are dispatched to existing blocs (`WorkoutBloc`, `NutritionLogBloc`, `HistoryBloc`) — never to repositories directly.
-- **Shared backend modules** live in `supabase/functions/_shared/` (budget enforcement, OpenAI chat wrapper, cost accounting). All LLM calls are logged to `voice_usage_log`, including failures (`status=<error_code>`, `cost_usd=0`).
-- `OPENAI_API_KEY` lives exclusively as a Supabase function secret — it is never present in Flutter client code.
-- If Supabase is not configured, the voice module falls back to `NoopVoiceRemoteDataSource` (all calls return `ServerFailure`).
-
 ### Feature list
 
-`home`, `log` (workout + nutrition), `history`, `library` (exercises + meals), `profile`, `settings`, `auth` (sign-in, sign-up, OTP — sign-in is required to use the app; there is no guest mode), `voice`.
+`home`, `log` (workout + nutrition), `history`, `library` (exercises + meals), `profile`, `settings`, `auth` (sign-in, sign-up, OTP — sign-in is required to use the app; there is no guest mode).
 
 ### CI
 

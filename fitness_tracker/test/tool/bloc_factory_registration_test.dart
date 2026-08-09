@@ -86,7 +86,7 @@ void main() {
     test('waiver on preceding line suppresses violation', () async {
       final repo = FakeRepoView({
         'lib/injection/modules/register_settings_module.dart':
-            '// convention-checker:allow=bloc-factory-registration reason=shared cross-page state for Settings and VoiceSettings\n'
+            '// convention-checker:allow=bloc-factory-registration reason=shared cross-page state for Settings and Report\n'
             'sl.registerLazySingleton<AppSettingsCubit>(\n'
             '  () => AppSettingsCubit(repository: sl()),\n'
             ');\n',

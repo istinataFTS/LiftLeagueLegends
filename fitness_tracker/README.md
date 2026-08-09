@@ -1,16 +1,15 @@
 # Lift League Legends — App
 
-A Flutter fitness tracker with offline-first SQLite storage, cloud sync via
-Supabase, and an AI voice assistant (GPT-4o-mini + Whisper) for hands-free
-workout and meal logging. See the [root README](../README.md) for the full
-feature list and architecture overview.
+A Flutter fitness tracker with offline-first SQLite storage and cloud sync
+via Supabase. See the [root README](../README.md) for the full feature list
+and architecture overview.
 
 ---
 
 ## Quick Start (3 steps)
 
-The app ships pointed at the production backend. No Supabase account, no
-OpenAI key, and no configuration files are needed.
+The app ships pointed at the production backend. No Supabase account and no
+configuration files are needed.
 
 **Prerequisites**
 - Flutter SDK ≥ 3.8.0 — [install guide](https://docs.flutter.dev/get-started/install)
@@ -25,12 +24,7 @@ flutter run
 ```
 
 On first launch: tap **Create account**, enter your email and password, and
-you're in. The voice bot works immediately after sign-in — say the wake word
-or press a headphone button to start a conversation.
-
-> **Voice bot note:** The voice assistant calls a server-side edge function
-> that uses OpenAI. API costs are covered by the project owner. Each user
-> has a daily usage limit ($0.50 USD) enforced server-side.
+you're in.
 
 ---
 
@@ -43,12 +37,6 @@ flutter test --coverage --dart-define=ENABLE_SUPABASE=false
 
 `--dart-define=ENABLE_SUPABASE=false` keeps unit tests self-contained — they
 must not reach the live backend.
-
-For backend (Edge Function) tests:
-```bash
-# From fitness_tracker/supabase/functions/
-deno test --allow-all
-```
 
 ---
 
@@ -65,13 +53,12 @@ stack, staging environment, or a completely independent deployment):
 For a local Supabase stack:
 ```bash
 cd supabase
-supabase start           # starts PostgreSQL + Auth + Edge Functions locally
+supabase start           # starts the local Postgres + Supabase stack
 supabase status          # copy the API URL and anon key into dart_defines.json
 supabase db push         # apply schema migrations
 ```
 
-Then see `supabase/README.md` for deploying migrations and edge functions to
-a cloud project.
+Then see `supabase/README.md` for deploying migrations to a cloud project.
 
 ---
 
@@ -94,5 +81,5 @@ To connect CI to your own backend, add the secrets at:
 ## Architecture and development guide
 
 See [`CLAUDE.md`](CLAUDE.md) for the complete layered architecture, BLoC
-conventions, offline-first sync protocol, voice module design, convention
-checker rules, and contributor guidelines.
+conventions, offline-first sync protocol, convention checker rules, and
+contributor guidelines.

@@ -73,11 +73,11 @@ void main() {
         final repo = FakeRepoView({
           'lib/presentation/navigation/bottom_navigation.dart':
               'class _BottomNavigationState extends State<BottomNavigation> {\n'
-              '  late final VoiceSettingsCubit _voiceSettingsCubit;\n'
+              '  late final ReportSettingsCubit _reportSettingsCubit;\n'
               '  @override\n'
               '  void initState() {\n'
               '    super.initState();\n'
-              '    _voiceSettingsCubit = sl<VoiceSettingsCubit>();\n'
+              '    _reportSettingsCubit = sl<ReportSettingsCubit>();\n'
               '  }\n'
               '}\n',
         });
@@ -201,14 +201,14 @@ void main() {
     test(
       'reports a violation when the type is wrapped to the next line by dart-format',
       () async {
-        // `late final\n      VoiceSettingsCubit _x;` — dart-format may break
+        // `late final\n      ReportSettingsCubit _x;` — dart-format may break
         // after `late final` for very long type+identifier combinations.
         // The `\s+` separators in the field pattern span newlines.
         final repo = FakeRepoView({
           'lib/features/foo/presentation/foo_page.dart':
               'class _FooPageState extends State<FooPage> {\n'
               '  late final\n'
-              '      VoiceSettingsCubit _voiceSettingsCubit;\n'
+              '      ReportSettingsCubit _reportSettingsCubit;\n'
               '  @override\n'
               '  Widget build(BuildContext context) => Container();\n'
               '}\n',

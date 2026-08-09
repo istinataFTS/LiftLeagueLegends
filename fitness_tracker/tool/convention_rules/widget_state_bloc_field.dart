@@ -9,8 +9,10 @@ import 'shared.dart';
 /// pages the user actually interacts with never see them.
 ///
 /// This rule is the guardrail that would have caught the original
-/// silent-dispatch bug (`VoiceBloc` holding `_workoutBloc`) and the
-/// `BottomNavigation` `_voiceSettingsCubit` field capture.
+/// silent-dispatch bug (a screen-level BLoC holding `_workoutBloc`) and the
+/// `BottomNavigation` settings-Cubit field capture. See KNOWN_ISSUES.md
+/// `#widget-state-must-not-field-capture-factory-blocs-or-cubits` for the
+/// full history.
 ///
 /// Correct patterns:
 ///
