@@ -94,10 +94,6 @@ class _ProfileViewState extends State<_ProfileView> {
             onRefresh: () => context.read<ProfileCubit>().refreshProfile(),
             onOpenSettings: () =>
                 Navigator.of(context).pushNamed(AppRoutes.settings),
-            // VoiceSettingsCubit is provided at the auth-session shell
-            // level, so the bare route resolves it via `context.read`.
-            onOpenVoiceAssistant: () =>
-                Navigator.of(context).pushNamed(AppRoutes.voiceSettings),
           ),
         );
       },

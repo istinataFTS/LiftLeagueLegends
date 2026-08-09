@@ -20,9 +20,6 @@ class SettingsPageKeys {
     'settings_saving_indicator',
   );
   static const Key errorBannerKey = ValueKey<String>('settings_error_banner');
-  static const Key voiceAssistantTileKey = ValueKey<String>(
-    'settings_voice_assistant_tile',
-  );
   static const Key usernameTileKey = ValueKey<String>('settings_username_tile');
   static const Key usernameDialogFieldKey = ValueKey<String>(
     'settings_username_dialog_field',

@@ -1,6 +1,5 @@
 import '../../../../core/constants/app_info.dart';
 import '../../../../domain/entities/app_settings.dart';
-import '../../../../domain/entities/voice_settings.dart';
 import '../../../settings/application/app_settings_cubit.dart';
 import '../../domain/settings_display_formatter.dart';
 import '../models/settings_page_view_data.dart';
@@ -8,11 +7,7 @@ import '../models/settings_page_view_data.dart';
 class SettingsPageViewDataMapper {
   const SettingsPageViewDataMapper._();
 
-  static SettingsPageViewData map(
-    AppSettingsState state, {
-    VoiceSettings voiceSettings = const VoiceSettings.defaults(),
-    String? username,
-  }) {
+  static SettingsPageViewData map(AppSettingsState state, {String? username}) {
     final AppSettings settings = state.settings;
     final bool hasUsername = username != null && username.isNotEmpty;
 
@@ -88,24 +83,6 @@ class SettingsPageViewDataMapper {
       isLoading: state.isLoading && !state.hasLoaded,
       isSaving: state.isSaving,
       errorMessage: state.errorMessage,
-      voiceSettings: VoiceSettingsViewData(
-        sessionLoggingEnabled: voiceSettings.sessionLoggingEnabled,
-        ttsSpeechRate: voiceSettings.ttsSpeechRate,
-        ttsSpeechRatePreview: _formatSpeechRate(voiceSettings.ttsSpeechRate),
-      ),
     );
-  }
-
-  /// Formats `1.25` → `1.25×`. One-decimal precision matches the
-  /// slider's discrete steps and avoids `1.0000000000001×` artifacts.
-  static String _formatSpeechRate(double rate) {
-    final fixed = rate.toStringAsFixed(2);
-    // Trim a single trailing zero so "1.00" → "1.0", but keep "1.25".
-    final trimmed = fixed.endsWith('0') && !fixed.endsWith('00')
-        ? fixed
-        : fixed.replaceFirst(RegExp(r'0+$'), '');
-    // Re-add the decimal if we stripped past it ("1." → "1").
-    final clean = trimmed.endsWith('.') ? '${trimmed}0' : trimmed;
-    return '$clean×';
   }
 }
