@@ -59,7 +59,6 @@ class _EditSetDialogState extends State<EditSetDialog> {
     _seedWeightIfNeeded(widget.weightUnit);
 
     return Dialog(
-      backgroundColor: AppTheme.surfaceDark,
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
       child: ConstrainedBox(
         constraints: const BoxConstraints(maxHeight: 680),

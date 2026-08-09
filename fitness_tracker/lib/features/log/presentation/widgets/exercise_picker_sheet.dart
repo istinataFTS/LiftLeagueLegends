@@ -27,7 +27,6 @@ class ExercisePickerSheet extends StatefulWidget {
     final double screenHeight = MediaQuery.sizeOf(context).height;
     return showModalBottomSheet<Exercise>(
       context: context,
-      backgroundColor: AppTheme.surfaceDark,
       isScrollControlled: true,
       useSafeArea: true,
       constraints: BoxConstraints(

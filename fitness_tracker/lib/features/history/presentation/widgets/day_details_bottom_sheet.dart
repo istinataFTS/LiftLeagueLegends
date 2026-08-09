@@ -316,7 +316,6 @@ class DayDetailsBottomSheet extends StatelessWidget {
     showDialog<void>(
       context: context,
       builder: (BuildContext dialogContext) => AlertDialog(
-        backgroundColor: AppTheme.surfaceDark,
         title: const Text('Delete Set?'),
         content: Text(
           'Remove ${exercise.name} - ${set.reps} reps @ $displayWeight?',

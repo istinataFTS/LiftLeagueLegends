@@ -62,6 +62,9 @@ dev_dependencies:
   # assets/branding/app_icon.png.
   flutter_launcher_icons: ^0.14.1
 
+  # Used by test/core/themes/lift_fonts_test.dart to assert font declarations.
+  yaml: ^3.1.2
+
 flutter_launcher_icons:
   android: true
   # iOS is disabled until the iOS portion of the project is scaffolded via
@@ -83,3 +86,21 @@ flutter:
     - assets/branding/
     - assets/images/
     - assets/images/body/
+
+  fonts:
+    - family: SpaceGrotesk
+      fonts:
+        - asset: assets/fonts/SpaceGrotesk-Regular.ttf
+          weight: 400
+        - asset: assets/fonts/SpaceGrotesk-Medium.ttf
+          weight: 500
+        - asset: assets/fonts/SpaceGrotesk-Bold.ttf
+          weight: 700
+    - family: JetBrainsMono
+      fonts:
+        - asset: assets/fonts/JetBrainsMono-Regular.ttf
+          weight: 400
+        - asset: assets/fonts/JetBrainsMono-Medium.ttf
+          weight: 500
+        - asset: assets/fonts/JetBrainsMono-Bold.ttf
+          weight: 700

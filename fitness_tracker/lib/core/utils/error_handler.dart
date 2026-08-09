@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import '../themes/app_theme.dart';
+import '../themes/lift_theme.dart';
 
 /// Centralized error handling for consistent user experience
 class ErrorHandler {
@@ -84,7 +85,7 @@ class ErrorHandler {
             ),
           ],
         ),
-        backgroundColor: AppTheme.primaryOrange,
+        backgroundColor: LiftColors.actionFill,
         behavior: SnackBarBehavior.floating,
         margin: const EdgeInsets.all(20),
         duration: duration,
@@ -162,7 +163,6 @@ class ErrorHandler {
       builder: (context) => PopScope(
         canPop: false,
         child: Dialog(
-          backgroundColor: AppTheme.surfaceDark,
           child: Padding(
             padding: const EdgeInsets.all(24),
             child: Row(

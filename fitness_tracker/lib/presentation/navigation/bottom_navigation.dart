@@ -142,7 +142,6 @@ class _BottomNavigationState extends State<BottomNavigation> {
           onTap: _onItemTapped,
           type: BottomNavigationBarType.fixed,
           backgroundColor: AppTheme.surfaceDark,
-          selectedItemColor: AppTheme.primaryOrange,
           unselectedItemColor: AppTheme.textDim,
           selectedFontSize: 12,
           unselectedFontSize: 11,

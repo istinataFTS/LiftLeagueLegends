@@ -1,29 +1,31 @@
 import 'package:flutter/material.dart';
 
-import '../../../../../core/themes/app_theme.dart';
+import '../../../../../core/themes/lift_theme.dart';
 
-/// Color constants for the Log feature UI.
-/// New tokens not yet in [AppTheme] live here as named constants.
-/// Calories reuse [AppTheme.primaryOrangeLight] directly.
+/// Legacy Log palette, retained only so existing call sites keep compiling
+/// while the Deep Mist restyle lands. Every member forwards to [LiftColors].
+///
+/// Do not add members. Deleted in B7. Not annotated `@Deprecated`, for the
+/// same reason as [AppTheme] — it would fail `flutter analyze` at every call
+/// site.
 class LogUiColors {
   LogUiColors._();
 
-  /// #141414 — between background and surface; used for list/feed rows.
-  static const Color rowSurface = Color(0xFF141414);
+  static const Color rowSurface = LiftColors.surfaceSunken;
 
-  /// Macro segment colors — used by composition bar, macro inputs, and meal-row micro-macros.
-  static const Color protein = Color(0xFF5DA9F0);
-  static const Color carbs = Color(0xFF97C459);
-  static const Color fats = Color(0xFFEF9F27);
+  static const Color protein = LiftColors.protein;
+  static const Color carbs = LiftColors.carbs;
+  static const Color fats = LiftColors.fats;
 
-  /// Intensity ramp, index == intensity level 0–5.
-  /// index 0: warm-up (= textDim); index 5: max effort.
+  /// Effort no longer encodes with hue — the count of filled rungs carries the
+  /// value. Six identical stops keep any surviving gradient flat until the
+  /// widgets are rebuilt as rungs in Task 10.
   static const List<Color> intensityRamp = <Color>[
-    Color(0xFF888888), // 0 Warm-up
-    Color(0xFF1D9E75), // 1 Very Light
-    Color(0xFF97C459), // 2 Light
-    Color(0xFFEF9F27), // 3 Moderate
-    Color(0xFFD85A30), // 4 Hard
-    Color(0xFFE24B4A), // 5 Max Effort
+    LiftColors.effortOn,
+    LiftColors.effortOn,
+    LiftColors.effortOn,
+    LiftColors.effortOn,
+    LiftColors.effortOn,
+    LiftColors.effortOn,
   ];
 }

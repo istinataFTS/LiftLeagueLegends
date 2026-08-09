@@ -332,7 +332,6 @@ class NutritionDayDetailsBottomSheet extends StatelessWidget {
     showDialog<void>(
       context: context,
       builder: (BuildContext dialogContext) => AlertDialog(
-        backgroundColor: AppTheme.surfaceDark,
         title: const Text('Delete Nutrition Log?'),
         content: Text('Remove "${log.mealName}" from history?'),
         actions: <Widget>[

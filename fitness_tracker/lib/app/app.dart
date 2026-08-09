@@ -4,7 +4,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 
 import '../core/constants/app_strings.dart';
-import '../core/themes/app_theme.dart';
+import '../core/themes/lift_theme.dart';
 import '../features/profile/application/profile_cubit.dart';
 import '../features/settings/application/app_settings_cubit.dart';
 import '../features/settings/presentation/settings_scope.dart';
@@ -82,7 +82,11 @@ class AppShell extends StatelessWidget {
     return MaterialApp(
       title: AppStrings.appTitle,
       debugShowCheckedModeBanner: false,
-      theme: AppTheme.darkTheme,
+      theme: LiftTheme.dark(),
+      darkTheme: LiftTheme.dark(),
+      themeMode: ThemeMode.dark,
+      builder: (BuildContext context, Widget? child) =>
+          LiftGround(child: child ?? const SizedBox.shrink()),
       // `home:` builds the initial route directly (instead of going
       // through `onGenerateRoute` for '/'). Keeping `home:` for the
       // initial widget lets the existing AppStartupListener →

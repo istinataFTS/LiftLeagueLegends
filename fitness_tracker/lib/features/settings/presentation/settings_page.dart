@@ -154,7 +154,6 @@ class _SettingsPageState extends State<SettingsPage> {
     final AppSettingsCubit cubit = context.read<AppSettingsCubit>();
     final WeekStartDay? selected = await showModalBottomSheet<WeekStartDay>(
       context: context,
-      backgroundColor: AppTheme.surfaceDark,
       builder: (BuildContext context) {
         return SettingsOptionSheet<WeekStartDay>(
           options: viewData.weekStartOptions
@@ -190,7 +189,6 @@ class _SettingsPageState extends State<SettingsPage> {
     final AppSettingsCubit cubit = context.read<AppSettingsCubit>();
     final WeightUnit? selected = await showModalBottomSheet<WeightUnit>(
       context: context,
-      backgroundColor: AppTheme.surfaceDark,
       builder: (BuildContext context) {
         return SettingsOptionSheet<WeightUnit>(
           options: viewData.weightUnitOptions
@@ -279,7 +277,6 @@ class _UsernameEditDialogState extends State<_UsernameEditDialog> {
   @override
   Widget build(BuildContext context) {
     return AlertDialog(
-      backgroundColor: AppTheme.surfaceDark,
       title: const Text('Change username'),
       content: TextField(
         key: SettingsPageKeys.usernameDialogFieldKey,
