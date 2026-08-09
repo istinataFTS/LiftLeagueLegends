@@ -4,7 +4,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Commands
 
-All Flutter commands run from the `fitness_tracker/` directory. All Deno/backend commands run from `fitness_tracker/supabase/functions/`.
+All Flutter commands run from the `fitness_tracker/` directory.
 
 ### Flutter (app)
 
@@ -17,28 +17,18 @@ dart format lib test                    # format code
 flutter analyze                         # static analysis
 ```
 
-### Backend (Supabase Edge Functions)
-
-```sh
-deno test --allow-all                   # run all backend tests (from supabase/functions/)
-deno test --allow-all voice-chat/       # run tests for a single function
-deno fmt                                # format Deno code
-deno lint                               # lint Deno code
-```
-
 ### Local Supabase stack
 
 ```sh
 supabase start                          # start local Postgres + Edge Function runtime
-supabase functions serve --env-file .env.local   # serve all edge functions locally
 supabase db push                        # apply pending migrations
 ```
 
-See `supabase/.env.local` (gitignored) for required local env vars — `OPENAI_API_KEY`, `SUPABASE_URL`, `SUPABASE_SERVICE_ROLE_KEY`, `SUPABASE_ANON_KEY`.
+See `supabase/.env.local` (gitignored) for required local env vars — `SUPABASE_URL`, `SUPABASE_SERVICE_ROLE_KEY`, `SUPABASE_ANON_KEY`.
 
 ### Deploy (CI)
 
-Supabase deploy is manual — trigger the `Supabase Deploy` GitHub Action (`workflow_dispatch`) with target `functions`, `migrations`, or `both`. Do not push to production without applying migrations first.
+Supabase deploy is manual — trigger the `Supabase Deploy` GitHub Action (`workflow_dispatch`) to push migrations. Do not push to production without reviewing the pending migrations first.
 
 ### Flutter compile-time config (`--dart-define`)
 
@@ -122,7 +112,6 @@ Before starting any of the recurring tasks below, read the matching playbook in 
 - [Add a use case to an existing feature](.claude/skills/add-use-case.md) — `Params`, `call()`, repository delegation, DI, BLoC wiring, tests
 - [Add a new event, state, or effect to an existing BLoC](.claude/skills/add-bloc-effect.md) — event/state/effect classes, handler registration, `BlocEffectsMixin`, tests
 - [Add a SQLite schema migration](.claude/skills/add-migration.md) — `databaseVersion` bump, `_onUpgrade` branch, additive-only rules, migration test
-- [Add a Supabase edge function](.claude/skills/add-edge-function.md) — shared budget enforcement, `voice_usage_log`, OpenAI wrapper, Deno tests
 
 ## Codebase map
 
@@ -253,8 +242,7 @@ The voice feature is split across Flutter (on-device I/O) and a single Supabase 
 
 ### CI
 
-Two GitHub Actions jobs on push to `main`, `develop`, and any `chore/**`, `ci/**`, `docs/**`, `feat/**`, `feature/**`, `fix/**`, `perf/**`, or `refactor/**` branch, plus on every PR targeting `main` or `develop`:
+One GitHub Actions job on push to `main`, `develop`, and any `chore/**`, `ci/**`, `docs/**`, `feat/**`, `feature/**`, `fix/**`, `perf/**`, or `refactor/**` branch, plus on every PR targeting `main` or `develop`:
 - **Flutter**: format check → `flutter analyze --no-fatal-infos` → `check_conventions` → `check_state_freshness` → `flutter test --coverage` → `check_coverage` (per-directory thresholds in `tool/check_coverage.dart`) → `flutter build apk --debug --dart-define-from-file=dart_defines.json`
-- **Backend**: `deno fmt --check` → `deno lint` → `deno check` (type-check every `.ts`) → `deno test --allow-all`
 
 The debug APK build runs end-to-end to catch manifest, Gradle, Kotlin-side, and plugin-registration regressions that the analyzer and unit tests cannot see. It uses the dart-defines file (built earlier in the job from repository secrets) so the Supabase-enabled production code path is compiled, not the defaults-only fallback. Release builds are not run in CI because the repo does not ship a CI signing configuration yet.

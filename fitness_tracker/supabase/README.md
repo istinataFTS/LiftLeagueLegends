@@ -1,114 +1,84 @@
-# Supabase — Fitness Tracker Voice Bot Backend
+# Supabase — Fitness Tracker Backend
 
-## Architecture
+This directory holds the Postgres schema, migrations, and one-off
+maintenance scripts for the app's Supabase backend. There are no Edge
+Functions here — the voice bot that used to live in `functions/` was
+removed in Spec A, along with its migrations, tables, and functions.
 
-One Edge Function: **`voice-chat`** (GPT-4o-mini with tool calling).
+## Contents
 
-STT and TTS run **on-device** (Android `SpeechRecognizer` / iOS `SFSpeechRecognizer`
-for STT; Android `TextToSpeech` / iOS `AVSpeechSynthesizer` for TTS) — no audio
-ever reaches the server. Only the transcribed text is sent to `voice-chat`.
-
-## Prerequisites
-
-- Supabase CLI ≥ 1.180
-- Deno ≥ 1.40
+- `schema.sql` — bootstraps a clean Supabase project (tables, indexes, RLS
+  policies, and the shared `set_updated_at()` trigger helper). Run once
+  against a brand-new project only; an existing project evolves through
+  `migrations/` instead.
+- `migrations/` — ordered SQL migrations for the linked Supabase project.
+- `ops/` — one-off, hand-run SQL scripts that are deliberately **not**
+  migrations. See `ops/drop_voice_schema.sql` below.
+- `config.toml` — local Supabase CLI configuration (used by `supabase
+  start` / `supabase db push`).
+- `cleanup_duplicate_exercises_and_meals.sql`,
+  `cleanup_legacy_catalog_ids.sql` — ad-hoc, idempotent cleanup scripts (see
+  "One-off maintenance scripts" below).
 
 ## First-time setup
 
 ```sh
 supabase login
 supabase link --project-ref <your-project-ref>
-supabase secrets set OPENAI_API_KEY=sk-...
 ```
-
-`SUPABASE_SERVICE_ROLE_KEY` and `SUPABASE_URL` are injected automatically by
-the Edge Function runtime — do **not** set them manually.
 
 ## Local development
-
-Create `.env.local` (gitignored) with:
-
-```
-OPENAI_API_KEY=sk-...
-SUPABASE_URL=http://localhost:54321
-SUPABASE_SERVICE_ROLE_KEY=<service-role-key-from-supabase-start>
-SUPABASE_ANON_KEY=<anon-key-from-supabase-start>
-```
-
-Then start the local stack and serve the Edge Function:
-
-```sh
-supabase start
-supabase functions serve --env-file .env.local
-```
-
-## Running tests
 
 Run from the `fitness_tracker/` directory:
 
 ```sh
-deno test --allow-all supabase/functions
+supabase start    # starts the local Postgres + Supabase stack
+supabase db push  # applies pending migrations to the linked project
 ```
+
+Nothing in this directory needs its own `.env.local` or secrets anymore —
+that requirement belonged to the Edge Functions (`OPENAI_API_KEY` and
+friends), which no longer exist in this repo.
 
 ## Deploying
 
-Apply migrations first, then deploy the function:
+Deploys are manual: trigger the `Supabase Deploy` GitHub Action
+(`workflow_dispatch`, defined at `.github/workflows/supabase-deploy.yml` in
+the repo root) to push pending migrations to the linked project. Review the
+pending migrations first — never deploy out of order.
+
+## `ops/drop_voice_schema.sql`
+
+A one-off, hand-run cleanup script — not a migration, not applied
+automatically by `supabase db push`. Spec A deleted the four voice
+migrations from history instead of adding reverting migrations, so this
+script exists to bring an already-deployed project back in line with the
+current `schema.sql`: it drops the `voice_sessions` and `voice_usage_log`
+tables and the `voice_session_append_turn` and `global_voice_spend_since`
+functions.
+
+**This is owner-run, by hand, against the live project.** Execute it once
+via the Supabase Dashboard SQL Editor (see the file's own header for the
+exact instructions), then repair the migration ledger so `supabase db push`
+stops complaining about remote versions with no local migration file:
 
 ```sh
-supabase db push
-supabase functions deploy voice-chat
+supabase migration repair --status reverted 20260507000000
+supabase migration repair --status reverted 20260511000000
+supabase migration repair --status reverted 20260527000000
+supabase migration repair --status reverted 20260625000000
 ```
-
-The `.github/workflows/supabase-deploy.yml` GitHub Action (`workflow_dispatch`)
-does this in one step against the linked project.
-
-## Pricing & cost monitoring
-
-All `voice-chat` LLM calls are recorded in `voice_usage_log`. Query today's
-spend per user:
-
-```sql
-select
-  user_id,
-  sum(cost_usd)  as total_usd,
-  count(*)       as calls
-from voice_usage_log
-where created_at >= date_trunc('day', now() at time zone 'UTC')
-group by user_id
-order by total_usd desc;
-```
-
-Estimated cost: ~$0.0001 per voice interaction (GPT-4o-mini tokens only).
-Daily cap: $0.50 per user.
-
-## Where the OpenAI key lives (and where it doesn't)
-
-The `OPENAI_API_KEY` lives **only** as a Supabase Function secret set via
-`supabase secrets set`. It is:
-
-- ✅ Read inside the `voice-chat` Edge Function via `Deno.env.get('OPENAI_API_KEY')`
-- ❌ Never present in `lib/` (Flutter client code)
-- ❌ Never in git history
-- ❌ Never logged by any Edge Function
 
 ## One-off maintenance scripts
 
-SQL scripts under `supabase/` that are **not** Supabase migrations — they are
-applied manually once and are idempotent (running them again is a no-op).
+SQL scripts in this directory that are **not** Supabase migrations — they
+are applied manually and are idempotent (safe to re-run).
 
-| Script | Purpose | When to run |
-|---|---|---|
-| `cleanup_duplicate_exercises_and_meals.sql` | Collapses duplicate (user_id, name) exercise/meal rows and adds the UNIQUE constraint. | Already applied. Do not re-run unless starting from a fresh schema. |
-| `cleanup_legacy_catalog_ids.sql` | Rewrites exercise/meal rows whose `id` was stamped with the pre-owner-scoping name-only UUIDv5 formula to the current owner-scoped formula. | Apply once after Plan 1 (guest-mode removal) has shipped. Required for fresh-device installs to sync without UNIQUE conflicts. |
+| Script | Purpose |
+|---|---|
+| `cleanup_duplicate_exercises_and_meals.sql` | Collapses duplicate `(user_id, name)` exercise/meal rows and adds the UNIQUE constraint that backs them. |
+| `cleanup_legacy_catalog_ids.sql` | Rewrites exercise/meal rows whose `id` used the pre-owner-scoping name-only UUIDv5 formula to the current owner-scoped formula. |
 
-### Running a maintenance script on the VPS
-
-```sh
-docker exec -i supabase-db \
-  psql -U postgres -d postgres \
-  < supabase/<script-name>.sql
-```
-
-Each script contains a **STEP 1 DRY RUN** block and a **STEP 2 CLEANUP** block.
-Always run STEP 1 first, inspect the output, then run STEP 2.  Confirm
-idempotency by re-running STEP 1 afterwards — it should return zero rows.
+Each script contains a **STEP 1 DRY RUN** block and a **STEP 2 CLEANUP**
+block — read the file header, run STEP 1 first, inspect the output, then
+run STEP 2.
