@@ -21,9 +21,9 @@ void main() {
       'passes when presentation file imports from domain/ and application/ only',
       () async {
         final repo = FakeRepoView({
-          'lib/features/voice/presentation/voice_overlay_page.dart':
-              "import '../../../domain/services/voice_wake_word_service.dart';\n"
-              "import '../application/voice_bloc.dart';\n",
+          'lib/features/report/presentation/report_overlay_page.dart':
+              "import '../../../domain/services/report_export_service.dart';\n"
+              "import '../application/report_bloc.dart';\n",
         });
         final violations = await rule.check(repo);
         expect(violations, isEmpty);
@@ -33,12 +33,12 @@ void main() {
     test(
       'reports a violation for a feature-local data import (../data/services/...)',
       () async {
-        // lib/features/voice/presentation/voice_overlay_page.dart →
-        // '../data/services/...' resolves to lib/features/voice/data/services/...
+        // lib/features/report/presentation/report_overlay_page.dart →
+        // '../data/services/...' resolves to lib/features/report/data/services/...
         // Presentation must not depend on any data layer, including feature-local.
         final repo = FakeRepoView({
-          'lib/features/voice/presentation/voice_overlay_page.dart':
-              "import '../data/services/voice_tts_service.dart';\n",
+          'lib/features/report/presentation/report_overlay_page.dart':
+              "import '../data/services/report_import_service.dart';\n",
         });
         final violations = await rule.check(repo);
         expect(violations, hasLength(1));
@@ -49,11 +49,11 @@ void main() {
     test(
       'reports a violation for a nested widget importing from feature data/ via ../../data/',
       () async {
-        // lib/features/voice/presentation/widgets/voice_fab.dart →
-        // '../../data/services/...' resolves to lib/features/voice/data/services/...
+        // lib/features/report/presentation/widgets/report_fab.dart →
+        // '../../data/services/...' resolves to lib/features/report/data/services/...
         final repo = FakeRepoView({
-          'lib/features/voice/presentation/widgets/voice_fab.dart':
-              "import '../../data/services/voice_wake_word_service.dart';\n",
+          'lib/features/report/presentation/widgets/report_fab.dart':
+              "import '../../data/services/report_export_service.dart';\n",
         });
         final violations = await rule.check(repo);
         expect(violations, hasLength(1));

@@ -35,7 +35,7 @@ void main() {
       () async {
         final repo = FakeRepoView({
           'lib/features/settings/presentation/settings_page.dart':
-              "import '../../../features/voice/presentation/voice_settings_page.dart';\n"
+              "import '../../../features/report/presentation/report_settings_page.dart';\n"
               'class SettingsPage {}\n',
         });
         final violations = await rule.check(repo);
@@ -50,7 +50,7 @@ void main() {
       () async {
         final repo = FakeRepoView({
           'lib/features/settings/presentation/settings_page.dart':
-              "import '../../../features/voice/application/voice_settings_cubit.dart';\n"
+              "import '../../../features/report/application/report_settings_cubit.dart';\n"
               'class SettingsPage {}\n',
         });
         final violations = await rule.check(repo);
@@ -64,7 +64,7 @@ void main() {
       () async {
         final repo = FakeRepoView({
           'lib/features/settings/presentation/settings_page.dart':
-              "import 'package:fitness_tracker/features/voice/application/voice_settings_cubit.dart';\n"
+              "import 'package:fitness_tracker/features/report/application/report_settings_cubit.dart';\n"
               'class SettingsPage {}\n',
         });
         final violations = await rule.check(repo);
@@ -78,10 +78,10 @@ void main() {
       // both allowed to import cross-feature; the rule must not flag them.
       final repo = FakeRepoView({
         'lib/presentation/navigation/bottom_navigation.dart':
-            "import '../../features/voice/application/voice_settings_cubit.dart';\n"
+            "import '../../features/report/application/report_settings_cubit.dart';\n"
             'class BottomNavigation {}\n',
         'lib/app/routes/app_router.dart':
-            "import '../../features/voice/presentation/voice_overlay_page.dart';\n"
+            "import '../../features/report/presentation/report_overlay_page.dart';\n"
             'class AppRouter {}\n',
       });
       final violations = await rule.check(repo);
@@ -106,7 +106,7 @@ void main() {
         'lib/features/profile/presentation/profile_page.dart':
             "import '../../../features/auth/presentation/sign_in_page.dart';\n"
             "import '../../../features/settings/presentation/settings_page.dart';\n"
-            "import '../../../features/voice/application/voice_settings_cubit.dart';\n"
+            "import '../../../features/report/application/report_settings_cubit.dart';\n"
             'class ProfilePage {}\n',
       });
       final violations = await rule.check(repo);
@@ -118,7 +118,7 @@ void main() {
       final repo = FakeRepoView({
         'lib/features/settings/presentation/settings_page.dart':
             '// convention-checker:allow=cross-feature-presentation-import reason=temporary entry-point widget pending route migration\n'
-            "import '../../../features/voice/presentation/voice_settings_page.dart';\n"
+            "import '../../../features/report/presentation/report_settings_page.dart';\n"
             'class SettingsPage {}\n',
       });
       final violations = await rule.check(repo);
@@ -129,7 +129,7 @@ void main() {
       final repo = FakeRepoView({
         'lib/features/settings/presentation/settings_page.dart':
             '// convention-checker:allow=some-other-rule reason=valid 10-char reason here\n'
-            "import '../../../features/voice/presentation/voice_settings_page.dart';\n"
+            "import '../../../features/report/presentation/report_settings_page.dart';\n"
             'class SettingsPage {}\n',
       });
       final violations = await rule.check(repo);
@@ -140,7 +140,7 @@ void main() {
       final repo = FakeRepoView({
         'lib/features/settings/presentation/settings_page.dart':
             '// convention-checker:allow=cross-feature-presentation-import reason=todo\n'
-            "import '../../../features/voice/presentation/voice_settings_page.dart';\n"
+            "import '../../../features/report/presentation/report_settings_page.dart';\n"
             'class SettingsPage {}\n',
       });
       final violations = await rule.check(repo);
@@ -162,7 +162,7 @@ void main() {
               "/// doc comment\n"
               "/// before the imports.\n"
               "import 'package:flutter/material.dart';\n"
-              "import '../../../features/voice/application/voice_settings_cubit.dart';\n"
+              "import '../../../features/report/application/report_settings_cubit.dart';\n"
               'class ProfilePage {}\n',
         });
         final violations = await rule.check(repo);

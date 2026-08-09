@@ -40,7 +40,7 @@ const _templateInFence = '''
 - **Status:** Active | Mitigated | Resolved-but-monitor
 - **First observed:** YYYY-MM-DD
 - **Last verified:** YYYY-MM-DD
-- **Area:** sync | voice | db | di | ci | platform | other
+- **Area:** sync | db | di | ci | platform | other
 
 **Symptom**
 
@@ -186,7 +186,7 @@ void main() {
 - **Status:** Mitigated
 - **First observed:** 2026-01-01
 - **Last verified:** 2026-05-21
-- **Area:** networking
+- **Area:** voice
 
 **Symptom**
 
@@ -199,7 +199,7 @@ void main() {
       final repo = FakeRepoView({'KNOWN_ISSUES.md': bad});
       final violations = await rule.check(repo);
       expect(
-        violations.any((v) => v.message.contains('invalid Area "networking"')),
+        violations.any((v) => v.message.contains('invalid Area "voice"')),
         isTrue,
       );
     });

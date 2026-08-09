@@ -21,15 +21,7 @@ final class KnownIssuesSchemaRule implements ConventionRule {
 
   static const _validSeverities = {'Critical', 'High', 'Medium', 'Low'};
   static const _validStatuses = {'Active', 'Mitigated', 'Resolved-but-monitor'};
-  static const _validAreas = {
-    'sync',
-    'voice',
-    'db',
-    'di',
-    'ci',
-    'platform',
-    'other',
-  };
+  static const _validAreas = {'sync', 'db', 'di', 'ci', 'platform', 'other'};
 
   // Applied to the full entry block (multiLine so ^ matches per line,
   // and \S+ stops at the first whitespace after the value).
@@ -86,8 +78,8 @@ final class KnownIssuesSchemaRule implements ConventionRule {
   /// 1. Strip content inside triple-backtick code fences (the template lives there).
   /// 2. Split by `### ` headings.
   /// 3. Keep only blocks that contain `- **` field bullets — this excludes
-  ///    ToC category headers (`### Sync`, `### Voice`, etc.) which have only
-  ///    numbered list items.
+  ///    ToC category headers (`### Sync`, `### Database`, etc.) which have
+  ///    only numbered list items.
   List<_Entry> _parseEntries(String raw) {
     // Remove code-fence blocks so the template doesn't get parsed as an entry.
     final stripped = raw.replaceAll(
@@ -101,7 +93,7 @@ final class KnownIssuesSchemaRule implements ConventionRule {
     for (final section in sections) {
       if (!section.startsWith('### ')) continue;
 
-      // Skip ToC category headers (### Sync, ### Voice, etc.) — they have
+      // Skip ToC category headers (### Sync, ### Database, etc.) — they have
       // numbered list entries but no `- **Field:**` bullets.
       if (!section.contains('- **')) continue;
 
@@ -187,7 +179,7 @@ final class KnownIssuesSchemaRule implements ConventionRule {
       report('missing field "Area"');
     } else if (!_validAreas.contains(area)) {
       report(
-        'invalid Area "$area" — must be one of: sync, voice, db, di, ci, '
+        'invalid Area "$area" — must be one of: sync, db, di, ci, '
         'platform, other',
       );
     }
