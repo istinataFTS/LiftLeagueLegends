@@ -122,6 +122,15 @@ class _LogNumericKeypadState extends State<LogNumericKeypad> {
   // The keypad is a real panel that floats over content — unlike almost
   // everything else in this restyle it keeps an opaque surface so digits
   // stay readable no matter what is behind it.
+  //
+  // The key fill itself, [LiftColors.surfaceRaised] (white at 12% alpha —
+  // 0x1FFFFFFF), is translucent, but it is only ever painted over the
+  // panel's own opaque [LiftColors.panelTop] (0xF01E262F, effectively RGB
+  // 30/38/47 once its own near-total alpha is accounted for). Compositing
+  // surfaceRaised over panelTop's RGB gives approximately RGB(57, 64, 72) —
+  // a slightly lighter slate than the panel, which is exactly the subtle
+  // "raised key" contrast this token is used for elsewhere in the palette.
+  // Kept deliberately rather than swapped for an opaque literal.
   static const Color _keyBg = LiftColors.surfaceRaised;
 
   @override
@@ -130,8 +139,11 @@ class _LogNumericKeypadState extends State<LogNumericKeypad> {
       key: const ValueKey<String>('log-numeric-keypad-panel'),
       decoration: const BoxDecoration(
         color: LiftColors.panelTop,
-        border: Border.fromBorderSide(
-          BorderSide(color: LiftColors.border, width: LiftShape.borderWidth),
+        border: Border(
+          top: BorderSide(
+            color: LiftColors.border,
+            width: LiftShape.borderWidth,
+          ),
         ),
         borderRadius: BorderRadius.zero,
       ),
@@ -293,10 +305,7 @@ class _LogNumericKeypadState extends State<LogNumericKeypad> {
                   borderRadius: BorderRadius.circular(8),
                 ),
               ),
-              child: const Text(
-                'Done',
-                style: TextStyle(fontSize: 16, fontWeight: FontWeight.w600),
-              ),
+              child: const Text('Done', style: LiftText.titleMedium),
             ),
           ),
         ),

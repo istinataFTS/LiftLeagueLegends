@@ -310,6 +310,29 @@ void main() {
         expect(decoration.borderRadius, BorderRadius.zero);
       });
 
+      testWidgets('panel border is top-only — callers already draw their '
+          'own dock seam', (tester) async {
+        await tester.pumpWidget(buildSubject());
+        await tester.pumpAndSettle();
+
+        final Container panel = tester.widget<Container>(
+          find.byKey(const ValueKey<String>('log-numeric-keypad-panel')),
+        );
+        final BoxDecoration decoration = panel.decoration! as BoxDecoration;
+        final Border border = decoration.border! as Border;
+
+        expect(
+          border.top,
+          const BorderSide(
+            color: LiftColors.border,
+            width: LiftShape.borderWidth,
+          ),
+        );
+        expect(border.left, BorderSide.none);
+        expect(border.right, BorderSide.none);
+        expect(border.bottom, BorderSide.none);
+      });
+
       testWidgets('a digit key renders in JetBrains Mono', (tester) async {
         await tester.pumpWidget(buildSubject());
         await tester.pumpAndSettle();
