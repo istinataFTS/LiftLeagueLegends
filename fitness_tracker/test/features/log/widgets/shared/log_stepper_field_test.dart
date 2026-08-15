@@ -1,4 +1,6 @@
 import 'package:fitness_tracker/app/app.dart';
+import 'package:fitness_tracker/core/themes/lift_number.dart';
+import 'package:fitness_tracker/core/themes/lift_theme.dart';
 import 'package:fitness_tracker/features/log/presentation/widgets/shared/log_stepper_field.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -40,8 +42,58 @@ void main() {
       await tester.pumpWidget(buildSubject(label: 'Reps', value: 10));
       await tester.pumpAndSettle();
 
-      expect(find.text('Reps'), findsOneWidget);
+      expect(find.text('REPS'), findsOneWidget);
       expect(find.text('10'), findsOneWidget);
+    });
+
+    testWidgets('the label is mono caps', (tester) async {
+      await tester.pumpWidget(buildSubject(label: 'Reps', value: 10));
+      await tester.pumpAndSettle();
+
+      final Text label = tester.widget<Text>(find.text('REPS'));
+      expect(label.style!.fontFamily, 'JetBrainsMono');
+      expect(label.style!.color, LiftColors.textDim);
+    });
+
+    testWidgets('the value renders through LiftNumber at hero size', (
+      tester,
+    ) async {
+      await tester.pumpWidget(buildSubject(label: 'Reps', value: 10));
+      await tester.pumpAndSettle();
+
+      final LiftNumber number = tester.widget<LiftNumber>(
+        find.byType(LiftNumber),
+      );
+      expect(number.style.fontSize, LiftText.dataHero.fontSize);
+    });
+
+    testWidgets('a decimal value splits the fraction into the unit slot', (
+      tester,
+    ) async {
+      await tester.pumpWidget(buildSubject(value: 37.0, allowDecimal: true));
+      await tester.pumpAndSettle();
+
+      final LiftNumber number = tester.widget<LiftNumber>(
+        find.byType(LiftNumber),
+      );
+      expect(number.value, '37');
+      expect(number.unit, '.0');
+    });
+
+    testWidgets('there is no bordered container', (tester) async {
+      await tester.pumpWidget(buildSubject(value: 10));
+      await tester.pumpAndSettle();
+
+      final Iterable<Container> containers = tester.widgetList<Container>(
+        find.descendant(
+          of: find.byType(LogStepperField),
+          matching: find.byType(Container),
+        ),
+      );
+      for (final Container c in containers) {
+        final BoxDecoration? d = c.decoration as BoxDecoration?;
+        expect(d?.border, isNull);
+      }
     });
 
     testWidgets('tapping + calls onChanged with incremented value', (
@@ -172,7 +224,7 @@ void main() {
         );
         await tester.pumpAndSettle();
 
-        expect(find.text('Protein'), findsNothing);
+        expect(find.text('PROTEIN'), findsNothing);
         expect(find.text('−'), findsOneWidget);
         expect(find.text('42'), findsOneWidget);
         expect(find.text('+'), findsOneWidget);
