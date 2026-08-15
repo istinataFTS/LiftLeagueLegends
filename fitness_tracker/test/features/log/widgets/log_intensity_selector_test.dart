@@ -66,6 +66,27 @@ void main() {
       }
     });
 
+    testWidgets('every rung has a tappable area at least 44px tall', (
+      tester,
+    ) async {
+      await tester.pumpWidget(buildSubject());
+      await tester.pumpAndSettle();
+
+      for (int i = 0; i <= 5; i++) {
+        final Finder gestureDetector = find.ancestor(
+          of: find.byKey(ValueKey<String>('effort-rung-$i')),
+          matching: find.byType(GestureDetector),
+        );
+        expect(gestureDetector, findsOneWidget);
+        final Size size = tester.getSize(gestureDetector);
+        expect(
+          size.height,
+          greaterThanOrEqualTo(44),
+          reason: 'rung $i tappable height was ${size.height}',
+        );
+      }
+    });
+
     testWidgets('the gradient legend strip is gone', (tester) async {
       await tester.pumpWidget(buildSubject());
       await tester.pumpAndSettle();

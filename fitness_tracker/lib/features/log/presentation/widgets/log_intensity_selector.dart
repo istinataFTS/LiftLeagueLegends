@@ -63,16 +63,22 @@ class LogIntensitySelector extends StatelessWidget {
                         HapticFeedback.selectionClick();
                         onChanged(i);
                       },
-                      child: Container(
-                        key: ValueKey<String>('effort-rung-$i'),
-                        constraints: BoxConstraints(
-                          minHeight: _heights[i],
-                          maxHeight: _heights[i],
-                        ),
-                        decoration: BoxDecoration(
-                          color: selected
-                              ? LiftColors.effortOn
-                              : LiftColors.effortOff,
+                      child: SizedBox(
+                        height: 44,
+                        child: Align(
+                          alignment: Alignment.bottomCenter,
+                          child: Container(
+                            key: ValueKey<String>('effort-rung-$i'),
+                            constraints: BoxConstraints(
+                              minHeight: _heights[i],
+                              maxHeight: _heights[i],
+                            ),
+                            decoration: BoxDecoration(
+                              color: selected
+                                  ? LiftColors.effortOn
+                                  : LiftColors.effortOff,
+                            ),
+                          ),
                         ),
                       ),
                     ),
