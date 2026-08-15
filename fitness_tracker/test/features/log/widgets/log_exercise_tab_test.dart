@@ -341,8 +341,12 @@ void main() {
 
       await selectBenchPress(tester);
 
-      expect(find.text('Set 1'), findsOneWidget);
-      expect(find.text('100 kg × 8'), findsOneWidget);
+      expect(find.text('01'), findsOneWidget);
+      // Weight and reps render through LiftNumber (Text.rich); find.text
+      // resolves it via textSpan.toPlainText(), which concatenates the
+      // value and unit spans into one string.
+      expect(find.text('100kg'), findsOneWidget);
+      expect(find.text('8'), findsOneWidget);
     });
 
     testWidgets('tapping reps stepper value opens keypad; confirming closes '

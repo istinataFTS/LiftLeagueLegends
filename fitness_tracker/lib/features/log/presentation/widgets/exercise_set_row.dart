@@ -1,11 +1,11 @@
 import 'package:flutter/material.dart';
 
-import '../../../../core/themes/app_theme.dart';
-import 'shared/log_ui_colors.dart';
+import '../../../../core/themes/lift_number.dart';
+import '../../../../core/themes/lift_theme.dart';
 
-/// One row in the Exercise tab's "today's sets" feed (design spec §3.2):
-/// `Set n` + a solid intensity pill + `<weight> × <reps>`, with an
-/// intensity-sliced gradient bar beneath (fill = level/5).
+/// One row in the Exercise tab's set feed (frame 02): index, effort marks, and
+/// the weight × reps pair right-aligned. Rows are divided by a hairline — the
+/// card, the pill and the gradient bar are gone.
 class ExerciseSetRow extends StatelessWidget {
   const ExerciseSetRow({
     super.key,
@@ -22,132 +22,62 @@ class ExerciseSetRow extends StatelessWidget {
   final String weightText;
   final int reps;
 
+  /// Splits `80 kg` into `('80', 'kg')` so the unit can ride the value.
+  /// A value with no space stays whole with an empty unit.
+  static (String, String) _split(String text) {
+    final int i = text.indexOf(' ');
+    if (i < 0) return (text, '');
+    return (text.substring(0, i), text.substring(i + 1));
+  }
+
   @override
   Widget build(BuildContext context) {
     final int level = intensity.clamp(0, 5);
-    final Color rampColor = LogUiColors.intensityRamp[level];
+    final (String value, String unit) = _split(weightText);
 
     return Container(
-      margin: const EdgeInsets.only(bottom: 8),
-      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
-      decoration: BoxDecoration(
-        color: LogUiColors.rowSurface,
-        borderRadius: BorderRadius.circular(10),
-        border: Border.all(color: AppTheme.borderDark),
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: <Widget>[
-          Row(
-            children: <Widget>[
-              Text(
-                'Set $setNumber',
-                style: const TextStyle(
-                  color: AppTheme.textMedium,
-                  fontSize: 13,
-                  fontWeight: FontWeight.w600,
-                ),
-              ),
-              const SizedBox(width: 8),
-              _IntensityPill(level: level, color: rampColor),
-              const Spacer(),
-              Text(
-                '$weightText × $reps',
-                style: const TextStyle(
-                  color: AppTheme.textLight,
-                  fontSize: 14,
-                  fontWeight: FontWeight.w600,
-                  fontFeatures: <FontFeature>[FontFeature.tabularFigures()],
-                ),
-              ),
-            ],
-          ),
-          const SizedBox(height: 8),
-          _IntensityBar(level: level),
-        ],
-      ),
-    );
-  }
-}
-
-class _IntensityPill extends StatelessWidget {
-  const _IntensityPill({required this.level, required this.color});
-
-  final int level;
-  final Color color;
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      width: 20,
-      height: 20,
-      alignment: Alignment.center,
-      decoration: BoxDecoration(
-        color: color,
-        borderRadius: BorderRadius.circular(6),
-      ),
-      child: Text(
-        '$level',
-        style: const TextStyle(
-          color: AppTheme.backgroundDark,
-          fontSize: 12,
-          fontWeight: FontWeight.w700,
-          fontFeatures: <FontFeature>[FontFeature.tabularFigures()],
+      padding: const EdgeInsets.symmetric(vertical: 13),
+      decoration: const BoxDecoration(
+        border: Border(
+          bottom: BorderSide(color: LiftColors.hairline, width: 1),
         ),
       ),
-    );
-  }
-}
-
-/// Track + fill where the fill reveals only the leftmost `level/5` slice of the
-/// full 6-stop ramp gradient, with the gradient anchored to the *track* width
-/// (not stretched into the fill). See design spec §3.2.
-class _IntensityBar extends StatelessWidget {
-  const _IntensityBar({required this.level});
-
-  final int level;
-
-  @override
-  Widget build(BuildContext context) {
-    final double fraction = level / 5.0;
-
-    return LayoutBuilder(
-      builder: (BuildContext context, BoxConstraints constraints) {
-        final double fullWidth = constraints.maxWidth;
-        return SizedBox(
-          height: 6,
-          width: fullWidth,
-          child: Stack(
-            children: <Widget>[
-              // Track
-              Container(
-                decoration: BoxDecoration(
-                  color: AppTheme.borderDark,
-                  borderRadius: BorderRadius.circular(3),
-                ),
-              ),
-              // Fill: clip the full-width gradient to its leftmost `fraction`.
-              ClipRect(
-                child: Align(
-                  alignment: Alignment.centerLeft,
-                  widthFactor: fraction,
-                  child: Container(
-                    width: fullWidth,
-                    height: 6,
-                    decoration: BoxDecoration(
-                      borderRadius: BorderRadius.circular(3),
-                      gradient: const LinearGradient(
-                        colors: LogUiColors.intensityRamp,
-                        stops: <double>[0.0, 0.2, 0.4, 0.6, 0.8, 1.0],
-                      ),
-                    ),
+      child: Row(
+        children: <Widget>[
+          Text(
+            setNumber.toString().padLeft(2, '0'),
+            style: LiftText.dataMeta.copyWith(color: LiftColors.textDim),
+          ),
+          const SizedBox(width: 22),
+          Row(
+            children: List<Widget>.generate(5, (int i) {
+              return Padding(
+                padding: EdgeInsets.only(left: i == 0 ? 0 : 3),
+                child: Container(
+                  key: ValueKey<String>('set-effort-mark-$i'),
+                  width: 11,
+                  height: 15,
+                  decoration: BoxDecoration(
+                    color: i < level
+                        ? LiftColors.effortOn
+                        : LiftColors.effortOff,
                   ),
                 ),
-              ),
-            ],
+              );
+            }),
           ),
-        );
-      },
+          const Spacer(),
+          LiftNumber(value, unit, LiftText.dataSmall),
+          Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 10),
+            child: Text(
+              '×',
+              style: LiftText.dataSmall.copyWith(color: LiftColors.textDim),
+            ),
+          ),
+          LiftNumber('$reps', '', LiftText.dataSmall),
+        ],
+      ),
     );
   }
 }
