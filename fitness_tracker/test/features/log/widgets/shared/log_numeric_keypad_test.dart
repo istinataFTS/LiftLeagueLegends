@@ -1,4 +1,5 @@
 import 'package:fitness_tracker/app/app.dart';
+import 'package:fitness_tracker/core/themes/lift_theme.dart';
 import 'package:fitness_tracker/features/log/presentation/widgets/shared/log_numeric_keypad.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -290,6 +291,32 @@ void main() {
         await tester.pumpAndSettle();
 
         expect(submitted, equals(12));
+      });
+    });
+
+    group('styling', () {
+      testWidgets('panel surface is LiftColors.panelTop with square corners', (
+        tester,
+      ) async {
+        await tester.pumpWidget(buildSubject());
+        await tester.pumpAndSettle();
+
+        final Container panel = tester.widget<Container>(
+          find.byKey(const ValueKey<String>('log-numeric-keypad-panel')),
+        );
+        final BoxDecoration decoration = panel.decoration! as BoxDecoration;
+
+        expect(decoration.color, LiftColors.panelTop);
+        expect(decoration.borderRadius, BorderRadius.zero);
+      });
+
+      testWidgets('a digit key renders in JetBrains Mono', (tester) async {
+        await tester.pumpWidget(buildSubject());
+        await tester.pumpAndSettle();
+
+        final Text digit = tester.widget<Text>(find.text('5').last);
+
+        expect(digit.style?.fontFamily, 'JetBrainsMono');
       });
     });
   });
