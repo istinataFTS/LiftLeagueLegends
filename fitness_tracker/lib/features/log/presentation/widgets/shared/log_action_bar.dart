@@ -1,18 +1,18 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
-import '../../../../../core/themes/app_theme.dart';
+import '../../../../../core/themes/lift_theme.dart';
 
 /// Pinned bottom dock used by all three log tabs.
 ///
 /// Structure (top → bottom):
 ///   1. Optional [previewSlot] — e.g. 'This meal' macros row on the Meal tab.
-///   2. Gradient primary CTA button (disabled = 40% opacity + non-interactive).
+///   2. Primary CTA button (theme-styled `ElevatedButton`; disabled = square
+///      outline instead of fill).
 ///   3. Optional [statusLine] — e.g. 'Logged ×3 today'.
 ///
 /// The CTA fires [HapticFeedback.mediumImpact] before calling [onSubmit].
-/// It scale-animates to 0.98 on press.
-class LogActionBar extends StatefulWidget {
+class LogActionBar extends StatelessWidget {
   const LogActionBar({
     super.key,
     required this.ctaLabel,
@@ -32,18 +32,42 @@ class LogActionBar extends StatefulWidget {
   final bool canSubmit;
   final bool isLoading;
 
-  @override
-  State<LogActionBar> createState() => _LogActionBarState();
-}
-
-class _LogActionBarState extends State<LogActionBar> {
-  bool _pressed = false;
-
-  bool get _interactive => widget.canSubmit && !widget.isLoading;
+  bool get _interactive => canSubmit && !isLoading;
 
   void _handleTap() {
     HapticFeedback.mediumImpact();
-    widget.onSubmit();
+    onSubmit();
+  }
+
+  /// The CTA is on the theme's `elevatedButtonTheme` default (filled
+  /// `actionFill`, 52 high, 8px radius, white bold `labelLarge`) whenever
+  /// [canSubmit] is true and it isn't loading — `style` stays null so the
+  /// theme applies untouched. Two narrow overrides on top of that default:
+  ///   - [canSubmit] false: square outline instead of fill (`§4` disabled
+  ///     treatment) — this is the one case the theme default can't express.
+  ///   - [isLoading] true (and still [canSubmit]): keep the fill while the
+  ///     button is momentarily non-interactive, instead of falling back to
+  ///     the theme's disabled colours.
+  ButtonStyle? _style() {
+    if (!canSubmit) {
+      return ElevatedButton.styleFrom(
+        backgroundColor: Colors.transparent,
+        disabledBackgroundColor: Colors.transparent,
+        foregroundColor: LiftColors.textDisabled,
+        disabledForegroundColor: LiftColors.textDisabled,
+        side: const BorderSide(
+          color: LiftColors.border,
+          width: LiftShape.borderWidth,
+        ),
+      );
+    }
+    if (isLoading) {
+      return ElevatedButton.styleFrom(
+        disabledBackgroundColor: LiftColors.actionFill,
+        disabledForegroundColor: Colors.white,
+      );
+    }
+    return null;
   }
 
   @override
@@ -51,96 +75,65 @@ class _LogActionBarState extends State<LogActionBar> {
     return SafeArea(
       top: false,
       child: Container(
-        decoration: BoxDecoration(
-          color: AppTheme.surfaceDark,
-          border: const Border(top: BorderSide(color: AppTheme.borderDark)),
-          boxShadow: <BoxShadow>[
-            BoxShadow(
-              color: Colors.black.withValues(alpha: 0.25),
-              blurRadius: 8,
-              offset: const Offset(0, -2),
+        decoration: const BoxDecoration(
+          color: LiftColors.background,
+          border: Border(
+            top: BorderSide(
+              color: LiftColors.rule,
+              width: LiftShape.borderWidth,
             ),
-          ],
+          ),
         ),
         child: Padding(
           padding: const EdgeInsets.fromLTRB(16, 8, 16, 12),
           child: Column(
             mainAxisSize: MainAxisSize.min,
             children: <Widget>[
-              if (widget.previewSlot != null) ...<Widget>[
-                widget.previewSlot!,
+              if (previewSlot != null) ...<Widget>[
+                previewSlot!,
                 const SizedBox(height: 8),
               ],
-              Opacity(
-                opacity: widget.canSubmit ? 1.0 : 0.4,
-                child: GestureDetector(
-                  onTapDown: _interactive
-                      ? (_) => setState(() => _pressed = true)
-                      : null,
-                  onTapUp: _interactive
-                      ? (_) => setState(() => _pressed = false)
-                      : null,
-                  onTapCancel: _interactive
-                      ? () => setState(() => _pressed = false)
-                      : null,
-                  onTap: _interactive ? _handleTap : null,
-                  child: AnimatedScale(
-                    scale: _pressed ? 0.98 : 1.0,
-                    duration: const Duration(milliseconds: 100),
-                    child: Semantics(
-                      button: true,
-                      enabled: _interactive,
-                      label: widget.ctaLabel,
-                      child: Container(
-                        height: 52,
-                        width: double.infinity,
-                        decoration: BoxDecoration(
-                          gradient: widget.canSubmit
-                              ? AppTheme.primaryGradient
-                              : null,
-                          color: widget.canSubmit
-                              ? null
-                              : AppTheme.surfaceLight,
-                          borderRadius: BorderRadius.circular(12),
-                        ),
-                        child: widget.isLoading
-                            ? const Center(
-                                child: SizedBox(
-                                  width: 20,
-                                  height: 20,
-                                  child: CircularProgressIndicator(
-                                    strokeWidth: 2,
-                                    color: Colors.white,
-                                  ),
-                                ),
-                              )
-                            : Row(
-                                mainAxisAlignment: MainAxisAlignment.center,
-                                children: <Widget>[
-                                  Icon(
-                                    widget.ctaIcon,
-                                    color: Colors.white,
-                                    size: 20,
-                                  ),
-                                  const SizedBox(width: 8),
-                                  Text(
-                                    widget.ctaLabel,
-                                    style: const TextStyle(
-                                      color: Colors.white,
-                                      fontSize: 16,
-                                      fontWeight: FontWeight.w600,
-                                    ),
-                                  ),
-                                ],
-                              ),
-                      ),
-                    ),
+              Semantics(
+                button: true,
+                enabled: _interactive,
+                label: ctaLabel,
+                child: SizedBox(
+                  width: double.infinity,
+                  child: ElevatedButton(
+                    onPressed: _interactive ? _handleTap : null,
+                    style: _style(),
+                    child: isLoading
+                        ? const SizedBox(
+                            width: 20,
+                            height: 20,
+                            child: CircularProgressIndicator(
+                              strokeWidth: 2,
+                              color: Colors.white,
+                            ),
+                          )
+                        : Row(
+                            mainAxisAlignment: MainAxisAlignment.center,
+                            children: <Widget>[
+                              Icon(ctaIcon, size: 16),
+                              const SizedBox(width: 8),
+                              Text(ctaLabel.toUpperCase()),
+                            ],
+                          ),
                   ),
                 ),
               ),
-              if (widget.statusLine != null) ...<Widget>[
+              if (statusLine != null) ...<Widget>[
                 const SizedBox(height: 6),
-                widget.statusLine!,
+                Center(
+                  child: DefaultTextStyle.merge(
+                    key: const ValueKey<String>('log-action-bar-footnote'),
+                    style: LiftText.labelMedium.copyWith(
+                      color: LiftColors.textDim,
+                    ),
+                    textAlign: TextAlign.center,
+                    child: statusLine!,
+                  ),
+                ),
               ],
             ],
           ),

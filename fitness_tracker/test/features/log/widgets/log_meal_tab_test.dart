@@ -117,7 +117,7 @@ void main() {
         await tester.pumpAndSettle();
 
         // No dock yet (no meal selected).
-        expect(find.text(AppStrings.logMealButton), findsNothing);
+        expect(find.text(AppStrings.logMealButton.toUpperCase()), findsNothing);
         // Bar shows "Select Meal" prompt.
         expect(find.text(AppStrings.selectMeal), findsOneWidget);
         expect(find.byIcon(Icons.expand_more), findsOneWidget);
@@ -146,7 +146,10 @@ void main() {
         // Picker dismissed; bar + dock both show the meal name; dock appears.
         expect(find.byType(MealPickerSheet), findsNothing);
         expect(find.text('Chicken Breast'), findsNWidgets(2));
-        expect(find.text(AppStrings.logMealButton), findsOneWidget);
+        expect(
+          find.text(AppStrings.logMealButton.toUpperCase()),
+          findsOneWidget,
+        );
         expect(find.text('per 100 g'), findsOneWidget);
       },
     );
@@ -190,7 +193,7 @@ void main() {
         );
         await tester.pumpAndSettle();
 
-        await tester.tap(find.text(AppStrings.logMealButton));
+        await tester.tap(find.text(AppStrings.logMealButton.toUpperCase()));
         await tester.pump();
 
         verify(

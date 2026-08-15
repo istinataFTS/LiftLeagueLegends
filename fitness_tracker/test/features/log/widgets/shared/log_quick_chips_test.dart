@@ -1,10 +1,21 @@
 import 'package:fitness_tracker/app/app.dart';
+import 'package:fitness_tracker/core/themes/lift_theme.dart';
 import 'package:fitness_tracker/features/log/presentation/widgets/shared/log_quick_chips.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 
 void main() {
   const List<num> _defaultValues = <num>[50, 100, 150, 200];
+
+  BoxDecoration decorationFor(WidgetTester tester, String label) {
+    final AnimatedContainer container = tester.widget<AnimatedContainer>(
+      find.ancestor(
+        of: find.text(label),
+        matching: find.byType(AnimatedContainer),
+      ),
+    );
+    return container.decoration! as BoxDecoration;
+  }
 
   Widget buildSubject({
     List<num> values = _defaultValues,
@@ -90,5 +101,31 @@ void main() {
       // Widget should still render without error.
       expect(find.byType(LogQuickChips), findsOneWidget);
     });
+
+    testWidgets(
+      "the selected chip fills LiftColors.actionFill with square corners",
+      (tester) async {
+        await tester.pumpWidget(buildSubject(selectedValue: 100));
+        await tester.pumpAndSettle();
+
+        final BoxDecoration decoration = decorationFor(tester, '100');
+        expect(decoration.color, LiftColors.actionFill);
+        expect(decoration.borderRadius, BorderRadius.zero);
+      },
+    );
+
+    testWidgets(
+      'an unselected chip is transparent with a 1.5px LiftColors.border',
+      (tester) async {
+        await tester.pumpWidget(buildSubject(selectedValue: 100));
+        await tester.pumpAndSettle();
+
+        final BoxDecoration decoration = decorationFor(tester, '50');
+        expect(decoration.color, Colors.transparent);
+        final Border border = decoration.border! as Border;
+        expect(border.top.color, LiftColors.border);
+        expect(border.top.width, LiftShape.borderWidth);
+      },
+    );
   });
 }

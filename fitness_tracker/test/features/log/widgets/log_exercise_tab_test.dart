@@ -234,7 +234,8 @@ void main() {
       ); // weight 0 -> 2.5
       await tester.pumpAndSettle();
 
-      await tester.tap(find.text(AppStrings.logSetButton));
+      // LogActionBar renders the CTA label mono-caps uppercase.
+      await tester.tap(find.text(AppStrings.logSetButton.toUpperCase()));
       await tester.pump();
 
       verify(

@@ -196,7 +196,8 @@ void main() {
         }
         await tester.pumpAndSettle();
 
-        await tester.tap(find.text(AppStrings.logMacrosButton));
+        // LogActionBar renders the CTA label mono-caps uppercase.
+        await tester.tap(find.text(AppStrings.logMacrosButton.toUpperCase()));
         await tester.pump();
 
         verify(
