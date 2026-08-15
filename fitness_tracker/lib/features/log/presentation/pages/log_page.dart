@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 
-import '../../../../core/themes/app_theme.dart';
+import '../../../../core/themes/lift_theme.dart';
 import '../widgets/log_exercise_tab.dart';
 import '../widgets/log_macros_tab.dart';
 import '../widgets/log_meal_tab.dart';
@@ -47,13 +47,12 @@ class _LogPageState extends State<LogPage> {
     final bool canPop = Navigator.of(context).canPop();
 
     return Scaffold(
-      backgroundColor: AppTheme.backgroundDark,
       body: SafeArea(
         bottom: false,
         child: Column(
           children: <Widget>[
             Padding(
-              padding: const EdgeInsets.fromLTRB(16, 12, 16, 8),
+              padding: const EdgeInsets.fromLTRB(16, 12, 16, 0),
               child: Column(
                 mainAxisSize: MainAxisSize.min,
                 children: <Widget>[
@@ -62,7 +61,7 @@ class _LogPageState extends State<LogPage> {
                       alignment: Alignment.centerLeft,
                       child: IconButton(
                         icon: const Icon(Icons.arrow_back),
-                        color: AppTheme.textLight,
+                        color: LiftColors.textPrimary,
                         onPressed: () => Navigator.of(context).pop(),
                       ),
                     ),

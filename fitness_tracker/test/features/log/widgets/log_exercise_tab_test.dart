@@ -1,6 +1,7 @@
 import 'package:bloc_test/bloc_test.dart';
 import 'package:fitness_tracker/app/app.dart';
 import 'package:fitness_tracker/core/constants/app_strings.dart';
+import 'package:fitness_tracker/core/themes/lift_theme.dart';
 import 'package:fitness_tracker/domain/entities/exercise.dart';
 import 'package:fitness_tracker/domain/entities/workout_set.dart';
 import 'package:fitness_tracker/domain/muscle_visual/muscle_visual_contract.dart';
@@ -301,8 +302,11 @@ void main() {
 
       await selectBenchPress(tester);
 
-      // Labels use the formatted date, never "today", for a past date.
-      expect(find.text('Bench Press · Jan 15'), findsOneWidget);
+      // Labels use the formatted date, never "today", for a past date. The
+      // set-feed section label is date-scoped chrome (spec §5.2's `SETS
+      // TODAY` becomes `SETS JAN 15` for a non-today date) — behaviour
+      // (never claiming "today" for a past date) is unchanged.
+      expect(find.text('SETS JAN 15'), findsOneWidget);
       expect(find.text('No sets on Jan 15'), findsOneWidget);
       expect(find.text('0 sets Jan 15'), findsOneWidget);
       expect(find.textContaining('today'), findsNothing);
@@ -380,5 +384,53 @@ void main() {
         findsOneWidget,
       );
     });
+
+    testWidgets(
+      'Deep Mist chrome: no Card, a rule Divider survives, pre-existing keys '
+      'resolve, and the enabled CTA fills actionFill',
+      (tester) async {
+        await tester.pumpWidget(
+          buildSubject(exerciseState: ExercisesLoaded(exercises)),
+        );
+        await tester.pumpAndSettle();
+
+        expect(find.byType(Card), findsNothing);
+
+        final Iterable<Divider> dividers = tester.widgetList<Divider>(
+          find.byType(Divider),
+        );
+        expect(dividers, isNotEmpty);
+        expect(dividers.any((Divider d) => d.color == LiftColors.rule), isTrue);
+
+        expect(find.byKey(const Key('exerciseRepsStepper')), findsOneWidget);
+        expect(find.byKey(const Key('exerciseWeightStepper')), findsOneWidget);
+
+        await selectBenchPress(tester);
+        await tester.tap(
+          find.descendant(
+            of: find.byKey(const Key('exerciseRepsStepper')),
+            matching: find.text('+'),
+          ),
+        );
+        await tester.pumpAndSettle();
+        await tester.tap(
+          find.descendant(
+            of: find.byKey(const Key('exerciseWeightStepper')),
+            matching: find.text('+'),
+          ),
+        );
+        await tester.pumpAndSettle();
+
+        final Material material = tester
+            .widgetList<Material>(
+              find.descendant(
+                of: find.byType(ElevatedButton),
+                matching: find.byType(Material),
+              ),
+            )
+            .first;
+        expect(material.color, LiftColors.actionFill);
+      },
+    );
   });
 }

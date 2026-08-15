@@ -1,6 +1,7 @@
 import 'package:bloc_test/bloc_test.dart';
 import 'package:fitness_tracker/app/app.dart';
 import 'package:fitness_tracker/core/constants/app_strings.dart';
+import 'package:fitness_tracker/core/themes/lift_theme.dart';
 import 'package:fitness_tracker/domain/entities/nutrition_log.dart';
 import 'package:fitness_tracker/features/log/log.dart';
 import 'package:fitness_tracker/features/log/presentation/widgets/shared/macro_composition_bar.dart';
@@ -402,5 +403,47 @@ void main() {
       // Two composition bars (today + this entry).
       expect(find.byType(MacroCompositionBar), findsNWidgets(2));
     });
+
+    testWidgets(
+      'Deep Mist chrome: no Card, a rule Divider survives, macro stepper '
+      'keys resolve, and the enabled CTA fills actionFill',
+      (tester) async {
+        await tester.pumpWidget(
+          buildSubject(initialDate: DateTime(2026, 6, 14)),
+        );
+        await tester.pumpAndSettle();
+
+        expect(find.byType(Card), findsNothing);
+
+        final Iterable<Divider> dividers = tester.widgetList<Divider>(
+          find.byType(Divider),
+        );
+        expect(dividers, isNotEmpty);
+        expect(dividers.any((Divider d) => d.color == LiftColors.rule), isTrue);
+
+        for (final String label in <String>['Protein', 'Carbs', 'Fats']) {
+          expect(find.byKey(Key('macrosStepper-$label')), findsOneWidget);
+        }
+
+        // Bump a macro so the CTA is enabled.
+        await tester.tap(
+          find.descendant(
+            of: find.byKey(const Key('macrosStepper-Protein')),
+            matching: find.text('+'),
+          ),
+        );
+        await tester.pumpAndSettle();
+
+        final Material material = tester
+            .widgetList<Material>(
+              find.descendant(
+                of: find.byType(ElevatedButton),
+                matching: find.byType(Material),
+              ),
+            )
+            .first;
+        expect(material.color, LiftColors.actionFill);
+      },
+    );
   });
 }

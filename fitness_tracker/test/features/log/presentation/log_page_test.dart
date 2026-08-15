@@ -127,5 +127,30 @@ void main() {
 
       expect(find.byIcon(Icons.arrow_back), findsNothing);
     });
+
+    testWidgets(
+      'Deep Mist chrome: the tab selector is not wrapped in a bordered '
+      'container and no Card is present',
+      (tester) async {
+        await tester.pumpWidget(buildSubject());
+        await tester.pumpAndSettle();
+
+        expect(find.byType(Card), findsNothing);
+
+        // The selector no longer sits inside a bordered/decorated Container —
+        // its own SizedBox ancestor should be the nearest sized wrapper, not
+        // a Container carrying a border decoration.
+        final Iterable<Container> containers = tester.widgetList<Container>(
+          find.ancestor(
+            of: find.byType(LogTabSelector),
+            matching: find.byType(Container),
+          ),
+        );
+        for (final Container c in containers) {
+          final BoxDecoration? decoration = c.decoration as BoxDecoration?;
+          expect(decoration?.border, isNull);
+        }
+      },
+    );
   });
 }
