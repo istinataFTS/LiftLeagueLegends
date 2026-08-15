@@ -4,6 +4,7 @@ import 'package:flutter/material.dart' hide FontFeature;
 import 'package:flutter/services.dart';
 
 import '../../../../../core/themes/app_theme.dart';
+import '../../../../../core/themes/lift_theme.dart';
 
 /// In-layout numeric keypad — never the OS keyboard.
 /// Intended to be swapped in place of the dock's normal content while editing.
@@ -275,7 +276,7 @@ class _LogNumericKeypadState extends State<LogNumericKeypad> {
             child: ElevatedButton(
               onPressed: _onSubmit,
               style: ElevatedButton.styleFrom(
-                backgroundColor: AppTheme.primaryOrange,
+                backgroundColor: LiftColors.actionFill,
                 foregroundColor: Colors.white,
                 elevation: 0,
                 shape: RoundedRectangleBorder(

@@ -37,7 +37,6 @@ Future<void> showHistoryNutritionTypeBottomSheet(
 }) {
   return showModalBottomSheet<void>(
     context: context,
-    backgroundColor: AppTheme.surfaceDark,
     showDragHandle: true,
     builder: (BuildContext sheetContext) {
       return SafeArea(

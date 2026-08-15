@@ -578,7 +578,6 @@ class _WorkoutSetCard extends StatelessWidget {
     showDialog<void>(
       context: context,
       builder: (BuildContext dialogContext) => AlertDialog(
-        backgroundColor: AppTheme.surfaceDark,
         title: const Text('Delete Set?'),
         content: Text(
           'Remove ${exercise.name} - ${set.reps} reps @ $displayWeight?',
@@ -668,7 +667,6 @@ class _OrphanedWorkoutSetCard extends StatelessWidget {
     showDialog<void>(
       context: context,
       builder: (BuildContext dialogContext) => AlertDialog(
-        backgroundColor: AppTheme.surfaceDark,
         title: const Text('Delete Set?'),
         content: Text('Remove ${set.reps} reps @ $displayWeight?'),
         actions: <Widget>[
@@ -794,7 +792,6 @@ class _NutritionLogCard extends StatelessWidget {
     showDialog<void>(
       context: context,
       builder: (BuildContext dialogContext) => AlertDialog(
-        backgroundColor: AppTheme.surfaceDark,
         title: const Text('Delete Nutrition Log?'),
         content: Text('Remove "${log.mealName}" from history?'),
         actions: <Widget>[

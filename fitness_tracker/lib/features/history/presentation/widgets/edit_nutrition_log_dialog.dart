@@ -56,7 +56,6 @@ class _EditNutritionLogDialogState extends State<EditNutritionLogDialog> {
   @override
   Widget build(BuildContext context) {
     return AlertDialog(
-      backgroundColor: AppTheme.surfaceDark,
       title: Text(isMealLog ? 'Edit Meal Entry' : 'Edit Macro Entry'),
       content: SizedBox(
         width: 420,

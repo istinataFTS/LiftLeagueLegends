@@ -27,7 +27,6 @@ class MealPickerSheet extends StatefulWidget {
     final double screenHeight = MediaQuery.sizeOf(context).height;
     return showModalBottomSheet<Meal>(
       context: context,
-      backgroundColor: AppTheme.surfaceDark,
       isScrollControlled: true,
       useSafeArea: true,
       constraints: BoxConstraints(
