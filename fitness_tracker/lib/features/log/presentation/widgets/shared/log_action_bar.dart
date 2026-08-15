@@ -24,6 +24,8 @@ class LogActionBar extends StatelessWidget {
     this.isLoading = false,
   });
 
+  /// Rendered uppercased — the Deep Mist CTA is mono caps. Pass a normal
+  /// sentence-case string; do not pass anything whose casing carries meaning.
   final String ctaLabel;
   final IconData ctaIcon;
   final VoidCallback onSubmit;
