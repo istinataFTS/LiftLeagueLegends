@@ -34,12 +34,33 @@ void main() {
         theme.inputDecorationTheme.focusedBorder! as OutlineInputBorder;
     expect(focused.borderRadius, BorderRadius.zero);
     expect(focused.borderSide.color, LiftColors.actionTint);
+    expect(focused.borderSide.width, LiftShape.borderWidthActive);
     expect(theme.inputDecorationTheme.filled, isFalse);
+
+    final OutlineInputBorder border =
+        theme.inputDecorationTheme.border! as OutlineInputBorder;
+    expect(border.borderRadius, BorderRadius.zero);
+    expect(border.borderSide.width, LiftShape.borderWidth);
+
+    final OutlineInputBorder enabledBorder =
+        theme.inputDecorationTheme.enabledBorder! as OutlineInputBorder;
+    expect(enabledBorder.borderRadius, BorderRadius.zero);
+    expect(enabledBorder.borderSide.width, LiftShape.borderWidth);
+
+    final OutlineInputBorder errorBorder =
+        theme.inputDecorationTheme.errorBorder! as OutlineInputBorder;
+    expect(errorBorder.borderRadius, BorderRadius.zero);
+    expect(errorBorder.borderSide.width, LiftShape.borderWidth);
   });
 
   test('chips never show a checkmark and are square', () {
     expect(theme.chipTheme.showCheckmark, isFalse);
     expect(theme.chipTheme.selectedColor, LiftColors.actionFill);
+
+    final RoundedRectangleBorder shape =
+        theme.chipTheme.shape! as RoundedRectangleBorder;
+    expect(shape.borderRadius, BorderRadius.zero);
+    expect(theme.chipTheme.side!.width, LiftShape.borderWidth);
   });
 
   test('bottom nav selects with tint, not fill', () {

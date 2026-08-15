@@ -358,7 +358,7 @@ class LiftTheme {
           borderRadius: BorderRadius.zero,
           borderSide: BorderSide(
             color: LiftColors.actionTint,
-            width: LiftShape.borderWidth,
+            width: LiftShape.borderWidthActive,
           ),
         ),
         errorBorder: const OutlineInputBorder(
