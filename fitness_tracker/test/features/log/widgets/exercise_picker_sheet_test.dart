@@ -6,6 +6,8 @@ import 'package:fitness_tracker/features/log/presentation/widgets/exercise_picke
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 
+import '../log_phone_viewport.dart';
+
 void main() {
   final Exercise bench = Exercise(
     id: 'ex-bench',
@@ -17,6 +19,12 @@ void main() {
     id: 'ex-squat',
     name: 'Back Squat',
     muscleGroups: const <String>['quads', 'glutes'],
+    createdAt: DateTime(2024, 1, 1),
+  );
+  final Exercise benchPressCompound = Exercise(
+    id: 'ex-bench-compound',
+    name: 'Barbell Bench Press',
+    muscleGroups: const <String>['chest', 'triceps', 'shoulders'],
     createdAt: DateTime(2024, 1, 1),
   );
 
@@ -207,6 +215,41 @@ void main() {
 
       expect(find.text('2 ITEMS'), findsOneWidget);
     });
+  });
+
+  group('ExercisePickerSheet at phone width', () {
+    testWidgets(
+      'a three-muscle-group compound lift tile does not overflow at 360dp',
+      (tester) async {
+        await pumpAtPhoneWidth(
+          tester,
+          AppShell(
+            home: Builder(
+              builder: (BuildContext context) {
+                return Scaffold(
+                  body: Center(
+                    child: ElevatedButton(
+                      onPressed: () => ExercisePickerSheet.show(
+                        context,
+                        exercises: <Exercise>[benchPressCompound],
+                        recentExerciseIds: const <String>[],
+                      ),
+                      child: const Text('open'),
+                    ),
+                  ),
+                );
+              },
+            ),
+          ),
+        );
+
+        await tester.tap(find.text('open'));
+        await tester.pumpAndSettle();
+
+        expect(find.text('Barbell Bench Press'), findsOneWidget);
+        expectNoOverflow(tester);
+      },
+    );
   });
 
   group('ExercisePickerSheet muscle filter', () {

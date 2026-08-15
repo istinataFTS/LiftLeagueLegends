@@ -4,6 +4,8 @@ import 'package:fitness_tracker/features/log/presentation/widgets/shared/log_tab
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 
+import '../../log_phone_viewport.dart';
+
 void main() {
   Widget buildSubject({int selectedIndex = 0, ValueChanged<int>? onChanged}) {
     return AppShell(
@@ -64,6 +66,26 @@ void main() {
         (underline.decoration! as BoxDecoration).color,
         LiftColors.actionTint,
       );
+    });
+
+    testWidgets('the active tab underline actually renders with nonzero width, '
+        'matching its label', (tester) async {
+      await pumpAtPhoneWidth(tester, buildSubject(selectedIndex: 1));
+
+      final Size underlineSize = tester.getSize(
+        find.byKey(const ValueKey<String>('log-tab-underline-1')),
+      );
+      final Size labelSize = tester.getSize(find.text('MEAL'));
+
+      expect(
+        underlineSize.width,
+        greaterThan(0),
+        reason:
+            'a childless Container with unbounded main-axis constraints '
+            'collapses to zero width and never paints',
+      );
+      expect(underlineSize.width, closeTo(labelSize.width, 0.5));
+      expectNoOverflow(tester);
     });
 
     testWidgets('no tab renders an icon', (tester) async {

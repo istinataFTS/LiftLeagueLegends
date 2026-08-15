@@ -82,9 +82,13 @@ class ExerciseFatigueChips extends StatelessWidget {
       children: <Widget>[
         Container(width: 14, height: 14, color: swatch),
         const SizedBox(width: 6),
-        Text(
-          m.displayName.toUpperCase(),
-          style: LiftText.labelLarge.copyWith(color: LiftColors.textStrong),
+        Flexible(
+          child: Text(
+            m.displayName.toUpperCase(),
+            overflow: TextOverflow.ellipsis,
+            maxLines: 1,
+            style: LiftText.labelLarge.copyWith(color: LiftColors.textStrong),
+          ),
         ),
         const SizedBox(width: 6),
         LiftNumber('${m.percent}', '%', LiftText.dataMeta),

@@ -66,10 +66,14 @@ class LogTodaySoFarCard extends StatelessWidget {
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             crossAxisAlignment: CrossAxisAlignment.end,
             children: <Widget>[
-              Text(
-                header.toUpperCase(),
-                style: LiftText.labelLarge.copyWith(
-                  color: LiftColors.textStrong,
+              Flexible(
+                child: Text(
+                  header.toUpperCase(),
+                  overflow: TextOverflow.ellipsis,
+                  maxLines: 1,
+                  style: LiftText.labelLarge.copyWith(
+                    color: LiftColors.textStrong,
+                  ),
                 ),
               ),
               Row(
@@ -171,9 +175,13 @@ class _TodayCell extends StatelessWidget {
               color: color,
             ),
             const SizedBox(width: 6),
-            Text(
-              label.toUpperCase(),
-              style: LiftText.labelMedium.copyWith(color: LiftColors.textDim),
+            Flexible(
+              child: Text(
+                label.toUpperCase(),
+                overflow: TextOverflow.ellipsis,
+                maxLines: 1,
+                style: LiftText.labelMedium.copyWith(color: LiftColors.textDim),
+              ),
             ),
           ],
         ),

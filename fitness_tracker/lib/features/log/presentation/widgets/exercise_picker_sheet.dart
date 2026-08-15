@@ -359,11 +359,15 @@ class _ExercisePickerSheetState extends State<ExercisePickerSheet> {
               ),
               if (muscleText.isNotEmpty) ...<Widget>[
                 const SizedBox(width: 12),
-                Text(
-                  muscleText,
-                  textAlign: TextAlign.right,
-                  style: LiftText.labelLarge.copyWith(
-                    color: LiftColors.textDim,
+                Flexible(
+                  child: Text(
+                    muscleText,
+                    textAlign: TextAlign.right,
+                    overflow: TextOverflow.ellipsis,
+                    maxLines: 1,
+                    style: LiftText.labelLarge.copyWith(
+                      color: LiftColors.textDim,
+                    ),
                   ),
                 ),
               ],

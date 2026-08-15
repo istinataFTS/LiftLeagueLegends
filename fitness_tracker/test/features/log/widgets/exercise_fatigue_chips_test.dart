@@ -6,6 +6,8 @@ import 'package:fitness_tracker/features/log/presentation/widgets/exercise_fatig
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 
+import '../log_phone_viewport.dart';
+
 void main() {
   MuscleFatigue chip(String name, int percent, MuscleVisualBucket bucket) {
     return MuscleFatigue(
@@ -139,6 +141,24 @@ void main() {
       await tester.pumpAndSettle();
 
       expect(find.text('fatigued'), findsOneWidget);
+    });
+
+    testWidgets('three fatigued muscle-group rows do not overflow at 360dp', (
+      tester,
+    ) async {
+      await pumpAtPhoneWidth(
+        tester,
+        buildSubject(<MuscleFatigue>[
+          chip('Chest', 42, MuscleVisualBucket.moderate),
+          chip('Triceps', 68, MuscleVisualBucket.heavy),
+          chip('Shoulders', 15, MuscleVisualBucket.light),
+        ]),
+      );
+
+      expect(find.text('CHEST'), findsOneWidget);
+      expect(find.text('TRICEPS'), findsOneWidget);
+      expect(find.text('SHOULDERS'), findsOneWidget);
+      expectNoOverflow(tester);
     });
   });
 }

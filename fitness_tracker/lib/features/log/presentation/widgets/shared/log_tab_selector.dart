@@ -42,33 +42,38 @@ class LogTabSelector extends StatelessWidget {
                 padding: EdgeInsets.only(
                   right: i == _labels.length - 1 ? 0 : 22,
                 ),
-                child: Column(
-                  mainAxisAlignment: MainAxisAlignment.end,
-                  children: <Widget>[
-                    const Spacer(),
-                    Text(
-                      _labels[i].toUpperCase(),
-                      style: LiftText.labelLarge.copyWith(
-                        color: active
-                            ? LiftColors.textPrimary
-                            : LiftColors.textDim,
-                        fontWeight: active ? FontWeight.w700 : FontWeight.w500,
+                child: IntrinsicWidth(
+                  child: Column(
+                    mainAxisAlignment: MainAxisAlignment.end,
+                    crossAxisAlignment: CrossAxisAlignment.stretch,
+                    children: <Widget>[
+                      const Spacer(),
+                      Text(
+                        _labels[i].toUpperCase(),
+                        style: LiftText.labelLarge.copyWith(
+                          color: active
+                              ? LiftColors.textPrimary
+                              : LiftColors.textDim,
+                          fontWeight: active
+                              ? FontWeight.w700
+                              : FontWeight.w500,
+                        ),
                       ),
-                    ),
-                    const SizedBox(height: 9),
-                    Container(
-                      key: ValueKey<String>('log-tab-underline-$i'),
-                      constraints: const BoxConstraints(
-                        maxHeight: LiftShape.borderWidthActive,
-                        minHeight: LiftShape.borderWidthActive,
+                      const SizedBox(height: 9),
+                      Container(
+                        key: ValueKey<String>('log-tab-underline-$i'),
+                        constraints: const BoxConstraints(
+                          maxHeight: LiftShape.borderWidthActive,
+                          minHeight: LiftShape.borderWidthActive,
+                        ),
+                        decoration: BoxDecoration(
+                          color: active
+                              ? LiftColors.actionTint
+                              : Colors.transparent,
+                        ),
                       ),
-                      decoration: BoxDecoration(
-                        color: active
-                            ? LiftColors.actionTint
-                            : Colors.transparent,
-                      ),
-                    ),
-                  ],
+                    ],
+                  ),
                 ),
               ),
             ),

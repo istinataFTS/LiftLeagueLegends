@@ -8,6 +8,8 @@ import 'package:fitness_tracker/features/log/presentation/widgets/shared/macro_c
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 
+import '../../log_phone_viewport.dart';
+
 void main() {
   Widget wrap(Widget child) {
     return AppShell(home: Scaffold(body: child));
@@ -178,6 +180,48 @@ void main() {
 
       expect(find.textContaining('SO FAR'), findsNothing);
       expect(find.byType(MacroCompositionBar), findsNothing);
+    });
+
+    testWidgets(
+      'a dated header with 5 logs and 2500 kcal does not overflow at 360dp',
+      (tester) async {
+        final DateTime past = DateTime(2024, 1, 5);
+
+        await pumpAtPhoneWidth(
+          tester,
+          wrap(
+            LogTodaySoFarCard(
+              state: loaded(date: past, logs: 5, calories: 500),
+              selectedDate: past,
+            ),
+          ),
+        );
+
+        expect(find.text('JAN 5 SO FAR'), findsOneWidget);
+        expect(find.text('2500'), findsOneWidget);
+        expect(find.text(' KCAL · 5 LOGS'), findsOneWidget);
+        expectNoOverflow(tester);
+      },
+    );
+
+    testWidgets("_TodayCell's swatch+label row does not overflow at 320dp", (
+      tester,
+    ) async {
+      final DateTime today = DateTime.now();
+      final DateTime dateOnly = DateTime(today.year, today.month, today.day);
+
+      await pumpAtPhoneWidth(
+        tester,
+        wrap(
+          LogTodaySoFarCard(
+            state: loaded(date: dateOnly),
+            selectedDate: dateOnly,
+          ),
+        ),
+        physicalSize: const Size(960, 2400),
+      );
+
+      expectNoOverflow(tester);
     });
 
     testWidgets('pluralises log count correctly (>1)', (tester) async {
