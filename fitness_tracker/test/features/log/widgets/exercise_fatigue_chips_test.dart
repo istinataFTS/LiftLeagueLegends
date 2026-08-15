@@ -81,10 +81,22 @@ void main() {
         ),
         isTrue,
       );
-      // No rounded corners anywhere in this widget.
-      for (final Container c in swatches) {
+      // No rounded corners anywhere in this widget. Checked across every
+      // Container it builds, not just the swatches: the swatches carry a
+      // plain `color:` and so never have a decoration at all, which would
+      // make a decoration-only assertion vacuously true.
+      final Iterable<Container> all = tester.widgetList<Container>(
+        find.descendant(
+          of: find.byType(ExerciseFatigueChips),
+          matching: find.byType(Container),
+        ),
+      );
+      expect(all, isNotEmpty);
+      for (final Container c in all) {
         final BoxDecoration? decoration = c.decoration as BoxDecoration?;
-        expect(decoration?.borderRadius, isNot(isA<BorderRadius>()));
+        if (decoration?.borderRadius != null) {
+          expect(decoration!.borderRadius, BorderRadius.zero);
+        }
       }
     });
 
