@@ -1,12 +1,8 @@
 import 'package:fitness_tracker/app/app.dart';
+import 'package:fitness_tracker/core/themes/lift_theme.dart';
 import 'package:fitness_tracker/features/log/presentation/widgets/shared/macro_composition_bar.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
-
-// find.text() does not search inside RichText spans; use this helper instead.
-Finder _findRichTextContaining(String text) => find.byWidgetPredicate(
-  (Widget w) => w is RichText && w.text.toPlainText().contains(text),
-);
 
 void main() {
   Widget buildSubject({
@@ -29,6 +25,16 @@ void main() {
     );
   }
 
+  /// Reads the [BoxDecoration] off a keyed segment/track container, whichever
+  /// widget type the implementation used (`Container` or `AnimatedContainer`).
+  BoxDecoration decorationOf(WidgetTester tester, String key) {
+    final Finder finder = find.byKey(ValueKey<String>(key));
+    final Widget w = tester.widget(finder);
+    if (w is Container) return w.decoration! as BoxDecoration;
+    if (w is AnimatedContainer) return w.decoration! as BoxDecoration;
+    throw StateError('Unexpected widget type for $key: ${w.runtimeType}');
+  }
+
   group('MacroCompositionBar', () {
     testWidgets('renders without error when all grams are zero', (
       tester,
@@ -43,10 +49,9 @@ void main() {
       await tester.pumpWidget(buildSubject());
       await tester.pumpAndSettle();
 
-      final Finder bar = _findRichTextContaining('0% protein');
-      expect(bar, findsOneWidget);
-      expect(_findRichTextContaining('0% carbs'), findsOneWidget);
-      expect(_findRichTextContaining('0% fats'), findsOneWidget);
+      expect(find.textContaining('0% PROTEIN'), findsOneWidget);
+      expect(find.textContaining('0% CARBS'), findsOneWidget);
+      expect(find.textContaining('0% FATS'), findsOneWidget);
     });
 
     testWidgets('pure protein shows 100% protein and 0% for carbs and fats', (
@@ -55,18 +60,18 @@ void main() {
       await tester.pumpWidget(buildSubject(proteinGrams: 100));
       await tester.pumpAndSettle();
 
-      expect(_findRichTextContaining('100% protein'), findsOneWidget);
-      expect(_findRichTextContaining('0% carbs'), findsOneWidget);
-      expect(_findRichTextContaining('0% fats'), findsOneWidget);
+      expect(find.textContaining('100% PROTEIN'), findsOneWidget);
+      expect(find.textContaining('0% CARBS'), findsOneWidget);
+      expect(find.textContaining('0% FATS'), findsOneWidget);
     });
 
     testWidgets('pure fats shows 100% fats', (tester) async {
       await tester.pumpWidget(buildSubject(fatsGrams: 100));
       await tester.pumpAndSettle();
 
-      expect(_findRichTextContaining('100% fats'), findsOneWidget);
-      expect(_findRichTextContaining('0% protein'), findsOneWidget);
-      expect(_findRichTextContaining('0% carbs'), findsOneWidget);
+      expect(find.textContaining('100% FATS'), findsOneWidget);
+      expect(find.textContaining('0% PROTEIN'), findsOneWidget);
+      expect(find.textContaining('0% CARBS'), findsOneWidget);
     });
 
     testWidgets('equal protein and carbs split ~50/50', (tester) async {
@@ -74,9 +79,9 @@ void main() {
       await tester.pumpWidget(buildSubject(proteinGrams: 50, carbsGrams: 50));
       await tester.pumpAndSettle();
 
-      expect(_findRichTextContaining('50% protein'), findsOneWidget);
-      expect(_findRichTextContaining('50% carbs'), findsOneWidget);
-      expect(_findRichTextContaining('0% fats'), findsOneWidget);
+      expect(find.textContaining('50% PROTEIN'), findsOneWidget);
+      expect(find.textContaining('50% CARBS'), findsOneWidget);
+      expect(find.textContaining('0% FATS'), findsOneWidget);
     });
 
     testWidgets('fats dominate with 9 kcal/g vs 4 kcal/g', (tester) async {
@@ -85,8 +90,8 @@ void main() {
       await tester.pumpWidget(buildSubject(proteinGrams: 10, fatsGrams: 10));
       await tester.pumpAndSettle();
 
-      expect(_findRichTextContaining('31% protein'), findsOneWidget);
-      expect(_findRichTextContaining('69% fats'), findsOneWidget);
+      expect(find.textContaining('31% PROTEIN'), findsOneWidget);
+      expect(find.textContaining('69% FATS'), findsOneWidget);
     });
 
     testWidgets('renders without error with reduced-motion flag', (
@@ -104,5 +109,42 @@ void main() {
 
       expect(find.byType(MacroCompositionBar), findsOneWidget);
     });
+
+    testWidgets(
+      'bar is 3px tall, square, and segments use the macro colour tokens '
+      'with no radius',
+      (tester) async {
+        await tester.pumpWidget(
+          buildSubject(proteinGrams: 30, carbsGrams: 40, fatsGrams: 10),
+        );
+        await tester.pumpAndSettle();
+
+        for (final String key in <String>[
+          'macro-bar-protein',
+          'macro-bar-carbs',
+          'macro-bar-fats',
+        ]) {
+          final Finder finder = find.byKey(ValueKey<String>(key));
+          expect(finder, findsOneWidget);
+          final Size size = tester.getSize(finder);
+          expect(size.height, 3);
+
+          final BoxDecoration decoration = decorationOf(tester, key);
+          expect(
+            decoration.borderRadius == null ||
+                decoration.borderRadius == BorderRadius.zero,
+            isTrue,
+            reason: '$key must have no radius, got ${decoration.borderRadius}',
+          );
+        }
+
+        expect(
+          decorationOf(tester, 'macro-bar-protein').color,
+          LiftColors.protein,
+        );
+        expect(decorationOf(tester, 'macro-bar-carbs').color, LiftColors.carbs);
+        expect(decorationOf(tester, 'macro-bar-fats').color, LiftColors.fats);
+      },
+    );
   });
 }

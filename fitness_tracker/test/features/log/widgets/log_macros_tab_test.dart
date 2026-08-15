@@ -275,8 +275,9 @@ void main() {
       );
       await tester.pumpAndSettle();
 
-      expect(find.text('Today so far'), findsOneWidget);
-      expect(find.text('370 kcal · 1 log'), findsOneWidget);
+      expect(find.text('TODAY SO FAR'), findsOneWidget);
+      expect(find.text('370'), findsOneWidget);
+      expect(find.text(' KCAL · 1 LOG'), findsOneWidget);
       expect(find.text('30g'), findsOneWidget);
       expect(find.text('40g'), findsOneWidget);
       expect(find.text('10g'), findsOneWidget);
@@ -304,9 +305,9 @@ void main() {
         );
         await tester.pumpAndSettle();
 
-        expect(find.text('Today so far'), findsNothing);
-        expect(find.textContaining('so far'), findsNothing);
-        expect(find.text('1234 kcal · 0 logs'), findsNothing);
+        expect(find.text('TODAY SO FAR'), findsNothing);
+        expect(find.textContaining('SO FAR'), findsNothing);
+        expect(find.text(' KCAL · 0 LOGS'), findsNothing);
       },
     );
 
@@ -332,8 +333,8 @@ void main() {
         );
         await tester.pumpAndSettle();
 
-        expect(find.text('Jan 5 so far'), findsOneWidget);
-        expect(find.text('Today so far'), findsNothing);
+        expect(find.text('JAN 5 SO FAR'), findsOneWidget);
+        expect(find.text('TODAY SO FAR'), findsNothing);
       },
     );
 

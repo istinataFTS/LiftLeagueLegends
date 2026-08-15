@@ -1,4 +1,6 @@
 import 'package:fitness_tracker/app/app.dart';
+import 'package:fitness_tracker/core/themes/lift_number.dart';
+import 'package:fitness_tracker/core/themes/lift_theme.dart';
 import 'package:fitness_tracker/domain/entities/nutrition_log.dart';
 import 'package:fitness_tracker/features/log/application/nutrition_log_bloc.dart';
 import 'package:fitness_tracker/features/log/presentation/widgets/shared/log_today_so_far_card.dart';
@@ -62,12 +64,44 @@ void main() {
       );
       await tester.pumpAndSettle();
 
-      expect(find.text('Today so far'), findsOneWidget);
-      expect(find.text('370 kcal · 1 log'), findsOneWidget);
+      // Header is uppercase mono, per the design's labelLarge/textStrong.
+      expect(find.text('TODAY SO FAR'), findsOneWidget);
+      // Right-hand summary: the count is a glued-looking but spaced unit, so
+      // it renders as two widgets — dataSmall count, labelLarge remainder.
+      expect(find.text('370'), findsOneWidget);
+      expect(find.text(' KCAL · 1 LOG'), findsOneWidget);
+      // Macro grams are glued units — LiftNumber, not plain Text.
       expect(find.text('30g'), findsOneWidget);
       expect(find.text('40g'), findsOneWidget);
       expect(find.text('10g'), findsOneWidget);
       expect(find.byType(MacroCompositionBar), findsOneWidget);
+
+      // The block is no longer a Card — it sits directly on the ground.
+      expect(find.byType(Card), findsNothing);
+
+      // The three macro values render through LiftNumber at dataMedium.
+      final List<LiftNumber> numbers = tester
+          .widgetList<LiftNumber>(find.byType(LiftNumber))
+          .toList();
+      expect(numbers, hasLength(3));
+      for (final LiftNumber n in numbers) {
+        expect(n.style.fontSize, LiftText.dataMedium.fontSize);
+        expect(n.unit, 'g');
+      }
+
+      // Each swatch's colour matches its LiftColors macro token.
+      final Container proteinSwatch = tester.widget<Container>(
+        find.byKey(const ValueKey<String>('today-swatch-protein')),
+      );
+      final Container carbsSwatch = tester.widget<Container>(
+        find.byKey(const ValueKey<String>('today-swatch-carbs')),
+      );
+      final Container fatsSwatch = tester.widget<Container>(
+        find.byKey(const ValueKey<String>('today-swatch-fats')),
+      );
+      expect(proteinSwatch.color, LiftColors.protein);
+      expect(carbsSwatch.color, LiftColors.carbs);
+      expect(fatsSwatch.color, LiftColors.fats);
     });
 
     testWidgets('renders dated header when selected date is not today', (
@@ -84,8 +118,8 @@ void main() {
       );
       await tester.pumpAndSettle();
 
-      expect(find.text('Jan 5 so far'), findsOneWidget);
-      expect(find.text('Today so far'), findsNothing);
+      expect(find.text('JAN 5 SO FAR'), findsOneWidget);
+      expect(find.text('TODAY SO FAR'), findsNothing);
     });
 
     testWidgets('hides when state is not DailyLogsLoaded', (tester) async {
@@ -99,7 +133,7 @@ void main() {
       );
       await tester.pumpAndSettle();
 
-      expect(find.textContaining('so far'), findsNothing);
+      expect(find.textContaining('SO FAR'), findsNothing);
       expect(find.byType(MacroCompositionBar), findsNothing);
     });
 
@@ -116,7 +150,7 @@ void main() {
       );
       await tester.pumpAndSettle();
 
-      expect(find.textContaining('so far'), findsNothing);
+      expect(find.textContaining('SO FAR'), findsNothing);
       expect(find.byType(MacroCompositionBar), findsNothing);
     });
 
@@ -141,7 +175,8 @@ void main() {
       );
       await tester.pumpAndSettle();
 
-      expect(find.text('510 kcal · 3 logs'), findsOneWidget);
+      expect(find.text('510'), findsOneWidget);
+      expect(find.text(' KCAL · 3 LOGS'), findsOneWidget);
     });
   });
 }

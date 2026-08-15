@@ -284,8 +284,9 @@ void main() {
         );
         await tester.pumpAndSettle();
 
-        expect(find.text('Today so far'), findsOneWidget);
-        expect(find.text('370 kcal · 1 log'), findsOneWidget);
+        expect(find.text('TODAY SO FAR'), findsOneWidget);
+        expect(find.text('370'), findsOneWidget);
+        expect(find.text(' KCAL · 1 LOG'), findsOneWidget);
       },
     );
 
