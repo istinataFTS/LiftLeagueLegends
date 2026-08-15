@@ -91,7 +91,7 @@ void main() {
 
         // Each macro row keeps its name label + −/value/+ trio.
         for (final String label in <String>['Protein', 'Carbs', 'Fats']) {
-          expect(find.text(label), findsOneWidget);
+          expect(find.text(label.toUpperCase()), findsOneWidget);
           final Finder stepper = find.byKey(Key('macrosStepper-$label'));
           expect(stepper, findsOneWidget);
           expect(

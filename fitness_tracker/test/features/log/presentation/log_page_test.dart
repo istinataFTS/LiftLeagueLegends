@@ -136,19 +136,23 @@ void main() {
         await tester.pumpAndSettle();
 
         expect(find.byType(Card), findsNothing);
+        expect(find.byType(LogTabSelector), findsOneWidget);
 
-        // The selector no longer sits inside a bordered/decorated Container —
-        // its own SizedBox ancestor should be the nearest sized wrapper, not
-        // a Container carrying a border decoration.
+        // Pre-restyle chrome wrapped the tab selector in a bordered
+        // decorative Container ("chip") — Deep Mist drops that treatment
+        // entirely. Scanning every Container on the page (not just direct
+        // ancestors of LogTabSelector, which turns out to have none — a
+        // vacuous check that would pass even if the border came back one
+        // level up the tree) is what actually catches that regression.
         final Iterable<Container> containers = tester.widgetList<Container>(
-          find.ancestor(
-            of: find.byType(LogTabSelector),
-            matching: find.byType(Container),
-          ),
+          find.byType(Container),
         );
+        expect(containers, isNotEmpty);
         for (final Container c in containers) {
-          final BoxDecoration? decoration = c.decoration as BoxDecoration?;
-          expect(decoration?.border, isNull);
+          final Decoration? decoration = c.decoration;
+          if (decoration is BoxDecoration) {
+            expect(decoration.border, isNull);
+          }
         }
       },
     );

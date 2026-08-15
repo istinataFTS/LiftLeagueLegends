@@ -616,7 +616,7 @@ class _PrBadge extends StatelessWidget {
       padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
       color: LiftColors.actionFill,
       child: Text(
-        'PR $label',
+        'PR $label'.toUpperCase(),
         style: LiftText.labelLarge.copyWith(color: Colors.white),
       ),
     );

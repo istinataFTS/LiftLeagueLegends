@@ -5,6 +5,7 @@ import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:uuid/uuid.dart';
 
 import '../../../../core/constants/app_strings.dart';
+import '../../../../core/themes/lift_number.dart';
 import '../../../../core/themes/lift_theme.dart';
 import '../../../../core/utils/macro_calculator.dart';
 import '../../../../core/utils/week_date_utils.dart';
@@ -137,28 +138,26 @@ class _LogMealTabState extends State<LogMealTab> {
         return Column(
           children: <Widget>[
             Expanded(
-              child: SingleChildScrollView(
-                padding: const EdgeInsets.fromLTRB(20, 16, 20, 20),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: <Widget>[
-                    _buildSelectMealBar(context, nutritionState),
-                    const SizedBox(height: 16),
-                    const Divider(color: LiftColors.rule),
-                    const SizedBox(height: 16),
-                    LogTodaySoFarCard(
-                      state: nutritionState,
-                      selectedDate: _selectedDate,
+              child: meal == null
+                  ? _buildEmptySelectionBody(context, nutritionState)
+                  : SingleChildScrollView(
+                      padding: const EdgeInsets.fromLTRB(20, 16, 20, 20),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: <Widget>[
+                          _buildSelectMealBar(context, nutritionState),
+                          const SizedBox(height: 16),
+                          LogTodaySoFarCard(
+                            state: nutritionState,
+                            selectedDate: _selectedDate,
+                          ),
+                        ],
+                      ),
                     ),
-                  ],
-                ),
-              ),
             ),
-            meal != null
-                ? (_keypadOpen
-                      ? _buildKeypadDock(meal)
-                      : _buildDock(meal, canLog: canLog, isLoading: isLoading))
-                : _buildEmptyDock(),
+            meal != null && _keypadOpen
+                ? _buildKeypadDock(meal)
+                : _buildDock(meal, canLog: canLog, isLoading: isLoading),
           ],
         );
       },
@@ -248,25 +247,42 @@ class _LogMealTabState extends State<LogMealTab> {
         .toList();
   }
 
-  // ─── Dock (normal + keypad + empty) ───────────────────────────────────────
+  // ─── Empty selection body ──────────────────────────────────────────────────
 
-  /// No meal selected yet — one centred dim line stands in for the dock
-  /// (design spec §5.3) instead of leaving the bottom of the screen blank.
-  Widget _buildEmptyDock() {
+  /// No meal selected yet — the select bar and today-so-far block render as
+  /// usual, and the remaining blank space between them and the CTA expands to
+  /// hold one centred dim prompt (design spec §5.3) instead of a fixed-height
+  /// dock tucked under the heading.
+  Widget _buildEmptySelectionBody(
+    BuildContext context,
+    NutritionLogState nutritionState,
+  ) {
     return Padding(
-      padding: const EdgeInsets.symmetric(vertical: 24, horizontal: 20),
-      child: Center(
-        child: Text(
-          'Select a food above to log it',
-          textAlign: TextAlign.center,
-          style: LiftText.bodyLarge.copyWith(color: LiftColors.textDim),
-        ),
+      padding: const EdgeInsets.fromLTRB(20, 16, 20, 0),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: <Widget>[
+          _buildSelectMealBar(context, nutritionState),
+          const SizedBox(height: 16),
+          LogTodaySoFarCard(state: nutritionState, selectedDate: _selectedDate),
+          Expanded(
+            child: Center(
+              child: Text(
+                AppStrings.pickFoodToStartEntry,
+                textAlign: TextAlign.center,
+                style: LiftText.bodyLarge.copyWith(color: LiftColors.textDim),
+              ),
+            ),
+          ),
+        ],
       ),
     );
   }
 
+  // ─── Dock (normal + keypad) ────────────────────────────────────────────────
+
   Widget _buildDock(
-    Meal meal, {
+    Meal? meal, {
     required bool canLog,
     required bool isLoading,
   }) {
@@ -276,7 +292,7 @@ class _LogMealTabState extends State<LogMealTab> {
       canSubmit: canLog,
       isLoading: isLoading,
       onSubmit: _handleLogMeal,
-      previewSlot: _buildDockPreview(meal),
+      previewSlot: meal != null ? _buildDockPreview(meal) : null,
     );
   }
 
@@ -370,24 +386,41 @@ class _LogMealTabState extends State<LogMealTab> {
             children: <Widget>[
               _previewStat(
                 label: AppStrings.protein,
-                value: '${protein.round()}g',
-                color: LiftColors.protein,
+                swatch: LiftColors.protein,
+                valueWidget: LiftNumber.of(
+                  protein.round(),
+                  'g',
+                  LiftText.dataMeta,
+                ),
               ),
               _previewStat(
                 label: AppStrings.carbs,
-                value: '${carbs.round()}g',
-                color: LiftColors.carbs,
+                swatch: LiftColors.carbs,
+                valueWidget: LiftNumber.of(
+                  carbs.round(),
+                  'g',
+                  LiftText.dataMeta,
+                ),
               ),
               _previewStat(
                 label: AppStrings.fats,
-                value: '${fats.round()}g',
-                color: LiftColors.fats,
+                swatch: LiftColors.fats,
+                valueWidget: LiftNumber.of(
+                  fats.round(),
+                  'g',
+                  LiftText.dataMeta,
+                ),
               ),
               Container(width: 1, height: 22, color: LiftColors.hairline),
               _previewStat(
                 label: AppStrings.kcal,
-                value: '${calories.round()}',
-                color: LiftColors.actionTint,
+                valueWidget: Text(
+                  '${calories.round()}',
+                  style: LiftText.dataMeta.copyWith(
+                    color: LiftColors.actionTint,
+                    fontFeatures: LiftText.dataFeatures,
+                  ),
+                ),
               ),
             ],
           ),
@@ -405,25 +438,31 @@ class _LogMealTabState extends State<LogMealTab> {
     );
   }
 
+  /// One entry-preview stat. The value stays neutral white — per frame 06 the
+  /// macro's identity is carried by [swatch], the small square beside its
+  /// label, not by tinting the numeral. The kcal stat passes no swatch.
   Widget _previewStat({
     required String label,
-    required String value,
-    required Color color,
+    required Widget valueWidget,
+    Color? swatch,
   }) {
     return Column(
       mainAxisSize: MainAxisSize.min,
       crossAxisAlignment: CrossAxisAlignment.center,
       children: <Widget>[
-        Text(
-          value,
-          style: LiftText.dataMeta.copyWith(
-            color: color,
-            fontFeatures: LiftText.dataFeatures,
-          ),
-        ),
-        Text(
-          label.toUpperCase(),
-          style: LiftText.labelSmall.copyWith(color: LiftColors.textDim),
+        valueWidget,
+        Row(
+          mainAxisSize: MainAxisSize.min,
+          children: <Widget>[
+            if (swatch != null) ...<Widget>[
+              Container(width: 9, height: 9, color: swatch),
+              const SizedBox(width: 5),
+            ],
+            Text(
+              label.toUpperCase(),
+              style: LiftText.labelSmall.copyWith(color: LiftColors.textDim),
+            ),
+          ],
         ),
       ],
     );

@@ -281,7 +281,7 @@ void main() {
       await selectBenchPress(tester);
 
       // PR + fatigue come from the (now-based) insight.
-      expect(find.text('PR 105 kg'), findsOneWidget);
+      expect(find.text('PR 105 KG'), findsOneWidget);
       expect(find.text('CHEST'), findsOneWidget);
       expect(find.text('42%'), findsOneWidget);
       // Count reflects the two sets logged for the selected date, not

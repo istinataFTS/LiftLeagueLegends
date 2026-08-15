@@ -204,6 +204,7 @@ class AppStrings {
   static const String amountGrams = 'Amount (grams)';
   static const String amountGramsHint = 'Enter grams consumed';
   static const String logMealButton = 'Log Meal';
+  static const String pickFoodToStartEntry = 'Pick a food to start an entry';
   static const String enterMacros = 'Enter Macros';
   static const String proteinGrams = 'Protein (g)';
   static const String carbsGrams = 'Carbs (g)';

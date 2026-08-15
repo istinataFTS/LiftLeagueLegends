@@ -117,8 +117,14 @@ void main() {
         await tester.pumpWidget(buildSubject(mealState: MealsLoaded(meals)));
         await tester.pumpAndSettle();
 
-        // No dock yet (no meal selected).
-        expect(find.text(AppStrings.logMealButton.toUpperCase()), findsNothing);
+        // The CTA still renders (frame 04: a bordered, disabled "LOG MEAL"
+        // button), it is just not tappable — no preview slot above it.
+        expect(
+          find.text(AppStrings.logMealButton.toUpperCase()),
+          findsOneWidget,
+        );
+        // The blank space above the CTA carries the empty-selection prompt.
+        expect(find.text(AppStrings.pickFoodToStartEntry), findsOneWidget);
         // Bar shows "Select Meal" prompt.
         expect(find.text('Select a food'), findsOneWidget);
         expect(find.byIcon(Icons.expand_more), findsOneWidget);
@@ -308,20 +314,18 @@ void main() {
       },
     );
 
-    testWidgets('Deep Mist chrome: no Card, a rule Divider survives, the '
-        'mealGramsStepper key resolves, and the enabled CTA fills actionFill', (
-      tester,
-    ) async {
+    testWidgets('Deep Mist chrome: no Card, no redundant Divider above the '
+        'today-so-far block, the mealGramsStepper key resolves, and the '
+        'enabled CTA fills actionFill', (tester) async {
       await tester.pumpWidget(buildSubject(mealState: MealsLoaded(meals)));
       await tester.pumpAndSettle();
 
       expect(find.byType(Card), findsNothing);
 
-      final Iterable<Divider> dividers = tester.widgetList<Divider>(
-        find.byType(Divider),
-      );
-      expect(dividers, isNotEmpty);
-      expect(dividers.any((Divider d) => d.color == LiftColors.rule), isTrue);
+      // LogTodaySoFarCard paints its own top rule border — a Divider
+      // directly above it would double the hairline, so none should render
+      // here (the empty-selection body has no other Divider to produce).
+      expect(find.byType(Divider), findsNothing);
 
       await tester.tap(find.text('Select a food'));
       await tester.pumpAndSettle();

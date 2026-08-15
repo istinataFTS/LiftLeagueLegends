@@ -164,7 +164,6 @@ class _LogMacrosTabState extends State<LogMacrosTab> {
                           setState(() => _fats = v.toDouble()),
                       onTapValue: () => _setEditingField(_MacroField.fats),
                     ),
-                    const Divider(color: LiftColors.rule),
                     const SizedBox(height: 8),
                     LogTodaySoFarCard(
                       state: nutritionState,
@@ -202,8 +201,8 @@ class _LogMacrosTabState extends State<LogMacrosTab> {
           SizedBox(
             width: 64,
             child: Text(
-              label,
-              style: LiftText.titleSmall.copyWith(
+              label.toUpperCase(),
+              style: LiftText.labelLarge.copyWith(
                 color: LiftColors.textPrimary,
               ),
             ),
