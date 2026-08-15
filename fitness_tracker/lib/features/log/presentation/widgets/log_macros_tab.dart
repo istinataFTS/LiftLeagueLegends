@@ -15,6 +15,7 @@ import 'shared/log_numeric_keypad.dart';
 import 'shared/log_stepper_field.dart';
 import 'shared/log_today_so_far_card.dart';
 import 'shared/macro_composition_bar.dart';
+import 'shared/macro_label.dart';
 
 /// Which macro the in-layout keypad is currently editing.
 enum _MacroField { protein, carbs, fats }
@@ -139,27 +140,24 @@ class _LogMacrosTabState extends State<LogMacrosTab> {
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: <Widget>[
                     _buildMacroRow(
-                      label: AppStrings.protein,
+                      kind: MacroKind.protein,
                       value: _protein,
-                      color: LiftColors.protein,
                       onChanged: (num v) =>
                           setState(() => _protein = v.toDouble()),
                       onTapValue: () => _setEditingField(_MacroField.protein),
                     ),
                     const Divider(color: LiftColors.rule),
                     _buildMacroRow(
-                      label: AppStrings.carbs,
+                      kind: MacroKind.carbs,
                       value: _carbs,
-                      color: LiftColors.carbs,
                       onChanged: (num v) =>
                           setState(() => _carbs = v.toDouble()),
                       onTapValue: () => _setEditingField(_MacroField.carbs),
                     ),
                     const Divider(color: LiftColors.rule),
                     _buildMacroRow(
-                      label: AppStrings.fats,
+                      kind: MacroKind.fats,
                       value: _fats,
-                      color: LiftColors.fats,
                       onChanged: (num v) =>
                           setState(() => _fats = v.toDouble()),
                       onTapValue: () => _setEditingField(_MacroField.fats),
@@ -185,9 +183,8 @@ class _LogMacrosTabState extends State<LogMacrosTab> {
   // ─── Macro row (swatch + name + stepper) (spec §5.4) ──────────────────────
 
   Widget _buildMacroRow({
-    required String label,
+    required MacroKind kind,
     required double value,
-    required Color color,
     required ValueChanged<num> onChanged,
     required VoidCallback onTapValue,
   }) {
@@ -196,26 +193,22 @@ class _LogMacrosTabState extends State<LogMacrosTab> {
       child: Row(
         crossAxisAlignment: CrossAxisAlignment.center,
         children: <Widget>[
-          Container(width: 10, height: 10, color: color),
-          const SizedBox(width: 10),
+          // Fixed width — matches the swatch(10) + gap(10) + old label(64)
+          // this replaces, so the stepper stays aligned regardless of label
+          // length (PROTEIN/CARBS/FATS render at different widths).
           SizedBox(
-            width: 64,
-            child: Text(
-              label.toUpperCase(),
-              style: LiftText.labelLarge.copyWith(
-                color: LiftColors.textPrimary,
-              ),
-            ),
+            width: 84,
+            child: MacroLabel(kind: kind, variant: MacroLabelVariant.header),
           ),
           const SizedBox(width: 12),
           Expanded(
             child: LogStepperField(
-              key: Key('macrosStepper-$label'),
+              key: Key('macrosStepper-${kind.label}'),
               label: 'grams',
               value: value,
               step: _macroStep,
               allowDecimal: true,
-              accentColor: color,
+              accentColor: kind.color,
               onChanged: onChanged,
               onTapValue: onTapValue,
               dense: true,
@@ -293,13 +286,10 @@ class _LogMacrosTabState extends State<LogMacrosTab> {
       _MacroField.fats => 'fats',
     };
 
+    // No border here — LogNumericKeypad already paints its own top-only
+    // seam; drawing a second one here doubled the hairline.
     return Container(
-      decoration: const BoxDecoration(
-        color: LiftColors.background,
-        border: Border(
-          top: BorderSide(color: LiftColors.rule, width: LiftShape.borderWidth),
-        ),
-      ),
+      decoration: const BoxDecoration(color: LiftColors.background),
       child: SafeArea(
         top: false,
         child: LogNumericKeypad(

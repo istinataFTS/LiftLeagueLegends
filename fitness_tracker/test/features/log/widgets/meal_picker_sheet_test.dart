@@ -228,5 +228,41 @@ void main() {
 
       expect(find.text('2 ITEMS'), findsOneWidget);
     });
+
+    testWidgets(
+      'the modal chrome draws no border of its own — only the panel\'s '
+      "borderStrong edge shows, so the hairline isn't doubled",
+      (tester) async {
+        await pumpPicker(tester, meals: <Meal>[chicken]);
+
+        // showModalBottomSheet's default chrome (bottomSheetTheme.shape)
+        // paints a dimmer LiftColors.border edge via an ancestor Material.
+        // The picker overrides that shape to borderless so only the panel
+        // Container's own borderStrong edge (below) is visible.
+        final Iterable<Material> materials = tester.widgetList<Material>(
+          find.byType(Material),
+        );
+        for (final Material material in materials) {
+          final ShapeBorder? shape = material.shape;
+          if (shape is RoundedRectangleBorder) {
+            expect(
+              shape.side,
+              BorderSide.none,
+              reason:
+                  'a modal-chrome Material must not draw its own visible '
+                  'border side — the picker panel already owns the seam',
+            );
+          }
+        }
+
+        final Container panel = tester.widget<Container>(
+          find.byKey(const ValueKey<String>('meal-picker-panel')),
+        );
+        final BoxDecoration decoration = panel.decoration! as BoxDecoration;
+        final Border border = decoration.border! as Border;
+        expect(border.top.color, LiftColors.borderStrong);
+        expect(border.top.width, LiftShape.borderWidth);
+      },
+    );
   });
 }

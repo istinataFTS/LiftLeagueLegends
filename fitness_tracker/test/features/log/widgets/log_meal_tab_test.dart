@@ -7,6 +7,7 @@ import 'package:fitness_tracker/domain/entities/nutrition_log.dart';
 import 'package:fitness_tracker/features/library/application/meal_bloc.dart';
 import 'package:fitness_tracker/features/log/log.dart';
 import 'package:fitness_tracker/features/log/presentation/widgets/meal_picker_sheet.dart';
+import 'package:fitness_tracker/features/log/presentation/widgets/shared/macro_label.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -344,5 +345,46 @@ void main() {
           .first;
       expect(material.color, LiftColors.actionFill);
     });
+
+    testWidgets('this-entry preview pins each macro swatch to its own color — '
+        'protein, carbs and fats cannot be silently swapped', (tester) async {
+      await tester.pumpWidget(buildSubject(mealState: MealsLoaded(meals)));
+      await tester.pumpAndSettle();
+
+      await tester.tap(find.text('Select a food'));
+      await tester.pumpAndSettle();
+      await tester.tap(find.text('Chicken Breast'));
+      await tester.pumpAndSettle();
+
+      final List<MacroLabel> labels = tester
+          .widgetList<MacroLabel>(find.byType(MacroLabel))
+          .toList();
+      expect(labels, hasLength(3));
+      expect(labels[0].kind, MacroKind.protein);
+      expect(labels[1].kind, MacroKind.carbs);
+      expect(labels[2].kind, MacroKind.fats);
+      expect(labels[0].kind.color, LiftColors.protein);
+      expect(labels[1].kind.color, LiftColors.carbs);
+      expect(labels[2].kind.color, LiftColors.fats);
+    });
+
+    testWidgets(
+      'this-entry kcal renders textPrimary, not actionTint — matches frame '
+      "06's white kcal figure and the Macros tab's same-position value",
+      (tester) async {
+        await tester.pumpWidget(buildSubject(mealState: MealsLoaded(meals)));
+        await tester.pumpAndSettle();
+
+        await tester.tap(find.text('Select a food'));
+        await tester.pumpAndSettle();
+        await tester.tap(find.text('Chicken Breast'));
+        await tester.pumpAndSettle();
+
+        // 100g chicken: 31g protein + 0g carbs + 4g fat = 160 kcal.
+        final Text kcal = tester.widget<Text>(find.text('160'));
+        expect(kcal.style?.color, LiftColors.textPrimary);
+        expect(kcal.style?.color, isNot(LiftColors.actionTint));
+      },
+    );
   });
 }

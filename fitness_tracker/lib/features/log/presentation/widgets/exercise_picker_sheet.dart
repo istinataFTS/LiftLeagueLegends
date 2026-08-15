@@ -33,6 +33,12 @@ class ExercisePickerSheet extends StatefulWidget {
         minHeight: screenHeight * 0.9,
         maxHeight: screenHeight * 0.9,
       ),
+      // Overrides the theme's bottomSheetTheme.shape (which draws its own
+      // LiftColors.border edge) with a borderless shape so the panel's own
+      // borderStrong edge below is the only one painted — the design spec
+      // calls for the picker panel to carry the stronger edge, and painting
+      // both doubled the hairline.
+      shape: const RoundedRectangleBorder(borderRadius: BorderRadius.zero),
       builder: (_) => ExercisePickerSheet._(
         exercises: exercises,
         recentExerciseIds: recentExerciseIds,

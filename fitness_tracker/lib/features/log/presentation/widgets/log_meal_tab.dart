@@ -20,6 +20,7 @@ import 'shared/log_quick_chips.dart';
 import 'shared/log_stepper_field.dart';
 import 'shared/log_today_so_far_card.dart';
 import 'shared/macro_composition_bar.dart';
+import 'shared/macro_label.dart';
 
 class LogMealTab extends StatefulWidget {
   const LogMealTab({
@@ -385,8 +386,7 @@ class _LogMealTabState extends State<LogMealTab> {
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: <Widget>[
               _previewStat(
-                label: AppStrings.protein,
-                swatch: LiftColors.protein,
+                kind: MacroKind.protein,
                 valueWidget: LiftNumber.of(
                   protein.round(),
                   'g',
@@ -394,8 +394,7 @@ class _LogMealTabState extends State<LogMealTab> {
                 ),
               ),
               _previewStat(
-                label: AppStrings.carbs,
-                swatch: LiftColors.carbs,
+                kind: MacroKind.carbs,
                 valueWidget: LiftNumber.of(
                   carbs.round(),
                   'g',
@@ -403,8 +402,7 @@ class _LogMealTabState extends State<LogMealTab> {
                 ),
               ),
               _previewStat(
-                label: AppStrings.fats,
-                swatch: LiftColors.fats,
+                kind: MacroKind.fats,
                 valueWidget: LiftNumber.of(
                   fats.round(),
                   'g',
@@ -412,12 +410,15 @@ class _LogMealTabState extends State<LogMealTab> {
                 ),
               ),
               Container(width: 1, height: 22, color: LiftColors.hairline),
+              // Static value — never actionTint (that role signals something
+              // interactive/active), matching frame 06's white "59 KCAL" and
+              // frame 07's white "145 KCAL THIS ENTRY" hero.
               _previewStat(
                 label: AppStrings.kcal,
                 valueWidget: Text(
                   '${calories.round()}',
                   style: LiftText.dataMeta.copyWith(
-                    color: LiftColors.actionTint,
+                    color: LiftColors.textPrimary,
                     fontFeatures: LiftText.dataFeatures,
                   ),
                 ),
@@ -439,43 +440,40 @@ class _LogMealTabState extends State<LogMealTab> {
   }
 
   /// One entry-preview stat. The value stays neutral white — per frame 06 the
-  /// macro's identity is carried by [swatch], the small square beside its
-  /// label, not by tinting the numeral. The kcal stat passes no swatch.
+  /// macro's identity is carried by the [MacroLabel] swatch beside its
+  /// label, not by tinting the numeral. Pass [kind] for a macro row (renders
+  /// the shared swatch+caption); pass [label] alone for the non-macro kcal
+  /// stat, which has no swatch.
   Widget _previewStat({
-    required String label,
     required Widget valueWidget,
-    Color? swatch,
+    MacroKind? kind,
+    String? label,
   }) {
+    assert(
+      kind != null || label != null,
+      'either kind or label must be provided',
+    );
     return Column(
       mainAxisSize: MainAxisSize.min,
       crossAxisAlignment: CrossAxisAlignment.center,
       children: <Widget>[
         valueWidget,
-        Row(
-          mainAxisSize: MainAxisSize.min,
-          children: <Widget>[
-            if (swatch != null) ...<Widget>[
-              Container(width: 9, height: 9, color: swatch),
-              const SizedBox(width: 5),
-            ],
-            Text(
-              label.toUpperCase(),
-              style: LiftText.labelSmall.copyWith(color: LiftColors.textDim),
-            ),
-          ],
-        ),
+        if (kind != null)
+          MacroLabel(kind: kind, variant: MacroLabelVariant.caption)
+        else
+          Text(
+            label!.toUpperCase(),
+            style: LiftText.labelSmall.copyWith(color: LiftColors.textDim),
+          ),
       ],
     );
   }
 
   Widget _buildKeypadDock(Meal meal) {
+    // No border here — LogNumericKeypad already paints its own top-only
+    // seam; drawing a second one here doubled the hairline.
     return Container(
-      decoration: const BoxDecoration(
-        color: LiftColors.background,
-        border: Border(
-          top: BorderSide(color: LiftColors.rule, width: LiftShape.borderWidth),
-        ),
-      ),
+      decoration: const BoxDecoration(color: LiftColors.background),
       child: SafeArea(
         top: false,
         child: LogNumericKeypad(

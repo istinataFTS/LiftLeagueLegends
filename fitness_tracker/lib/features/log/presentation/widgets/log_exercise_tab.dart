@@ -367,7 +367,7 @@ class _LogExerciseTabState extends State<LogExerciseTab> {
                 const SizedBox(width: 10),
               ],
               Text(
-                '$setCount sets $_dateSuffixLabel',
+                '$setCount sets $_dateSuffixLabel'.toUpperCase(),
                 style: LiftText.labelLarge.copyWith(color: LiftColors.textDim),
               ),
             ],
@@ -448,13 +448,10 @@ class _LogExerciseTabState extends State<LogExerciseTab> {
     final _KeypadField field = _activeKeypad!;
     final bool isWeight = field == _KeypadField.weight;
 
+    // No border here — LogNumericKeypad already paints its own top-only
+    // seam; drawing a second one here doubled the hairline.
     return Container(
-      decoration: const BoxDecoration(
-        color: LiftColors.background,
-        border: Border(
-          top: BorderSide(color: LiftColors.rule, width: LiftShape.borderWidth),
-        ),
-      ),
+      decoration: const BoxDecoration(color: LiftColors.background),
       child: SafeArea(
         top: false,
         child: LogNumericKeypad(

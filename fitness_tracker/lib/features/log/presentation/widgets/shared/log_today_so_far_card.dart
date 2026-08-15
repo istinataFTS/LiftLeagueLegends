@@ -1,12 +1,12 @@
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 
-import '../../../../../core/constants/app_strings.dart';
 import '../../../../../core/themes/lift_number.dart';
 import '../../../../../core/themes/lift_theme.dart';
 import '../../../../../core/utils/week_date_utils.dart';
 import '../../../application/nutrition_log_bloc.dart';
 import 'macro_composition_bar.dart';
+import 'macro_label.dart';
 
 /// Shared "Today so far" block used by the Log Macros and Meal tabs.
 ///
@@ -102,25 +102,13 @@ class LogTodaySoFarCard extends StatelessWidget {
           Row(
             children: <Widget>[
               Expanded(
-                child: _TodayCell(
-                  label: AppStrings.protein,
-                  grams: totalProtein,
-                  color: LiftColors.protein,
-                ),
+                child: _TodayCell(kind: MacroKind.protein, grams: totalProtein),
               ),
               Expanded(
-                child: _TodayCell(
-                  label: AppStrings.carbs,
-                  grams: totalCarbs,
-                  color: LiftColors.carbs,
-                ),
+                child: _TodayCell(kind: MacroKind.carbs, grams: totalCarbs),
               ),
               Expanded(
-                child: _TodayCell(
-                  label: AppStrings.fats,
-                  grams: totalFats,
-                  color: LiftColors.fats,
-                ),
+                child: _TodayCell(kind: MacroKind.fats, grams: totalFats),
               ),
             ],
           ),
@@ -142,15 +130,10 @@ class LogTodaySoFarCard extends StatelessWidget {
 }
 
 class _TodayCell extends StatelessWidget {
-  const _TodayCell({
-    required this.label,
-    required this.grams,
-    required this.color,
-  });
+  const _TodayCell({required this.kind, required this.grams});
 
-  final String label;
+  final MacroKind kind;
   final int grams;
-  final Color color;
 
   @override
   Widget build(BuildContext context) {
@@ -165,25 +148,9 @@ class _TodayCell extends StatelessWidget {
           textAlign: TextAlign.center,
         ),
         const SizedBox(height: 6),
-        Row(
-          mainAxisSize: MainAxisSize.min,
-          children: <Widget>[
-            Container(
-              key: ValueKey<String>('today-swatch-${label.toLowerCase()}'),
-              width: 9,
-              height: 9,
-              color: color,
-            ),
-            const SizedBox(width: 6),
-            Flexible(
-              child: Text(
-                label.toUpperCase(),
-                overflow: TextOverflow.ellipsis,
-                maxLines: 1,
-                style: LiftText.labelMedium.copyWith(color: LiftColors.textDim),
-              ),
-            ),
-          ],
+        MacroLabel(
+          kind: kind,
+          swatchKey: ValueKey<String>('today-swatch-${kind.name}'),
         ),
       ],
     );

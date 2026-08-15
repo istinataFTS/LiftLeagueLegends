@@ -285,8 +285,9 @@ void main() {
       expect(find.text('CHEST'), findsOneWidget);
       expect(find.text('42%'), findsOneWidget);
       // Count reflects the two sets logged for the selected date, not
-      // insight.setsToday.
-      expect(find.text('2 sets today'), findsOneWidget);
+      // insight.setsToday. Uppercased at the render site, matching every
+      // other label-style string in the slice.
+      expect(find.text('2 SETS TODAY'), findsOneWidget);
     });
 
     testWidgets('feed and labels follow a non-today selected date', (
@@ -308,7 +309,7 @@ void main() {
       // (never claiming "today" for a past date) is unchanged.
       expect(find.text('SETS JAN 15'), findsOneWidget);
       expect(find.text('No sets on Jan 15'), findsOneWidget);
-      expect(find.text('0 sets Jan 15'), findsOneWidget);
+      expect(find.text('0 SETS JAN 15'), findsOneWidget);
       expect(find.textContaining('today'), findsNothing);
     });
 

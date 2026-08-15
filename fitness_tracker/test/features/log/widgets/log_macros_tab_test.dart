@@ -4,7 +4,9 @@ import 'package:fitness_tracker/core/constants/app_strings.dart';
 import 'package:fitness_tracker/core/themes/lift_theme.dart';
 import 'package:fitness_tracker/domain/entities/nutrition_log.dart';
 import 'package:fitness_tracker/features/log/log.dart';
+import 'package:fitness_tracker/features/log/presentation/widgets/shared/log_stepper_field.dart';
 import 'package:fitness_tracker/features/log/presentation/widgets/shared/macro_composition_bar.dart';
+import 'package:fitness_tracker/features/log/presentation/widgets/shared/macro_label.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -443,6 +445,44 @@ void main() {
             )
             .first;
         expect(material.color, LiftColors.actionFill);
+      },
+    );
+
+    testWidgets(
+      'each macro row header pins its own color — protein, carbs and fats '
+      'cannot be silently swapped',
+      (tester) async {
+        await tester.pumpWidget(
+          buildSubject(initialDate: DateTime(2026, 6, 14)),
+        );
+        await tester.pumpAndSettle();
+
+        final List<MacroLabel> headers = tester
+            .widgetList<MacroLabel>(find.byType(MacroLabel))
+            .where((MacroLabel l) => l.variant == MacroLabelVariant.header)
+            .toList();
+        expect(headers, hasLength(3));
+        expect(headers[0].kind, MacroKind.protein);
+        expect(headers[1].kind, MacroKind.carbs);
+        expect(headers[2].kind, MacroKind.fats);
+        expect(headers[0].kind.color, LiftColors.protein);
+        expect(headers[1].kind.color, LiftColors.carbs);
+        expect(headers[2].kind.color, LiftColors.fats);
+
+        // Each stepper's accent (the '+' glyph color) must match its own
+        // row's macro, not a neighbour's.
+        final LogStepperField proteinStepper = tester.widget<LogStepperField>(
+          find.byKey(const Key('macrosStepper-Protein')),
+        );
+        final LogStepperField carbsStepper = tester.widget<LogStepperField>(
+          find.byKey(const Key('macrosStepper-Carbs')),
+        );
+        final LogStepperField fatsStepper = tester.widget<LogStepperField>(
+          find.byKey(const Key('macrosStepper-Fats')),
+        );
+        expect(proteinStepper.accentColor, LiftColors.protein);
+        expect(carbsStepper.accentColor, LiftColors.carbs);
+        expect(fatsStepper.accentColor, LiftColors.fats);
       },
     );
   });
