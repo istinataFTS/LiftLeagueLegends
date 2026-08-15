@@ -52,6 +52,18 @@ void main() {
     await tester.pumpAndSettle();
   }
 
+  // The muscle filter row scrolls horizontally and only builds chips within
+  // (or near) the viewport, so tests that need a chip further down the list
+  // (e.g. "quads") must scroll it into view first.
+  Future<void> scrollFilterChipIntoView(WidgetTester tester, Key key) async {
+    await tester.dragUntilVisible(
+      find.byKey(key),
+      find.byKey(const ValueKey<String>('muscle-filter-row')),
+      const Offset(-200, 0),
+    );
+    await tester.pumpAndSettle();
+  }
+
   group('ExercisePickerSheet livened tile', () {
     // Rewritten from the pre-restyle "renders muscle pills (display names,
     // not comma text)" test. Task 17 (Spec B, PR B2) replaces the per-muscle
@@ -72,8 +84,10 @@ void main() {
           '${MuscleGroups.getDisplayName('triceps')}';
       expect(find.text(expected.toUpperCase()), findsOneWidget);
 
-      // The muscle filter bar (FilterChip) is gone entirely, and nothing in
-      // the sheet uses a Chip to display a value.
+      // Per-row muscle metadata never uses a Chip/FilterChip to display a
+      // value (Deep Mist reserves chips for filters). The muscle filter row
+      // itself is restored below, but built from Material/InkWell/Container
+      // rather than the framework's FilterChip widget, so this stays true.
       expect(find.byType(FilterChip), findsNothing);
       expect(find.byType(Chip), findsNothing);
     });
@@ -192,6 +206,169 @@ void main() {
       await pumpPicker(tester, exercises: <Exercise>[bench, squat]);
 
       expect(find.text('2 ITEMS'), findsOneWidget);
+    });
+  });
+
+  group('ExercisePickerSheet muscle filter', () {
+    testWidgets('renders an All option plus one option per muscle group', (
+      tester,
+    ) async {
+      await pumpPicker(tester, exercises: <Exercise>[bench, squat]);
+
+      expect(
+        find.byKey(const ValueKey<String>('muscle-filter-all')),
+        findsOneWidget,
+      );
+      expect(
+        find.byKey(const ValueKey<String>('muscle-filter-chest')),
+        findsOneWidget,
+      );
+
+      // Scroll to the far end of the row to prove every entry in
+      // MuscleGroups.all made it into the filter, not just the ones that
+      // happen to fit in the initial viewport.
+      final String lastMuscle = MuscleGroups.all.last;
+      await scrollFilterChipIntoView(
+        tester,
+        ValueKey<String>('muscle-filter-$lastMuscle'),
+      );
+      expect(
+        find.byKey(ValueKey<String>('muscle-filter-$lastMuscle')),
+        findsOneWidget,
+      );
+      await scrollFilterChipIntoView(
+        tester,
+        const ValueKey<String>('muscle-filter-quads'),
+      );
+      expect(
+        find.byKey(const ValueKey<String>('muscle-filter-quads')),
+        findsOneWidget,
+      );
+    });
+
+    testWidgets('tapping a muscle narrows results to that muscle group', (
+      tester,
+    ) async {
+      await pumpPicker(tester, exercises: <Exercise>[bench, squat]);
+
+      expect(find.text('Bench Press'), findsOneWidget);
+      expect(find.text('Back Squat'), findsOneWidget);
+
+      const ValueKey<String> quadsKey = ValueKey<String>('muscle-filter-quads');
+      await scrollFilterChipIntoView(tester, quadsKey);
+      await tester.tap(find.byKey(quadsKey));
+      await tester.pumpAndSettle();
+
+      expect(find.text('Bench Press'), findsNothing);
+      expect(find.text('Back Squat'), findsOneWidget);
+    });
+
+    testWidgets('tapping the selected muscle again clears the filter', (
+      tester,
+    ) async {
+      await pumpPicker(tester, exercises: <Exercise>[bench, squat]);
+
+      const ValueKey<String> quadsKey = ValueKey<String>('muscle-filter-quads');
+      await scrollFilterChipIntoView(tester, quadsKey);
+      final Finder quadsChip = find.byKey(quadsKey);
+
+      await tester.tap(quadsChip);
+      await tester.pumpAndSettle();
+      expect(find.text('Bench Press'), findsNothing);
+
+      await tester.tap(quadsChip);
+      await tester.pumpAndSettle();
+
+      expect(find.text('Bench Press'), findsOneWidget);
+      expect(find.text('Back Squat'), findsOneWidget);
+    });
+
+    testWidgets('selected chip is filled actionFill; unselected is transparent '
+        'with a 1.5px border', (tester) async {
+      await pumpPicker(tester, exercises: <Exercise>[bench, squat]);
+
+      final Container allChip = tester.widget<Container>(
+        find.descendant(
+          of: find.byKey(const ValueKey<String>('muscle-filter-all')),
+          matching: find.byType(Container),
+        ),
+      );
+      final BoxDecoration allDecoration = allChip.decoration! as BoxDecoration;
+      expect(allDecoration.color, LiftColors.actionFill);
+
+      const ValueKey<String> quadsKey = ValueKey<String>('muscle-filter-quads');
+      await scrollFilterChipIntoView(tester, quadsKey);
+
+      final Container quadsChip = tester.widget<Container>(
+        find.descendant(
+          of: find.byKey(quadsKey),
+          matching: find.byType(Container),
+        ),
+      );
+      final BoxDecoration quadsDecoration =
+          quadsChip.decoration! as BoxDecoration;
+      expect(quadsDecoration.color, Colors.transparent);
+      final Border quadsBorder = quadsDecoration.border! as Border;
+      expect(quadsBorder.top.color, LiftColors.border);
+      expect(quadsBorder.top.width, 1.5);
+
+      await tester.tap(find.byKey(quadsKey));
+      await tester.pumpAndSettle();
+
+      // Scroll back to the start of the row — tapping "quads" earlier
+      // scrolled it out of view, and the row only builds chips near the
+      // viewport.
+      await tester.dragUntilVisible(
+        find.byKey(const ValueKey<String>('muscle-filter-all')),
+        find.byKey(const ValueKey<String>('muscle-filter-row')),
+        const Offset(200, 0),
+      );
+      await tester.pumpAndSettle();
+
+      final Container allChipAfter = tester.widget<Container>(
+        find.descendant(
+          of: find.byKey(const ValueKey<String>('muscle-filter-all')),
+          matching: find.byType(Container),
+        ),
+      );
+      expect(
+        (allChipAfter.decoration! as BoxDecoration).color,
+        Colors.transparent,
+      );
+
+      await scrollFilterChipIntoView(tester, quadsKey);
+      final Container quadsChipAfter = tester.widget<Container>(
+        find.descendant(
+          of: find.byKey(quadsKey),
+          matching: find.byType(Container),
+        ),
+      );
+      expect(
+        (quadsChipAfter.decoration! as BoxDecoration).color,
+        LiftColors.actionFill,
+      );
+    });
+
+    testWidgets('muscle filter composes with an active search query', (
+      tester,
+    ) async {
+      await pumpPicker(tester, exercises: <Exercise>[bench, squat]);
+
+      await tester.enterText(find.byType(TextField), 'press');
+      await tester.pumpAndSettle();
+
+      expect(find.text('Bench Press'), findsOneWidget);
+      expect(find.text('Back Squat'), findsNothing);
+
+      const ValueKey<String> quadsKey = ValueKey<String>('muscle-filter-quads');
+      await scrollFilterChipIntoView(tester, quadsKey);
+      await tester.tap(find.byKey(quadsKey));
+      await tester.pumpAndSettle();
+
+      // "press" matches Bench Press's name, but Bench Press is chest/triceps
+      // not quads, so the muscle filter narrows it out on top of the query.
+      expect(find.text('Bench Press'), findsNothing);
+      expect(find.text('Back Squat'), findsNothing);
     });
   });
 }

@@ -48,6 +48,7 @@ class ExercisePickerSheet extends StatefulWidget {
 class _ExercisePickerSheetState extends State<ExercisePickerSheet> {
   final TextEditingController _searchController = TextEditingController();
   String _searchQuery = '';
+  String? _selectedMuscle;
 
   @override
   void dispose() {
@@ -56,16 +57,26 @@ class _ExercisePickerSheetState extends State<ExercisePickerSheet> {
   }
 
   List<Exercise> get _filteredAllExercises {
-    if (_searchQuery.isEmpty) return widget.exercises;
+    var result = widget.exercises;
 
-    final String query = _searchQuery.toLowerCase();
-    return widget.exercises.where((Exercise e) {
-      return e.name.toLowerCase().contains(query) ||
-          e.muscleGroups.any(
-            (mg) =>
-                MuscleGroups.getDisplayName(mg).toLowerCase().contains(query),
-          );
-    }).toList();
+    if (_selectedMuscle != null) {
+      result = result
+          .where((Exercise e) => e.muscleGroups.contains(_selectedMuscle))
+          .toList();
+    }
+
+    if (_searchQuery.isNotEmpty) {
+      final String query = _searchQuery.toLowerCase();
+      result = result.where((Exercise e) {
+        return e.name.toLowerCase().contains(query) ||
+            e.muscleGroups.any(
+              (mg) =>
+                  MuscleGroups.getDisplayName(mg).toLowerCase().contains(query),
+            );
+      }).toList();
+    }
+
+    return result;
   }
 
   List<Exercise> get _recentExercises {
@@ -79,6 +90,10 @@ class _ExercisePickerSheetState extends State<ExercisePickerSheet> {
     for (final String id in widget.recentExerciseIds) {
       final Exercise? exercise = exerciseById[id];
       if (exercise == null) {
+        continue;
+      }
+      if (_selectedMuscle != null &&
+          !exercise.muscleGroups.contains(_selectedMuscle)) {
         continue;
       }
       result.add(exercise);
@@ -112,6 +127,7 @@ class _ExercisePickerSheetState extends State<ExercisePickerSheet> {
           _buildHeader(context),
           const Divider(height: 1, color: LiftColors.hairline),
           _buildSearchField(),
+          _buildMuscleFilterChips(),
           _buildResultCount(all.length, widget.exercises.length, hasQuery),
           const Divider(height: 1, color: LiftColors.hairline),
           Expanded(
@@ -168,6 +184,77 @@ class _ExercisePickerSheetState extends State<ExercisePickerSheet> {
               : null,
         ),
         onChanged: (String value) => setState(() => _searchQuery = value),
+      ),
+    );
+  }
+
+  Widget _buildMuscleFilterChips() {
+    return SizedBox(
+      key: const ValueKey<String>('muscle-filter-row'),
+      height: 44,
+      child: ListView(
+        scrollDirection: Axis.horizontal,
+        padding: const EdgeInsets.symmetric(horizontal: 16),
+        children: <Widget>[
+          Padding(
+            padding: const EdgeInsets.only(right: 8),
+            child: _buildFilterChip(
+              key: const ValueKey<String>('muscle-filter-all'),
+              label: AppStrings.all,
+              selected: _selectedMuscle == null,
+              onTap: () => setState(() => _selectedMuscle = null),
+            ),
+          ),
+          ...MuscleGroups.all.map(
+            (String muscle) => Padding(
+              padding: const EdgeInsets.only(right: 8),
+              child: _buildFilterChip(
+                key: ValueKey<String>('muscle-filter-$muscle'),
+                label: MuscleGroups.getDisplayName(muscle),
+                selected: _selectedMuscle == muscle,
+                onTap: () => setState(() {
+                  _selectedMuscle = _selectedMuscle == muscle ? null : muscle;
+                }),
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildFilterChip({
+    required Key key,
+    required String label,
+    required bool selected,
+    required VoidCallback onTap,
+  }) {
+    return Material(
+      key: key,
+      color: Colors.transparent,
+      child: InkWell(
+        onTap: onTap,
+        child: Container(
+          constraints: const BoxConstraints(minHeight: 44),
+          padding: const EdgeInsets.symmetric(horizontal: 14),
+          alignment: Alignment.center,
+          decoration: BoxDecoration(
+            color: selected ? LiftColors.actionFill : Colors.transparent,
+            border: const Border.fromBorderSide(
+              BorderSide(
+                color: LiftColors.border,
+                width: LiftShape.borderWidth,
+              ),
+            ),
+            borderRadius: BorderRadius.zero,
+          ),
+          child: Text(
+            label.toUpperCase(),
+            style: LiftText.labelMedium.copyWith(
+              color: selected ? Colors.white : LiftColors.textDim,
+            ),
+          ),
+        ),
       ),
     );
   }
