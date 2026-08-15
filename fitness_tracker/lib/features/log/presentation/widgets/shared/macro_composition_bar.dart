@@ -68,40 +68,54 @@ class MacroCompositionBar extends StatelessWidget {
         LayoutBuilder(
           builder: (BuildContext context, BoxConstraints constraints) {
             final double w = constraints.maxWidth;
-            if (!hasData) {
-              // Empty state: a flat rule-coloured track, no segments.
-              return Container(
-                key: const ValueKey<String>('macro-bar-track'),
-                height: _barHeight,
-                width: w,
-                decoration: const BoxDecoration(color: LiftColors.rule),
-              );
-            }
+            // A single stable tree in both states: a rule-coloured track
+            // sits behind a Row of keyed AnimatedContainers. When all
+            // macros are zero the segments collapse to zero width and the
+            // track shows through fully, visually identical to the old
+            // "empty track, no segments" branch — but because the same
+            // widgets (same types, same keys) persist across the
+            // zero/non-zero transition, Flutter keeps the elements alive
+            // and AnimatedContainer animates the width change instead of
+            // popping the segments in.
             return SizedBox(
               height: _barHeight,
               width: w,
-              child: Row(
+              child: Stack(
                 children: <Widget>[
-                  AnimatedContainer(
-                    key: const ValueKey<String>('macro-bar-protein'),
-                    duration: duration,
-                    width: w * proteinFraction,
+                  Container(
+                    key: const ValueKey<String>('macro-bar-track'),
                     height: _barHeight,
-                    decoration: const BoxDecoration(color: LiftColors.protein),
+                    width: w,
+                    decoration: const BoxDecoration(color: LiftColors.rule),
                   ),
-                  AnimatedContainer(
-                    key: const ValueKey<String>('macro-bar-carbs'),
-                    duration: duration,
-                    width: w * carbsFraction,
-                    height: _barHeight,
-                    decoration: const BoxDecoration(color: LiftColors.carbs),
-                  ),
-                  AnimatedContainer(
-                    key: const ValueKey<String>('macro-bar-fats'),
-                    duration: duration,
-                    width: w * fatsFraction,
-                    height: _barHeight,
-                    decoration: const BoxDecoration(color: LiftColors.fats),
+                  Row(
+                    children: <Widget>[
+                      AnimatedContainer(
+                        key: const ValueKey<String>('macro-bar-protein'),
+                        duration: duration,
+                        width: w * proteinFraction,
+                        height: _barHeight,
+                        decoration: const BoxDecoration(
+                          color: LiftColors.protein,
+                        ),
+                      ),
+                      AnimatedContainer(
+                        key: const ValueKey<String>('macro-bar-carbs'),
+                        duration: duration,
+                        width: w * carbsFraction,
+                        height: _barHeight,
+                        decoration: const BoxDecoration(
+                          color: LiftColors.carbs,
+                        ),
+                      ),
+                      AnimatedContainer(
+                        key: const ValueKey<String>('macro-bar-fats'),
+                        duration: duration,
+                        width: w * fatsFraction,
+                        height: _barHeight,
+                        decoration: const BoxDecoration(color: LiftColors.fats),
+                      ),
+                    ],
                   ),
                 ],
               ),

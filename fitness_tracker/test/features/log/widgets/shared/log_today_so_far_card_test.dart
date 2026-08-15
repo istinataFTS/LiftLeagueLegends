@@ -76,8 +76,34 @@ void main() {
       expect(find.text('10g'), findsOneWidget);
       expect(find.byType(MacroCompositionBar), findsOneWidget);
 
-      // The block is no longer a Card — it sits directly on the ground.
+      // The block was never a literal Card (it was always a Container with
+      // a Card-like rounded, filled decoration), so this alone proves
+      // nothing about the restyle — it's a forward-looking guard only.
       expect(find.byType(Card), findsNothing);
+
+      // What the restyle actually removed: the Card-*looking* treatment.
+      // The block's own decoration must no longer have a rounded radius or
+      // a filled background — it now sits directly on the ground, bordered
+      // top/bottom by a rule line instead of looking like a card.
+      final Container block = tester.widget<Container>(
+        find.byKey(const ValueKey<String>('log-today-so-far-block')),
+      );
+      final BoxDecoration decoration = block.decoration! as BoxDecoration;
+      expect(
+        decoration.borderRadius == null ||
+            decoration.borderRadius == BorderRadius.zero,
+        isTrue,
+        reason:
+            'block must have no rounded radius, got '
+            '${decoration.borderRadius}',
+      );
+      expect(
+        decoration.color,
+        isNull,
+        reason:
+            'block must have no filled background colour, got '
+            '${decoration.color}',
+      );
 
       // The three macro values render through LiftNumber at dataMedium.
       final List<LiftNumber> numbers = tester

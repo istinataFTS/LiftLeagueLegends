@@ -146,5 +146,63 @@ void main() {
         expect(decorationOf(tester, 'macro-bar-fats').color, LiftColors.fats);
       },
     );
+
+    testWidgets(
+      'animates from empty to populated instead of popping segments in '
+      '(the empty→data transition must keep the same element tree)',
+      (tester) async {
+        await tester.pumpWidget(buildSubject());
+        await tester.pump();
+
+        // Grab the empty-state AnimatedContainer elements so we can prove
+        // they are the *same* elements after the data appears, not a
+        // torn-down-and-rebuilt subtree.
+        final Element proteinBefore = tester.element(
+          find.byKey(const ValueKey<String>('macro-bar-protein')),
+        );
+        final Element carbsBefore = tester.element(
+          find.byKey(const ValueKey<String>('macro-bar-carbs')),
+        );
+        final Element fatsBefore = tester.element(
+          find.byKey(const ValueKey<String>('macro-bar-fats')),
+        );
+
+        await tester.pumpWidget(
+          buildSubject(proteinGrams: 50, carbsGrams: 30, fatsGrams: 20),
+        );
+        // Advance only half of the 250ms animation duration.
+        await tester.pump(const Duration(milliseconds: 125));
+
+        // Same elements survived the transition — the tree was not torn
+        // down and rebuilt.
+        expect(
+          tester.element(
+            find.byKey(const ValueKey<String>('macro-bar-protein')),
+          ),
+          same(proteinBefore),
+        );
+        expect(
+          tester.element(find.byKey(const ValueKey<String>('macro-bar-carbs'))),
+          same(carbsBefore),
+        );
+        expect(
+          tester.element(find.byKey(const ValueKey<String>('macro-bar-fats'))),
+          same(fatsBefore),
+        );
+
+        // Mid-flight the protein segment should be animating towards its
+        // target width, not already there and not still zero.
+        final Size midSize = tester.getSize(
+          find.byKey(const ValueKey<String>('macro-bar-protein')),
+        );
+        expect(midSize.width, greaterThan(0));
+
+        await tester.pumpAndSettle();
+        final Size finalSize = tester.getSize(
+          find.byKey(const ValueKey<String>('macro-bar-protein')),
+        );
+        expect(finalSize.width, greaterThan(midSize.width));
+      },
+    );
   });
 }
