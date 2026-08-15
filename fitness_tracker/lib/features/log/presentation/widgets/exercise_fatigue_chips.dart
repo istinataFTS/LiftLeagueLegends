@@ -1,15 +1,18 @@
 import 'package:flutter/material.dart';
 
-import '../../../../core/themes/app_theme.dart';
+import '../../../../core/themes/lift_number.dart';
+import '../../../../core/themes/lift_theme.dart';
 import '../../../../domain/muscle_visual/muscle_visual_contract.dart';
 import '../../application/exercise_insight.dart';
 
-/// Renders the per-targeted-muscle fatigue chips + a trailing verdict word for
-/// the Exercise tab's selector card (design spec §3.1).
+/// Renders the per-targeted-muscle fatigue indicators + a trailing verdict
+/// word for the Exercise tab's selector card (design spec §3.1).
 ///
-/// Each chip is a colored dot + muscle display name + percent. The colors come
-/// straight from [MuscleFatigue] (which copies `MuscleVisualData.color`), so the
-/// chip can never disagree with the Home 2D human model.
+/// Each row is a 14x14 fatigue-ramp swatch, the muscle display name, and its
+/// percent. The swatch uses the Deep Mist fatigue ramp
+/// (`LiftColors.fatigue[bucket.index]`) rather than [MuscleFatigue.color] —
+/// Home does not join the fatigue ramp until PR B3, so for the life of this
+/// PR this chip and the Home 2D human model may legitimately disagree.
 class ExerciseFatigueChips extends StatelessWidget {
   const ExerciseFatigueChips({super.key, required this.muscles});
 
@@ -41,15 +44,11 @@ class ExerciseFatigueChips extends StatelessWidget {
     return Row(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: <Widget>[
-        const Padding(
-          padding: EdgeInsets.only(top: 1),
+        Padding(
+          padding: const EdgeInsets.only(top: 1),
           child: Text(
-            'Fatigue',
-            style: TextStyle(
-              color: AppTheme.textDim,
-              fontSize: 12,
-              fontWeight: FontWeight.w600,
-            ),
+            'FATIGUE',
+            style: LiftText.labelLarge.copyWith(color: LiftColors.textDim),
           ),
         ),
         const SizedBox(width: 12),
@@ -57,7 +56,7 @@ class ExerciseFatigueChips extends StatelessWidget {
           child: Wrap(
             spacing: 12,
             runSpacing: 6,
-            children: muscles.map(_buildChip).toList(),
+            children: muscles.map(_buildRow).toList(),
           ),
         ),
         const SizedBox(width: 8),
@@ -65,9 +64,9 @@ class ExerciseFatigueChips extends StatelessWidget {
           padding: const EdgeInsets.only(top: 1),
           child: Text(
             _verdict(),
-            style: const TextStyle(
-              color: AppTheme.textMedium,
-              fontSize: 12,
+            textAlign: TextAlign.right,
+            style: LiftText.bodyMedium.copyWith(
+              color: LiftColors.textDim,
               fontStyle: FontStyle.italic,
             ),
           ),
@@ -76,34 +75,19 @@ class ExerciseFatigueChips extends StatelessWidget {
     );
   }
 
-  Widget _buildChip(MuscleFatigue m) {
-    // `empty` bucket maps to a transparent color in the locked palette — fall
-    // back to a visible dim dot so the chip still reads as a recovered muscle.
-    final Color dot = m.color == Colors.transparent
-        ? AppTheme.textDim
-        : m.color;
+  Widget _buildRow(MuscleFatigue m) {
+    final Color swatch = LiftColors.fatigue[m.bucket.index];
     return Row(
       mainAxisSize: MainAxisSize.min,
       children: <Widget>[
-        Container(
-          width: 8,
-          height: 8,
-          decoration: BoxDecoration(color: dot, shape: BoxShape.circle),
-        ),
-        const SizedBox(width: 5),
+        Container(width: 14, height: 14, color: swatch),
+        const SizedBox(width: 6),
         Text(
-          m.displayName,
-          style: const TextStyle(color: AppTheme.textMedium, fontSize: 12),
+          m.displayName.toUpperCase(),
+          style: LiftText.labelLarge.copyWith(color: LiftColors.textStrong),
         ),
-        const SizedBox(width: 4),
-        Text(
-          '${m.percent}%',
-          style: const TextStyle(
-            color: AppTheme.textDim,
-            fontSize: 12,
-            fontFeatures: <FontFeature>[FontFeature.tabularFigures()],
-          ),
-        ),
+        const SizedBox(width: 6),
+        LiftNumber('${m.percent}', '%', LiftText.dataMeta),
       ],
     );
   }
