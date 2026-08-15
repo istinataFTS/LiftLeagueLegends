@@ -25,9 +25,9 @@ void main() {
       await tester.pumpAndSettle();
 
       expect(find.byType(LogTabSelector), findsOneWidget);
-      expect(find.text('Exercise'), findsOneWidget);
-      expect(find.text('Meal'), findsOneWidget);
-      expect(find.text('Macros'), findsOneWidget);
+      expect(find.text('EXERCISE'), findsOneWidget);
+      expect(find.text('MEAL'), findsOneWidget);
+      expect(find.text('MACROS'), findsOneWidget);
     });
 
     testWidgets('shows the exercise tab by default', (tester) async {
@@ -43,14 +43,14 @@ void main() {
       await tester.pumpWidget(buildSubject());
       await tester.pumpAndSettle();
 
-      await tester.tap(find.text('Meal'));
+      await tester.tap(find.text('MEAL'));
       await tester.pumpAndSettle();
 
       expect(find.text('exercise-tab-content'), findsNothing);
       expect(find.text('meal-tab-content'), findsOneWidget);
       expect(find.text('macros-tab-content'), findsNothing);
 
-      await tester.tap(find.text('Macros'));
+      await tester.tap(find.text('MACROS'));
       await tester.pumpAndSettle();
 
       expect(find.text('exercise-tab-content'), findsNothing);

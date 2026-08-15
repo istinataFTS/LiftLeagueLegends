@@ -1,4 +1,5 @@
 import 'package:fitness_tracker/app/app.dart';
+import 'package:fitness_tracker/core/themes/lift_theme.dart';
 import 'package:fitness_tracker/features/log/presentation/widgets/shared/log_tab_selector.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -20,18 +21,56 @@ void main() {
       await tester.pumpWidget(buildSubject());
       await tester.pumpAndSettle();
 
-      expect(find.text('Exercise'), findsOneWidget);
-      expect(find.text('Meal'), findsOneWidget);
-      expect(find.text('Macros'), findsOneWidget);
+      expect(find.text('EXERCISE'), findsOneWidget);
+      expect(find.text('MEAL'), findsOneWidget);
+      expect(find.text('MACROS'), findsOneWidget);
     });
 
-    testWidgets('renders tab icons', (tester) async {
+    testWidgets('labels are mono JetBrainsMono', (tester) async {
       await tester.pumpWidget(buildSubject());
       await tester.pumpAndSettle();
 
-      expect(find.byIcon(Icons.fitness_center), findsOneWidget);
-      expect(find.byIcon(Icons.restaurant), findsOneWidget);
-      expect(find.byIcon(Icons.calculate), findsOneWidget);
+      final Text label = tester.widget<Text>(find.text('EXERCISE'));
+      expect(label.style!.fontFamily, 'JetBrainsMono');
+    });
+
+    testWidgets('the active tab is primary, inactive tabs are dim', (
+      tester,
+    ) async {
+      await tester.pumpWidget(buildSubject());
+      await tester.pumpAndSettle();
+
+      expect(
+        tester.widget<Text>(find.text('EXERCISE')).style!.color,
+        LiftColors.textPrimary,
+      );
+      expect(
+        tester.widget<Text>(find.text('MEAL')).style!.color,
+        LiftColors.textDim,
+      );
+    });
+
+    testWidgets('the active tab carries a 2.5px tint underline', (
+      tester,
+    ) async {
+      await tester.pumpWidget(buildSubject(selectedIndex: 1));
+      await tester.pumpAndSettle();
+
+      final Container underline = tester.widget<Container>(
+        find.byKey(const ValueKey<String>('log-tab-underline-1')),
+      );
+      expect(underline.constraints!.maxHeight, LiftShape.borderWidthActive);
+      expect(
+        (underline.decoration! as BoxDecoration).color,
+        LiftColors.actionTint,
+      );
+    });
+
+    testWidgets('no tab renders an icon', (tester) async {
+      await tester.pumpWidget(buildSubject());
+      await tester.pumpAndSettle();
+
+      expect(find.byType(Icon), findsNothing);
     });
 
     testWidgets('tapping Meal tab calls onChanged with index 1', (
@@ -41,7 +80,7 @@ void main() {
       await tester.pumpWidget(buildSubject(onChanged: (i) => received = i));
       await tester.pumpAndSettle();
 
-      await tester.tap(find.text('Meal'));
+      await tester.tap(find.text('MEAL'));
       await tester.pumpAndSettle();
 
       expect(received, equals(1));
@@ -54,7 +93,7 @@ void main() {
       await tester.pumpWidget(buildSubject(onChanged: (i) => received = i));
       await tester.pumpAndSettle();
 
-      await tester.tap(find.text('Macros'));
+      await tester.tap(find.text('MACROS'));
       await tester.pumpAndSettle();
 
       expect(received, equals(2));
@@ -69,7 +108,7 @@ void main() {
       );
       await tester.pumpAndSettle();
 
-      await tester.tap(find.text('Exercise'));
+      await tester.tap(find.text('EXERCISE'));
       await tester.pumpAndSettle();
 
       expect(received, equals(0));
