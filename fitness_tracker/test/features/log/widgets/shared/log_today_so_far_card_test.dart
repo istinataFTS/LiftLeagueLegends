@@ -4,7 +4,7 @@ import 'package:fitness_tracker/core/themes/lift_theme.dart';
 import 'package:fitness_tracker/domain/entities/nutrition_log.dart';
 import 'package:fitness_tracker/features/log/application/nutrition_log_bloc.dart';
 import 'package:fitness_tracker/features/log/presentation/widgets/shared/log_today_so_far_card.dart';
-import 'package:fitness_tracker/features/log/presentation/widgets/shared/macro_composition_bar.dart';
+import 'package:fitness_tracker/presentation/widgets/macro_composition_bar.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 

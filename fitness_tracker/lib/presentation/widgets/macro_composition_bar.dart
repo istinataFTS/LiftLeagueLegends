@@ -1,24 +1,32 @@
 import 'package:flutter/material.dart';
 
-import '../../../../../core/themes/lift_theme.dart';
+import '../../core/themes/lift_theme.dart';
 
-/// Stacked horizontal macro composition bar + % text line.
+/// Stacked horizontal macro composition bar, optionally followed by a % text
+/// line.
 ///
 /// Inputs are grams; calories computed internally (protein*4, carbs*4, fats*9).
 /// Bar segments animate via [AnimatedContainer] unless reduced-motion is active.
 /// Division by zero (all zero grams) renders an empty (rule-coloured) track
-/// and '0% PROTEIN · 0% CARBS · 0% FATS'.
+/// and, when [showPercentages] is true, '0% PROTEIN · 0% CARBS · 0% FATS'.
 class MacroCompositionBar extends StatelessWidget {
   const MacroCompositionBar({
     super.key,
     required this.proteinGrams,
     required this.carbsGrams,
     required this.fatsGrams,
+    this.showPercentages = true,
   });
 
   final double proteinGrams;
   final double carbsGrams;
   final double fatsGrams;
+
+  /// Whether the `41% PROTEIN · 28% CARBS · 31% FATS` caption renders beneath
+  /// the bar. Log shows it (`export/07-log-macros.png`); Home's intake strip
+  /// does not (`export/01-home.png`), because there the three gram values are
+  /// already spelled out immediately above the bar.
+  final bool showPercentages;
 
   static const double _barHeight = 3;
 
@@ -63,6 +71,7 @@ class MacroCompositionBar extends StatelessWidget {
     }
 
     return Column(
+      mainAxisSize: MainAxisSize.min,
       crossAxisAlignment: CrossAxisAlignment.start,
       children: <Widget>[
         LayoutBuilder(
@@ -122,11 +131,13 @@ class MacroCompositionBar extends StatelessWidget {
             );
           },
         ),
-        const SizedBox(height: 8),
-        Text(
-          '$proteinPct% PROTEIN · $carbsPct% CARBS · $fatsPct% FATS',
-          style: LiftText.labelLarge.copyWith(color: LiftColors.textDim),
-        ),
+        if (showPercentages) ...<Widget>[
+          const SizedBox(height: 8),
+          Text(
+            '$proteinPct% PROTEIN · $carbsPct% CARBS · $fatsPct% FATS',
+            style: LiftText.labelLarge.copyWith(color: LiftColors.textDim),
+          ),
+        ],
       ],
     );
   }
