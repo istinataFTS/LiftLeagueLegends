@@ -1,6 +1,7 @@
 import '../../../../core/constants/app_strings.dart';
 import '../../../../core/constants/muscle_stimulus_constants.dart'
     show MuscleStimulus;
+import '../../../../core/themes/lift_theme.dart';
 import '../../../../core/utils/week_range_label_formatter.dart';
 import '../../../../domain/entities/app_settings.dart';
 import '../../../../domain/entities/muscle_visual_data.dart';
@@ -89,6 +90,8 @@ class HomeViewDataMapper {
       weekRangeLabel: WeekRangeLabelFormatter.formatForDate(
         DateTime.now(),
         weekStartDay: settings.weekStartDay,
+        pattern: 'MMM dd',
+        separator: ' — ',
       ),
       nutrition: _mapNutrition(dailyMacros: homeData.dailyMacros),
       progress: _mapProgress(
@@ -125,19 +128,18 @@ class HomeViewDataMapper {
     return MuscleMapMode.volume;
   }
 
+  /// Passes the day's totals through untouched. An empty day is a real zero
+  /// row (`0`, `0g`, `0g`, `0g`) rather than four em-dashes — a mono data row
+  /// reads zeros correctly, and the composition bar beneath it needs the
+  /// grams to have a coherent all-zero state.
   static HomeMacroStripViewData _mapNutrition({
     required Map<String, double> dailyMacros,
   }) {
-    final double calories = dailyMacros['calories'] ?? 0;
-    final double protein = dailyMacros['protein'] ?? 0;
-    final double carbs = dailyMacros['carbs'] ?? 0;
-    final double fats = dailyMacros['fats'] ?? 0;
-
     return HomeMacroStripViewData(
-      caloriesLabel: calories > 0 ? '${calories.round()} kcal' : '–',
-      proteinLabel: protein > 0 ? '${protein.round()} g' : '–',
-      carbsLabel: carbs > 0 ? '${carbs.round()} g' : '–',
-      fatsLabel: fats > 0 ? '${fats.round()} g' : '–',
+      calories: dailyMacros['calories'] ?? 0,
+      proteinGrams: dailyMacros['protein'] ?? 0,
+      carbsGrams: dailyMacros['carbs'] ?? 0,
+      fatsGrams: dailyMacros['fats'] ?? 0,
     );
   }
 
@@ -243,7 +245,7 @@ class HomeViewDataMapper {
               displayName: item.displayName,
               stimulusLabel: item.totalStimulus.toStringAsFixed(0),
               intensityLabel: item.intensityLevel,
-              color: item.color,
+              color: LiftColors.fatigue[item.bucket.index],
             ),
           )
           .toList(growable: false),
@@ -298,6 +300,13 @@ class HomeViewDataMapper {
     return hasHighlights ? 'Front and back load' : 'No training load yet';
   }
 
+  /// Tints the overlay from the Deep Mist fatigue ramp
+  /// ([LiftColors.fatigue], five stops) indexed by the muscle's
+  /// [MuscleVisualBucket] (five members, `empty` → dimmest, `maximum` →
+  /// brightest) — **not** from [MuscleVisualData.color], the legacy
+  /// green→yellow→orange→red heatmap this PR retires. Indexing directly by
+  /// `bucket.index` is what keeps Home and `ExerciseFatigueChips` in
+  /// agreement by construction.
   static void _mergeOverlay(
     Map<String, HomeBodyOverlayViewData> target, {
     required String assetPath,
@@ -305,7 +314,7 @@ class HomeViewDataMapper {
   }) {
     final HomeBodyOverlayViewData candidate = HomeBodyOverlayViewData(
       assetPath: assetPath,
-      color: item.color,
+      color: LiftColors.fatigue[item.bucket.index],
       opacity: item.overlayOpacity,
       label: item.displayName,
     );

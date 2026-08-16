@@ -21,5 +21,16 @@ void main() {
 
       expect(result, 'Mar 15 - Mar 21');
     });
+
+    test('honours an explicit pattern and separator', () {
+      final result = WeekRangeLabelFormatter.formatForDate(
+        DateTime(2026, 3, 19),
+        weekStartDay: WeekStartDay.monday,
+        pattern: 'MMM dd',
+        separator: ' — ',
+      );
+
+      expect(result, 'Mar 16 — Mar 22');
+    });
   });
 }

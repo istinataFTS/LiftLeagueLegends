@@ -1,4 +1,5 @@
 import 'package:bloc_test/bloc_test.dart';
+import 'package:fitness_tracker/app/app.dart';
 import 'package:fitness_tracker/domain/entities/app_session.dart';
 import 'package:fitness_tracker/domain/entities/app_settings.dart';
 import 'package:fitness_tracker/domain/entities/app_user.dart';
@@ -18,6 +19,8 @@ import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:mocktail/mocktail.dart';
+
+import '../../../support/phone_viewport.dart';
 
 class MockHomeBloc extends MockBloc<HomeEvent, HomeState> implements HomeBloc {}
 
@@ -147,7 +150,7 @@ void main() {
         BlocProvider<MuscleVisualBloc>.value(value: muscleVisualBloc),
         BlocProvider<ProfileCubit>.value(value: profileCubit),
       ],
-      child: const MaterialApp(home: HomePage(settings: settings)),
+      child: const AppShell(home: HomePage(settings: settings)),
     );
   }
 
@@ -204,12 +207,7 @@ void main() {
   testWidgets('renders core loaded sections through stable feature keys', (
     WidgetTester tester,
   ) async {
-    tester.view.physicalSize = const Size(800, 2000);
-    tester.view.devicePixelRatio = 1.0;
-    addTearDown(tester.view.resetPhysicalSize);
-    addTearDown(tester.view.resetDevicePixelRatio);
-    await tester.pumpWidget(buildSubject());
-    await tester.pump();
+    await pumpAtPhoneWidth(tester, buildSubject());
 
     expect(find.byKey(HomePage.refreshListKey), findsOneWidget);
     expect(find.byKey(HomePage.progressCardKey), findsOneWidget);
@@ -217,19 +215,18 @@ void main() {
     expect(find.byKey(HomePageKeys.bodyVisualKey), findsOneWidget);
 
     // Macro strip shows four tiles.
-    expect(find.text('Calories'), findsOneWidget);
-    expect(find.text('Protein'), findsOneWidget);
-    expect(find.text('Carbs'), findsOneWidget);
-    expect(find.text('Fats'), findsOneWidget);
+    expect(find.text('KCAL'), findsOneWidget);
+    expect(find.text('PROTEIN'), findsOneWidget);
+    expect(find.text('CARBS'), findsOneWidget);
+    expect(find.text('FATS'), findsOneWidget);
 
-    expect(find.text('Progress • Month'), findsOneWidget);
+    expect(find.text('PROGRESS • MONTH'), findsOneWidget);
   });
 
   testWidgets('greeting uses the resolved session display name', (
     WidgetTester tester,
   ) async {
-    await tester.pumpWidget(buildSubject());
-    await tester.pump();
+    await pumpAtPhoneWidth(tester, buildSubject());
 
     expect(find.text('Hello, Marin!'), findsOneWidget);
   });
@@ -240,12 +237,7 @@ void main() {
   testWidgets(
     'period selector exposes stable key and dispatches month change',
     (WidgetTester tester) async {
-      tester.view.physicalSize = const Size(800, 2000);
-      tester.view.devicePixelRatio = 1.0;
-      addTearDown(tester.view.resetPhysicalSize);
-      addTearDown(tester.view.resetDevicePixelRatio);
-      await tester.pumpWidget(buildSubject());
-      await tester.pump();
+      await pumpAtPhoneWidth(tester, buildSubject());
 
       expect(find.byKey(PeriodSelectorWidget.dropdownKey), findsOneWidget);
 
@@ -266,10 +258,6 @@ void main() {
   testWidgets('visual retry uses progress retry button key', (
     WidgetTester tester,
   ) async {
-    tester.view.physicalSize = const Size(800, 2000);
-    tester.view.devicePixelRatio = 1.0;
-    addTearDown(tester.view.resetPhysicalSize);
-    addTearDown(tester.view.resetDevicePixelRatio);
     when(() => muscleVisualBloc.state).thenReturn(
       const MuscleVisualError(
         message: 'visual load failed',
@@ -285,8 +273,7 @@ void main() {
       ),
     );
 
-    await tester.pumpWidget(buildSubject());
-    await tester.pump();
+    await pumpAtPhoneWidth(tester, buildSubject());
 
     expect(find.byKey(HomePage.progressRetryButtonKey), findsOneWidget);
 
@@ -299,10 +286,6 @@ void main() {
   testWidgets('visual loading shows dedicated progress loading indicator', (
     WidgetTester tester,
   ) async {
-    tester.view.physicalSize = const Size(800, 2000);
-    tester.view.devicePixelRatio = 1.0;
-    addTearDown(tester.view.resetPhysicalSize);
-    addTearDown(tester.view.resetDevicePixelRatio);
     when(
       () => muscleVisualBloc.state,
     ).thenReturn(const MuscleVisualLoading(TimePeriod.month));
@@ -312,8 +295,8 @@ void main() {
       initialState: const MuscleVisualLoading(TimePeriod.month),
     );
 
-    await tester.pumpWidget(buildSubject());
-    await tester.pump();
+    // The progress spinner animates forever, so this tree never settles.
+    await pumpAtPhoneWidth(tester, buildSubject(), settle: false);
 
     expect(find.byKey(HomePage.progressLoadingIndicatorKey), findsOneWidget);
     expect(find.byKey(PeriodSelectorWidget.dropdownKey), findsOneWidget);
@@ -322,10 +305,6 @@ void main() {
   testWidgets('month period renders progress card cleanly', (
     WidgetTester tester,
   ) async {
-    tester.view.physicalSize = const Size(800, 2000);
-    tester.view.devicePixelRatio = 1.0;
-    addTearDown(tester.view.resetPhysicalSize);
-    addTearDown(tester.view.resetDevicePixelRatio);
     final MuscleVisualLoaded monthState = MuscleVisualLoaded(
       muscleData: <String, MuscleVisualData>{
         'chest': MuscleVisualData(
@@ -354,18 +333,16 @@ void main() {
       initialState: monthState,
     );
 
-    await tester.pumpWidget(buildSubject());
-    await tester.pump();
+    await pumpAtPhoneWidth(tester, buildSubject());
 
-    expect(find.text('Progress • Month'), findsOneWidget);
+    expect(find.text('PROGRESS • MONTH'), findsOneWidget);
     expect(find.byKey(HomePage.progressCardKey), findsOneWidget);
   });
 
   testWidgets(
     'pull to refresh dispatches both refresh events from refresh list',
     (WidgetTester tester) async {
-      await tester.pumpWidget(buildSubject());
-      await tester.pump();
+      await pumpAtPhoneWidth(tester, buildSubject());
 
       await tester.drag(
         find.byKey(HomePage.refreshListKey),

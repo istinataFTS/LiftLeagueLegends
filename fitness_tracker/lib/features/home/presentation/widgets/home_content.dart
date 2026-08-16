@@ -1,14 +1,32 @@
+import 'dart:math' as math;
+
 import 'package:flutter/material.dart';
 
 import '../../../../core/constants/app_strings.dart';
-import '../../../../core/themes/app_theme.dart';
+import '../../../../core/themes/lift_number.dart';
+import '../../../../core/themes/lift_theme.dart';
 import '../../../../domain/entities/time_period.dart';
+import '../../../../presentation/widgets/macro_composition_bar.dart';
 import '../../application/muscle_visual_bloc.dart' show MuscleMapMode;
 import '../home_page_keys.dart';
 import '../models/home_view_data.dart';
 import 'body_visual_widget.dart';
 import 'period_selector_widget.dart';
 
+/// Horizontal page gutter. The two section rules deliberately sit *outside*
+/// it so they run edge to edge (`export/01-home.png`).
+const double _gutter = 20;
+
+/// Height below which the page stops shrinking the muscle map and starts
+/// scrolling instead. Chosen so an 800dp phone at normal text scale is
+/// unaffected — the viewport wins and nothing scrolls.
+const double _minPageHeight = 640;
+
+/// Home, built around the 2D muscle map.
+///
+/// The map is the screen: everything else is a header above it and an intake
+/// row below it, separated by full-bleed rules. Nothing here is a `Card` and
+/// nothing takes an opaque background — the two-tone ground shows through.
 class HomeContent extends StatelessWidget {
   const HomeContent({
     super.key,
@@ -28,189 +46,101 @@ class HomeContent extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return RefreshIndicator(
-      color: AppTheme.primaryOrange,
+      // Accent-as-foreground: the spinner is a mark, not a filled surface.
+      color: LiftColors.actionTint,
       onRefresh: onRefresh,
-      child: ListView(
-        key: HomePageKeys.refreshListKey,
-        padding: const EdgeInsets.all(20),
-        children: <Widget>[
-          _GreetingSection(viewData: viewData),
-          const SizedBox(height: 16),
-          _ProgressCard(
-            viewData: viewData.progress,
-            onPeriodChanged: onPeriodChanged,
-            onRetryVisuals: onRetryVisuals,
-            onModeChanged: onModeChanged,
-          ),
-          const SizedBox(height: 16),
-          _MacroStrip(viewData: viewData.nutrition),
-        ],
+      // `BodyVisualWidget` contains an `Expanded`, so the muscle-map section
+      // must be given a bounded height — which means the `Column` needs a
+      // tight one. `SizedBox(height: viewport)` is that bound: `Expanded`
+      // then distributes exactly the slack the header, rules and intake row
+      // leave behind, and the figure letterboxes inside it.
+      //
+      // Do not go back to `ConstrainedBox(minHeight:)` + `IntrinsicHeight`.
+      // `IntrinsicHeight` sizes the column to `computeMaxIntrinsicHeight`,
+      // and `RenderAspectRatio` answers that with `width / aspectRatio` — so
+      // the figure's height would be derived from the content *width*, the
+      // column would outgrow the screen, and `Expanded` would bound nothing.
+      //
+      // Scroll extent is therefore 0 by design at normal text scale;
+      // `AlwaysScrollableScrollPhysics` is what keeps the pull-to-refresh
+      // drag alive on a view that does not overflow.
+      child: LayoutBuilder(
+        builder: (BuildContext context, BoxConstraints constraints) {
+          // The scroll child is normally exactly viewport-tall: that tight
+          // height is what lets the muscle map's `Expanded` take the slack,
+          // and it keeps `maxScrollExtent` at 0 so the screen matches
+          // frame 01 with no scrollbar. But `Expanded` floors at 0, not at
+          // something readable, so when the fixed chrome grows —
+          // accessibility text scaling, a short window — the page has to be
+          // allowed to outgrow the viewport and scroll rather than
+          // overflow. The chrome is all text, so it grows with the text
+          // scaler and the floor does too.
+          final double scaledFloor =
+              _minPageHeight * MediaQuery.textScalerOf(context).scale(1);
+          return SingleChildScrollView(
+            key: HomePageKeys.refreshListKey,
+            physics: const AlwaysScrollableScrollPhysics(),
+            child: SizedBox(
+              height: math.max(constraints.maxHeight, scaledFloor),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                children: <Widget>[
+                  _HeaderSection(viewData: viewData),
+                  const _SectionRule(key: HomePageKeys.headerRuleKey),
+                  Expanded(
+                    child: _MuscleMapSection(
+                      viewData: viewData.progress,
+                      onPeriodChanged: onPeriodChanged,
+                      onRetryVisuals: onRetryVisuals,
+                      onModeChanged: onModeChanged,
+                    ),
+                  ),
+                  const _SectionRule(key: HomePageKeys.intakeRuleKey),
+                  _IntakeSection(viewData: viewData.nutrition),
+                ],
+              ),
+            ),
+          );
+        },
       ),
     );
   }
 }
 
-class _GreetingSection extends StatelessWidget {
-  const _GreetingSection({required this.viewData});
+/// Full-bleed hairline. Carries no horizontal padding on purpose — it runs
+/// the whole screen width while every other block is inset to the gutter.
+class _SectionRule extends StatelessWidget {
+  const _SectionRule({super.key});
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(height: LiftShape.borderWidth, color: LiftColors.rule);
+  }
+}
+
+/// Week range over greeting — the range reads first, the way a log book's
+/// page number does.
+class _HeaderSection extends StatelessWidget {
+  const _HeaderSection({required this.viewData});
 
   final HomePageViewData viewData;
 
   @override
   Widget build(BuildContext context) {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: <Widget>[
-        Text(
-          viewData.greeting,
-          style: Theme.of(
-            context,
-          ).textTheme.headlineMedium?.copyWith(fontWeight: FontWeight.bold),
-        ),
-        const SizedBox(height: 8),
-        Text(
-          viewData.weekRangeLabel,
-          style: Theme.of(
-            context,
-          ).textTheme.bodyLarge?.copyWith(color: AppTheme.textMedium),
-        ),
-      ],
-    );
-  }
-}
-
-/// Four-tile macro summary card.
-///
-/// ≥ 360 dp wide  → single `Row` of four `Expanded` tiles.
-/// < 360 dp wide  → 2×2 grid (Calories + Protein on row one, Carbs + Fats
-///                  on row two) so values stay readable on very narrow screens.
-class _MacroStrip extends StatelessWidget {
-  const _MacroStrip({required this.viewData});
-
-  final HomeMacroStripViewData viewData;
-
-  @override
-  Widget build(BuildContext context) {
-    return Card(
-      key: HomePageKeys.macroStripKey,
-      child: Padding(
-        padding: const EdgeInsets.symmetric(vertical: 16),
-        child: LayoutBuilder(
-          builder: (BuildContext context, BoxConstraints constraints) {
-            if (constraints.maxWidth >= 360) {
-              return _buildWideRow(context);
-            }
-            return _buildNarrowGrid(context);
-          },
-        ),
-      ),
-    );
-  }
-
-  Widget _buildWideRow(BuildContext context) {
-    return IntrinsicHeight(
-      child: Row(
-        crossAxisAlignment: CrossAxisAlignment.stretch,
-        children: <Widget>[
-          Expanded(
-            child: _MacroTile(
-              label: AppStrings.calories,
-              value: viewData.caloriesLabel,
-            ),
-          ),
-          const VerticalDivider(color: AppTheme.borderDark, width: 1),
-          Expanded(
-            child: _MacroTile(
-              label: AppStrings.protein,
-              value: viewData.proteinLabel,
-            ),
-          ),
-          const VerticalDivider(color: AppTheme.borderDark, width: 1),
-          Expanded(
-            child: _MacroTile(
-              label: AppStrings.carbs,
-              value: viewData.carbsLabel,
-            ),
-          ),
-          const VerticalDivider(color: AppTheme.borderDark, width: 1),
-          Expanded(
-            child: _MacroTile(
-              label: AppStrings.fats,
-              value: viewData.fatsLabel,
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildNarrowGrid(BuildContext context) {
-    return Column(
-      children: <Widget>[
-        Row(
-          children: <Widget>[
-            Expanded(
-              child: _MacroTile(
-                label: AppStrings.calories,
-                value: viewData.caloriesLabel,
-              ),
-            ),
-            const SizedBox(width: 1),
-            Expanded(
-              child: _MacroTile(
-                label: AppStrings.protein,
-                value: viewData.proteinLabel,
-              ),
-            ),
-          ],
-        ),
-        const Divider(color: AppTheme.borderDark, height: 1),
-        Row(
-          children: <Widget>[
-            Expanded(
-              child: _MacroTile(
-                label: AppStrings.carbs,
-                value: viewData.carbsLabel,
-              ),
-            ),
-            const SizedBox(width: 1),
-            Expanded(
-              child: _MacroTile(
-                label: AppStrings.fats,
-                value: viewData.fatsLabel,
-              ),
-            ),
-          ],
-        ),
-      ],
-    );
-  }
-}
-
-class _MacroTile extends StatelessWidget {
-  const _MacroTile({required this.label, required this.value});
-
-  final String label;
-  final String value;
-
-  @override
-  Widget build(BuildContext context) {
     return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
+      padding: const EdgeInsets.fromLTRB(_gutter, 16, _gutter, 14),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: <Widget>[
           Text(
-            label,
-            style: Theme.of(
-              context,
-            ).textTheme.bodySmall?.copyWith(color: AppTheme.textMedium),
+            viewData.weekRangeLabel.toUpperCase(),
+            style: LiftText.labelLarge.copyWith(color: LiftColors.textDim),
           ),
-          const SizedBox(height: 4),
+          const SizedBox(height: 6),
           Text(
-            value,
-            style: Theme.of(context).textTheme.titleMedium?.copyWith(
-              color: AppTheme.primaryOrange,
-              fontWeight: FontWeight.w700,
+            viewData.greeting,
+            style: LiftText.headlineLarge.copyWith(
+              color: LiftColors.textPrimary,
             ),
           ),
         ],
@@ -219,8 +149,10 @@ class _MacroTile extends StatelessWidget {
   }
 }
 
-class _ProgressCard extends StatelessWidget {
-  const _ProgressCard({
+/// Section title + mode toggle over the muscle map, which takes every dp of
+/// vertical space the header and intake row leave behind.
+class _MuscleMapSection extends StatelessWidget {
+  const _MuscleMapSection({
     required this.viewData,
     required this.onPeriodChanged,
     required this.onRetryVisuals,
@@ -234,143 +166,212 @@ class _ProgressCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Card(
-      key: HomePageKeys.progressCardKey,
-      child: Padding(
-        padding: const EdgeInsets.all(20),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: <Widget>[
-            // ── Header row: icon + title + mode toggle ──────────────────
-            Row(
-              crossAxisAlignment: CrossAxisAlignment.center,
-              children: <Widget>[
-                Container(
-                  padding: const EdgeInsets.all(8),
-                  decoration: BoxDecoration(
-                    color: AppTheme.primaryOrange.withValues(alpha: 0.1),
-                    borderRadius: BorderRadius.circular(8),
-                  ),
-                  child: const Icon(
-                    Icons.analytics,
-                    color: AppTheme.primaryOrange,
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(_gutter, 14, _gutter, 16),
+      child: Column(
+        key: HomePageKeys.progressCardKey,
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: <Widget>[
+          Row(
+            children: <Widget>[
+              // One flex child, no `Spacer`. A `Flexible` title next to a
+              // `Spacer` would split the free width evenly and ellipsize
+              // `MUSCLE FATIGUE` at roughly half the room it needs.
+              Expanded(
+                child: Text(
+                  viewData.title.toUpperCase(),
+                  overflow: TextOverflow.ellipsis,
+                  maxLines: 1,
+                  style: LiftText.labelLarge.copyWith(
+                    color: LiftColors.textStrong,
                   ),
                 ),
-                const SizedBox(width: 12),
-                Expanded(
-                  child: Text(
-                    viewData.title,
-                    style: Theme.of(context).textTheme.titleLarge?.copyWith(
-                      fontWeight: FontWeight.w600,
-                    ),
-                  ),
-                ),
-                const SizedBox(width: 8),
-                _MuscleMapModeToggle(
-                  currentMode: viewData.muscleMapMode,
-                  onModeChanged: onModeChanged,
-                ),
-              ],
+              ),
+              _MuscleMapModeToggle(
+                currentMode: viewData.muscleMapMode,
+                onModeChanged: onModeChanged,
+              ),
+            ],
+          ),
+          // Period selector is volume-mode only — fatigue is always "now".
+          if (viewData.showPeriodSelector) ...<Widget>[
+            const SizedBox(height: 12),
+            Align(
+              alignment: Alignment.centerRight,
+              child: PeriodSelectorWidget(
+                selectedPeriod: viewData.selectedPeriod,
+                onPeriodChanged: onPeriodChanged,
+                enabled: viewData.selectorEnabled,
+              ),
             ),
-            // ── Period selector (volume mode only) ───────────────────────
-            if (viewData.showPeriodSelector) ...<Widget>[
-              const SizedBox(height: 12),
-              Align(
-                alignment: Alignment.centerRight,
-                child: PeriodSelectorWidget(
-                  selectedPeriod: viewData.selectedPeriod,
-                  onPeriodChanged: onPeriodChanged,
-                  enabled: viewData.selectorEnabled,
-                ),
-              ),
-            ],
-            const SizedBox(height: 20),
-            if (viewData.isLoading)
-              const Center(
-                child: Padding(
-                  padding: EdgeInsets.symmetric(vertical: 32),
-                  child: CircularProgressIndicator(
-                    key: HomePageKeys.progressLoadingIndicatorKey,
-                    color: AppTheme.primaryOrange,
-                  ),
-                ),
-              )
-            else if (viewData.errorMessage != null)
-              Column(
-                children: <Widget>[
-                  const Icon(
-                    Icons.error_outline,
-                    color: AppTheme.errorRed,
-                    size: 40,
-                  ),
-                  const SizedBox(height: 12),
-                  Text(
-                    viewData.errorMessage!,
-                    textAlign: TextAlign.center,
-                    style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                      color: AppTheme.textMedium,
-                    ),
-                  ),
-                  const SizedBox(height: 12),
-                  TextButton.icon(
-                    key: HomePageKeys.progressRetryButtonKey,
-                    onPressed: onRetryVisuals,
-                    icon: const Icon(Icons.refresh),
-                    label: const Text(AppStrings.tryAgain),
-                  ),
-                ],
-              )
-            else ...<Widget>[
-              BodyVisualWidget(viewData: viewData.bodyVisual),
-              const SizedBox(height: 16),
-              ...viewData.muscleSummary.map(
-                (HomeMuscleSummaryItemViewData item) => Container(
-                  margin: const EdgeInsets.only(bottom: 10),
-                  padding: const EdgeInsets.all(14),
-                  decoration: BoxDecoration(
-                    color: AppTheme.surfaceDark,
-                    borderRadius: BorderRadius.circular(14),
-                    border: Border.all(color: AppTheme.borderDark),
-                  ),
-                  child: Row(
-                    children: <Widget>[
-                      Container(
-                        width: 10,
-                        height: 10,
-                        decoration: BoxDecoration(
-                          color: item.color,
-                          shape: BoxShape.circle,
-                        ),
-                      ),
-                      const SizedBox(width: 12),
-                      Expanded(
-                        child: Text(
-                          item.displayName,
-                          style: Theme.of(context).textTheme.titleSmall
-                              ?.copyWith(fontWeight: FontWeight.w600),
-                        ),
-                      ),
-                      Text(
-                        '${item.stimulusLabel} • ${item.intensityLabel}',
-                        style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                          color: AppTheme.textMedium,
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-              ),
-            ],
+          ],
+          const SizedBox(height: 14),
+          Expanded(child: _buildBody(context)),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildBody(BuildContext context) {
+    if (viewData.isLoading) {
+      return const Center(
+        child: CircularProgressIndicator(
+          key: HomePageKeys.progressLoadingIndicatorKey,
+          color: LiftColors.actionTint,
+        ),
+      );
+    }
+
+    final String? errorMessage = viewData.errorMessage;
+    if (errorMessage != null) {
+      return Center(
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: <Widget>[
+            const Icon(Icons.error_outline, color: LiftColors.error, size: 40),
+            const SizedBox(height: 12),
+            Text(
+              errorMessage,
+              textAlign: TextAlign.center,
+              style: LiftText.bodyMedium.copyWith(color: LiftColors.textDim),
+            ),
+            const SizedBox(height: 12),
+            TextButton.icon(
+              key: HomePageKeys.progressRetryButtonKey,
+              onPressed: onRetryVisuals,
+              icon: const Icon(Icons.refresh),
+              label: const Text(AppStrings.tryAgain),
+            ),
           ],
         ),
+      );
+    }
+
+    return BodyVisualWidget(viewData: viewData.bodyVisual);
+  }
+}
+
+/// `TODAY · INTAKE`: four left-aligned columns over the macro composition bar.
+class _IntakeSection extends StatelessWidget {
+  const _IntakeSection({required this.viewData});
+
+  final HomeMacroStripViewData viewData;
+
+  @override
+  Widget build(BuildContext context) {
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(_gutter, 16, _gutter, 16),
+      child: Column(
+        key: HomePageKeys.macroStripKey,
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: <Widget>[
+          Text(
+            'TODAY · INTAKE',
+            style: LiftText.labelLarge.copyWith(color: LiftColors.textStrong),
+          ),
+          const SizedBox(height: 12),
+          Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: <Widget>[
+              Expanded(
+                child: _IntakeColumn(
+                  // KCAL is a spaced label, so the calorie count is a plain
+                  // mono value — a glued `LiftNumber` unit would read `2792kcal`.
+                  value: Text(
+                    viewData.calories.round().toString(),
+                    style: LiftText.dataMedium.copyWith(
+                      color: LiftColors.textPrimary,
+                    ),
+                  ),
+                  label: 'KCAL',
+                ),
+              ),
+              Expanded(
+                child: _IntakeColumn(
+                  value: LiftNumber(
+                    viewData.proteinGrams.round().toString(),
+                    'g',
+                    LiftText.dataMedium,
+                  ),
+                  label: 'PROTEIN',
+                ),
+              ),
+              Expanded(
+                child: _IntakeColumn(
+                  value: LiftNumber(
+                    viewData.carbsGrams.round().toString(),
+                    'g',
+                    LiftText.dataMedium,
+                  ),
+                  label: 'CARBS',
+                ),
+              ),
+              Expanded(
+                child: _IntakeColumn(
+                  value: LiftNumber(
+                    viewData.fatsGrams.round().toString(),
+                    'g',
+                    LiftText.dataMedium,
+                  ),
+                  label: 'FATS',
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 14),
+          // Real macro colours, not frame 01's greyscale mock: a *macro*
+          // composition bar drawn in non-macro colours carries no
+          // information. Percentages are off here because the three gram
+          // values are already spelled out immediately above the bar.
+          Semantics(
+            label: 'Today macro composition',
+            child: MacroCompositionBar(
+              proteinGrams: viewData.proteinGrams,
+              carbsGrams: viewData.carbsGrams,
+              fatsGrams: viewData.fatsGrams,
+              showPercentages: false,
+            ),
+          ),
+        ],
       ),
     );
   }
 }
 
-/// Compact two-segment toggle that lets the user switch between
-/// [MuscleMapMode.volume] (training load for the selected period) and
-/// [MuscleMapMode.fatigue] (current accumulated fatigue / rolling weekly load).
+class _IntakeColumn extends StatelessWidget {
+  const _IntakeColumn({required this.value, required this.label});
+
+  final Widget value;
+  final String label;
+
+  @override
+  Widget build(BuildContext context) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      mainAxisSize: MainAxisSize.min,
+      children: <Widget>[
+        value,
+        const SizedBox(height: 4),
+        Text(
+          label,
+          style: LiftText.labelMedium.copyWith(color: LiftColors.textDim),
+        ),
+      ],
+    );
+  }
+}
+
+/// Two-segment toggle between [MuscleMapMode.volume] (training load over the
+/// selected period) and [MuscleMapMode.fatigue] (accumulated fatigue now).
+///
+/// Square, iconless, and untransitioned: the selected fill runs to the inner
+/// edge of the frame with no gutter, matching the Log tab underline's
+/// no-animation call from PR B2.
+///
+/// The frame's 26 dp height is below the 44 dp minimum touch target enforced
+/// elsewhere in this project. That is a deliberate, owner-approved trade —
+/// the screens match the frames — and each segment is still roughly
+/// 66x26 dp.
 class _MuscleMapModeToggle extends StatelessWidget {
   const _MuscleMapModeToggle({
     required this.currentMode,
@@ -383,67 +384,37 @@ class _MuscleMapModeToggle extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Container(
-      padding: const EdgeInsets.all(3),
-      decoration: BoxDecoration(
-        color: AppTheme.surfaceDark,
-        borderRadius: BorderRadius.circular(10),
-        border: Border.all(color: AppTheme.borderDark),
+      decoration: const BoxDecoration(
+        color: LiftColors.surface,
+        border: Border.fromBorderSide(
+          BorderSide(color: LiftColors.border, width: LiftShape.borderWidth),
+        ),
       ),
       child: Row(
         mainAxisSize: MainAxisSize.min,
         children: <Widget>[
-          _buildTab(
-            context,
-            label: 'Volume',
-            icon: Icons.bar_chart_rounded,
-            mode: MuscleMapMode.volume,
-          ),
-          _buildTab(
-            context,
-            label: 'Fatigue',
-            icon: Icons.local_fire_department_rounded,
-            mode: MuscleMapMode.fatigue,
-          ),
+          _buildTab(MuscleMapMode.volume),
+          _buildTab(MuscleMapMode.fatigue),
         ],
       ),
     );
   }
 
-  Widget _buildTab(
-    BuildContext context, {
-    required String label,
-    required IconData icon,
-    required MuscleMapMode mode,
-  }) {
+  Widget _buildTab(MuscleMapMode mode) {
     final bool isSelected = currentMode == mode;
 
     return GestureDetector(
       onTap: () => onModeChanged(mode),
-      child: AnimatedContainer(
-        duration: const Duration(milliseconds: 200),
-        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
-        decoration: BoxDecoration(
-          color: isSelected ? AppTheme.primaryOrange : Colors.transparent,
-          borderRadius: BorderRadius.circular(7),
-        ),
-        child: Row(
-          mainAxisSize: MainAxisSize.min,
-          children: <Widget>[
-            Icon(
-              icon,
-              size: 14,
-              color: isSelected ? Colors.white : AppTheme.textDim,
-            ),
-            const SizedBox(width: 4),
-            Text(
-              label,
-              style: TextStyle(
-                color: isSelected ? Colors.white : AppTheme.textDim,
-                fontSize: 12,
-                fontWeight: isSelected ? FontWeight.w600 : FontWeight.normal,
-              ),
-            ),
-          ],
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 6),
+        // `actionFill` is a fill under a white label — never a foreground.
+        color: isSelected ? LiftColors.actionFill : Colors.transparent,
+        child: Text(
+          mode.name.toUpperCase(),
+          style: LiftText.labelLarge.copyWith(
+            color: isSelected ? Colors.white : LiftColors.textSecondary,
+            fontWeight: isSelected ? FontWeight.w700 : FontWeight.w500,
+          ),
         ),
       ),
     );

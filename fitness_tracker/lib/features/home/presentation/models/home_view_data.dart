@@ -28,26 +28,28 @@ class HomePageViewData extends Equatable {
   ];
 }
 
-/// Minimal four-tile macro summary: current totals only, no targets.
+/// Today's intake totals, raw. The widget formats them (`value.round()`) and
+/// the macro composition bar needs the grams unrounded, so the mapper hands
+/// numbers across rather than pre-baked label strings.
 class HomeMacroStripViewData extends Equatable {
   const HomeMacroStripViewData({
-    required this.caloriesLabel,
-    required this.proteinLabel,
-    required this.carbsLabel,
-    required this.fatsLabel,
+    required this.calories,
+    required this.proteinGrams,
+    required this.carbsGrams,
+    required this.fatsGrams,
   });
 
-  final String caloriesLabel;
-  final String proteinLabel;
-  final String carbsLabel;
-  final String fatsLabel;
+  final double calories;
+  final double proteinGrams;
+  final double carbsGrams;
+  final double fatsGrams;
 
   @override
   List<Object?> get props => <Object?>[
-    caloriesLabel,
-    proteinLabel,
-    carbsLabel,
-    fatsLabel,
+    calories,
+    proteinGrams,
+    carbsGrams,
+    fatsGrams,
   ];
 }
 
@@ -78,6 +80,10 @@ class HomeProgressCardViewData extends Equatable {
   final MuscleMapMode muscleMapMode;
 
   final HomeBodyVisualViewData bodyVisual;
+
+  /// Ranked per-muscle rows. Populated but **not currently rendered** — PR B3
+  /// gave the whole screen to the muscle map; Spec C's "tap a group for its
+  /// own figure" work reads this back.
   final List<HomeMuscleSummaryItemViewData> muscleSummary;
   final bool isLoading;
   final String? errorMessage;
@@ -106,7 +112,8 @@ class HomeBodyVisualViewData extends Equatable {
   final List<HomeBodyOverlayViewData> frontLayers;
   final List<HomeBodyOverlayViewData> backLayers;
 
-  /// Descriptive caption shown in the top-right of the muscle map card.
+  /// Descriptive status caption. Populated but **not currently rendered** —
+  /// the Deep Mist muscle-map panel (PR B3) carries no status line.
   final String subtitle;
 
   bool get hasHighlights => frontLayers.isNotEmpty || backLayers.isNotEmpty;
@@ -132,6 +139,8 @@ class HomeBodyOverlayViewData extends Equatable {
   List<Object?> get props => <Object?>[assetPath, color, opacity, label];
 }
 
+/// One ranked muscle row. Built by the mapper but **not currently rendered**
+/// — see [HomeProgressCardViewData.muscleSummary].
 class HomeMuscleSummaryItemViewData extends Equatable {
   const HomeMuscleSummaryItemViewData({
     required this.displayName,

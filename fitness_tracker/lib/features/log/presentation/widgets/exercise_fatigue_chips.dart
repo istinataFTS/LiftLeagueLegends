@@ -10,9 +10,9 @@ import '../../application/exercise_insight.dart';
 ///
 /// Each row is a 14x14 fatigue-ramp swatch, the muscle display name, and its
 /// percent. The swatch uses the Deep Mist fatigue ramp
-/// (`LiftColors.fatigue[bucket.index]`) rather than [MuscleFatigue.color] —
-/// Home does not join the fatigue ramp until PR B3, so for the life of this
-/// PR this chip and the Home 2D human model may legitimately disagree.
+/// (`LiftColors.fatigue[bucket.index]`) rather than [MuscleFatigue.color].
+/// Home's 2D human model reads the same ramp at the same index since PR B3,
+/// so this chip and that model now agree by construction.
 class ExerciseFatigueChips extends StatelessWidget {
   const ExerciseFatigueChips({super.key, required this.muscles});
 

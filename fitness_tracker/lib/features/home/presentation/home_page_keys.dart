@@ -25,4 +25,10 @@ class HomePageKeys {
   static const Key bodyVisualPanelKey = ValueKey<String>(
     'home_body_visual_panel',
   );
+
+  /// The full-bleed rule between the header and the muscle-map section.
+  static const Key headerRuleKey = ValueKey<String>('home_header_rule');
+
+  /// The full-bleed rule between the muscle-map section and `TODAY · INTAKE`.
+  static const Key intakeRuleKey = ValueKey<String>('home_intake_rule');
 }
