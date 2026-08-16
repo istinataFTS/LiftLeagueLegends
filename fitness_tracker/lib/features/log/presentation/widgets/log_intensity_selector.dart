@@ -4,9 +4,18 @@ import 'package:flutter/services.dart';
 import '../../../../core/constants/muscle_stimulus_constants.dart';
 import '../../../../core/themes/lift_theme.dart';
 
-/// Effort as a counted ladder (frame 02). Height encodes the value and the hue
-/// never changes — deliberately distinct from the muscle map's fatigue ramp,
-/// which is a white-density fill the user does not choose.
+/// Effort picker (frame 02, `export/02-log-exercise.png`). Rung **height**
+/// is the value's channel: the six rungs grow taller left to right, and only
+/// the rung at the selected index switches to `LiftColors.effortOn` — every
+/// other rung stays `LiftColors.effortOff`. Nothing here is counted; a
+/// "counted ladder" would be the wrong description. `ExerciseSetRow`'s marks
+/// are the counted channel instead — its five marks are all the same size,
+/// so count of filled marks is the only signal available to them, and they
+/// fill cumulatively. Both encodings were confirmed by sampling the exported
+/// frame's pixels; they are intentionally different and must not be
+/// "harmonised" into one. The hue never changes here — deliberately distinct
+/// from the muscle map's fatigue ramp, which is a white-density fill the
+/// user does not choose.
 class LogIntensitySelector extends StatelessWidget {
   const LogIntensitySelector({
     super.key,

@@ -4,6 +4,8 @@ import 'package:fitness_tracker/features/log/presentation/widgets/log_intensity_
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 
+import '../log_phone_viewport.dart';
+
 void main() {
   Widget buildSubject({int intensity = 3, ValueChanged<int>? onChanged}) {
     return AppShell(
@@ -54,15 +56,115 @@ void main() {
       expect(received, equals(5));
     });
 
-    testWidgets('rungs grow in height with the index', (tester) async {
-      await tester.pumpWidget(buildSubject());
-      await tester.pumpAndSettle();
+    testWidgets(
+      'rungs grow in height with the index; rungs 1-5 render at one width '
+      'and rung 0 renders 5px wider (missing left gutter)',
+      (tester) async {
+        // Declared BoxConstraints (`.constraints!.maxHeight`) reads what the
+        // widget asked for, not what actually painted — a childless
+        // Container with only `constraints` can render at zero size under
+        // unbounded constraints while its declared maxHeight still reads
+        // correctly. Assert rendered geometry instead.
+        await pumpAtPhoneWidth(tester, buildSubject());
+        expectNoOverflow(tester);
 
-      double previous = 0;
-      for (int i = 0; i <= 5; i++) {
-        final double h = rung(tester, i).constraints!.maxHeight;
-        expect(h, greaterThan(previous));
-        previous = h;
+        double previousHeight = 0;
+        double? sharedWidth;
+        double? rungZeroWidth;
+        for (int i = 0; i <= 5; i++) {
+          // Measure the rung `Container` itself, not the `Padding`
+          // ancestor: `Expanded` hands the `Padding` a tight main-axis
+          // width equal to its flex share, which depends only on the
+          // number of rungs and the row's width — it is completely
+          // decoupled from whatever width the `Container` chooses. If a
+          // future change added a `_widths[i]` list to the `Container`
+          // (the width analogue of `_heights`), every `Padding` would
+          // still measure identically and this test would keep passing
+          // while the visual encoding broke. The `Container` is the only
+          // element whose width can actually reveal that regression.
+          final Finder fillMark = find.byKey(
+            ValueKey<String>('effort-rung-$i'),
+          );
+          final Size fillSize = tester.getSize(fillMark);
+          expect(
+            fillSize.height,
+            greaterThan(previousHeight),
+            reason: 'rung $i rendered height was ${fillSize.height}',
+          );
+          previousHeight = fillSize.height;
+
+          // The rungs are NOT all the same width today. The gutter
+          // (`EdgeInsets.only(left: i == 0 ? 0 : 5)`) sits inside a tight
+          // `Expanded` slot, so it shrinks the rung's own box rather than
+          // adding external spacing: rung 0 has no left gutter and
+          // renders 5px wider than rungs 1-5, which each lose 5px to
+          // theirs. The design frame (`export/02-log-exercise.png`) shows
+          // all six rungs equal — 160px wide with uniform 18px gaps — so
+          // this is a known mismatch against the frame. It is tracked for
+          // a later PR and deliberately not fixed here.
+          if (i == 0) {
+            rungZeroWidth = fillSize.width;
+          } else {
+            sharedWidth ??= fillSize.width;
+            expect(
+              fillSize.width,
+              closeTo(sharedWidth, 0.5),
+              reason:
+                  'rung $i width was ${fillSize.width}, '
+                  'expected ~$sharedWidth (same as the other non-zero rungs)',
+            );
+          }
+        }
+
+        expect(
+          rungZeroWidth,
+          closeTo(sharedWidth! + 5, 0.5),
+          reason:
+              'rung 0 width was $rungZeroWidth, expected '
+              '~${sharedWidth + 5} (rungs 1-5 width plus the missing '
+              '5px left gutter)',
+        );
+      },
+    );
+
+    testWidgets('exactly one rung is filled, at the selected index', (
+      tester,
+    ) async {
+      // Pins the picker's encoding: height + single fill, not a count.
+      // A count-style (cumulative) fill would leave more than one rung
+      // `effortOn` for any level above 0, so this discriminates the two
+      // encodings — a spot-check at index == level alone would not, since
+      // both encodings agree that rung `level` is filled.
+      for (final int level in <int>[0, 3, 4, 5]) {
+        await pumpAtPhoneWidth(tester, buildSubject(intensity: level));
+
+        int onCount = 0;
+        for (int i = 0; i <= 5; i++) {
+          final Color color =
+              (rung(tester, i).decoration! as BoxDecoration).color!;
+          if (color == LiftColors.effortOn) {
+            onCount++;
+            expect(
+              i,
+              level,
+              reason:
+                  'rung $i was effortOn at level $level; '
+                  'only rung == level should be',
+            );
+          } else {
+            expect(
+              color,
+              LiftColors.effortOff,
+              reason: 'rung $i at level $level',
+            );
+          }
+        }
+        expect(
+          onCount,
+          1,
+          reason:
+              'expected exactly one filled rung at level $level, got $onCount',
+        );
       }
     });
 

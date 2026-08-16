@@ -3,9 +3,19 @@ import 'package:flutter/material.dart';
 import '../../../../core/themes/lift_number.dart';
 import '../../../../core/themes/lift_theme.dart';
 
-/// One row in the Exercise tab's set feed (frame 02): index, effort marks, and
-/// the weight × reps pair right-aligned. Rows are divided by a hairline — the
-/// card, the pill and the gradient bar are gone.
+/// One row in the Exercise tab's set feed (frame 02, `export/02-log-exercise.png`):
+/// index, effort marks, and the weight × reps pair right-aligned. Rows are
+/// divided by a hairline — the card, the pill and the gradient bar are gone.
+///
+/// The five effort marks are all the same size, so **count** of filled marks
+/// is the value's channel: marks `0` through `level - 1` fill with
+/// `LiftColors.effortOn`, the rest stay `LiftColors.effortOff` — a
+/// cumulative fill. This is deliberately different from
+/// `LogIntensitySelector`'s picker, where rung height carries the value and
+/// only the single selected rung fills; that widget has a height channel to
+/// spend, this compact row doesn't. Both encodings were confirmed by
+/// sampling the exported frame's pixels and must not be "harmonised" into
+/// one.
 class ExerciseSetRow extends StatelessWidget {
   const ExerciseSetRow({
     super.key,
