@@ -4,7 +4,7 @@ import 'package:fitness_tracker/features/log/presentation/widgets/shared/log_tab
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 
-import '../../log_phone_viewport.dart';
+import '../../../../support/phone_viewport.dart';
 
 void main() {
   Widget buildSubject({int selectedIndex = 0, ValueChanged<int>? onChanged}) {

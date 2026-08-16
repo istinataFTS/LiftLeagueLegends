@@ -66,8 +66,13 @@ class LiftColors {
     Color(0xE6FFFFFF),
   ];
 
-  /// Effort. Rungs 0..5: filled take [effortOn], rest [effortOff]. Height
-  /// encodes the value; hue never changes.
+  /// Effort, in two deliberately different encodings. The picker
+  /// (`LogIntensitySelector`) gives rung height the value: its six rungs
+  /// grow taller left to right and only the selected one takes [effortOn].
+  /// The set row (`ExerciseSetRow`) gives count the value: its five marks
+  /// are all the same size and fill cumulatively, marks below the level
+  /// taking [effortOn]. Everything not filled takes [effortOff]. Hue never
+  /// changes in either — only which of the two tokens applies.
   static const Color effortOn = actionTint;
   static const Color effortOff = Color(0x1FFFFFFF);
 }

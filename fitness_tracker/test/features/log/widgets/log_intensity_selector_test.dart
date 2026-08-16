@@ -4,6 +4,8 @@ import 'package:fitness_tracker/features/log/presentation/widgets/log_intensity_
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 
+import '../../../support/phone_viewport.dart';
+
 void main() {
   Widget buildSubject({int intensity = 3, ValueChanged<int>? onChanged}) {
     return AppShell(
@@ -54,15 +56,113 @@ void main() {
       expect(received, equals(5));
     });
 
-    testWidgets('rungs grow in height with the index', (tester) async {
-      await tester.pumpWidget(buildSubject());
-      await tester.pumpAndSettle();
+    testWidgets(
+      'rung heights climb by one constant step; all six rungs render at one '
+      'width',
+      (tester) async {
+        // Declared BoxConstraints (`.constraints!.maxHeight`) reads what the
+        // widget asked for, not what actually painted — a childless
+        // Container with only `constraints` can render at zero size under
+        // unbounded constraints while its declared maxHeight still reads
+        // correctly. Assert rendered geometry instead.
+        await pumpAtPhoneWidth(tester, buildSubject());
+        expectNoOverflow(tester);
 
-      double previous = 0;
-      for (int i = 0; i <= 5; i++) {
-        final double h = rung(tester, i).constraints!.maxHeight;
-        expect(h, greaterThan(previous));
-        previous = h;
+        final List<Size> sizes = <Size>[
+          for (int i = 0; i <= 5; i++)
+            // Measure the rung `Container` itself, not an ancestor:
+            // `Expanded` hands its child a tight main-axis width equal to
+            // its flex share, which depends only on the number of rungs and
+            // the row's width — it is completely decoupled from whatever
+            // width the `Container` chooses. If a future change added a
+            // `_widths[i]` list to the `Container` (the width analogue of
+            // `_heights`), every ancestor slot would still measure
+            // identically and this test would keep passing while the visual
+            // encoding broke. The `Container` is the only element whose
+            // width can actually reveal that regression.
+            tester.getSize(find.byKey(ValueKey<String>('effort-rung-$i'))),
+        ];
+
+        // Height is *the* channel this widget encodes the value in, so
+        // assert the shape of the ladder, not merely that it ascends.
+        // `greaterThan(previous)` alone passes for a nearly flat ladder
+        // (e.g. [36, 36.5, 37, 37.5, 38, 38.5]) that has destroyed the
+        // encoding — and so does a bare "the step is constant" check, since
+        // that ladder's step is a perfectly constant 0.5. The step's
+        // magnitude has to be pinned too. The frame's rungs measure 24, 42,
+        // 60, 78, 96, 114 image px, i.e. 8, 14, 20, 26, 32, 38 logical at
+        // 3x: a uniform +6. Assert exactly that, on rendered geometry.
+        const double expectedStep = 6;
+        final List<double> heights = <double>[
+          for (final Size s in sizes) s.height,
+        ];
+        for (int i = 1; i <= 5; i++) {
+          expect(
+            heights[i] - heights[i - 1],
+            closeTo(expectedStep, 0.01),
+            reason:
+                'the step from rung ${i - 1} to rung $i was '
+                '${heights[i] - heights[i - 1]}, expected the frame\'s '
+                'uniform +$expectedStep; measured heights $heights',
+          );
+        }
+
+        // Width carries nothing: the frame shows all six rungs equal — 160
+        // image px wide with uniform 18px gaps. The separation comes from
+        // the `Row`'s `spacing`, which sits between the `Expanded` slots, so
+        // it never eats into a rung's own box the way a per-child left
+        // `Padding` inside a tight slot did.
+        for (int i = 1; i <= 5; i++) {
+          expect(
+            sizes[i].width,
+            closeTo(sizes[0].width, 0.5),
+            reason:
+                'rung $i width was ${sizes[i].width}, expected '
+                '~${sizes[0].width} (every rung renders at one width); '
+                'measured widths ${sizes.map((Size s) => s.width).toList()}',
+          );
+        }
+      },
+    );
+
+    testWidgets('exactly one rung is filled, at the selected index', (
+      tester,
+    ) async {
+      // Pins the picker's encoding: height + single fill, not a count.
+      // A count-style (cumulative) fill would leave more than one rung
+      // `effortOn` for any level above 0, so this discriminates the two
+      // encodings — a spot-check at index == level alone would not, since
+      // both encodings agree that rung `level` is filled.
+      for (int level = 0; level <= 5; level++) {
+        await pumpAtPhoneWidth(tester, buildSubject(intensity: level));
+
+        int onCount = 0;
+        for (int i = 0; i <= 5; i++) {
+          final Color color =
+              (rung(tester, i).decoration! as BoxDecoration).color!;
+          if (color == LiftColors.effortOn) {
+            onCount++;
+            expect(
+              i,
+              level,
+              reason:
+                  'rung $i was effortOn at level $level; '
+                  'only rung == level should be',
+            );
+          } else {
+            expect(
+              color,
+              LiftColors.effortOff,
+              reason: 'rung $i at level $level',
+            );
+          }
+        }
+        expect(
+          onCount,
+          1,
+          reason:
+              'expected exactly one filled rung at level $level, got $onCount',
+        );
       }
     });
 

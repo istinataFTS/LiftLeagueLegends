@@ -6,7 +6,7 @@ import 'package:fitness_tracker/features/log/presentation/widgets/exercise_fatig
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 
-import '../log_phone_viewport.dart';
+import '../../../support/phone_viewport.dart';
 
 void main() {
   MuscleFatigue chip(String name, int percent, MuscleVisualBucket bucket) {

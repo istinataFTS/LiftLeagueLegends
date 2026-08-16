@@ -5,6 +5,8 @@ import 'package:fitness_tracker/features/log/presentation/widgets/exercise_set_r
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 
+import '../../../support/phone_viewport.dart';
+
 void main() {
   Widget buildSubject({
     int setNumber = 1,
@@ -42,22 +44,58 @@ void main() {
       expect(find.text('8'), findsOneWidget);
     });
 
-    testWidgets('five effort marks render, filled up to the level', (
-      tester,
-    ) async {
-      await tester.pumpWidget(buildSubject(intensity: 3));
-      await tester.pumpAndSettle();
+    testWidgets(
+      'five effort marks render, filled cumulatively up to the level, all '
+      'the same size',
+      (tester) async {
+        // Five marks span a 0..5 range because filled-count equals the
+        // level exactly (0 filled through all 5 filled) — that's six
+        // distinct states from five marks. It is not an off-by-one; do not
+        // "fix" it.
+        //
+        // Level 4 is the case that disambiguates cumulative fill from a
+        // single-mark fill (it's what frame row `03` shows); level 0 must
+        // fill nothing and level 5 must fill all five.
+        // Declared outside the level loop on purpose: the first mark of the
+        // first level seeds it and every later mark — at every later level —
+        // is compared against that one size. Scoping it inside the loop
+        // would only compare marks to their siblings, which a mutation like
+        // `width: 11 + level` survives (all five marks stay equal at each
+        // level, they just grow together as the level rises).
+        Size? markSize;
+        for (final int level in <int>[0, 1, 3, 4, 5]) {
+          await pumpAtPhoneWidth(tester, buildSubject(intensity: level));
+          expectNoOverflow(tester);
 
-      for (int i = 0; i < 5; i++) {
-        final Container mark = tester.widget<Container>(
-          find.byKey(ValueKey<String>('set-effort-mark-$i')),
-        );
-        expect(
-          (mark.decoration! as BoxDecoration).color,
-          i < 3 ? LiftColors.effortOn : LiftColors.effortOff,
-        );
-      }
-    });
+          for (int i = 0; i < 5; i++) {
+            final Finder markFinder = find.byKey(
+              ValueKey<String>('set-effort-mark-$i'),
+            );
+            final Container mark = tester.widget<Container>(markFinder);
+            expect(
+              (mark.decoration! as BoxDecoration).color,
+              i < level ? LiftColors.effortOn : LiftColors.effortOff,
+              reason: 'mark $i at level $level',
+            );
+
+            // All marks are the same size at every level, so count is
+            // provably the only channel — nothing about an individual
+            // mark's size varies with the level the way the picker's rung
+            // heights do.
+            final Size size = tester.getSize(markFinder);
+            markSize ??= size;
+            expect(
+              size,
+              markSize,
+              reason:
+                  'mark $i at level $level was $size, expected $markSize '
+                  '(the size measured for every other mark, at every '
+                  'other level)',
+            );
+          }
+        }
+      },
+    );
 
     testWidgets('weight renders with the unit riding it', (tester) async {
       await tester.pumpWidget(buildSubject(weightText: '15 kg'));
