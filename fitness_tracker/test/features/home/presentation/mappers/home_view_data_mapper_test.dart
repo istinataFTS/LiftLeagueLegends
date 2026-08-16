@@ -110,20 +110,25 @@ void main() {
     );
 
     // `heavy` is bucket index 3, `maximum` is index 4 — brighter = more
-    // fatigued, so the ramp must not be read in reverse.
+    // fatigued, so the ramp must not be read in reverse. The emitted colour
+    // is the ramp stop *composited onto* `LiftColors.bodyBase`, not the raw
+    // stop: see the strictly-opaque test below for why.
     expect(
       viewData.progress.bodyVisual.frontLayers.first.color,
-      LiftColors.fatigue[3],
+      Color.alphaBlend(LiftColors.fatigue[3], LiftColors.bodyBase),
     );
     expect(
       viewData.progress.bodyVisual.backLayers.first.color,
-      LiftColors.fatigue[4],
+      Color.alphaBlend(LiftColors.fatigue[4], LiftColors.bodyBase),
     );
     expect(
       viewData.progress.muscleSummary
           .map((HomeMuscleSummaryItemViewData item) => item.color)
           .toSet(),
-      <Color>{LiftColors.fatigue[3], LiftColors.fatigue[4]},
+      <Color>{
+        Color.alphaBlend(LiftColors.fatigue[3], LiftColors.bodyBase),
+        Color.alphaBlend(LiftColors.fatigue[4], LiftColors.bodyBase),
+      },
     );
 
     // The retired green→red heatmap must not survive anywhere in Home.
@@ -146,6 +151,109 @@ void main() {
     ];
     for (final Color colour in allColours) {
       expect(legacyHeatmap.contains(colour), isFalse);
+    }
+  });
+
+  test('every emitted ramp colour is opaque and composited onto bodyBase', () {
+    // The four buckets that actually produce an overlay. `empty` never
+    // reaches the widget (`overlayOpacity` is 0 for it), so it is exercised
+    // through the luminance-ordering assertion at the bottom instead.
+    const Map<String, MuscleVisualBucket> muscles =
+        <String, MuscleVisualBucket>{
+          'chest': MuscleVisualBucket.light,
+          'biceps': MuscleVisualBucket.moderate,
+          'abs': MuscleVisualBucket.heavy,
+          'quads': MuscleVisualBucket.maximum,
+        };
+
+    final viewData = HomeViewDataMapper.map(
+      homeData: HomeDashboardData(
+        todaysLogs: const <NutritionLog>[],
+        dailyMacros: HomeDashboardData.emptyDailyMacros,
+      ),
+      muscleVisualState: MuscleVisualLoaded(
+        muscleData: <String, MuscleVisualData>{
+          for (final MapEntry<String, MuscleVisualBucket> e in muscles.entries)
+            e.key: MuscleVisualData(
+              muscleGroup: e.key,
+              totalStimulus: 5.0 * e.value.index,
+              threshold: 25,
+              visualIntensity: 0.2 * e.value.index,
+              bucket: e.value,
+              coverageState: MuscleVisualCoverageState.partial,
+              aggregationMode: MuscleVisualAggregationMode.rollingWeeklyLoad,
+              visibleSurfaces: const <MuscleVisualSurface>{
+                MuscleVisualSurface.front,
+              },
+              overflowAmount: 0,
+              hasTrained: true,
+            ),
+        },
+        currentPeriod: TimePeriod.week,
+        loadedAt: DateTime(2026, 3, 27),
+      ),
+      settings: const AppSettings.defaults(),
+      userName: 'Tester',
+    );
+
+    // Each overlay carries the ramp stop composited onto the body tone.
+    for (final MapEntry<String, MuscleVisualBucket> entry in muscles.entries) {
+      final String asset = 'front_${entry.key}.png';
+      final HomeBodyOverlayViewData layer = viewData
+          .progress
+          .bodyVisual
+          .frontLayers
+          .firstWhere(
+            (HomeBodyOverlayViewData l) => l.assetPath.endsWith(asset),
+          );
+      expect(
+        layer.color,
+        Color.alphaBlend(
+          LiftColors.fatigue[entry.value.index],
+          LiftColors.bodyBase,
+        ),
+        reason: '$asset must carry ramp stop ${entry.value.index} composited',
+      );
+    }
+
+    // The assertion that pins the fix. `BodyVisualWidget` paints the overlay
+    // with `BlendMode.srcATop`, so a *translucent* colour here veils the
+    // body art (uniform grey 195) instead of replacing it, and the whole
+    // white-density ramp collapses into a couple of dozen grey levels. A
+    // fully opaque colour is what makes `srcATop` paint the ramp flat.
+    final Iterable<Color> emitted = <Color>[
+      ...viewData.progress.bodyVisual.frontLayers.map(
+        (HomeBodyOverlayViewData l) => l.color,
+      ),
+      ...viewData.progress.bodyVisual.backLayers.map(
+        (HomeBodyOverlayViewData l) => l.color,
+      ),
+      ...viewData.progress.muscleSummary.map(
+        (HomeMuscleSummaryItemViewData i) => i.color,
+      ),
+    ];
+    expect(emitted, isNotEmpty);
+    for (final Color colour in emitted) {
+      expect(
+        colour.a,
+        1.0,
+        reason: 'a translucent overlay colour is exactly the bug: $colour',
+      );
+    }
+
+    // All five composited stops must be strictly increasing in luminance —
+    // the ramp only carries meaning if brighter really is more fatigued
+    // after the compositing step, not just before it.
+    final List<double> luminance = <Color>[
+      for (int i = 0; i < LiftColors.fatigue.length; i++)
+        Color.alphaBlend(LiftColors.fatigue[i], LiftColors.bodyBase),
+    ].map((Color c) => c.computeLuminance()).toList();
+    for (int i = 1; i < luminance.length; i++) {
+      expect(
+        luminance[i],
+        greaterThan(luminance[i - 1]),
+        reason: 'composited stop $i must outshine stop ${i - 1}',
+      );
     }
   });
 

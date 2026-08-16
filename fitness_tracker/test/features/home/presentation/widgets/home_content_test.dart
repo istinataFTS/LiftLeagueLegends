@@ -1,3 +1,5 @@
+import 'dart:ui' as ui;
+
 import 'package:fitness_tracker/app/app.dart';
 import 'package:fitness_tracker/core/themes/lift_number.dart';
 import 'package:fitness_tracker/core/themes/lift_theme.dart';
@@ -8,6 +10,7 @@ import 'package:fitness_tracker/features/home/presentation/home_page_keys.dart';
 import 'package:fitness_tracker/features/home/presentation/models/home_view_data.dart';
 import 'package:fitness_tracker/features/home/presentation/widgets/home_content.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/rendering.dart';
 import 'package:flutter_test/flutter_test.dart';
 
 import '../../../../support/phone_viewport.dart';
@@ -64,16 +67,22 @@ void main() {
   Widget buildSubject({
     HomePageViewData? viewData,
     ValueChanged<MuscleMapMode>? onModeChanged,
+    TextScaler textScaler = TextScaler.noScaling,
   }) {
     return AppShell(
       home: Scaffold(
         body: SafeArea(
-          child: HomeContent(
-            viewData: viewData ?? buildViewData(),
-            onRefresh: () async {},
-            onPeriodChanged: (TimePeriod _) {},
-            onRetryVisuals: () {},
-            onModeChanged: onModeChanged ?? (MuscleMapMode _) {},
+          child: Builder(
+            builder: (BuildContext context) => MediaQuery(
+              data: MediaQuery.of(context).copyWith(textScaler: textScaler),
+              child: HomeContent(
+                viewData: viewData ?? buildViewData(),
+                onRefresh: () async {},
+                onPeriodChanged: (TimePeriod _) {},
+                onRetryVisuals: () {},
+                onModeChanged: onModeChanged ?? (MuscleMapMode _) {},
+              ),
+            ),
           ),
         ),
       ),
@@ -125,6 +134,50 @@ void main() {
       expect(find.text('155g'), findsOneWidget);
       expect(find.text('30g'), findsOneWidget);
       expect(find.text('228g'), findsOneWidget);
+    });
+
+    testWidgets('the KCAL value carries the tabular data font features', (
+      WidgetTester tester,
+    ) async {
+      await pumpAtPhoneWidth(tester, buildSubject());
+
+      // Its three `LiftNumber` siblings get these for free; this one is a
+      // bare `Text` and has to ask.
+      expect(
+        tester.widget<Text>(find.text('2792')).style?.fontFeatures,
+        LiftText.dataFeatures,
+      );
+    });
+
+    testWidgets('a four-digit calorie value stays on one line at 1.3x text', (
+      WidgetTester tester,
+    ) async {
+      // Each intake column is an `Expanded` — 80dp of the 320dp content
+      // width — so without something pinning the value to one line, `2792`
+      // wraps here and reads on screen as two different numbers.
+      await pumpAtPhoneWidth(
+        tester,
+        buildSubject(textScaler: const TextScaler.linear(1.3)),
+      );
+
+      final RenderParagraph paragraph = tester.renderObject<RenderParagraph>(
+        find.text('2792'),
+      );
+      // One box per line: `getBoxesForSelection` splits the selection at
+      // every line break, so counting distinct box tops counts lines.
+      final Set<double> lineTops = paragraph
+          .getBoxesForSelection(
+            const TextSelection(baseOffset: 0, extentOffset: 4),
+          )
+          .map((ui.TextBox box) => box.top)
+          .toSet();
+
+      expect(
+        lineTops,
+        hasLength(1),
+        reason: 'a calorie count broken across two lines reads as two numbers',
+      );
+      expectNoOverflow(tester);
     });
 
     testWidgets('the four intake labels are mono caps', (
@@ -325,10 +378,12 @@ void main() {
       // overflowed here by 12px with a scroll extent still pinned at 0.
       //
       // A large `textScaler` is the other way in, and it is deliberately
-      // NOT used: at 2x the heading row overflows horizontally because the
-      // mode toggle is a non-flex child sized to its own labels. That is
-      // pre-existing — the pre-restyle heading row had the same shape — so
-      // asserting on it here would fail this task for someone else's bug.
+      // NOT used: under the test harness's fallback font the mode toggle
+      // measures ~201dp against roughly 136dp with the real JetBrainsMono,
+      // so at 2x the harness overflows the heading row while the shipped
+      // toggle (~282dp) still fits the 320dp content width. A text-scale
+      // assertion here would measure the harness's font metrics rather than
+      // this layout.
       await pumpAtPhoneWidth(
         tester,
         buildSubject(),

@@ -137,9 +137,15 @@ class _HeaderSection extends StatelessWidget {
             style: LiftText.labelLarge.copyWith(color: LiftColors.textDim),
           ),
           const SizedBox(height: 6),
+          // 26px, not 32. Measured off `export/01-home.png`: the capital E of
+          // "Evening" inks 18.33dp and the x-height glyphs 13.2dp, and
+          // SpaceGrotesk-Bold's capHeight (700/1000) and xHeight (496/1000)
+          // both put that at 26px. The Task 19 brief's "24dp cap height" was
+          // the full ink box including descenders, which is what sent this
+          // one step too large.
           Text(
             viewData.greeting,
-            style: LiftText.headlineLarge.copyWith(
+            style: LiftText.headlineMedium.copyWith(
               color: LiftColors.textPrimary,
             ),
           ),
@@ -277,10 +283,14 @@ class _IntakeSection extends StatelessWidget {
                 child: _IntakeColumn(
                   // KCAL is a spaced label, so the calorie count is a plain
                   // mono value — a glued `LiftNumber` unit would read `2792kcal`.
+                  // `LiftNumber` applies `dataFeatures` for its siblings; a
+                  // bare `Text` has to ask for the tabular figures itself or
+                  // this is the one column whose digits do not line up.
                   value: Text(
                     viewData.calories.round().toString(),
                     style: LiftText.dataMedium.copyWith(
                       color: LiftColors.textPrimary,
+                      fontFeatures: LiftText.dataFeatures,
                     ),
                   ),
                   label: 'KCAL',
@@ -350,7 +360,18 @@ class _IntakeColumn extends StatelessWidget {
       crossAxisAlignment: CrossAxisAlignment.start,
       mainAxisSize: MainAxisSize.min,
       children: <Widget>[
-        value,
+        // Each column is an `Expanded` — 80dp at 360dp wide — and nothing
+        // else pins the value to one line, so at an accessibility text scale
+        // `2792` wraps and reads as two different numbers. `scaleDown` is a
+        // no-op whenever the value already fits, so nothing moves at normal
+        // text scale; an over-long value shrinks instead of wrapping.
+        // Deliberately not `maxLines: 1` with an ellipsis — an ellipsised
+        // number is worse than a small one.
+        FittedBox(
+          fit: BoxFit.scaleDown,
+          alignment: Alignment.centerLeft,
+          child: value,
+        ),
         const SizedBox(height: 4),
         Text(
           label,

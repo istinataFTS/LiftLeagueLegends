@@ -5,6 +5,8 @@ import 'package:fitness_tracker/features/home/presentation/widgets/period_select
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 
+import '../../../../support/phone_viewport.dart';
+
 void main() {
   Widget buildSubject({
     TimePeriod selectedPeriod = TimePeriod.month,
@@ -26,8 +28,7 @@ void main() {
     testWidgets('the selector is square and 1.5px bordered', (
       WidgetTester tester,
     ) async {
-      await tester.pumpWidget(buildSubject());
-      await tester.pumpAndSettle();
+      await pumpAtPhoneWidth(tester, buildSubject());
 
       final Container container = tester.widget<Container>(
         find.byKey(PeriodSelectorWidget.containerKey),
@@ -43,8 +44,7 @@ void main() {
     testWidgets('the selected value renders as mono caps', (
       WidgetTester tester,
     ) async {
-      await tester.pumpWidget(buildSubject());
-      await tester.pumpAndSettle();
+      await pumpAtPhoneWidth(tester, buildSubject());
 
       final Text valueText = tester.widget<Text>(find.text('MONTH'));
 
@@ -52,8 +52,7 @@ void main() {
     });
 
     testWidgets('the menu items carry no icons', (WidgetTester tester) async {
-      await tester.pumpWidget(buildSubject());
-      await tester.pumpAndSettle();
+      await pumpAtPhoneWidth(tester, buildSubject());
 
       await tester.tap(find.byKey(PeriodSelectorWidget.dropdownKey));
       await tester.pumpAndSettle();
@@ -77,10 +76,10 @@ void main() {
     testWidgets('selecting a period reports it', (WidgetTester tester) async {
       TimePeriod? reported;
 
-      await tester.pumpWidget(
+      await pumpAtPhoneWidth(
+        tester,
         buildSubject(onPeriodChanged: (TimePeriod period) => reported = period),
       );
-      await tester.pumpAndSettle();
 
       await tester.tap(find.byKey(PeriodSelectorWidget.dropdownKey));
       await tester.pumpAndSettle();
@@ -96,8 +95,7 @@ void main() {
     testWidgets('a disabled selector does not open', (
       WidgetTester tester,
     ) async {
-      await tester.pumpWidget(buildSubject(enabled: false));
-      await tester.pumpAndSettle();
+      await pumpAtPhoneWidth(tester, buildSubject(enabled: false));
 
       await tester.tap(find.byKey(PeriodSelectorWidget.dropdownKey));
       await tester.pumpAndSettle();

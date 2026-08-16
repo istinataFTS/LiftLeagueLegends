@@ -1,3 +1,5 @@
+import 'package:flutter/painting.dart' show Color;
+
 import '../../../../core/constants/app_strings.dart';
 import '../../../../core/constants/muscle_stimulus_constants.dart'
     show MuscleStimulus;
@@ -245,7 +247,10 @@ class HomeViewDataMapper {
               displayName: item.displayName,
               stimulusLabel: item.totalStimulus.toStringAsFixed(0),
               intensityLabel: item.intensityLevel,
-              color: LiftColors.fatigue[item.bucket.index],
+              color: Color.alphaBlend(
+                LiftColors.fatigue[item.bucket.index],
+                LiftColors.bodyBase,
+              ),
             ),
           )
           .toList(growable: false),
@@ -304,9 +309,26 @@ class HomeViewDataMapper {
   /// ([LiftColors.fatigue], five stops) indexed by the muscle's
   /// [MuscleVisualBucket] (five members, `empty` → dimmest, `maximum` →
   /// brightest) — **not** from [MuscleVisualData.color], the legacy
-  /// green→yellow→orange→red heatmap this PR retires. Indexing directly by
-  /// `bucket.index` is what keeps Home and `ExerciseFatigueChips` in
-  /// agreement by construction.
+  /// green→yellow→orange→red heatmap this PR retires.
+  ///
+  /// The ramp stop is composited onto [LiftColors.bodyBase] before it leaves
+  /// here, so the widget receives an **opaque** colour. That is not cosmetic:
+  /// `BodyVisualWidget` paints overlays with `BlendMode.srcATop`, and the
+  /// ramp's stops are low-alpha whites, so handing the raw stop over would
+  /// veil the body art (uniform grey 195) rather than replace it — the whole
+  /// five-stop range would land inside about twenty grey levels.
+  ///
+  /// What Home shares with `ExerciseFatigueChips` is the **bucket index** and
+  /// the five-stop ramp it indexes, so the two surfaces rank the same datum
+  /// the same way. They do not produce the same pixel: the chip paints the
+  /// stop flat over the dark ground, while Home composites it onto
+  /// [LiftColors.bodyBase] and then blends the result through
+  /// [MuscleVisualData.overlayOpacity] over the darkened figure.
+  ///
+  /// Nor is the quantity always fatigue. In [MuscleMapMode.volume] the bucket
+  /// comes from `MuscleVisualContract.classify` — training stimulus against a
+  /// threshold — so Home renders *volume* through a ramp whose token is named
+  /// for fatigue. That is deliberate: the spec allows exactly one ramp.
   static void _mergeOverlay(
     Map<String, HomeBodyOverlayViewData> target, {
     required String assetPath,
@@ -314,7 +336,10 @@ class HomeViewDataMapper {
   }) {
     final HomeBodyOverlayViewData candidate = HomeBodyOverlayViewData(
       assetPath: assetPath,
-      color: LiftColors.fatigue[item.bucket.index],
+      color: Color.alphaBlend(
+        LiftColors.fatigue[item.bucket.index],
+        LiftColors.bodyBase,
+      ),
       opacity: item.overlayOpacity,
       label: item.displayName,
     );

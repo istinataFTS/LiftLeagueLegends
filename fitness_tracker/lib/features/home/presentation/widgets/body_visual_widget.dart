@@ -122,12 +122,24 @@ class _BodyFigure extends StatelessWidget {
   final String baseAssetPath;
   final List<HomeBodyOverlayViewData> layers;
 
+  /// `bodyBase` divided by the art's own grey: 0x55 * 255 / 195 = 0x6F. Under
+  /// `BlendMode.modulate` (a component-wise multiply) that lands the art's
+  /// flat grey-195 body on `LiftColors.bodyBase` while keeping its internal
+  /// shading and outline highlights proportional — a `srcATop` tint would
+  /// flatten the figure to a silhouette and throw the anatomy away.
+  static const Color _baseTint = Color(0xFF6F7F8F);
+
   @override
   Widget build(BuildContext context) {
     return Stack(
       fit: StackFit.expand,
       children: <Widget>[
-        Image.asset(baseAssetPath, fit: BoxFit.contain),
+        Image.asset(
+          baseAssetPath,
+          fit: BoxFit.contain,
+          color: _baseTint,
+          colorBlendMode: BlendMode.modulate,
+        ),
         for (final HomeBodyOverlayViewData layer in layers)
           Opacity(
             opacity: layer.opacity,
