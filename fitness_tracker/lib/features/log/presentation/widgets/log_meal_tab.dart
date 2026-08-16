@@ -20,7 +20,7 @@ import 'shared/log_numeric_keypad.dart';
 import 'shared/log_quick_chips.dart';
 import 'shared/log_stepper_field.dart';
 import 'shared/log_today_so_far_card.dart';
-import 'shared/macro_label.dart';
+import '../../../../presentation/shared/widgets/macro_label.dart';
 
 class LogMealTab extends StatefulWidget {
   const LogMealTab({

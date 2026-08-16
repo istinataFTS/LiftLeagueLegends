@@ -1,10 +1,11 @@
 import 'dart:async';
 
 import 'package:flutter/material.dart';
+import 'package:flutter/semantics.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 
 import '../../../core/constants/calendar_constants.dart';
-import '../../../core/themes/app_theme.dart';
+import '../../../core/themes/lift_theme.dart';
 import '../../../core/utils/error_handler.dart';
 import '../../../core/utils/week_date_utils.dart';
 import '../../../domain/entities/app_settings.dart';
@@ -17,6 +18,13 @@ import 'history_strings.dart';
 import 'widgets/history_calendar_widget.dart';
 import 'widgets/history_day_content.dart';
 
+/// History, rebuilt from frames 08–10 of the Deep Mist export.
+///
+/// The page has no gutter of its own. Each block below owns its own 20dp
+/// horizontal padding so the rules that separate them can run the full width
+/// of the screen, edge to edge, which is what the frames show. Wrapping the
+/// scroll view in a padding — as this page did before the restyle — would
+/// inset those rules and turn the whole page back into a stack of cards.
 class HistoryPage extends StatefulWidget {
   const HistoryPage({required this.settings, super.key});
 
@@ -32,7 +40,6 @@ class _HistoryPageState extends State<HistoryPage> {
   final ScrollController _scrollController = ScrollController();
   final GlobalKey _historyDayContentKey = GlobalKey();
 
-  int _contentHighlightVersion = 0;
   DateTime? _lastSelectedDate;
   int _lastSelectedActivityCount = 0;
 
@@ -94,12 +101,6 @@ class _HistoryPageState extends State<HistoryPage> {
 
           if (selectedDateChanged || selectedActivityChanged) {
             _focusSelectedDayContent();
-
-            if (mounted) {
-              setState(() {
-                _contentHighlightVersion++;
-              });
-            }
           }
 
           _lastSelectedDate = selectedDate;
@@ -107,7 +108,9 @@ class _HistoryPageState extends State<HistoryPage> {
         },
         builder: (BuildContext context, HistoryState state) {
           if (state is HistoryLoading) {
-            return const Center(child: CircularProgressIndicator());
+            return const Center(
+              child: CircularProgressIndicator(color: LiftColors.actionTint),
+            );
           }
 
           if (state is HistoryError) {
@@ -140,42 +143,47 @@ class _HistoryPageState extends State<HistoryPage> {
         }
       },
       child: RefreshIndicator(
-        color: AppTheme.primaryOrange,
+        color: LiftColors.actionTint,
         onRefresh: () async {
           context.read<HistoryBloc>().add(const RefreshCurrentMonthEvent());
         },
         child: SingleChildScrollView(
           controller: _scrollController,
           physics: const AlwaysScrollableScrollPhysics(),
-          padding: const EdgeInsets.all(20),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: <Widget>[
-              HistoryCalendarWidget(
-                displayedMonth: state.currentMonth,
-                selectedDate: state.selectedDate,
-                today: DateTime.now(),
-                dayActivity: HistoryActivityAggregator.buildActivityCounts(
-                  monthSets: state.monthSets,
-                  monthNutritionLogs: state.monthNutritionLogs,
+              // Frame 08 drops the two chevrons that used to flank the month
+              // name, which leaves the horizontal swipe above as the only way
+              // to change month. A swipe is not operable from a screen reader,
+              // so the same two moves are published here as semantic actions.
+              Semantics(
+                container: true,
+                label: HistoryStrings.calendarSemanticLabel,
+                customSemanticsActions: <CustomSemanticsAction, VoidCallback>{
+                  const CustomSemanticsAction(
+                    label: HistoryStrings.previousMonthLabel,
+                  ): () =>
+                      _navigateToPreviousMonth(context, state.currentMonth),
+                  const CustomSemanticsAction(
+                    label: HistoryStrings.nextMonthLabel,
+                  ): () =>
+                      _navigateToNextMonth(context, state.currentMonth),
+                },
+                child: HistoryCalendarWidget(
+                  displayedMonth: state.currentMonth,
+                  selectedDate: state.selectedDate,
+                  today: DateTime.now(),
+                  dayActivity: HistoryActivityAggregator.buildActivityCounts(
+                    monthSets: state.monthSets,
+                    monthNutritionLogs: state.monthNutritionLogs,
+                  ),
+                  weekStartDay: settings.weekStartDay,
+                  onDateSelected: (DateTime date) {
+                    _onDateSelected(context, state.selectedDate, date);
+                  },
                 ),
-                weekStartDay: settings.weekStartDay,
-                onDateSelected: (DateTime date) {
-                  context.read<HistoryBloc>().add(SelectDateEvent(date));
-                },
-                onPreviousMonth: () {
-                  _navigateToPreviousMonth(context, state.currentMonth);
-                },
-                onNextMonth: () {
-                  _navigateToNextMonth(context, state.currentMonth);
-                },
-                onTodayTapped: () {
-                  context.read<HistoryBloc>().add(
-                    NavigateToMonthEvent(DateTime.now()),
-                  );
-                },
               ),
-              const SizedBox(height: 24),
               KeyedSubtree(
                 key: _historyDayContentKey,
                 child: HistoryDayContent(
@@ -183,12 +191,6 @@ class _HistoryPageState extends State<HistoryPage> {
                   workoutSets: state.selectedDateSets,
                   nutritionLogs: state.selectedDateNutritionLogs,
                   weightUnit: settings.weightUnit,
-                  onClearSelection: () {
-                    context.read<HistoryBloc>().add(
-                      const ClearDateSelectionEvent(),
-                    );
-                  },
-                  highlightVersion: _contentHighlightVersion,
                 ),
               ),
             ],
@@ -198,20 +200,30 @@ class _HistoryPageState extends State<HistoryPage> {
     );
   }
 
+  /// Frame 08 has no `x` on the day strip, so re-tapping the day that is
+  /// already selected is what clears the selection now. Without this the
+  /// `ClearDateSelectionEvent` path would have no caller left in the UI.
+  void _onDateSelected(
+    BuildContext context,
+    DateTime? currentSelection,
+    DateTime tappedDate,
+  ) {
+    final bool isAlreadySelected =
+        currentSelection != null &&
+        WeekDateUtils.isSameDay(currentSelection, tappedDate);
+
+    context.read<HistoryBloc>().add(
+      isAlreadySelected
+          ? const ClearDateSelectionEvent()
+          : SelectDateEvent(tappedDate),
+    );
+  }
+
   Widget _buildInitialState(BuildContext context) {
     return Center(
-      child: Column(
-        mainAxisAlignment: MainAxisAlignment.center,
-        children: <Widget>[
-          const Icon(Icons.calendar_month, size: 64, color: AppTheme.textDim),
-          const SizedBox(height: 16),
-          Text(
-            HistoryStrings.loading,
-            style: Theme.of(
-              context,
-            ).textTheme.titleMedium?.copyWith(color: AppTheme.textMedium),
-          ),
-        ],
+      child: Text(
+        HistoryStrings.loading.toUpperCase(),
+        style: LiftText.labelMedium.copyWith(color: LiftColors.textDim),
       ),
     );
   }
@@ -223,15 +235,15 @@ class _HistoryPageState extends State<HistoryPage> {
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: <Widget>[
-            const Icon(Icons.error_outline, size: 48, color: AppTheme.errorRed),
+            const Icon(Icons.error_outline, size: 48, color: LiftColors.error),
             const SizedBox(height: 12),
             Text(
               state.message,
               textAlign: TextAlign.center,
               style: Theme.of(context).textTheme.bodyLarge,
             ),
-            const SizedBox(height: 16),
-            FilledButton(
+            const SizedBox(height: 20),
+            ElevatedButton(
               onPressed: () {
                 context.read<HistoryBloc>().add(
                   LoadMonthSetsEvent(DateTime.now()),

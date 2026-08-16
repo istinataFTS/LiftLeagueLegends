@@ -6,7 +6,7 @@ import '../../../../../core/themes/lift_theme.dart';
 import '../../../../../core/utils/week_date_utils.dart';
 import '../../../../../presentation/widgets/macro_composition_bar.dart';
 import '../../../application/nutrition_log_bloc.dart';
-import 'macro_label.dart';
+import '../../../../../presentation/shared/widgets/macro_label.dart';
 
 /// Shared "Today so far" block used by the Log Macros and Meal tabs.
 ///

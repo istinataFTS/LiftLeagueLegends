@@ -3,39 +3,47 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 
-import '../../../core/themes/app_theme.dart';
+import '../../../core/themes/lift_theme.dart';
 import '../../../features/settings/application/app_settings_cubit.dart';
 import '../../../features/settings/presentation/settings_scope.dart';
 
-/// A card-style section that can be expanded or collapsed by tapping the
-/// header. Collapse/expand state is persisted via [AppSettingsCubit] using
-/// [id] as the stable key.
+/// A full-bleed section of the page that expands and collapses when its header
+/// is tapped, styled from History frames 09 (`09-history-workout-expanded.png`)
+/// and 10 (`10-history-nutrition-expanded.png`) of the Deep Mist export.
+///
+/// The design export lives outside this repository and is not checked in.
+///
+/// The section is **not a card**. It sits directly on the ground and is bounded
+/// above by a full-width rule, edge to edge — the header's 20dp gutter applies
+/// to the text only, never to the rule. There is no fill, no radius, and no
+/// shadow, in line with the spec's SHAPE note ("square edges throughout; 8px
+/// only on buttons").
+///
+/// The header carries exactly two lines: [title] in Space Grotesk bold and
+/// [subtitle] in dim letterspaced mono caps. The pre-restyle version of this
+/// widget also drew a leading icon, a trailing `+` button, a rotating chevron,
+/// and an optional `headerTrailing` chip row. **All four are gone**, because
+/// none of them appear anywhere in the frames — the whole header is the tap
+/// target instead, and the actions those controls carried moved onto the rows
+/// and empty states that own them.
+///
+/// Collapse/expand state is persisted via [AppSettingsCubit] using [id] as the
+/// stable key, unchanged from before the restyle.
 class CollapsibleSection extends StatefulWidget {
   const CollapsibleSection({
     required this.id,
-    required this.icon,
     required this.title,
     required this.subtitle,
     required this.child,
-    this.headerTrailing,
-    this.onAddPressed,
-    this.addTooltip,
     this.initiallyExpanded = true,
     super.key,
   });
 
   /// Stable key used to persist expansion state across sessions.
   final String id;
-  final IconData icon;
   final String title;
   final String subtitle;
   final Widget child;
-
-  /// Optional widget shown below the subtitle row when expanded.
-  final Widget? headerTrailing;
-
-  final VoidCallback? onAddPressed;
-  final String? addTooltip;
 
   /// Fallback used when no persisted state exists for this [id].
   final bool initiallyExpanded;
@@ -45,6 +53,8 @@ class CollapsibleSection extends StatefulWidget {
 }
 
 class _CollapsibleSectionState extends State<CollapsibleSection> {
+  static const double _gutter = 20;
+
   late bool _expanded;
   Timer? _persistDebounce;
 
@@ -79,14 +89,14 @@ class _CollapsibleSectionState extends State<CollapsibleSection> {
 
   @override
   Widget build(BuildContext context) {
-    return Container(
-      decoration: BoxDecoration(
-        color: AppTheme.surfaceDark,
-        borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: AppTheme.borderDark),
+    return DecoratedBox(
+      decoration: const BoxDecoration(
+        border: Border(
+          top: BorderSide(color: LiftColors.rule, width: LiftShape.borderWidth),
+        ),
       ),
       child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
+        crossAxisAlignment: CrossAxisAlignment.stretch,
         children: <Widget>[
           _buildHeader(context),
           ClipRect(
@@ -95,10 +105,15 @@ class _CollapsibleSectionState extends State<CollapsibleSection> {
               curve: Curves.easeInOut,
               child: _expanded
                   ? Padding(
-                      padding: const EdgeInsets.fromLTRB(16, 0, 16, 16),
+                      padding: const EdgeInsets.fromLTRB(
+                        _gutter,
+                        0,
+                        _gutter,
+                        8,
+                      ),
                       child: widget.child,
                     )
-                  : const SizedBox.shrink(),
+                  : const SizedBox(width: double.infinity),
             ),
           ),
         ],
@@ -107,61 +122,29 @@ class _CollapsibleSectionState extends State<CollapsibleSection> {
   }
 
   Widget _buildHeader(BuildContext context) {
-    return InkWell(
-      onTap: _toggle,
-      borderRadius: _expanded
-          ? const BorderRadius.vertical(top: Radius.circular(16))
-          : BorderRadius.circular(16),
-      child: Padding(
-        padding: const EdgeInsets.all(16),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: <Widget>[
-            Row(
-              children: <Widget>[
-                Icon(widget.icon, size: 18, color: AppTheme.primaryOrange),
-                const SizedBox(width: 8),
-                Expanded(
-                  child: Text(
-                    widget.title,
-                    style: Theme.of(context).textTheme.titleSmall?.copyWith(
-                      fontWeight: FontWeight.w700,
-                    ),
-                  ),
+    return Semantics(
+      button: true,
+      expanded: _expanded,
+      child: InkWell(
+        onTap: _toggle,
+        child: Padding(
+          padding: const EdgeInsets.fromLTRB(_gutter, 16, _gutter, 14),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: <Widget>[
+              Text(
+                widget.title,
+                style: LiftText.titleMedium.copyWith(
+                  color: LiftColors.textPrimary,
                 ),
-                if (widget.onAddPressed != null)
-                  IconButton(
-                    onPressed: widget.onAddPressed,
-                    icon: const Icon(Icons.add),
-                    tooltip: widget.addTooltip ?? 'Add',
-                    visualDensity: VisualDensity.compact,
-                    padding: EdgeInsets.zero,
-                    constraints: const BoxConstraints(),
-                  ),
-                const SizedBox(width: 8),
-                AnimatedRotation(
-                  turns: _expanded ? 0.0 : -0.25,
-                  duration: const Duration(milliseconds: 200),
-                  child: const Icon(
-                    Icons.expand_less,
-                    size: 20,
-                    color: AppTheme.textDim,
-                  ),
-                ),
-              ],
-            ),
-            const SizedBox(height: 4),
-            Text(
-              widget.subtitle,
-              style: Theme.of(
-                context,
-              ).textTheme.bodySmall?.copyWith(color: AppTheme.textMedium),
-            ),
-            if (widget.headerTrailing != null && _expanded) ...<Widget>[
-              const SizedBox(height: 12),
-              widget.headerTrailing!,
+              ),
+              const SizedBox(height: 6),
+              Text(
+                widget.subtitle.toUpperCase(),
+                style: LiftText.labelMedium.copyWith(color: LiftColors.textDim),
+              ),
             ],
-          ],
+          ),
         ),
       ),
     );

@@ -7,7 +7,7 @@ import 'package:fitness_tracker/domain/entities/nutrition_log.dart';
 import 'package:fitness_tracker/features/library/application/meal_bloc.dart';
 import 'package:fitness_tracker/features/log/log.dart';
 import 'package:fitness_tracker/features/log/presentation/widgets/meal_picker_sheet.dart';
-import 'package:fitness_tracker/features/log/presentation/widgets/shared/macro_label.dart';
+import 'package:fitness_tracker/presentation/shared/widgets/macro_label.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:flutter_test/flutter_test.dart';

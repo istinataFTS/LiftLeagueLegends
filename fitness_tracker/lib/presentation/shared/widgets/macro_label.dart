@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 
-import '../../../../../core/constants/app_strings.dart';
-import '../../../../../core/themes/lift_theme.dart';
+import '../../../core/constants/app_strings.dart';
+import '../../../core/themes/lift_theme.dart';
 
 /// Which macro a [MacroLabel] identifies.
 ///
