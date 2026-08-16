@@ -1,12 +1,12 @@
 import 'dart:async';
-import 'dart:ui';
 
-import 'package:flutter/material.dart' hide FontFeature;
+import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:uuid/uuid.dart';
 
 import '../../../../core/constants/app_strings.dart';
-import '../../../../core/themes/app_theme.dart';
+import '../../../../core/themes/lift_number.dart';
+import '../../../../core/themes/lift_theme.dart';
 import '../../../../core/utils/macro_calculator.dart';
 import '../../../../core/utils/week_date_utils.dart';
 import '../../../../domain/entities/meal.dart';
@@ -19,8 +19,8 @@ import 'shared/log_numeric_keypad.dart';
 import 'shared/log_quick_chips.dart';
 import 'shared/log_stepper_field.dart';
 import 'shared/log_today_so_far_card.dart';
-import 'shared/log_ui_colors.dart';
 import 'shared/macro_composition_bar.dart';
+import 'shared/macro_label.dart';
 
 class LogMealTab extends StatefulWidget {
   const LogMealTab({
@@ -41,6 +41,11 @@ class LogMealTab extends StatefulWidget {
 class _LogMealTabState extends State<LogMealTab> {
   static const List<num> _quickGramChips = <num>[50, 100, 150, 200];
   static const int _defaultGrams = 100;
+
+  /// Frame 04's literal empty-selection copy (design spec §5.3) — not
+  /// `AppStrings.selectMeal` ("Select Meal"), which is the picker-sheet
+  /// trigger label used elsewhere pre-restyle.
+  static const String _selectFoodPrompt = 'Select a food';
 
   final Uuid _uuid = const Uuid();
 
@@ -81,7 +86,7 @@ class _LogMealTabState extends State<LogMealTab> {
           ScaffoldMessenger.of(context).showSnackBar(
             SnackBar(
               content: Text(effect.message),
-              backgroundColor: AppTheme.successGreen,
+              backgroundColor: LiftColors.success,
               behavior: SnackBarBehavior.floating,
               margin: const EdgeInsets.all(20),
             ),
@@ -119,7 +124,7 @@ class _LogMealTabState extends State<LogMealTab> {
           ScaffoldMessenger.of(context).showSnackBar(
             SnackBar(
               content: Text(state.message),
-              backgroundColor: AppTheme.errorRed,
+              backgroundColor: LiftColors.error,
               behavior: SnackBarBehavior.floating,
               margin: const EdgeInsets.all(20),
             ),
@@ -134,25 +139,26 @@ class _LogMealTabState extends State<LogMealTab> {
         return Column(
           children: <Widget>[
             Expanded(
-              child: SingleChildScrollView(
-                padding: const EdgeInsets.fromLTRB(20, 16, 20, 20),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: <Widget>[
-                    _buildSelectMealBar(context, nutritionState),
-                    const SizedBox(height: 16),
-                    LogTodaySoFarCard(
-                      state: nutritionState,
-                      selectedDate: _selectedDate,
+              child: meal == null
+                  ? _buildEmptySelectionBody(context, nutritionState)
+                  : SingleChildScrollView(
+                      padding: const EdgeInsets.fromLTRB(20, 16, 20, 20),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: <Widget>[
+                          _buildSelectMealBar(context, nutritionState),
+                          const SizedBox(height: 16),
+                          LogTodaySoFarCard(
+                            state: nutritionState,
+                            selectedDate: _selectedDate,
+                          ),
+                        ],
+                      ),
                     ),
-                  ],
-                ),
-              ),
             ),
-            if (meal != null)
-              _keypadOpen
-                  ? _buildKeypadDock(meal)
-                  : _buildDock(meal, canLog: canLog, isLoading: isLoading),
+            meal != null && _keypadOpen
+                ? _buildKeypadDock(meal)
+                : _buildDock(meal, canLog: canLog, isLoading: isLoading),
           ],
         );
       },
@@ -171,54 +177,39 @@ class _LogMealTabState extends State<LogMealTab> {
             ? mealState.meals
             : const <Meal>[];
 
-        return Material(
-          color: Colors.transparent,
-          child: InkWell(
-            borderRadius: BorderRadius.circular(12),
-            onTap: () => _openMealPicker(context, meals, nutritionState),
-            child: Container(
-              padding: const EdgeInsets.all(16),
-              decoration: BoxDecoration(
-                color: AppTheme.surfaceDark,
-                borderRadius: BorderRadius.circular(12),
-                border: Border.all(color: AppTheme.borderDark),
-              ),
-              child: Row(
-                children: <Widget>[
-                  Container(
-                    width: 40,
-                    height: 40,
-                    decoration: BoxDecoration(
-                      gradient: AppTheme.primaryGradient,
-                      borderRadius: BorderRadius.circular(8),
-                    ),
-                    child: const Icon(
-                      Icons.restaurant,
-                      color: Colors.white,
-                      size: 20,
-                    ),
-                  ),
-                  const SizedBox(width: 12),
-                  Expanded(
-                    child: Text(
-                      _selectedMeal?.name ?? AppStrings.selectMeal,
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
-                      style: TextStyle(
-                        color: _selectedMeal == null
-                            ? AppTheme.textLight
-                            : AppTheme.primaryOrange,
-                        fontSize: 15,
-                        fontWeight: FontWeight.w600,
+        return Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: <Widget>[
+            Text(
+              'FOOD',
+              style: LiftText.labelLarge.copyWith(color: LiftColors.textDim),
+            ),
+            const SizedBox(height: 8),
+            GestureDetector(
+              behavior: HitTestBehavior.opaque,
+              onTap: () => _openMealPicker(context, meals, nutritionState),
+              child: SizedBox(
+                height: 44,
+                child: Row(
+                  children: <Widget>[
+                    Expanded(
+                      child: Text(
+                        _selectedMeal?.name ?? _selectFoodPrompt,
+                        style: LiftText.headlineMedium.copyWith(
+                          color: _selectedMeal == null
+                              ? LiftColors.textFaint
+                              : LiftColors.textPrimary,
+                        ),
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
                       ),
                     ),
-                  ),
-                  const SizedBox(width: 8),
-                  const Icon(Icons.expand_more, color: AppTheme.textDim),
-                ],
+                    const Icon(Icons.expand_more, color: LiftColors.textDim),
+                  ],
+                ),
               ),
             ),
-          ),
+          ],
         );
       },
     );
@@ -257,10 +248,42 @@ class _LogMealTabState extends State<LogMealTab> {
         .toList();
   }
 
-  // ─── Dock (normal + keypad) ───────────────────────────────────────────────
+  // ─── Empty selection body ──────────────────────────────────────────────────
+
+  /// No meal selected yet — the select bar and today-so-far block render as
+  /// usual, and the remaining blank space between them and the CTA expands to
+  /// hold one centred dim prompt (design spec §5.3) instead of a fixed-height
+  /// dock tucked under the heading.
+  Widget _buildEmptySelectionBody(
+    BuildContext context,
+    NutritionLogState nutritionState,
+  ) {
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(20, 16, 20, 0),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: <Widget>[
+          _buildSelectMealBar(context, nutritionState),
+          const SizedBox(height: 16),
+          LogTodaySoFarCard(state: nutritionState, selectedDate: _selectedDate),
+          Expanded(
+            child: Center(
+              child: Text(
+                AppStrings.pickFoodToStartEntry,
+                textAlign: TextAlign.center,
+                style: LiftText.bodyLarge.copyWith(color: LiftColors.textDim),
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  // ─── Dock (normal + keypad) ────────────────────────────────────────────────
 
   Widget _buildDock(
-    Meal meal, {
+    Meal? meal, {
     required bool canLog,
     required bool isLoading,
   }) {
@@ -270,7 +293,7 @@ class _LogMealTabState extends State<LogMealTab> {
       canSubmit: canLog,
       isLoading: isLoading,
       onSubmit: _handleLogMeal,
-      previewSlot: _buildDockPreview(meal),
+      previewSlot: meal != null ? _buildDockPreview(meal) : null,
     );
   }
 
@@ -287,21 +310,15 @@ class _LogMealTabState extends State<LogMealTab> {
                 meal.name,
                 maxLines: 1,
                 overflow: TextOverflow.ellipsis,
-                style: const TextStyle(
-                  color: AppTheme.primaryOrange,
-                  fontSize: 14,
-                  fontWeight: FontWeight.w700,
+                style: LiftText.titleSmall.copyWith(
+                  color: LiftColors.textPrimary,
                 ),
               ),
             ),
             const SizedBox(width: 8),
             Text(
               'per $_grams g',
-              style: const TextStyle(
-                color: AppTheme.textDim,
-                fontSize: 12,
-                fontFeatures: <FontFeature>[FontFeature.tabularFigures()],
-              ),
+              style: LiftText.labelMedium.copyWith(color: LiftColors.textDim),
             ),
           ],
         ),
@@ -355,11 +372,11 @@ class _LogMealTabState extends State<LogMealTab> {
     );
 
     return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
-      decoration: BoxDecoration(
-        color: LogUiColors.rowSurface,
-        borderRadius: BorderRadius.circular(10),
-        border: Border.all(color: AppTheme.borderDark),
+      padding: const EdgeInsets.symmetric(vertical: 10),
+      decoration: const BoxDecoration(
+        border: Border(
+          top: BorderSide(color: LiftColors.rule, width: LiftShape.borderWidth),
+        ),
       ),
       child: Column(
         mainAxisSize: MainAxisSize.min,
@@ -369,25 +386,42 @@ class _LogMealTabState extends State<LogMealTab> {
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: <Widget>[
               _previewStat(
-                label: AppStrings.protein,
-                value: '${protein.round()}g',
-                color: LogUiColors.protein,
+                kind: MacroKind.protein,
+                valueWidget: LiftNumber.of(
+                  protein.round(),
+                  'g',
+                  LiftText.dataMeta,
+                ),
               ),
               _previewStat(
-                label: AppStrings.carbs,
-                value: '${carbs.round()}g',
-                color: LogUiColors.carbs,
+                kind: MacroKind.carbs,
+                valueWidget: LiftNumber.of(
+                  carbs.round(),
+                  'g',
+                  LiftText.dataMeta,
+                ),
               ),
               _previewStat(
-                label: AppStrings.fats,
-                value: '${fats.round()}g',
-                color: LogUiColors.fats,
+                kind: MacroKind.fats,
+                valueWidget: LiftNumber.of(
+                  fats.round(),
+                  'g',
+                  LiftText.dataMeta,
+                ),
               ),
-              Container(width: 1, height: 22, color: AppTheme.borderDark),
+              Container(width: 1, height: 22, color: LiftColors.hairline),
+              // Static value — never actionTint (that role signals something
+              // interactive/active), matching frame 06's white "59 KCAL" and
+              // frame 07's white "145 KCAL THIS ENTRY" hero.
               _previewStat(
                 label: AppStrings.kcal,
-                value: '${calories.round()}',
-                color: AppTheme.primaryOrangeLight,
+                valueWidget: Text(
+                  '${calories.round()}',
+                  style: LiftText.dataMeta.copyWith(
+                    color: LiftColors.textPrimary,
+                    fontFeatures: LiftText.dataFeatures,
+                  ),
+                ),
               ),
             ],
           ),
@@ -405,45 +439,41 @@ class _LogMealTabState extends State<LogMealTab> {
     );
   }
 
+  /// One entry-preview stat. The value stays neutral white — per frame 06 the
+  /// macro's identity is carried by the [MacroLabel] swatch beside its
+  /// label, not by tinting the numeral. Pass [kind] for a macro row (renders
+  /// the shared swatch+caption); pass [label] alone for the non-macro kcal
+  /// stat, which has no swatch.
   Widget _previewStat({
-    required String label,
-    required String value,
-    required Color color,
+    required Widget valueWidget,
+    MacroKind? kind,
+    String? label,
   }) {
+    assert(
+      kind != null || label != null,
+      'either kind or label must be provided',
+    );
     return Column(
       mainAxisSize: MainAxisSize.min,
       crossAxisAlignment: CrossAxisAlignment.center,
       children: <Widget>[
-        Text(
-          value,
-          style: TextStyle(
-            color: color,
-            fontSize: 15,
-            fontWeight: FontWeight.w700,
-            fontFeatures: const <FontFeature>[FontFeature.tabularFigures()],
+        valueWidget,
+        if (kind != null)
+          MacroLabel(kind: kind, variant: MacroLabelVariant.caption)
+        else
+          Text(
+            label!.toUpperCase(),
+            style: LiftText.labelSmall.copyWith(color: LiftColors.textDim),
           ),
-        ),
-        Text(
-          label,
-          style: const TextStyle(color: AppTheme.textDim, fontSize: 10),
-        ),
       ],
     );
   }
 
   Widget _buildKeypadDock(Meal meal) {
+    // No border here — LogNumericKeypad already paints its own top-only
+    // seam; drawing a second one here doubled the hairline.
     return Container(
-      decoration: BoxDecoration(
-        color: AppTheme.surfaceDark,
-        border: const Border(top: BorderSide(color: AppTheme.borderDark)),
-        boxShadow: <BoxShadow>[
-          BoxShadow(
-            color: Colors.black.withValues(alpha: 0.25),
-            blurRadius: 8,
-            offset: const Offset(0, -2),
-          ),
-        ],
-      ),
+      decoration: const BoxDecoration(color: LiftColors.background),
       child: SafeArea(
         top: false,
         child: LogNumericKeypad(

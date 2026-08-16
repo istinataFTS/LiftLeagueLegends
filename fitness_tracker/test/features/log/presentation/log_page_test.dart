@@ -25,9 +25,9 @@ void main() {
       await tester.pumpAndSettle();
 
       expect(find.byType(LogTabSelector), findsOneWidget);
-      expect(find.text('Exercise'), findsOneWidget);
-      expect(find.text('Meal'), findsOneWidget);
-      expect(find.text('Macros'), findsOneWidget);
+      expect(find.text('EXERCISE'), findsOneWidget);
+      expect(find.text('MEAL'), findsOneWidget);
+      expect(find.text('MACROS'), findsOneWidget);
     });
 
     testWidgets('shows the exercise tab by default', (tester) async {
@@ -43,14 +43,14 @@ void main() {
       await tester.pumpWidget(buildSubject());
       await tester.pumpAndSettle();
 
-      await tester.tap(find.text('Meal'));
+      await tester.tap(find.text('MEAL'));
       await tester.pumpAndSettle();
 
       expect(find.text('exercise-tab-content'), findsNothing);
       expect(find.text('meal-tab-content'), findsOneWidget);
       expect(find.text('macros-tab-content'), findsNothing);
 
-      await tester.tap(find.text('Macros'));
+      await tester.tap(find.text('MACROS'));
       await tester.pumpAndSettle();
 
       expect(find.text('exercise-tab-content'), findsNothing);
@@ -127,5 +127,34 @@ void main() {
 
       expect(find.byIcon(Icons.arrow_back), findsNothing);
     });
+
+    testWidgets(
+      'Deep Mist chrome: the tab selector is not wrapped in a bordered '
+      'container and no Card is present',
+      (tester) async {
+        await tester.pumpWidget(buildSubject());
+        await tester.pumpAndSettle();
+
+        expect(find.byType(Card), findsNothing);
+        expect(find.byType(LogTabSelector), findsOneWidget);
+
+        // Pre-restyle chrome wrapped the tab selector in a bordered
+        // decorative Container ("chip") — Deep Mist drops that treatment
+        // entirely. Scanning every Container on the page (not just direct
+        // ancestors of LogTabSelector, which turns out to have none — a
+        // vacuous check that would pass even if the border came back one
+        // level up the tree) is what actually catches that regression.
+        final Iterable<Container> containers = tester.widgetList<Container>(
+          find.byType(Container),
+        );
+        expect(containers, isNotEmpty);
+        for (final Container c in containers) {
+          final Decoration? decoration = c.decoration;
+          if (decoration is BoxDecoration) {
+            expect(decoration.border, isNull);
+          }
+        }
+      },
+    );
   });
 }

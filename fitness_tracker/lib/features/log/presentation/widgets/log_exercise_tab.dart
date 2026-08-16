@@ -8,7 +8,7 @@ import 'package:uuid/uuid.dart';
 import '../../../../core/constants/app_strings.dart';
 import '../../../../core/constants/muscle_groups.dart';
 import '../../../../core/constants/muscle_stimulus_constants.dart';
-import '../../../../core/themes/app_theme.dart';
+import '../../../../core/themes/lift_theme.dart';
 import '../../../../core/utils/weight_unit_utils.dart';
 import '../../../../core/utils/week_date_utils.dart';
 import '../../../../domain/entities/app_settings.dart';
@@ -25,7 +25,6 @@ import 'log_intensity_selector.dart';
 import 'shared/log_action_bar.dart';
 import 'shared/log_numeric_keypad.dart';
 import 'shared/log_stepper_field.dart';
-import 'shared/log_ui_colors.dart';
 
 /// Which stepper value is currently being edited via the in-layout keypad.
 enum _KeypadField { reps, weight }
@@ -93,8 +92,8 @@ class _LogExerciseTabState extends State<LogExerciseTab> {
                 ],
               ),
               backgroundColor: isWarning
-                  ? AppTheme.warningAmber
-                  : AppTheme.successGreen,
+                  ? LiftColors.warning
+                  : LiftColors.success,
               behavior: SnackBarBehavior.floating,
               margin: const EdgeInsets.all(20),
               duration: Duration(seconds: isWarning ? 4 : 2),
@@ -136,7 +135,7 @@ class _LogExerciseTabState extends State<LogExerciseTab> {
           ScaffoldMessenger.of(context).showSnackBar(
             SnackBar(
               content: Text(state.message),
-              backgroundColor: AppTheme.errorRed,
+              backgroundColor: LiftColors.error,
               behavior: SnackBarBehavior.floating,
               margin: const EdgeInsets.all(20),
             ),
@@ -149,7 +148,7 @@ class _LogExerciseTabState extends State<LogExerciseTab> {
             if (exerciseState is ExerciseInitial ||
                 exerciseState is ExerciseLoading) {
               return const Center(
-                child: CircularProgressIndicator(color: AppTheme.primaryOrange),
+                child: CircularProgressIndicator(color: LiftColors.actionTint),
               );
             }
 
@@ -185,7 +184,7 @@ class _LogExerciseTabState extends State<LogExerciseTab> {
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: <Widget>[
-                        _buildExerciseCard(
+                        _buildExerciseHeader(
                           context,
                           exercises,
                           insight,
@@ -193,8 +192,10 @@ class _LogExerciseTabState extends State<LogExerciseTab> {
                           weightUnit,
                         ),
                         const SizedBox(height: 16),
+                        const Divider(color: LiftColors.rule),
+                        const SizedBox(height: 16),
                         Row(
-                          crossAxisAlignment: CrossAxisAlignment.start,
+                          crossAxisAlignment: CrossAxisAlignment.center,
                           children: <Widget>[
                             Expanded(
                               child: LogStepperField(
@@ -206,7 +207,12 @@ class _LogExerciseTabState extends State<LogExerciseTab> {
                                 onTapValue: () => _setKeypad(_KeypadField.reps),
                               ),
                             ),
-                            const SizedBox(width: 12),
+                            Container(
+                              width: LiftShape.borderWidth,
+                              height: 64,
+                              margin: const EdgeInsets.symmetric(horizontal: 8),
+                              color: LiftColors.hairline,
+                            ),
                             Expanded(
                               child: LogStepperField(
                                 key: const Key('exerciseWeightStepper'),
@@ -222,6 +228,8 @@ class _LogExerciseTabState extends State<LogExerciseTab> {
                             ),
                           ],
                         ),
+                        const SizedBox(height: 16),
+                        const Divider(color: LiftColors.rule),
                         const SizedBox(height: 16),
                         LogIntensitySelector(
                           intensity: _selectedIntensity,
@@ -248,12 +256,8 @@ class _LogExerciseTabState extends State<LogExerciseTab> {
                         onSubmit: () => _handleLogSet(weightUnit),
                         statusLine: selectedDateSetCount > 0
                             ? Text(
-                                'Logged ×$selectedDateSetCount $_dateSuffixLabel',
-                                style: const TextStyle(
-                                  color: AppTheme.successGreen,
-                                  fontSize: 12,
-                                  fontWeight: FontWeight.w500,
-                                ),
+                                'Logged ×$selectedDateSetCount $_dateSuffixLabel'
+                                    .toUpperCase(),
                               )
                             : null,
                       ),
@@ -273,6 +277,13 @@ class _LogExerciseTabState extends State<LogExerciseTab> {
   /// for a past date (e.g. when logging through the History sheet).
   String get _dateSuffixLabel =>
       _selectedIsToday ? 'today' : DateFormat('MMM d').format(_selectedDate);
+
+  /// The section label above the set feed (spec §5.2): `SETS TODAY` when the
+  /// selected date is today, otherwise date-scoped so it never lies about
+  /// "today" for a past date.
+  String get _setsFeedLabel => _selectedIsToday
+      ? 'SETS TODAY'
+      : 'SETS ${DateFormat('MMM d').format(_selectedDate).toUpperCase()}';
 
   /// The insight only applies when it matches the currently-selected exercise
   /// (a stale insight for a previous selection must not paint this card).
@@ -300,7 +311,7 @@ class _LogExerciseTabState extends State<LogExerciseTab> {
       );
   }
 
-  Widget _buildExerciseCard(
+  Widget _buildExerciseHeader(
     BuildContext context,
     List<Exercise> exercises,
     ExerciseInsight? insight,
@@ -310,88 +321,65 @@ class _LogExerciseTabState extends State<LogExerciseTab> {
     final Exercise? exercise = _selectedExercise;
     final WorkoutSet? pr = insight?.personalRecord;
 
-    return Container(
-      padding: const EdgeInsets.all(16),
-      decoration: BoxDecoration(
-        color: AppTheme.surfaceDark,
-        borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: AppTheme.borderDark),
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: <Widget>[
-          InkWell(
-            onTap: () => _openExercisePicker(context, exercises),
-            borderRadius: BorderRadius.circular(8),
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: <Widget>[
+        Text(
+          AppStrings.exercise.toUpperCase(),
+          style: LiftText.labelLarge.copyWith(color: LiftColors.textDim),
+        ),
+        const SizedBox(height: 8),
+        GestureDetector(
+          behavior: HitTestBehavior.opaque,
+          onTap: () => _openExercisePicker(context, exercises),
+          child: SizedBox(
+            height: 44,
             child: Row(
               children: <Widget>[
-                Container(
-                  width: 40,
-                  height: 40,
-                  decoration: BoxDecoration(
-                    gradient: AppTheme.primaryGradient,
-                    borderRadius: BorderRadius.circular(8),
-                  ),
-                  child: const Icon(
-                    Icons.fitness_center,
-                    color: Colors.white,
-                    size: 20,
-                  ),
-                ),
-                const SizedBox(width: 12),
                 Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: <Widget>[
-                      Text(
-                        exercise?.name ?? AppStrings.selectExercise,
-                        style: Theme.of(context).textTheme.bodyLarge?.copyWith(
-                          fontWeight: FontWeight.w600,
-                        ),
-                      ),
-                      if (exercise != null) ...<Widget>[
-                        const SizedBox(height: 4),
-                        Row(
-                          children: <Widget>[
-                            if (pr != null) ...<Widget>[
-                              _PrBadge(
-                                label: WeightUnitUtils.formatForDisplay(
-                                  pr.weight,
-                                  weightUnit,
-                                ),
-                              ),
-                              const SizedBox(width: 8),
-                            ],
-                            Text(
-                              '$setCount sets $_dateSuffixLabel',
-                              style: const TextStyle(
-                                color: AppTheme.textDim,
-                                fontSize: 12,
-                                fontFeatures: <FontFeature>[
-                                  FontFeature.tabularFigures(),
-                                ],
-                              ),
-                            ),
-                          ],
-                        ),
-                      ],
-                    ],
+                  child: Text(
+                    exercise?.name ?? AppStrings.selectExercise,
+                    style: LiftText.headlineMedium.copyWith(
+                      color: exercise == null
+                          ? LiftColors.textFaint
+                          : LiftColors.textPrimary,
+                    ),
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
                   ),
                 ),
-                const Icon(Icons.expand_more, color: AppTheme.textDim),
+                const Icon(Icons.expand_more, color: LiftColors.textDim),
               ],
             ),
           ),
-          if (exercise != null &&
-              insight != null &&
-              insight.muscles.isNotEmpty) ...<Widget>[
-            const SizedBox(height: 12),
-            const Divider(height: 1, color: AppTheme.borderDark),
-            const SizedBox(height: 12),
-            ExerciseFatigueChips(muscles: insight.muscles),
-          ],
+        ),
+        if (exercise != null) ...<Widget>[
+          const SizedBox(height: 10),
+          Row(
+            children: <Widget>[
+              if (pr != null) ...<Widget>[
+                _PrBadge(
+                  label: WeightUnitUtils.formatForDisplay(
+                    pr.weight,
+                    weightUnit,
+                  ),
+                ),
+                const SizedBox(width: 10),
+              ],
+              Text(
+                '$setCount sets $_dateSuffixLabel'.toUpperCase(),
+                style: LiftText.labelLarge.copyWith(color: LiftColors.textDim),
+              ),
+            ],
+          ),
         ],
-      ),
+        if (exercise != null &&
+            insight != null &&
+            insight.muscles.isNotEmpty) ...<Widget>[
+          const SizedBox(height: 12),
+          ExerciseFatigueChips(muscles: insight.muscles),
+        ],
+      ],
     );
   }
 
@@ -419,23 +407,14 @@ class _LogExerciseTabState extends State<LogExerciseTab> {
           children: <Widget>[
             Expanded(
               child: Text(
-                '${exercise.name} · $_dateSuffixLabel',
-                style: const TextStyle(
-                  color: AppTheme.textMedium,
-                  fontSize: 13,
-                  fontWeight: FontWeight.w600,
-                ),
-                overflow: TextOverflow.ellipsis,
+                _setsFeedLabel,
+                style: LiftText.labelLarge.copyWith(color: LiftColors.textDim),
               ),
             ),
             const SizedBox(width: 8),
             Text(
-              '$volumeText total',
-              style: const TextStyle(
-                color: AppTheme.textDim,
-                fontSize: 13,
-                fontFeatures: <FontFeature>[FontFeature.tabularFigures()],
-              ),
+              '${volumeText.toUpperCase()} TOTAL',
+              style: LiftText.labelLarge.copyWith(color: LiftColors.textDim),
             ),
           ],
         ),
@@ -447,7 +426,7 @@ class _LogExerciseTabState extends State<LogExerciseTab> {
               _selectedIsToday
                   ? 'No sets yet today'
                   : 'No sets on ${DateFormat('MMM d').format(_selectedDate)}',
-              style: const TextStyle(color: AppTheme.textDim, fontSize: 13),
+              style: LiftText.bodyMedium.copyWith(color: LiftColors.textDim),
             ),
           )
         else
@@ -469,18 +448,10 @@ class _LogExerciseTabState extends State<LogExerciseTab> {
     final _KeypadField field = _activeKeypad!;
     final bool isWeight = field == _KeypadField.weight;
 
+    // No border here — LogNumericKeypad already paints its own top-only
+    // seam; drawing a second one here doubled the hairline.
     return Container(
-      decoration: BoxDecoration(
-        color: AppTheme.surfaceDark,
-        border: const Border(top: BorderSide(color: AppTheme.borderDark)),
-        boxShadow: <BoxShadow>[
-          BoxShadow(
-            color: Colors.black.withValues(alpha: 0.25),
-            blurRadius: 8,
-            offset: const Offset(0, -2),
-          ),
-        ],
-      ),
+      decoration: const BoxDecoration(color: LiftColors.background),
       child: SafeArea(
         top: false,
         child: LogNumericKeypad(
@@ -512,21 +483,19 @@ class _LogExerciseTabState extends State<LogExerciseTab> {
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
           children: <Widget>[
-            const Icon(Icons.error_outline, size: 64, color: AppTheme.errorRed),
+            const Icon(Icons.error_outline, size: 64, color: LiftColors.error),
             const SizedBox(height: 16),
             Text(
               AppStrings.errorLoadingExercises,
-              style: Theme.of(
-                context,
-              ).textTheme.titleLarge?.copyWith(fontWeight: FontWeight.w600),
+              style: LiftText.titleLarge.copyWith(
+                color: LiftColors.textPrimary,
+              ),
               textAlign: TextAlign.center,
             ),
             const SizedBox(height: 8),
             Text(
               errorMessage,
-              style: Theme.of(
-                context,
-              ).textTheme.bodySmall?.copyWith(color: AppTheme.textMedium),
+              style: LiftText.bodySmall.copyWith(color: LiftColors.textDim),
               textAlign: TextAlign.center,
             ),
             const SizedBox(height: 16),
@@ -551,22 +520,20 @@ class _LogExerciseTabState extends State<LogExerciseTab> {
             const Icon(
               Icons.fitness_center_outlined,
               size: 64,
-              color: AppTheme.textDim,
+              color: LiftColors.textDim,
             ),
             const SizedBox(height: 16),
             Text(
               AppStrings.noExercisesAvailable,
-              style: Theme.of(
-                context,
-              ).textTheme.titleMedium?.copyWith(fontWeight: FontWeight.w600),
+              style: LiftText.titleMedium.copyWith(
+                color: LiftColors.textPrimary,
+              ),
               textAlign: TextAlign.center,
             ),
             const SizedBox(height: 8),
             Text(
               AppStrings.createExercisesFirst,
-              style: Theme.of(
-                context,
-              ).textTheme.bodyMedium?.copyWith(color: AppTheme.textMedium),
+              style: LiftText.bodyMedium.copyWith(color: LiftColors.textDim),
               textAlign: TextAlign.center,
             ),
           ],
@@ -632,6 +599,9 @@ class _LogExerciseTabState extends State<LogExerciseTab> {
   }
 }
 
+/// `PR` is the one surviving badge exception (design spec §5.2): square,
+/// filled `actionFill`, no icon — every other pill/badge in the Log tabs is
+/// gone.
 class _PrBadge extends StatelessWidget {
   const _PrBadge({required this.label});
 
@@ -640,26 +610,11 @@ class _PrBadge extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
-      decoration: BoxDecoration(
-        color: LogUiColors.fats.withValues(alpha: 0.18),
-        borderRadius: BorderRadius.circular(8),
-      ),
-      child: Row(
-        mainAxisSize: MainAxisSize.min,
-        children: <Widget>[
-          const Icon(Icons.emoji_events, size: 13, color: LogUiColors.fats),
-          const SizedBox(width: 4),
-          Text(
-            'PR $label',
-            style: const TextStyle(
-              color: LogUiColors.fats,
-              fontSize: 12,
-              fontWeight: FontWeight.w600,
-              fontFeatures: <FontFeature>[FontFeature.tabularFigures()],
-            ),
-          ),
-        ],
+      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+      color: LiftColors.actionFill,
+      child: Text(
+        'PR $label'.toUpperCase(),
+        style: LiftText.labelLarge.copyWith(color: Colors.white),
       ),
     );
   }

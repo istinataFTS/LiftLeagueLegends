@@ -1,10 +1,14 @@
 import 'package:fitness_tracker/app/app.dart';
+import 'package:fitness_tracker/core/themes/lift_number.dart';
+import 'package:fitness_tracker/core/themes/lift_theme.dart';
 import 'package:fitness_tracker/domain/entities/nutrition_log.dart';
 import 'package:fitness_tracker/features/log/application/nutrition_log_bloc.dart';
 import 'package:fitness_tracker/features/log/presentation/widgets/shared/log_today_so_far_card.dart';
 import 'package:fitness_tracker/features/log/presentation/widgets/shared/macro_composition_bar.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
+
+import '../../log_phone_viewport.dart';
 
 void main() {
   Widget wrap(Widget child) {
@@ -62,12 +66,70 @@ void main() {
       );
       await tester.pumpAndSettle();
 
-      expect(find.text('Today so far'), findsOneWidget);
-      expect(find.text('370 kcal · 1 log'), findsOneWidget);
+      // Header is uppercase mono, per the design's labelLarge/textStrong.
+      expect(find.text('TODAY SO FAR'), findsOneWidget);
+      // Right-hand summary: the count is a glued-looking but spaced unit, so
+      // it renders as two widgets — dataSmall count, labelLarge remainder.
+      expect(find.text('370'), findsOneWidget);
+      expect(find.text(' KCAL · 1 LOG'), findsOneWidget);
+      // Macro grams are glued units — LiftNumber, not plain Text.
       expect(find.text('30g'), findsOneWidget);
       expect(find.text('40g'), findsOneWidget);
       expect(find.text('10g'), findsOneWidget);
       expect(find.byType(MacroCompositionBar), findsOneWidget);
+
+      // The block was never a literal Card (it was always a Container with
+      // a Card-like rounded, filled decoration), so this alone proves
+      // nothing about the restyle — it's a forward-looking guard only.
+      expect(find.byType(Card), findsNothing);
+
+      // What the restyle actually removed: the Card-*looking* treatment.
+      // The block's own decoration must no longer have a rounded radius or
+      // a filled background — it now sits directly on the ground, bordered
+      // top/bottom by a rule line instead of looking like a card.
+      final Container block = tester.widget<Container>(
+        find.byKey(const ValueKey<String>('log-today-so-far-block')),
+      );
+      final BoxDecoration decoration = block.decoration! as BoxDecoration;
+      expect(
+        decoration.borderRadius == null ||
+            decoration.borderRadius == BorderRadius.zero,
+        isTrue,
+        reason:
+            'block must have no rounded radius, got '
+            '${decoration.borderRadius}',
+      );
+      expect(
+        decoration.color,
+        isNull,
+        reason:
+            'block must have no filled background colour, got '
+            '${decoration.color}',
+      );
+
+      // The three macro values render through LiftNumber at dataMedium.
+      final List<LiftNumber> numbers = tester
+          .widgetList<LiftNumber>(find.byType(LiftNumber))
+          .toList();
+      expect(numbers, hasLength(3));
+      for (final LiftNumber n in numbers) {
+        expect(n.style.fontSize, LiftText.dataMedium.fontSize);
+        expect(n.unit, 'g');
+      }
+
+      // Each swatch's colour matches its LiftColors macro token.
+      final Container proteinSwatch = tester.widget<Container>(
+        find.byKey(const ValueKey<String>('today-swatch-protein')),
+      );
+      final Container carbsSwatch = tester.widget<Container>(
+        find.byKey(const ValueKey<String>('today-swatch-carbs')),
+      );
+      final Container fatsSwatch = tester.widget<Container>(
+        find.byKey(const ValueKey<String>('today-swatch-fats')),
+      );
+      expect(proteinSwatch.color, LiftColors.protein);
+      expect(carbsSwatch.color, LiftColors.carbs);
+      expect(fatsSwatch.color, LiftColors.fats);
     });
 
     testWidgets('renders dated header when selected date is not today', (
@@ -84,8 +146,8 @@ void main() {
       );
       await tester.pumpAndSettle();
 
-      expect(find.text('Jan 5 so far'), findsOneWidget);
-      expect(find.text('Today so far'), findsNothing);
+      expect(find.text('JAN 5 SO FAR'), findsOneWidget);
+      expect(find.text('TODAY SO FAR'), findsNothing);
     });
 
     testWidgets('hides when state is not DailyLogsLoaded', (tester) async {
@@ -99,7 +161,7 @@ void main() {
       );
       await tester.pumpAndSettle();
 
-      expect(find.textContaining('so far'), findsNothing);
+      expect(find.textContaining('SO FAR'), findsNothing);
       expect(find.byType(MacroCompositionBar), findsNothing);
     });
 
@@ -116,8 +178,50 @@ void main() {
       );
       await tester.pumpAndSettle();
 
-      expect(find.textContaining('so far'), findsNothing);
+      expect(find.textContaining('SO FAR'), findsNothing);
       expect(find.byType(MacroCompositionBar), findsNothing);
+    });
+
+    testWidgets(
+      'a dated header with 5 logs and 2500 kcal does not overflow at 360dp',
+      (tester) async {
+        final DateTime past = DateTime(2024, 1, 5);
+
+        await pumpAtPhoneWidth(
+          tester,
+          wrap(
+            LogTodaySoFarCard(
+              state: loaded(date: past, logs: 5, calories: 500),
+              selectedDate: past,
+            ),
+          ),
+        );
+
+        expect(find.text('JAN 5 SO FAR'), findsOneWidget);
+        expect(find.text('2500'), findsOneWidget);
+        expect(find.text(' KCAL · 5 LOGS'), findsOneWidget);
+        expectNoOverflow(tester);
+      },
+    );
+
+    testWidgets("_TodayCell's swatch+label row does not overflow at 320dp", (
+      tester,
+    ) async {
+      final DateTime today = DateTime.now();
+      final DateTime dateOnly = DateTime(today.year, today.month, today.day);
+
+      await pumpAtPhoneWidth(
+        tester,
+        wrap(
+          LogTodaySoFarCard(
+            state: loaded(date: dateOnly),
+            selectedDate: dateOnly,
+          ),
+        ),
+        physicalSize: const Size(960, 2400),
+      );
+
+      expectNoOverflow(tester);
     });
 
     testWidgets('pluralises log count correctly (>1)', (tester) async {
@@ -141,7 +245,8 @@ void main() {
       );
       await tester.pumpAndSettle();
 
-      expect(find.text('510 kcal · 3 logs'), findsOneWidget);
+      expect(find.text('510'), findsOneWidget);
+      expect(find.text(' KCAL · 3 LOGS'), findsOneWidget);
     });
   });
 }

@@ -37,6 +37,14 @@ jobs:
       - name: Set up Flutter
         uses: subosito/flutter-action@v2
         with:
+          # Pinned deliberately. Tracking the floating `stable` channel broke
+          # main on 2026-08-15: the roll to 3.47.0 shipped a formatter that
+          # reformats test/data/datasources/local/database_helper_v21_migration_test.dart,
+          # so `dart format --set-exit-if-changed` failed on a file nobody had
+          # touched, on main and on every open PR at once. Pin to the version
+          # the project develops against so CI and local agree. Upgrade
+          # deliberately, in its own PR, reformatting the repo in the same commit.
+          flutter-version: 3.35.7
           channel: stable
           cache: true
 

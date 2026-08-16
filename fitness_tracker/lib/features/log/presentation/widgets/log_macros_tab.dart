@@ -1,12 +1,11 @@
 import 'dart:async';
-import 'dart:ui';
 
-import 'package:flutter/material.dart' hide FontFeature;
+import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:uuid/uuid.dart';
 
 import '../../../../core/constants/app_strings.dart';
-import '../../../../core/themes/app_theme.dart';
+import '../../../../core/themes/lift_theme.dart';
 import '../../../../core/utils/macro_calculator.dart';
 import '../../../../core/utils/week_date_utils.dart';
 import '../../../../domain/entities/nutrition_log.dart';
@@ -15,8 +14,8 @@ import 'shared/log_action_bar.dart';
 import 'shared/log_numeric_keypad.dart';
 import 'shared/log_stepper_field.dart';
 import 'shared/log_today_so_far_card.dart';
-import 'shared/log_ui_colors.dart';
 import 'shared/macro_composition_bar.dart';
+import 'shared/macro_label.dart';
 
 /// Which macro the in-layout keypad is currently editing.
 enum _MacroField { protein, carbs, fats }
@@ -82,7 +81,7 @@ class _LogMacrosTabState extends State<LogMacrosTab> {
           ScaffoldMessenger.of(context).showSnackBar(
             SnackBar(
               content: Text(effect.message),
-              backgroundColor: AppTheme.successGreen,
+              backgroundColor: LiftColors.success,
               behavior: SnackBarBehavior.floating,
               margin: const EdgeInsets.all(20),
             ),
@@ -120,7 +119,7 @@ class _LogMacrosTabState extends State<LogMacrosTab> {
           ScaffoldMessenger.of(context).showSnackBar(
             SnackBar(
               content: Text(state.message),
-              backgroundColor: AppTheme.errorRed,
+              backgroundColor: LiftColors.error,
               behavior: SnackBarBehavior.floating,
               margin: const EdgeInsets.all(20),
             ),
@@ -141,32 +140,29 @@ class _LogMacrosTabState extends State<LogMacrosTab> {
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: <Widget>[
                     _buildMacroRow(
-                      label: AppStrings.protein,
+                      kind: MacroKind.protein,
                       value: _protein,
-                      color: LogUiColors.protein,
                       onChanged: (num v) =>
                           setState(() => _protein = v.toDouble()),
                       onTapValue: () => _setEditingField(_MacroField.protein),
                     ),
-                    const SizedBox(height: 12),
+                    const Divider(color: LiftColors.rule),
                     _buildMacroRow(
-                      label: AppStrings.carbs,
+                      kind: MacroKind.carbs,
                       value: _carbs,
-                      color: LogUiColors.carbs,
                       onChanged: (num v) =>
                           setState(() => _carbs = v.toDouble()),
                       onTapValue: () => _setEditingField(_MacroField.carbs),
                     ),
-                    const SizedBox(height: 12),
+                    const Divider(color: LiftColors.rule),
                     _buildMacroRow(
-                      label: AppStrings.fats,
+                      kind: MacroKind.fats,
                       value: _fats,
-                      color: LogUiColors.fats,
                       onChanged: (num v) =>
                           setState(() => _fats = v.toDouble()),
                       onTapValue: () => _setEditingField(_MacroField.fats),
                     ),
-                    const SizedBox(height: 20),
+                    const SizedBox(height: 8),
                     LogTodaySoFarCard(
                       state: nutritionState,
                       selectedDate: _selectedDate,
@@ -184,50 +180,42 @@ class _LogMacrosTabState extends State<LogMacrosTab> {
     );
   }
 
-  // ─── Macro row (dot + name + stepper) (spec §5.4) ─────────────────────────
+  // ─── Macro row (swatch + name + stepper) (spec §5.4) ──────────────────────
 
   Widget _buildMacroRow({
-    required String label,
+    required MacroKind kind,
     required double value,
-    required Color color,
     required ValueChanged<num> onChanged,
     required VoidCallback onTapValue,
   }) {
-    return Row(
-      crossAxisAlignment: CrossAxisAlignment.center,
-      children: <Widget>[
-        Container(
-          width: 8,
-          height: 8,
-          decoration: BoxDecoration(color: color, shape: BoxShape.circle),
-        ),
-        const SizedBox(width: 8),
-        SizedBox(
-          width: 64,
-          child: Text(
-            label,
-            style: const TextStyle(
-              color: AppTheme.textLight,
-              fontSize: 14,
-              fontWeight: FontWeight.w600,
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: 10),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.center,
+        children: <Widget>[
+          // Fixed width — matches the swatch(10) + gap(10) + old label(64)
+          // this replaces, so the stepper stays aligned regardless of label
+          // length (PROTEIN/CARBS/FATS render at different widths).
+          SizedBox(
+            width: 84,
+            child: MacroLabel(kind: kind, variant: MacroLabelVariant.header),
+          ),
+          const SizedBox(width: 12),
+          Expanded(
+            child: LogStepperField(
+              key: Key('macrosStepper-${kind.label}'),
+              label: 'grams',
+              value: value,
+              step: _macroStep,
+              allowDecimal: true,
+              accentColor: kind.color,
+              onChanged: onChanged,
+              onTapValue: onTapValue,
+              dense: true,
             ),
           ),
-        ),
-        const SizedBox(width: 12),
-        Expanded(
-          child: LogStepperField(
-            key: Key('macrosStepper-$label'),
-            label: 'grams',
-            value: value,
-            step: _macroStep,
-            allowDecimal: true,
-            accentColor: color,
-            onChanged: onChanged,
-            onTapValue: onTapValue,
-            dense: true,
-          ),
-        ),
-      ],
+        ],
+      ),
     );
   }
 
@@ -256,31 +244,20 @@ class _LogMacrosTabState extends State<LogMacrosTab> {
       crossAxisAlignment: CrossAxisAlignment.start,
       children: <Widget>[
         Row(
-          crossAxisAlignment: CrossAxisAlignment.center,
+          crossAxisAlignment: CrossAxisAlignment.baseline,
+          textBaseline: TextBaseline.alphabetic,
           children: <Widget>[
-            const Icon(
-              Icons.local_fire_department,
-              color: AppTheme.primaryOrangeLight,
-              size: 26,
+            Text(
+              '${calories.round()}',
+              style: LiftText.dataHero.copyWith(
+                color: LiftColors.textPrimary,
+                fontFeatures: LiftText.dataFeatures,
+              ),
             ),
             const SizedBox(width: 8),
             Text(
-              '${calories.round()}',
-              style: const TextStyle(
-                color: AppTheme.primaryOrangeLight,
-                fontSize: 30,
-                fontWeight: FontWeight.w800,
-                fontFeatures: <FontFeature>[FontFeature.tabularFigures()],
-                height: 1.0,
-              ),
-            ),
-            const SizedBox(width: 6),
-            const Padding(
-              padding: EdgeInsets.only(bottom: 2),
-              child: Text(
-                'kcal this entry',
-                style: TextStyle(color: AppTheme.textDim, fontSize: 12),
-              ),
+              'KCAL THIS ENTRY',
+              style: LiftText.labelLarge.copyWith(color: LiftColors.textDim),
             ),
           ],
         ),
@@ -309,18 +286,10 @@ class _LogMacrosTabState extends State<LogMacrosTab> {
       _MacroField.fats => 'fats',
     };
 
+    // No border here — LogNumericKeypad already paints its own top-only
+    // seam; drawing a second one here doubled the hairline.
     return Container(
-      decoration: BoxDecoration(
-        color: AppTheme.surfaceDark,
-        border: const Border(top: BorderSide(color: AppTheme.borderDark)),
-        boxShadow: <BoxShadow>[
-          BoxShadow(
-            color: Colors.black.withValues(alpha: 0.25),
-            blurRadius: 8,
-            offset: const Offset(0, -2),
-          ),
-        ],
-      ),
+      decoration: const BoxDecoration(color: LiftColors.background),
       child: SafeArea(
         top: false,
         child: LogNumericKeypad(

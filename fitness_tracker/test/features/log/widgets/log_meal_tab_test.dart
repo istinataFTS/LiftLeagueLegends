@@ -1,11 +1,13 @@
 import 'package:bloc_test/bloc_test.dart';
 import 'package:fitness_tracker/app/app.dart';
 import 'package:fitness_tracker/core/constants/app_strings.dart';
+import 'package:fitness_tracker/core/themes/lift_theme.dart';
 import 'package:fitness_tracker/domain/entities/meal.dart';
 import 'package:fitness_tracker/domain/entities/nutrition_log.dart';
 import 'package:fitness_tracker/features/library/application/meal_bloc.dart';
 import 'package:fitness_tracker/features/log/log.dart';
 import 'package:fitness_tracker/features/log/presentation/widgets/meal_picker_sheet.dart';
+import 'package:fitness_tracker/features/log/presentation/widgets/shared/macro_label.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -116,10 +118,16 @@ void main() {
         await tester.pumpWidget(buildSubject(mealState: MealsLoaded(meals)));
         await tester.pumpAndSettle();
 
-        // No dock yet (no meal selected).
-        expect(find.text(AppStrings.logMealButton), findsNothing);
+        // The CTA still renders (frame 04: a bordered, disabled "LOG MEAL"
+        // button), it is just not tappable — no preview slot above it.
+        expect(
+          find.text(AppStrings.logMealButton.toUpperCase()),
+          findsOneWidget,
+        );
+        // The blank space above the CTA carries the empty-selection prompt.
+        expect(find.text(AppStrings.pickFoodToStartEntry), findsOneWidget);
         // Bar shows "Select Meal" prompt.
-        expect(find.text(AppStrings.selectMeal), findsOneWidget);
+        expect(find.text('Select a food'), findsOneWidget);
         expect(find.byIcon(Icons.expand_more), findsOneWidget);
       },
     );
@@ -131,7 +139,7 @@ void main() {
         await tester.pumpWidget(buildSubject(mealState: MealsLoaded(meals)));
         await tester.pumpAndSettle();
 
-        await tester.tap(find.text(AppStrings.selectMeal));
+        await tester.tap(find.text('Select a food'));
         await tester.pumpAndSettle();
 
         // Picker is open.
@@ -146,7 +154,10 @@ void main() {
         // Picker dismissed; bar + dock both show the meal name; dock appears.
         expect(find.byType(MealPickerSheet), findsNothing);
         expect(find.text('Chicken Breast'), findsNWidgets(2));
-        expect(find.text(AppStrings.logMealButton), findsOneWidget);
+        expect(
+          find.text(AppStrings.logMealButton.toUpperCase()),
+          findsOneWidget,
+        );
         expect(find.text('per 100 g'), findsOneWidget);
       },
     );
@@ -157,7 +168,7 @@ void main() {
       await tester.pumpWidget(buildSubject(mealState: MealsLoaded(meals)));
       await tester.pumpAndSettle();
 
-      await tester.tap(find.text(AppStrings.selectMeal));
+      await tester.tap(find.text('Select a food'));
       await tester.pumpAndSettle();
       await tester.tap(find.text('Chicken Breast'));
       await tester.pumpAndSettle();
@@ -176,7 +187,7 @@ void main() {
         await tester.pumpWidget(buildSubject(mealState: MealsLoaded(meals)));
         await tester.pumpAndSettle();
 
-        await tester.tap(find.text(AppStrings.selectMeal));
+        await tester.tap(find.text('Select a food'));
         await tester.pumpAndSettle();
         await tester.tap(find.text('Chicken Breast'));
         await tester.pumpAndSettle();
@@ -190,7 +201,7 @@ void main() {
         );
         await tester.pumpAndSettle();
 
-        await tester.tap(find.text(AppStrings.logMealButton));
+        await tester.tap(find.text(AppStrings.logMealButton.toUpperCase()));
         await tester.pump();
 
         verify(
@@ -220,7 +231,7 @@ void main() {
       await tester.pumpWidget(buildSubject(mealState: MealsLoaded(meals)));
       await tester.pumpAndSettle();
 
-      await tester.tap(find.text(AppStrings.selectMeal));
+      await tester.tap(find.text('Select a food'));
       await tester.pumpAndSettle();
       await tester.tap(find.text('Chicken Breast'));
       await tester.pumpAndSettle();
@@ -281,8 +292,9 @@ void main() {
         );
         await tester.pumpAndSettle();
 
-        expect(find.text('Today so far'), findsOneWidget);
-        expect(find.text('370 kcal · 1 log'), findsOneWidget);
+        expect(find.text('TODAY SO FAR'), findsOneWidget);
+        expect(find.text('370'), findsOneWidget);
+        expect(find.text(' KCAL · 1 LOG'), findsOneWidget);
       },
     );
 
@@ -294,12 +306,84 @@ void main() {
         );
         await tester.pumpAndSettle();
 
-        await tester.tap(find.text(AppStrings.selectMeal));
+        await tester.tap(find.text('Select a food'));
         await tester.pumpAndSettle();
 
         expect(find.byType(MealPickerSheet), findsOneWidget);
         // Sectioned empty: "All Meals" header only, no rows.
         expect(find.text(AppStrings.pickerAllMeals), findsOneWidget);
+      },
+    );
+
+    testWidgets('Deep Mist chrome: no Card, no redundant Divider above the '
+        'today-so-far block, the mealGramsStepper key resolves, and the '
+        'enabled CTA fills actionFill', (tester) async {
+      await tester.pumpWidget(buildSubject(mealState: MealsLoaded(meals)));
+      await tester.pumpAndSettle();
+
+      expect(find.byType(Card), findsNothing);
+
+      // LogTodaySoFarCard paints its own top rule border — a Divider
+      // directly above it would double the hairline, so none should render
+      // here (the empty-selection body has no other Divider to produce).
+      expect(find.byType(Divider), findsNothing);
+
+      await tester.tap(find.text('Select a food'));
+      await tester.pumpAndSettle();
+      await tester.tap(find.text('Chicken Breast'));
+      await tester.pumpAndSettle();
+
+      expect(find.byKey(const Key('mealGramsStepper')), findsOneWidget);
+
+      final Material material = tester
+          .widgetList<Material>(
+            find.descendant(
+              of: find.byType(ElevatedButton),
+              matching: find.byType(Material),
+            ),
+          )
+          .first;
+      expect(material.color, LiftColors.actionFill);
+    });
+
+    testWidgets('this-entry preview pins each macro swatch to its own color — '
+        'protein, carbs and fats cannot be silently swapped', (tester) async {
+      await tester.pumpWidget(buildSubject(mealState: MealsLoaded(meals)));
+      await tester.pumpAndSettle();
+
+      await tester.tap(find.text('Select a food'));
+      await tester.pumpAndSettle();
+      await tester.tap(find.text('Chicken Breast'));
+      await tester.pumpAndSettle();
+
+      final List<MacroLabel> labels = tester
+          .widgetList<MacroLabel>(find.byType(MacroLabel))
+          .toList();
+      expect(labels, hasLength(3));
+      expect(labels[0].kind, MacroKind.protein);
+      expect(labels[1].kind, MacroKind.carbs);
+      expect(labels[2].kind, MacroKind.fats);
+      expect(labels[0].kind.color, LiftColors.protein);
+      expect(labels[1].kind.color, LiftColors.carbs);
+      expect(labels[2].kind.color, LiftColors.fats);
+    });
+
+    testWidgets(
+      'this-entry kcal renders textPrimary, not actionTint — matches frame '
+      "06's white kcal figure and the Macros tab's same-position value",
+      (tester) async {
+        await tester.pumpWidget(buildSubject(mealState: MealsLoaded(meals)));
+        await tester.pumpAndSettle();
+
+        await tester.tap(find.text('Select a food'));
+        await tester.pumpAndSettle();
+        await tester.tap(find.text('Chicken Breast'));
+        await tester.pumpAndSettle();
+
+        // 100g chicken: 31g protein + 0g carbs + 4g fat = 160 kcal.
+        final Text kcal = tester.widget<Text>(find.text('160'));
+        expect(kcal.style?.color, LiftColors.textPrimary);
+        expect(kcal.style?.color, isNot(LiftColors.actionTint));
       },
     );
   });

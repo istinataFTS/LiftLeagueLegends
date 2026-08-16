@@ -1,9 +1,6 @@
-import 'dart:ui';
-
-import 'package:flutter/material.dart' hide FontFeature;
+import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
-import '../../../../../core/themes/app_theme.dart';
 import '../../../../../core/themes/lift_theme.dart';
 
 /// In-layout numeric keypad — never the OS keyboard.
@@ -122,22 +119,47 @@ class _LogNumericKeypadState extends State<LogNumericKeypad> {
 
   // ─── Build ──────────────────────────────────────────────────────────────────
 
-  static const Color _keyBg = Color(0xFF1E1E1E);
+  // The keypad is a real panel that floats over content — unlike almost
+  // everything else in this restyle it keeps an opaque surface so digits
+  // stay readable no matter what is behind it.
+  //
+  // The key fill itself, [LiftColors.surfaceRaised] (white at 12% alpha —
+  // 0x1FFFFFFF), is translucent, but it is only ever painted over the
+  // panel's own opaque [LiftColors.panelTop] (0xF01E262F, effectively RGB
+  // 30/38/47 once its own near-total alpha is accounted for). Compositing
+  // surfaceRaised over panelTop's RGB gives approximately RGB(57, 64, 72) —
+  // a slightly lighter slate than the panel, which is exactly the subtle
+  // "raised key" contrast this token is used for elsewhere in the palette.
+  // Kept deliberately rather than swapped for an opaque literal.
+  static const Color _keyBg = LiftColors.surfaceRaised;
 
   @override
   Widget build(BuildContext context) {
-    return Column(
-      mainAxisSize: MainAxisSize.min,
-      children: <Widget>[
-        _buildHeader(),
-        const Divider(height: 1, color: AppTheme.borderDark),
-        Padding(
-          padding: const EdgeInsets.all(8),
-          child: widget.allowDecimal
-              ? _buildDecimalGrid()
-              : _buildIntegerGrid(),
+    return Container(
+      key: const ValueKey<String>('log-numeric-keypad-panel'),
+      decoration: const BoxDecoration(
+        color: LiftColors.panelTop,
+        border: Border(
+          top: BorderSide(
+            color: LiftColors.border,
+            width: LiftShape.borderWidth,
+          ),
         ),
-      ],
+        borderRadius: BorderRadius.zero,
+      ),
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: <Widget>[
+          _buildHeader(),
+          const Divider(height: 1, color: LiftColors.rule),
+          Padding(
+            padding: const EdgeInsets.all(8),
+            child: widget.allowDecimal
+                ? _buildDecimalGrid()
+                : _buildIntegerGrid(),
+          ),
+        ],
+      ),
     );
   }
 
@@ -149,24 +171,24 @@ class _LogNumericKeypadState extends State<LogNumericKeypad> {
         children: <Widget>[
           Text(
             'Enter ${widget.label}',
-            style: const TextStyle(color: AppTheme.textDim, fontSize: 13),
+            style: LiftText.bodyMedium.copyWith(color: LiftColors.textDim),
           ),
           Row(
             children: <Widget>[
               Text(
                 _displayValue,
-                style: const TextStyle(
-                  color: AppTheme.textLight,
-                  fontSize: 22,
-                  fontWeight: FontWeight.w600,
-                  fontFeatures: <FontFeature>[FontFeature.tabularFigures()],
+                style: LiftText.dataMedium.copyWith(
+                  color: LiftColors.textPrimary,
+                  fontFeatures: LiftText.dataFeatures,
                 ),
               ),
               if (widget.unitSuffix.isNotEmpty) ...<Widget>[
                 const SizedBox(width: 4),
                 Text(
                   widget.unitSuffix,
-                  style: const TextStyle(color: AppTheme.textDim, fontSize: 14),
+                  style: LiftText.bodyMedium.copyWith(
+                    color: LiftColors.textDim,
+                  ),
                 ),
               ],
             ],
@@ -191,7 +213,7 @@ class _LogNumericKeypadState extends State<LogNumericKeypad> {
               child: _keyCell(
                 '⌫',
                 _keyBg,
-                AppTheme.textLight,
+                LiftColors.textPrimary,
                 isSpecial: true,
                 semanticLabel: 'Backspace',
                 onTap: _onBackspace,
@@ -202,7 +224,7 @@ class _LogNumericKeypadState extends State<LogNumericKeypad> {
               child: _keyCell(
                 '0',
                 _keyBg,
-                AppTheme.textLight,
+                LiftColors.textPrimary,
                 onTap: () => _onDigit('0'),
               ),
             ),
@@ -210,7 +232,7 @@ class _LogNumericKeypadState extends State<LogNumericKeypad> {
             Expanded(
               child: _keyCell(
                 '✓',
-                AppTheme.primaryOrange,
+                LiftColors.actionFill,
                 Colors.white,
                 isSpecial: true,
                 semanticLabel: 'Confirm',
@@ -238,7 +260,7 @@ class _LogNumericKeypadState extends State<LogNumericKeypad> {
               child: _keyCell(
                 '.',
                 _keyBg,
-                AppTheme.textLight,
+                LiftColors.textPrimary,
                 isSpecial: true,
                 semanticLabel: 'Decimal point',
                 onTap: _onDot,
@@ -249,7 +271,7 @@ class _LogNumericKeypadState extends State<LogNumericKeypad> {
               child: _keyCell(
                 '0',
                 _keyBg,
-                AppTheme.textLight,
+                LiftColors.textPrimary,
                 onTap: () => _onDigit('0'),
               ),
             ),
@@ -258,7 +280,7 @@ class _LogNumericKeypadState extends State<LogNumericKeypad> {
               child: _keyCell(
                 '⌫',
                 _keyBg,
-                AppTheme.textLight,
+                LiftColors.textPrimary,
                 isSpecial: true,
                 semanticLabel: 'Backspace',
                 onTap: _onBackspace,
@@ -283,10 +305,7 @@ class _LogNumericKeypadState extends State<LogNumericKeypad> {
                   borderRadius: BorderRadius.circular(8),
                 ),
               ),
-              child: const Text(
-                'Done',
-                style: TextStyle(fontSize: 16, fontWeight: FontWeight.w600),
-              ),
+              child: const Text('Done', style: LiftText.titleMedium),
             ),
           ),
         ),
@@ -303,7 +322,7 @@ class _LogNumericKeypadState extends State<LogNumericKeypad> {
             child: _keyCell(
               digits[i],
               _keyBg,
-              AppTheme.textLight,
+              LiftColors.textPrimary,
               onTap: () => _onDigit(digits[i]),
             ),
           ),
@@ -327,14 +346,12 @@ class _LogNumericKeypadState extends State<LogNumericKeypad> {
         height: 48,
         child: Material(
           color: bg,
-          borderRadius: BorderRadius.circular(8),
           child: InkWell(
-            borderRadius: BorderRadius.circular(8),
             onTap: onTap,
             child: Center(
               child: Text(
                 label,
-                style: TextStyle(
+                style: LiftText.dataMedium.copyWith(
                   color: fg,
                   fontSize: isSpecial ? 18 : 22,
                   fontWeight: FontWeight.w500,

@@ -1,6 +1,7 @@
 import 'package:bloc_test/bloc_test.dart';
 import 'package:fitness_tracker/app/app.dart';
 import 'package:fitness_tracker/core/constants/app_strings.dart';
+import 'package:fitness_tracker/core/themes/lift_theme.dart';
 import 'package:fitness_tracker/domain/entities/exercise.dart';
 import 'package:fitness_tracker/domain/entities/workout_set.dart';
 import 'package:fitness_tracker/domain/muscle_visual/muscle_visual_contract.dart';
@@ -234,7 +235,8 @@ void main() {
       ); // weight 0 -> 2.5
       await tester.pumpAndSettle();
 
-      await tester.tap(find.text(AppStrings.logSetButton));
+      // LogActionBar renders the CTA label mono-caps uppercase.
+      await tester.tap(find.text(AppStrings.logSetButton.toUpperCase()));
       await tester.pump();
 
       verify(
@@ -279,12 +281,13 @@ void main() {
       await selectBenchPress(tester);
 
       // PR + fatigue come from the (now-based) insight.
-      expect(find.text('PR 105 kg'), findsOneWidget);
-      expect(find.text('Chest'), findsOneWidget);
+      expect(find.text('PR 105 KG'), findsOneWidget);
+      expect(find.text('CHEST'), findsOneWidget);
       expect(find.text('42%'), findsOneWidget);
       // Count reflects the two sets logged for the selected date, not
-      // insight.setsToday.
-      expect(find.text('2 sets today'), findsOneWidget);
+      // insight.setsToday. Uppercased at the render site, matching every
+      // other label-style string in the slice.
+      expect(find.text('2 SETS TODAY'), findsOneWidget);
     });
 
     testWidgets('feed and labels follow a non-today selected date', (
@@ -300,10 +303,13 @@ void main() {
 
       await selectBenchPress(tester);
 
-      // Labels use the formatted date, never "today", for a past date.
-      expect(find.text('Bench Press · Jan 15'), findsOneWidget);
+      // Labels use the formatted date, never "today", for a past date. The
+      // set-feed section label is date-scoped chrome (spec §5.2's `SETS
+      // TODAY` becomes `SETS JAN 15` for a non-today date) — behaviour
+      // (never claiming "today" for a past date) is unchanged.
+      expect(find.text('SETS JAN 15'), findsOneWidget);
       expect(find.text('No sets on Jan 15'), findsOneWidget);
-      expect(find.text('0 sets Jan 15'), findsOneWidget);
+      expect(find.text('0 SETS JAN 15'), findsOneWidget);
       expect(find.textContaining('today'), findsNothing);
     });
 
@@ -341,8 +347,12 @@ void main() {
 
       await selectBenchPress(tester);
 
-      expect(find.text('Set 1'), findsOneWidget);
-      expect(find.text('100 kg × 8'), findsOneWidget);
+      expect(find.text('01'), findsOneWidget);
+      // Weight and reps render through LiftNumber (Text.rich); find.text
+      // resolves it via textSpan.toPlainText(), which concatenates the
+      // value and unit spans into one string.
+      expect(find.text('100kg'), findsOneWidget);
+      expect(find.text('8'), findsOneWidget);
     });
 
     testWidgets('tapping reps stepper value opens keypad; confirming closes '
@@ -375,5 +385,53 @@ void main() {
         findsOneWidget,
       );
     });
+
+    testWidgets(
+      'Deep Mist chrome: no Card, a rule Divider survives, pre-existing keys '
+      'resolve, and the enabled CTA fills actionFill',
+      (tester) async {
+        await tester.pumpWidget(
+          buildSubject(exerciseState: ExercisesLoaded(exercises)),
+        );
+        await tester.pumpAndSettle();
+
+        expect(find.byType(Card), findsNothing);
+
+        final Iterable<Divider> dividers = tester.widgetList<Divider>(
+          find.byType(Divider),
+        );
+        expect(dividers, isNotEmpty);
+        expect(dividers.any((Divider d) => d.color == LiftColors.rule), isTrue);
+
+        expect(find.byKey(const Key('exerciseRepsStepper')), findsOneWidget);
+        expect(find.byKey(const Key('exerciseWeightStepper')), findsOneWidget);
+
+        await selectBenchPress(tester);
+        await tester.tap(
+          find.descendant(
+            of: find.byKey(const Key('exerciseRepsStepper')),
+            matching: find.text('+'),
+          ),
+        );
+        await tester.pumpAndSettle();
+        await tester.tap(
+          find.descendant(
+            of: find.byKey(const Key('exerciseWeightStepper')),
+            matching: find.text('+'),
+          ),
+        );
+        await tester.pumpAndSettle();
+
+        final Material material = tester
+            .widgetList<Material>(
+              find.descendant(
+                of: find.byType(ElevatedButton),
+                matching: find.byType(Material),
+              ),
+            )
+            .first;
+        expect(material.color, LiftColors.actionFill);
+      },
+    );
   });
 }

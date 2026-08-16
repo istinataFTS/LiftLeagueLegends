@@ -2,7 +2,7 @@ import 'package:flutter/material.dart';
 
 import '../../../../core/constants/app_strings.dart';
 import '../../../../core/constants/muscle_groups.dart';
-import '../../../../core/themes/app_theme.dart';
+import '../../../../core/themes/lift_theme.dart';
 import '../../../../domain/entities/exercise.dart';
 
 class ExercisePickerSheet extends StatefulWidget {
@@ -33,6 +33,12 @@ class ExercisePickerSheet extends StatefulWidget {
         minHeight: screenHeight * 0.9,
         maxHeight: screenHeight * 0.9,
       ),
+      // Overrides the theme's bottomSheetTheme.shape (which draws its own
+      // LiftColors.border edge) with a borderless shape so the panel's own
+      // borderStrong edge below is the only one painted — the design spec
+      // calls for the picker panel to carry the stronger edge, and painting
+      // both doubled the hairline.
+      shape: const RoundedRectangleBorder(borderRadius: BorderRadius.zero),
       builder: (_) => ExercisePickerSheet._(
         exercises: exercises,
         recentExerciseIds: recentExerciseIds,
@@ -61,13 +67,13 @@ class _ExercisePickerSheetState extends State<ExercisePickerSheet> {
 
     if (_selectedMuscle != null) {
       result = result
-          .where((e) => e.muscleGroups.contains(_selectedMuscle))
+          .where((Exercise e) => e.muscleGroups.contains(_selectedMuscle))
           .toList();
     }
 
     if (_searchQuery.isNotEmpty) {
       final String query = _searchQuery.toLowerCase();
-      result = result.where((e) {
+      result = result.where((Exercise e) {
         return e.name.toLowerCase().contains(query) ||
             e.muscleGroups.any(
               (mg) =>
@@ -109,19 +115,34 @@ class _ExercisePickerSheetState extends State<ExercisePickerSheet> {
     final List<Exercise> all = _filteredAllExercises;
     final bool hasQuery = _searchQuery.isNotEmpty;
 
-    return Column(
-      children: <Widget>[
-        _buildHeader(context),
-        const Divider(height: 1),
-        _buildSearchField(),
-        _buildMuscleFilterChips(),
-        const Divider(height: 1),
-        Expanded(
-          child: hasQuery
-              ? _buildFlatList(all)
-              : _buildSectionedList(recents, all),
+    return Container(
+      key: const ValueKey<String>('exercise-picker-panel'),
+      decoration: const BoxDecoration(
+        color: LiftColors.panelTop,
+        border: Border.fromBorderSide(
+          BorderSide(
+            color: LiftColors.borderStrong,
+            width: LiftShape.borderWidth,
+          ),
         ),
-      ],
+        borderRadius: BorderRadius.zero,
+        boxShadow: LiftElevation.elevated,
+      ),
+      child: Column(
+        children: <Widget>[
+          _buildHeader(context),
+          const Divider(height: 1, color: LiftColors.hairline),
+          _buildSearchField(),
+          _buildMuscleFilterChips(),
+          _buildResultCount(all.length, widget.exercises.length, hasQuery),
+          const Divider(height: 1, color: LiftColors.hairline),
+          Expanded(
+            child: hasQuery
+                ? _buildFlatList(all)
+                : _buildSectionedList(recents, all),
+          ),
+        ],
+      ),
     );
   }
 
@@ -133,14 +154,14 @@ class _ExercisePickerSheetState extends State<ExercisePickerSheet> {
           Expanded(
             child: Text(
               AppStrings.selectExercise,
-              style: Theme.of(
-                context,
-              ).textTheme.titleLarge?.copyWith(fontWeight: FontWeight.w600),
+              style: LiftText.titleLarge.copyWith(
+                color: LiftColors.textPrimary,
+              ),
             ),
           ),
           IconButton(
             onPressed: () => Navigator.pop(context),
-            icon: const Icon(Icons.close),
+            icon: const Icon(Icons.close, color: LiftColors.textDim),
           ),
         ],
       ),
@@ -152,12 +173,13 @@ class _ExercisePickerSheetState extends State<ExercisePickerSheet> {
       padding: const EdgeInsets.fromLTRB(16, 8, 16, 8),
       child: TextField(
         controller: _searchController,
+        style: LiftText.bodyLarge.copyWith(color: LiftColors.textPrimary),
         decoration: InputDecoration(
           hintText: AppStrings.searchExercisesHint,
-          prefixIcon: const Icon(Icons.search),
+          prefixIcon: const Icon(Icons.search, color: LiftColors.textDim),
           suffixIcon: _searchQuery.isNotEmpty
               ? IconButton(
-                  icon: const Icon(Icons.clear),
+                  icon: const Icon(Icons.clear, color: LiftColors.textDim),
                   onPressed: () {
                     setState(() {
                       _searchController.clear();
@@ -174,26 +196,29 @@ class _ExercisePickerSheetState extends State<ExercisePickerSheet> {
 
   Widget _buildMuscleFilterChips() {
     return SizedBox(
-      height: 48,
+      key: const ValueKey<String>('muscle-filter-row'),
+      height: 44,
       child: ListView(
         scrollDirection: Axis.horizontal,
-        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
+        padding: const EdgeInsets.symmetric(horizontal: 16),
         children: <Widget>[
           Padding(
             padding: const EdgeInsets.only(right: 8),
-            child: FilterChip(
-              label: const Text(AppStrings.all),
+            child: _buildFilterChip(
+              key: const ValueKey<String>('muscle-filter-all'),
+              label: AppStrings.all,
               selected: _selectedMuscle == null,
-              onSelected: (_) => setState(() => _selectedMuscle = null),
+              onTap: () => setState(() => _selectedMuscle = null),
             ),
           ),
           ...MuscleGroups.all.map(
             (String muscle) => Padding(
               padding: const EdgeInsets.only(right: 8),
-              child: FilterChip(
-                label: Text(MuscleGroups.getDisplayName(muscle)),
+              child: _buildFilterChip(
+                key: ValueKey<String>('muscle-filter-$muscle'),
+                label: MuscleGroups.getDisplayName(muscle),
                 selected: _selectedMuscle == muscle,
-                onSelected: (_) => setState(() {
+                onTap: () => setState(() {
                   _selectedMuscle = _selectedMuscle == muscle ? null : muscle;
                 }),
               ),
@@ -204,14 +229,62 @@ class _ExercisePickerSheetState extends State<ExercisePickerSheet> {
     );
   }
 
+  Widget _buildFilterChip({
+    required Key key,
+    required String label,
+    required bool selected,
+    required VoidCallback onTap,
+  }) {
+    return Material(
+      key: key,
+      color: Colors.transparent,
+      child: InkWell(
+        onTap: onTap,
+        child: Container(
+          constraints: const BoxConstraints(minHeight: 44),
+          padding: const EdgeInsets.symmetric(horizontal: 14),
+          alignment: Alignment.center,
+          decoration: BoxDecoration(
+            color: selected ? LiftColors.actionFill : Colors.transparent,
+            border: const Border.fromBorderSide(
+              BorderSide(
+                color: LiftColors.border,
+                width: LiftShape.borderWidth,
+              ),
+            ),
+            borderRadius: BorderRadius.zero,
+          ),
+          child: Text(
+            label.toUpperCase(),
+            style: LiftText.labelMedium.copyWith(
+              color: selected ? Colors.white : LiftColors.textDim,
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildResultCount(int shown, int total, bool hasQuery) {
+    final String text = hasQuery ? '$shown OF $total' : '$total ITEMS';
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(16, 0, 16, 8),
+      child: Align(
+        alignment: Alignment.centerRight,
+        child: Text(
+          text,
+          style: LiftText.labelLarge.copyWith(color: LiftColors.textDim),
+        ),
+      ),
+    );
+  }
+
   Widget _buildFlatList(List<Exercise> exercises) {
     if (exercises.isEmpty) {
       return Center(
         child: Text(
           AppStrings.noResultsFound,
-          style: Theme.of(
-            context,
-          ).textTheme.bodyMedium?.copyWith(color: AppTheme.textMedium),
+          style: LiftText.bodyMedium.copyWith(color: LiftColors.textDim),
         ),
       );
     }
@@ -228,7 +301,12 @@ class _ExercisePickerSheetState extends State<ExercisePickerSheet> {
         if (recents.isNotEmpty) ...<Widget>[
           _buildSectionHeader(AppStrings.pickerRecents),
           ...recents.map(_buildExerciseTile),
-          const Divider(height: 16, indent: 16, endIndent: 16),
+          const Divider(
+            height: 16,
+            indent: 16,
+            endIndent: 16,
+            color: LiftColors.hairline,
+          ),
         ],
         _buildSectionHeader(AppStrings.pickerAllExercises),
         ...all.map(_buildExerciseTile),
@@ -241,57 +319,67 @@ class _ExercisePickerSheetState extends State<ExercisePickerSheet> {
       padding: const EdgeInsets.fromLTRB(16, 8, 16, 4),
       child: Text(
         title,
-        style: Theme.of(context).textTheme.labelLarge?.copyWith(
-          color: AppTheme.textDim,
-          fontWeight: FontWeight.w600,
-          letterSpacing: 0.5,
-        ),
+        style: LiftText.labelLarge.copyWith(color: LiftColors.textDim),
       ),
     );
   }
 
   Widget _buildExerciseTile(Exercise exercise) {
     final bool isSelected = widget.selected?.id == exercise.id;
+    final String muscleText = exercise.muscleGroups
+        .map(MuscleGroups.getDisplayName)
+        .join(' · ')
+        .toUpperCase();
 
     return Material(
-      color: isSelected
-          ? AppTheme.primaryOrange.withValues(alpha: 0.07)
-          : Colors.transparent,
+      color: Colors.transparent,
       child: InkWell(
         onTap: () => Navigator.pop(context, exercise),
-        child: Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+        child: Container(
+          key: ValueKey<String>('exercise-row-${exercise.id}'),
+          constraints: const BoxConstraints(minHeight: 44),
+          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+          decoration: BoxDecoration(
+            color: isSelected ? LiftColors.actionWash : Colors.transparent,
+            border: Border(
+              left: BorderSide(
+                color: isSelected ? LiftColors.actionTint : Colors.transparent,
+                width: LiftShape.borderWidthActive,
+              ),
+              bottom: const BorderSide(color: LiftColors.hairline, width: 1),
+            ),
+          ),
           child: Row(
             crossAxisAlignment: CrossAxisAlignment.center,
             children: <Widget>[
               _buildLeadingTile(isSelected),
               const SizedBox(width: 12),
               Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  mainAxisSize: MainAxisSize.min,
-                  children: <Widget>[
-                    Text(
-                      exercise.name,
-                      style: Theme.of(context).textTheme.bodyLarge?.copyWith(
-                        color: isSelected
-                            ? AppTheme.primaryOrange
-                            : AppTheme.textLight,
-                        fontWeight: isSelected
-                            ? FontWeight.w600
-                            : FontWeight.w500,
-                      ),
-                    ),
-                    if (exercise.muscleGroups.isNotEmpty) ...<Widget>[
-                      const SizedBox(height: 6),
-                      _buildMusclePills(exercise.muscleGroups, isSelected),
-                    ],
-                  ],
+                child: Text(
+                  exercise.name,
+                  style: LiftText.bodyLarge.copyWith(
+                    color: LiftColors.textPrimary,
+                    fontWeight: isSelected ? FontWeight.w700 : FontWeight.w400,
+                  ),
                 ),
               ),
+              if (muscleText.isNotEmpty) ...<Widget>[
+                const SizedBox(width: 12),
+                Flexible(
+                  child: Text(
+                    muscleText,
+                    textAlign: TextAlign.right,
+                    overflow: TextOverflow.ellipsis,
+                    maxLines: 1,
+                    style: LiftText.labelLarge.copyWith(
+                      color: LiftColors.textDim,
+                    ),
+                  ),
+                ),
+              ],
               if (isSelected) ...<Widget>[
                 const SizedBox(width: 8),
-                const Icon(Icons.check_circle, color: AppTheme.primaryOrange),
+                const Icon(Icons.check_circle, color: LiftColors.actionTint),
               ],
             ],
           ),
@@ -305,46 +393,13 @@ class _ExercisePickerSheetState extends State<ExercisePickerSheet> {
       width: 38,
       height: 38,
       decoration: BoxDecoration(
-        gradient: isSelected ? AppTheme.primaryGradient : null,
-        color: isSelected ? null : AppTheme.surfaceMedium,
-        borderRadius: BorderRadius.circular(10),
+        color: isSelected ? LiftColors.actionFill : LiftColors.surfaceRaised,
       ),
       child: Icon(
         Icons.fitness_center,
         size: 18,
-        color: isSelected ? Colors.white : AppTheme.textDim,
+        color: isSelected ? Colors.white : LiftColors.textDim,
       ),
-    );
-  }
-
-  Widget _buildMusclePills(List<String> muscles, bool rowSelected) {
-    final Color bg = rowSelected
-        ? AppTheme.primaryOrange.withValues(alpha: 0.20)
-        : AppTheme.info.withValues(alpha: 0.16);
-    final Color fg = rowSelected ? AppTheme.primaryOrangeLight : AppTheme.info;
-
-    return Wrap(
-      spacing: 6,
-      runSpacing: 4,
-      children: muscles
-          .map(
-            (String mg) => Container(
-              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
-              decoration: BoxDecoration(
-                color: bg,
-                borderRadius: BorderRadius.circular(11),
-              ),
-              child: Text(
-                MuscleGroups.getDisplayName(mg),
-                style: TextStyle(
-                  color: fg,
-                  fontSize: 11.5,
-                  fontWeight: FontWeight.w500,
-                ),
-              ),
-            ),
-          )
-          .toList(),
     );
   }
 }

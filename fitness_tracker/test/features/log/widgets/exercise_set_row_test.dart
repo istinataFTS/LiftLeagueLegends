@@ -1,6 +1,7 @@
 import 'package:fitness_tracker/app/app.dart';
+import 'package:fitness_tracker/core/themes/lift_number.dart';
+import 'package:fitness_tracker/core/themes/lift_theme.dart';
 import 'package:fitness_tracker/features/log/presentation/widgets/exercise_set_row.dart';
-import 'package:fitness_tracker/features/log/presentation/widgets/shared/log_ui_colors.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 
@@ -32,46 +33,52 @@ void main() {
       );
       await tester.pumpAndSettle();
 
-      expect(find.text('Set 2'), findsOneWidget);
-      expect(find.text('100 kg × 8'), findsOneWidget);
-      // Intensity pill shows the level number.
-      expect(find.text('4'), findsOneWidget);
+      // Set number is zero-padded mono, not "Set n".
+      expect(find.text('02'), findsOneWidget);
+      // Weight and reps render through LiftNumber (Text.rich); find.text
+      // still resolves it via textSpan.toPlainText(), which concatenates
+      // the value and unit spans into one string.
+      expect(find.text('100kg'), findsOneWidget);
+      expect(find.text('8'), findsOneWidget);
     });
 
-    Align fillAlign(WidgetTester tester) {
-      // A Container with `alignment:` inserts its own Align (widthFactor null);
-      // the intensity-bar fill is the only Align that sets a widthFactor.
-      return tester
-          .widgetList<Align>(find.byType(Align))
-          .firstWhere((Align a) => a.widthFactor != null);
-    }
-
-    testWidgets('intensity bar fill fraction equals level / 5', (tester) async {
+    testWidgets('five effort marks render, filled up to the level', (
+      tester,
+    ) async {
       await tester.pumpWidget(buildSubject(intensity: 3));
       await tester.pumpAndSettle();
 
-      expect(fillAlign(tester).widthFactor, closeTo(3 / 5, 0.0001));
+      for (int i = 0; i < 5; i++) {
+        final Container mark = tester.widget<Container>(
+          find.byKey(ValueKey<String>('set-effort-mark-$i')),
+        );
+        expect(
+          (mark.decoration! as BoxDecoration).color,
+          i < 3 ? LiftColors.effortOn : LiftColors.effortOff,
+        );
+      }
     });
 
-    testWidgets('level 0 fill fraction is 0', (tester) async {
-      await tester.pumpWidget(buildSubject(intensity: 0));
+    testWidgets('weight renders with the unit riding it', (tester) async {
+      await tester.pumpWidget(buildSubject(weightText: '15 kg'));
       await tester.pumpAndSettle();
 
-      expect(fillAlign(tester).widthFactor, equals(0.0));
+      final LiftNumber weight = tester.widget<LiftNumber>(
+        find.byType(LiftNumber).first,
+      );
+      expect(weight.value, '15');
+      expect(weight.unit, 'kg');
     });
 
-    testWidgets('intensity pill color matches the ramp slot', (tester) async {
-      await tester.pumpWidget(buildSubject(intensity: 5));
+    testWidgets('no gradient survives on the row', (tester) async {
+      await tester.pumpWidget(buildSubject());
       await tester.pumpAndSettle();
 
-      final bool hasRampColoredBox = tester
-          .widgetList<Container>(find.byType(Container))
-          .any((Container c) {
-            final Object? deco = c.decoration;
-            return deco is BoxDecoration &&
-                deco.color == LogUiColors.intensityRamp[5];
-          });
-      expect(hasRampColoredBox, isTrue);
+      for (final Container c in tester.widgetList<Container>(
+        find.byType(Container),
+      )) {
+        expect((c.decoration as BoxDecoration?)?.gradient, isNull);
+      }
     });
   });
 }

@@ -1,21 +1,20 @@
-import 'dart:ui';
-
-import 'package:flutter/material.dart' hide FontFeature;
+import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 
-import '../../../../../core/constants/app_strings.dart';
-import '../../../../../core/themes/app_theme.dart';
+import '../../../../../core/themes/lift_number.dart';
+import '../../../../../core/themes/lift_theme.dart';
 import '../../../../../core/utils/week_date_utils.dart';
 import '../../../application/nutrition_log_bloc.dart';
-import 'log_ui_colors.dart';
 import 'macro_composition_bar.dart';
+import 'macro_label.dart';
 
-/// Shared "Today so far" card used by the Log Macros and Meal tabs.
+/// Shared "Today so far" block used by the Log Macros and Meal tabs.
 ///
 /// Renders nothing when [state] is not [DailyLogsLoaded] or its date does not
-/// match [selectedDate]. Otherwise shows: header ("Today so far" / "MMM d so
-/// far" + "<kcal> kcal · N logs"), three macro cells (P/C/F), and the live
-/// [MacroCompositionBar].
+/// match [selectedDate]. Otherwise shows: header ("TODAY SO FAR" / "MMM d SO
+/// FAR" + "<kcal> KCAL · N LOGS"), three macro cells (P/C/F), and the live
+/// [MacroCompositionBar]. Sits directly on the ground, bounded top and bottom
+/// by a hairline rule — no card, no fill, no radius.
 class LogTodaySoFarCard extends StatelessWidget {
   const LogTodaySoFarCard({
     super.key,
@@ -48,11 +47,16 @@ class LogTodaySoFarCard extends StatelessWidget {
     final String logsLabel = logCount == 1 ? '1 log' : '$logCount logs';
 
     return Container(
-      padding: const EdgeInsets.all(14),
-      decoration: BoxDecoration(
-        color: LogUiColors.rowSurface,
-        borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: AppTheme.borderDark),
+      key: const ValueKey<String>('log-today-so-far-block'),
+      padding: const EdgeInsets.symmetric(vertical: 14),
+      decoration: const BoxDecoration(
+        border: Border(
+          top: BorderSide(color: LiftColors.rule, width: LiftShape.borderWidth),
+          bottom: BorderSide(
+            color: LiftColors.rule,
+            width: LiftShape.borderWidth,
+          ),
+        ),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -60,47 +64,55 @@ class LogTodaySoFarCard extends StatelessWidget {
         children: <Widget>[
           Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            crossAxisAlignment: CrossAxisAlignment.end,
             children: <Widget>[
-              Text(
-                header,
-                style: const TextStyle(
-                  color: AppTheme.textLight,
-                  fontSize: 14,
-                  fontWeight: FontWeight.w700,
+              Flexible(
+                child: Text(
+                  header.toUpperCase(),
+                  overflow: TextOverflow.ellipsis,
+                  maxLines: 1,
+                  style: LiftText.labelLarge.copyWith(
+                    color: LiftColors.textStrong,
+                  ),
                 ),
               ),
-              Text(
-                '$totalCalories kcal · $logsLabel',
-                style: const TextStyle(
-                  color: AppTheme.textDim,
-                  fontSize: 12,
-                  fontFeatures: <FontFeature>[FontFeature.tabularFigures()],
-                ),
+              Row(
+                mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.baseline,
+                textBaseline: TextBaseline.alphabetic,
+                children: <Widget>[
+                  Text(
+                    '$totalCalories',
+                    style: LiftText.dataSmall.copyWith(
+                      color: LiftColors.textPrimary,
+                      fontFeatures: LiftText.dataFeatures,
+                    ),
+                  ),
+                  Text(
+                    ' KCAL · ${logsLabel.toUpperCase()}',
+                    style: LiftText.labelLarge.copyWith(
+                      color: LiftColors.textDim,
+                    ),
+                  ),
+                ],
               ),
             ],
           ),
-          const SizedBox(height: 10),
+          const SizedBox(height: 14),
           Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: <Widget>[
-              _TodayCell(
-                label: AppStrings.protein,
-                grams: totalProtein,
-                color: LogUiColors.protein,
+              Expanded(
+                child: _TodayCell(kind: MacroKind.protein, grams: totalProtein),
               ),
-              _TodayCell(
-                label: AppStrings.carbs,
-                grams: totalCarbs,
-                color: LogUiColors.carbs,
+              Expanded(
+                child: _TodayCell(kind: MacroKind.carbs, grams: totalCarbs),
               ),
-              _TodayCell(
-                label: AppStrings.fats,
-                grams: totalFats,
-                color: LogUiColors.fats,
+              Expanded(
+                child: _TodayCell(kind: MacroKind.fats, grams: totalFats),
               ),
             ],
           ),
-          const SizedBox(height: 10),
+          const SizedBox(height: 14),
           Semantics(
             label: isToday
                 ? 'Today macro composition'
@@ -118,15 +130,10 @@ class LogTodaySoFarCard extends StatelessWidget {
 }
 
 class _TodayCell extends StatelessWidget {
-  const _TodayCell({
-    required this.label,
-    required this.grams,
-    required this.color,
-  });
+  const _TodayCell({required this.kind, required this.grams});
 
-  final String label;
+  final MacroKind kind;
   final int grams;
-  final Color color;
 
   @override
   Widget build(BuildContext context) {
@@ -134,19 +141,16 @@ class _TodayCell extends StatelessWidget {
       mainAxisSize: MainAxisSize.min,
       crossAxisAlignment: CrossAxisAlignment.center,
       children: <Widget>[
-        Text(
-          '${grams}g',
-          style: TextStyle(
-            color: color,
-            fontSize: 16,
-            fontWeight: FontWeight.w700,
-            fontFeatures: const <FontFeature>[FontFeature.tabularFigures()],
-          ),
+        LiftNumber(
+          '$grams',
+          'g',
+          LiftText.dataMedium,
+          textAlign: TextAlign.center,
         ),
-        const SizedBox(height: 2),
-        Text(
-          label,
-          style: const TextStyle(color: AppTheme.textDim, fontSize: 11),
+        const SizedBox(height: 6),
+        MacroLabel(
+          kind: kind,
+          swatchKey: ValueKey<String>('today-swatch-${kind.name}'),
         ),
       ],
     );

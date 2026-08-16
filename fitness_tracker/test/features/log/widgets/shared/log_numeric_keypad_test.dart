@@ -1,4 +1,5 @@
 import 'package:fitness_tracker/app/app.dart';
+import 'package:fitness_tracker/core/themes/lift_theme.dart';
 import 'package:fitness_tracker/features/log/presentation/widgets/shared/log_numeric_keypad.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -291,6 +292,117 @@ void main() {
 
         expect(submitted, equals(12));
       });
+    });
+
+    group('styling', () {
+      testWidgets('panel surface is LiftColors.panelTop with square corners', (
+        tester,
+      ) async {
+        await tester.pumpWidget(buildSubject());
+        await tester.pumpAndSettle();
+
+        final Container panel = tester.widget<Container>(
+          find.byKey(const ValueKey<String>('log-numeric-keypad-panel')),
+        );
+        final BoxDecoration decoration = panel.decoration! as BoxDecoration;
+
+        expect(decoration.color, LiftColors.panelTop);
+        expect(decoration.borderRadius, BorderRadius.zero);
+      });
+
+      testWidgets('panel border is top-only — callers already draw their '
+          'own dock seam', (tester) async {
+        await tester.pumpWidget(buildSubject());
+        await tester.pumpAndSettle();
+
+        final Container panel = tester.widget<Container>(
+          find.byKey(const ValueKey<String>('log-numeric-keypad-panel')),
+        );
+        final BoxDecoration decoration = panel.decoration! as BoxDecoration;
+        final Border border = decoration.border! as Border;
+
+        expect(
+          border.top,
+          const BorderSide(
+            color: LiftColors.border,
+            width: LiftShape.borderWidth,
+          ),
+        );
+        expect(border.left, BorderSide.none);
+        expect(border.right, BorderSide.none);
+        expect(border.bottom, BorderSide.none);
+      });
+
+      testWidgets('a digit key renders in JetBrains Mono', (tester) async {
+        await tester.pumpWidget(buildSubject());
+        await tester.pumpAndSettle();
+
+        final Text digit = tester.widget<Text>(find.text('5').last);
+
+        expect(digit.style?.fontFamily, 'JetBrainsMono');
+      });
+    });
+
+    group('docked as callers wrap it', () {
+      // Every call site (log_exercise_tab, log_meal_tab, log_macros_tab)
+      // docks the keypad the same way: a Container (background color only)
+      // wrapping SafeArea(top: false, LogNumericKeypad(...)). The standalone
+      // 'panel border is top-only' test above pumps the keypad with no such
+      // wrapper, so it cannot see a second border painted by that wrapper —
+      // this test reproduces the real docking shape to catch that.
+      Widget buildDocked() {
+        return AppShell(
+          home: Scaffold(
+            body: Container(
+              key: const ValueKey<String>('dock-wrapper'),
+              decoration: const BoxDecoration(color: LiftColors.background),
+              child: SafeArea(
+                top: false,
+                child: LogNumericKeypad(
+                  initialValue: 0,
+                  label: 'Reps',
+                  onSubmit: (_) {},
+                  onCancel: () {},
+                ),
+              ),
+            ),
+          ),
+        );
+      }
+
+      testWidgets(
+        'the dock wrapper draws no border of its own — the keypad panel is '
+        'the only seam',
+        (tester) async {
+          await tester.pumpWidget(buildDocked());
+          await tester.pumpAndSettle();
+
+          final Container wrapper = tester.widget<Container>(
+            find.byKey(const ValueKey<String>('dock-wrapper')),
+          );
+          final BoxDecoration wrapperDecoration =
+              wrapper.decoration! as BoxDecoration;
+          expect(
+            wrapperDecoration.border,
+            isNull,
+            reason:
+                'the dock wrapper must not draw its own border — the '
+                'keypad panel already owns the seam; drawing both doubles it',
+          );
+
+          final Container panel = tester.widget<Container>(
+            find.byKey(const ValueKey<String>('log-numeric-keypad-panel')),
+          );
+          final BoxDecoration panelDecoration =
+              panel.decoration! as BoxDecoration;
+          final Border panelBorder = panelDecoration.border! as Border;
+          expect(panelBorder.top.color, LiftColors.border);
+          expect(panelBorder.top.width, LiftShape.borderWidth);
+          expect(panelBorder.left, BorderSide.none);
+          expect(panelBorder.right, BorderSide.none);
+          expect(panelBorder.bottom, BorderSide.none);
+        },
+      );
     });
   });
 }

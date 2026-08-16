@@ -1,13 +1,12 @@
-import 'dart:ui';
-
-import 'package:flutter/material.dart' hide FontFeature;
+import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
-import '../../../../../core/themes/app_theme.dart';
+import '../../../../../core/themes/lift_number.dart';
+import '../../../../../core/themes/lift_theme.dart';
 
-/// Bordered stepper cell: label on top, [− value +] row below.
-/// The value text is tappable (dashed underline) and calls [onTapValue]
-/// to open a [LogNumericKeypad] in the parent's dock.
+/// Stepper cell: label on top, [− value +] row below.
+/// The value text is tappable and calls [onTapValue] to open a
+/// [LogNumericKeypad] in the parent's dock.
 ///
 /// Set [dense] to drop the top label row + outer vertical paddings for a
 /// compact single-line variant (used by the Macros tab P/C/F rows). The 44×44
@@ -23,7 +22,7 @@ class LogStepperField extends StatelessWidget {
     this.onTapValue,
     this.step = 1,
     this.min = 0,
-    this.accentColor = AppTheme.primaryOrange,
+    this.accentColor = LiftColors.actionTint,
     this.allowDecimal = false,
     this.dense = false,
   });
@@ -38,10 +37,15 @@ class LogStepperField extends StatelessWidget {
   final bool allowDecimal;
   final bool dense;
 
-  String _formatValue() {
-    if (!allowDecimal) return value.round().toString();
+  /// Splits a decimal value so the fraction rides small and dim, matching
+  /// frame 02's `37.0`. Integers render with no unit slot.
+  LiftNumber _value() {
+    if (!allowDecimal) {
+      return LiftNumber(value.round().toString(), '', LiftText.dataHero);
+    }
     final double rounded = (value * 10).round() / 10.0;
-    return rounded.toStringAsFixed(1);
+    final List<String> parts = rounded.toStringAsFixed(1).split('.');
+    return LiftNumber(parts[0], '.${parts[1]}', LiftText.dataHero);
   }
 
   num _increment() {
@@ -59,115 +63,86 @@ class LogStepperField extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Container(
-      decoration: BoxDecoration(
-        color: AppTheme.surfaceDark,
-        borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: AppTheme.borderDark),
-      ),
-      child: Column(
-        mainAxisSize: MainAxisSize.min,
-        children: <Widget>[
-          if (!dense) ...<Widget>[
-            const SizedBox(height: 8),
-            Text(
-              label,
-              textAlign: TextAlign.center,
-              style: const TextStyle(
-                color: AppTheme.textDim,
-                fontSize: 12,
-                fontWeight: FontWeight.w500,
+    return Column(
+      mainAxisSize: MainAxisSize.min,
+      children: <Widget>[
+        if (!dense) ...<Widget>[
+          const SizedBox(height: 8),
+          Text(
+            label.toUpperCase(),
+            textAlign: TextAlign.center,
+            style: LiftText.labelMedium.copyWith(color: LiftColors.textDim),
+          ),
+          const SizedBox(height: 4),
+        ],
+        Row(
+          children: <Widget>[
+            // Decrease button — ≥44 dp hit target
+            Semantics(
+              button: true,
+              label: 'Decrease $label',
+              child: SizedBox(
+                width: 44,
+                height: 44,
+                child: InkWell(
+                  borderRadius: BorderRadius.circular(8),
+                  onTap: () {
+                    HapticFeedback.selectionClick();
+                    onChanged(_decrement());
+                  },
+                  child: Center(
+                    child: Text(
+                      '−',
+                      style: TextStyle(
+                        color: LiftColors.textFaint,
+                        fontSize: 28,
+                        fontWeight: FontWeight.w500,
+                      ),
+                    ),
+                  ),
+                ),
               ),
             ),
-            const SizedBox(height: 4),
-          ],
-          Row(
-            children: <Widget>[
-              // Decrease button — ≥44 dp hit target
-              Semantics(
-                button: true,
-                label: 'Decrease $label',
-                child: SizedBox(
-                  width: 44,
-                  height: 44,
-                  child: InkWell(
-                    borderRadius: BorderRadius.circular(8),
-                    onTap: () {
-                      HapticFeedback.selectionClick();
-                      onChanged(_decrement());
-                    },
-                    child: Center(
-                      child: Text(
-                        '−',
-                        style: TextStyle(
-                          color: accentColor,
-                          fontSize: 24,
-                          fontWeight: FontWeight.w500,
-                        ),
-                      ),
-                    ),
-                  ),
-                ),
+            // Value display — FittedBox(scaleDown) guarantees the
+            // number shrinks to fit its slot instead of painting a
+            // RenderFlex overflow stripe, however narrow the column or
+            // however many digits the value grows to.
+            Expanded(
+              child: GestureDetector(
+                onTap: onTapValue,
+                child: FittedBox(fit: BoxFit.scaleDown, child: _value()),
               ),
-              // Value display — FittedBox(scaleDown) guarantees the
-              // number shrinks to fit its slot instead of painting a
-              // RenderFlex overflow stripe, however narrow the column or
-              // however many digits the value grows to.
-              Expanded(
-                child: GestureDetector(
-                  onTap: onTapValue,
-                  child: FittedBox(
-                    fit: BoxFit.scaleDown,
+            ),
+            // Increase button — ≥44 dp hit target
+            Semantics(
+              button: true,
+              label: 'Increase $label',
+              child: SizedBox(
+                width: 44,
+                height: 44,
+                child: InkWell(
+                  borderRadius: BorderRadius.circular(8),
+                  onTap: () {
+                    HapticFeedback.selectionClick();
+                    onChanged(_increment());
+                  },
+                  child: Center(
                     child: Text(
-                      _formatValue(),
+                      '+',
                       style: TextStyle(
-                        color: AppTheme.textLight,
-                        fontSize: 22,
-                        fontWeight: FontWeight.w600,
-                        fontFeatures: const <FontFeature>[
-                          FontFeature.tabularFigures(),
-                        ],
-                        decoration: onTapValue != null
-                            ? TextDecoration.underline
-                            : null,
-                        decorationStyle: TextDecorationStyle.dashed,
-                        decorationColor: AppTheme.textDim,
+                        color: accentColor,
+                        fontSize: 28,
+                        fontWeight: FontWeight.w500,
                       ),
                     ),
                   ),
                 ),
               ),
-              // Increase button — ≥44 dp hit target
-              Semantics(
-                button: true,
-                label: 'Increase $label',
-                child: SizedBox(
-                  width: 44,
-                  height: 44,
-                  child: InkWell(
-                    borderRadius: BorderRadius.circular(8),
-                    onTap: () {
-                      HapticFeedback.selectionClick();
-                      onChanged(_increment());
-                    },
-                    child: Center(
-                      child: Text(
-                        '+',
-                        style: TextStyle(
-                          color: accentColor,
-                          fontSize: 24,
-                          fontWeight: FontWeight.w500,
-                        ),
-                      ),
-                    ),
-                  ),
-                ),
-              ),
-            ],
-          ),
-          if (!dense) const SizedBox(height: 8),
-        ],
-      ),
+            ),
+          ],
+        ),
+        if (!dense) const SizedBox(height: 8),
+      ],
     );
   }
 }

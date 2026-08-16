@@ -1,9 +1,9 @@
 import 'package:flutter/material.dart';
 
 import '../../../../core/constants/app_strings.dart';
-import '../../../../core/themes/app_theme.dart';
+import '../../../../core/themes/lift_number.dart';
+import '../../../../core/themes/lift_theme.dart';
 import '../../../../domain/entities/meal.dart';
-import 'shared/log_ui_colors.dart';
 
 class MealPickerSheet extends StatefulWidget {
   const MealPickerSheet._({
@@ -33,6 +33,12 @@ class MealPickerSheet extends StatefulWidget {
         minHeight: screenHeight * 0.9,
         maxHeight: screenHeight * 0.9,
       ),
+      // Overrides the theme's bottomSheetTheme.shape (which draws its own
+      // LiftColors.border edge) with a borderless shape so the panel's own
+      // borderStrong edge below is the only one painted — the design spec
+      // calls for the picker panel to carry the stronger edge, and painting
+      // both doubled the hairline.
+      shape: const RoundedRectangleBorder(borderRadius: BorderRadius.zero),
       builder: (_) => MealPickerSheet._(
         meals: meals,
         recentMealIds: recentMealIds,
@@ -86,18 +92,33 @@ class _MealPickerSheetState extends State<MealPickerSheet> {
     final List<Meal> all = _filteredAllMeals;
     final bool hasQuery = _searchQuery.isNotEmpty;
 
-    return Column(
-      children: <Widget>[
-        _buildHeader(context),
-        const Divider(height: 1),
-        _buildSearchField(),
-        const Divider(height: 1),
-        Expanded(
-          child: hasQuery
-              ? _buildFlatList(all)
-              : _buildSectionedList(recents, all),
+    return Container(
+      key: const ValueKey<String>('meal-picker-panel'),
+      decoration: const BoxDecoration(
+        color: LiftColors.panelTop,
+        border: Border.fromBorderSide(
+          BorderSide(
+            color: LiftColors.borderStrong,
+            width: LiftShape.borderWidth,
+          ),
         ),
-      ],
+        borderRadius: BorderRadius.zero,
+        boxShadow: LiftElevation.elevated,
+      ),
+      child: Column(
+        children: <Widget>[
+          _buildHeader(context),
+          const Divider(height: 1, color: LiftColors.hairline),
+          _buildSearchField(),
+          _buildResultCount(all.length, widget.meals.length, hasQuery),
+          const Divider(height: 1, color: LiftColors.hairline),
+          Expanded(
+            child: hasQuery
+                ? _buildFlatList(all)
+                : _buildSectionedList(recents, all),
+          ),
+        ],
+      ),
     );
   }
 
@@ -109,14 +130,14 @@ class _MealPickerSheetState extends State<MealPickerSheet> {
           Expanded(
             child: Text(
               AppStrings.selectMeal,
-              style: Theme.of(
-                context,
-              ).textTheme.titleLarge?.copyWith(fontWeight: FontWeight.w600),
+              style: LiftText.titleLarge.copyWith(
+                color: LiftColors.textPrimary,
+              ),
             ),
           ),
           IconButton(
             onPressed: () => Navigator.pop(context),
-            icon: const Icon(Icons.close),
+            icon: const Icon(Icons.close, color: LiftColors.textDim),
           ),
         ],
       ),
@@ -128,12 +149,13 @@ class _MealPickerSheetState extends State<MealPickerSheet> {
       padding: const EdgeInsets.fromLTRB(16, 8, 16, 8),
       child: TextField(
         controller: _searchController,
+        style: LiftText.bodyLarge.copyWith(color: LiftColors.textPrimary),
         decoration: InputDecoration(
           hintText: AppStrings.searchMeals,
-          prefixIcon: const Icon(Icons.search),
+          prefixIcon: const Icon(Icons.search, color: LiftColors.textDim),
           suffixIcon: _searchQuery.isNotEmpty
               ? IconButton(
-                  icon: const Icon(Icons.clear),
+                  icon: const Icon(Icons.clear, color: LiftColors.textDim),
                   onPressed: () {
                     setState(() {
                       _searchController.clear();
@@ -148,14 +170,26 @@ class _MealPickerSheetState extends State<MealPickerSheet> {
     );
   }
 
+  Widget _buildResultCount(int shown, int total, bool hasQuery) {
+    final String text = hasQuery ? '$shown OF $total' : '$total ITEMS';
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(16, 0, 16, 8),
+      child: Align(
+        alignment: Alignment.centerRight,
+        child: Text(
+          text,
+          style: LiftText.labelLarge.copyWith(color: LiftColors.textDim),
+        ),
+      ),
+    );
+  }
+
   Widget _buildFlatList(List<Meal> meals) {
     if (meals.isEmpty) {
       return Center(
         child: Text(
           AppStrings.noResultsFound,
-          style: Theme.of(
-            context,
-          ).textTheme.bodyMedium?.copyWith(color: AppTheme.textMedium),
+          style: LiftText.bodyMedium.copyWith(color: LiftColors.textDim),
         ),
       );
     }
@@ -172,7 +206,12 @@ class _MealPickerSheetState extends State<MealPickerSheet> {
         if (recents.isNotEmpty) ...<Widget>[
           _buildSectionHeader(AppStrings.pickerRecents),
           ...recents.map(_buildMealTile),
-          const Divider(height: 16, indent: 16, endIndent: 16),
+          const Divider(
+            height: 16,
+            indent: 16,
+            endIndent: 16,
+            color: LiftColors.hairline,
+          ),
         ],
         _buildSectionHeader(AppStrings.pickerAllMeals),
         ...all.map(_buildMealTile),
@@ -185,55 +224,57 @@ class _MealPickerSheetState extends State<MealPickerSheet> {
       padding: const EdgeInsets.fromLTRB(16, 8, 16, 4),
       child: Text(
         title,
-        style: Theme.of(context).textTheme.labelLarge?.copyWith(
-          color: AppTheme.textDim,
-          fontWeight: FontWeight.w600,
-          letterSpacing: 0.5,
-        ),
+        style: LiftText.labelLarge.copyWith(color: LiftColors.textDim),
       ),
     );
   }
 
   Widget _buildMealTile(Meal meal) {
     final bool isSelected = widget.selected?.id == meal.id;
+    final String kcal = meal.caloriesPer100g.round().toString();
 
     return Material(
-      color: isSelected
-          ? AppTheme.primaryOrange.withValues(alpha: 0.07)
-          : Colors.transparent,
+      color: Colors.transparent,
       child: InkWell(
         onTap: () => Navigator.pop(context, meal),
-        child: Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+        child: Container(
+          key: ValueKey<String>('meal-row-${meal.id}'),
+          constraints: const BoxConstraints(minHeight: 44),
+          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+          decoration: BoxDecoration(
+            color: isSelected ? LiftColors.actionWash : Colors.transparent,
+            border: Border(
+              left: BorderSide(
+                color: isSelected ? LiftColors.actionTint : Colors.transparent,
+                width: LiftShape.borderWidthActive,
+              ),
+              bottom: const BorderSide(color: LiftColors.hairline, width: 1),
+            ),
+          ),
           child: Row(
             crossAxisAlignment: CrossAxisAlignment.center,
             children: <Widget>[
               _buildLeadingTile(isSelected),
               const SizedBox(width: 12),
               Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  mainAxisSize: MainAxisSize.min,
-                  children: <Widget>[
-                    Text(
-                      meal.name,
-                      style: Theme.of(context).textTheme.bodyLarge?.copyWith(
-                        color: isSelected
-                            ? AppTheme.primaryOrange
-                            : AppTheme.textLight,
-                        fontWeight: isSelected
-                            ? FontWeight.w600
-                            : FontWeight.w500,
-                      ),
-                    ),
-                    const SizedBox(height: 6),
-                    _buildMacroPills(meal),
-                  ],
+                child: Text(
+                  meal.name,
+                  style: LiftText.bodyLarge.copyWith(
+                    color: LiftColors.textPrimary,
+                    fontWeight: isSelected ? FontWeight.w700 : FontWeight.w400,
+                  ),
                 ),
+              ),
+              const SizedBox(width: 12),
+              LiftNumber(kcal, '', LiftText.dataSmall),
+              const SizedBox(width: 6),
+              Text(
+                'KCAL / 100G',
+                style: LiftText.labelLarge.copyWith(color: LiftColors.textDim),
               ),
               if (isSelected) ...<Widget>[
                 const SizedBox(width: 8),
-                const Icon(Icons.check_circle, color: AppTheme.primaryOrange),
+                const Icon(Icons.check_circle, color: LiftColors.actionTint),
               ],
             ],
           ),
@@ -247,54 +288,12 @@ class _MealPickerSheetState extends State<MealPickerSheet> {
       width: 38,
       height: 38,
       decoration: BoxDecoration(
-        gradient: isSelected ? AppTheme.primaryGradient : null,
-        color: isSelected ? null : AppTheme.surfaceMedium,
-        borderRadius: BorderRadius.circular(10),
+        color: isSelected ? LiftColors.actionFill : LiftColors.surfaceRaised,
       ),
       child: Icon(
         Icons.restaurant,
         size: 18,
-        color: isSelected ? Colors.white : AppTheme.textDim,
-      ),
-    );
-  }
-
-  Widget _buildMacroPills(Meal meal) {
-    return Wrap(
-      spacing: 6,
-      runSpacing: 4,
-      children: <Widget>[
-        _pill(
-          label: '${meal.caloriesPer100g.round()} kcal',
-          color: AppTheme.primaryOrangeLight,
-        ),
-        _pill(
-          label: 'P ${meal.proteinPer100g.round()}',
-          color: LogUiColors.protein,
-        ),
-        _pill(
-          label: 'C ${meal.carbsPer100g.round()}',
-          color: LogUiColors.carbs,
-        ),
-        _pill(label: 'F ${meal.fatPer100g.round()}', color: LogUiColors.fats),
-      ],
-    );
-  }
-
-  Widget _pill({required String label, required Color color}) {
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
-      decoration: BoxDecoration(
-        color: color.withValues(alpha: 0.16),
-        borderRadius: BorderRadius.circular(11),
-      ),
-      child: Text(
-        label,
-        style: TextStyle(
-          color: color,
-          fontSize: 11.5,
-          fontWeight: FontWeight.w500,
-        ),
+        color: isSelected ? Colors.white : LiftColors.textDim,
       ),
     );
   }

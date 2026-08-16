@@ -1,5 +1,6 @@
 import 'package:fitness_tracker/app/app.dart';
 import 'package:fitness_tracker/core/constants/app_strings.dart';
+import 'package:fitness_tracker/core/themes/lift_theme.dart';
 import 'package:fitness_tracker/domain/entities/meal.dart';
 import 'package:fitness_tracker/features/log/presentation/widgets/meal_picker_sheet.dart';
 import 'package:flutter/material.dart';
@@ -60,17 +61,25 @@ void main() {
   }
 
   group('MealPickerSheet', () {
-    testWidgets('renders header, meal names, and macro pills (kcal/P/C/F)', (
+    // Rewritten from the pre-restyle "renders header, meal names, and macro
+    // pills (kcal/P/C/F)" test. Task 17 (Spec B, PR B2) drops the P/C/F pill
+    // row entirely — CONTROLLER AMENDMENT C in b-task-17-brief.md specifies
+    // the meal row's right side is only the kcal value (LiftNumber, dataSmall)
+    // beside a "KCAL / 100G" label. The P/C/F assertions are superseded by
+    // that spec, not dropped for convenience.
+    testWidgets('renders header, meal name, and the kcal metadata', (
       tester,
     ) async {
       await pumpPicker(tester, meals: <Meal>[chicken]);
 
       expect(find.text(AppStrings.selectMeal), findsOneWidget);
       expect(find.text('Chicken Breast'), findsOneWidget);
-      expect(find.text('165 kcal'), findsOneWidget);
-      expect(find.text('P 31'), findsOneWidget);
-      expect(find.text('C 0'), findsOneWidget);
-      expect(find.text('F 4'), findsOneWidget);
+      expect(find.text('165'), findsOneWidget);
+      expect(find.text('KCAL / 100G'), findsOneWidget);
+      // The old P/C/F pills are gone.
+      expect(find.text('P 31'), findsNothing);
+      expect(find.text('C 0'), findsNothing);
+      expect(find.text('F 4'), findsNothing);
     });
 
     testWidgets('renders leading restaurant icon tile per row', (tester) async {
@@ -165,5 +174,95 @@ void main() {
 
       expect(popped?.id, 'meal-rice');
     });
+  });
+
+  group('MealPickerSheet Deep Mist chrome', () {
+    testWidgets('panel is square (BorderRadius.zero)', (tester) async {
+      await pumpPicker(tester, meals: <Meal>[chicken]);
+
+      final Container panel = tester.widget<Container>(
+        find.byKey(const ValueKey<String>('meal-picker-panel')),
+      );
+      final BoxDecoration decoration = panel.decoration! as BoxDecoration;
+      expect(decoration.borderRadius, BorderRadius.zero);
+    });
+
+    testWidgets('selected row has actionWash background and w700 name weight', (
+      tester,
+    ) async {
+      await pumpPicker(tester, meals: <Meal>[chicken, rice], selected: chicken);
+
+      final Container row = tester.widget<Container>(
+        find.byKey(const ValueKey<String>('meal-row-meal-chicken')),
+      );
+      final BoxDecoration decoration = row.decoration! as BoxDecoration;
+      expect(decoration.color, LiftColors.actionWash);
+
+      final Text name = tester.widget<Text>(find.text('Chicken Breast'));
+      expect(name.style?.fontWeight, FontWeight.w700);
+    });
+
+    testWidgets('unselected row has no actionWash background', (tester) async {
+      await pumpPicker(tester, meals: <Meal>[chicken, rice]);
+
+      final Container row = tester.widget<Container>(
+        find.byKey(const ValueKey<String>('meal-row-meal-chicken')),
+      );
+      final BoxDecoration decoration = row.decoration! as BoxDecoration;
+      expect(decoration.color, isNot(LiftColors.actionWash));
+    });
+
+    testWidgets('kcal/100g label uses JetBrainsMono, no Chip present', (
+      tester,
+    ) async {
+      await pumpPicker(tester, meals: <Meal>[chicken]);
+
+      final Text label = tester.widget<Text>(find.text('KCAL / 100G'));
+      expect(label.style?.fontFamily, 'JetBrainsMono');
+      expect(find.byType(Chip), findsNothing);
+      expect(find.byType(FilterChip), findsNothing);
+    });
+
+    testWidgets('shows a right-aligned result count', (tester) async {
+      await pumpPicker(tester, meals: <Meal>[chicken, rice]);
+
+      expect(find.text('2 ITEMS'), findsOneWidget);
+    });
+
+    testWidgets(
+      'the modal chrome draws no border of its own — only the panel\'s '
+      "borderStrong edge shows, so the hairline isn't doubled",
+      (tester) async {
+        await pumpPicker(tester, meals: <Meal>[chicken]);
+
+        // showModalBottomSheet's default chrome (bottomSheetTheme.shape)
+        // paints a dimmer LiftColors.border edge via an ancestor Material.
+        // The picker overrides that shape to borderless so only the panel
+        // Container's own borderStrong edge (below) is visible.
+        final Iterable<Material> materials = tester.widgetList<Material>(
+          find.byType(Material),
+        );
+        for (final Material material in materials) {
+          final ShapeBorder? shape = material.shape;
+          if (shape is RoundedRectangleBorder) {
+            expect(
+              shape.side,
+              BorderSide.none,
+              reason:
+                  'a modal-chrome Material must not draw its own visible '
+                  'border side — the picker panel already owns the seam',
+            );
+          }
+        }
+
+        final Container panel = tester.widget<Container>(
+          find.byKey(const ValueKey<String>('meal-picker-panel')),
+        );
+        final BoxDecoration decoration = panel.decoration! as BoxDecoration;
+        final Border border = decoration.border! as Border;
+        expect(border.top.color, LiftColors.borderStrong);
+        expect(border.top.width, LiftShape.borderWidth);
+      },
+    );
   });
 }

@@ -2,7 +2,7 @@ import 'package:flutter/material.dart';
 
 import '../../core/constants/app_strings.dart';
 import '../../core/constants/muscle_stimulus_constants.dart';
-import '../../core/themes/app_theme.dart';
+import '../../core/themes/lift_theme.dart';
 
 /// Intensity slider widget for workout set logging
 class IntensitySliderWidget extends StatelessWidget {
@@ -30,9 +30,8 @@ class IntensitySliderWidget extends StatelessWidget {
           children: [
             Text(
               AppStrings.intensity,
-              style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                fontWeight: FontWeight.w600,
-                color: enabled ? AppTheme.textLight : AppTheme.textDim,
+              style: LiftText.titleMedium.copyWith(
+                color: enabled ? LiftColors.textPrimary : LiftColors.textDim,
               ),
             ),
             const SizedBox(width: 8),
@@ -45,7 +44,7 @@ class IntensitySliderWidget extends StatelessWidget {
                 icon: Icon(
                   Icons.info_outline,
                   size: 20,
-                  color: enabled ? AppTheme.primaryOrange : AppTheme.textDim,
+                  color: enabled ? LiftColors.actionTint : LiftColors.textDim,
                 ),
                 tooltip: AppStrings.intensityInfo,
               ),
@@ -59,16 +58,15 @@ class IntensitySliderWidget extends StatelessWidget {
           children: [
             Text(
               '$clampedIntensity/${MuscleStimulus.maxIntensity}',
-              style: Theme.of(context).textTheme.headlineSmall?.copyWith(
-                fontWeight: FontWeight.bold,
-                color: enabled ? AppTheme.primaryOrange : AppTheme.textDim,
+              style: LiftText.dataSmall.copyWith(
+                color: enabled ? LiftColors.actionTint : LiftColors.textDim,
               ),
             ),
             const SizedBox(width: 12),
             Text(
               label,
-              style: Theme.of(context).textTheme.bodyLarge?.copyWith(
-                color: enabled ? AppTheme.textMedium : AppTheme.textDim,
+              style: LiftText.bodyLarge.copyWith(
+                color: enabled ? LiftColors.textSecondary : LiftColors.textDim,
                 fontWeight: FontWeight.w500,
               ),
             ),
@@ -76,29 +74,13 @@ class IntensitySliderWidget extends StatelessWidget {
         ),
         const SizedBox(height: 16),
 
-        // Slider
+        // Slider — track and thumb come from LiftTheme.dark()'s sliderTheme;
+        // the widget only supplies the disabled tint, which the theme cannot
+        // express on its own.
         SliderTheme(
-          data: SliderThemeData(
-            activeTrackColor: enabled
-                ? AppTheme.primaryOrange
-                : AppTheme.textDim,
-            inactiveTrackColor: enabled
-                ? AppTheme.borderDark
-                : AppTheme.surfaceDark,
-            thumbColor: enabled ? AppTheme.primaryOrange : AppTheme.textDim,
-            overlayColor: AppTheme.primaryOrange.withValues(alpha: 0.2),
-            thumbShape: const RoundSliderThumbShape(
-              enabledThumbRadius: 14, // Large thumb for easy grabbing
-            ),
-            overlayShape: const RoundSliderOverlayShape(
-              overlayRadius: 28, // Large touch target
-            ),
-            trackHeight: 6,
-            valueIndicatorColor: AppTheme.primaryOrange,
-            valueIndicatorTextStyle: const TextStyle(
-              color: Colors.white,
-              fontWeight: FontWeight.w600,
-            ),
+          data: SliderTheme.of(context).copyWith(
+            activeTrackColor: enabled ? null : LiftColors.textDim,
+            thumbColor: enabled ? null : LiftColors.textDim,
           ),
           child: Slider(
             value: clampedIntensity.toDouble(),
@@ -123,10 +105,10 @@ class IntensitySliderWidget extends StatelessWidget {
                 final isSelected = level == clampedIntensity;
                 return Text(
                   level.toString(),
-                  style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                  style: LiftText.bodySmall.copyWith(
                     color: isSelected
-                        ? AppTheme.primaryOrange
-                        : AppTheme.textDim,
+                        ? LiftColors.actionTint
+                        : LiftColors.textDim,
                     fontWeight: isSelected
                         ? FontWeight.bold
                         : FontWeight.normal,
@@ -163,7 +145,11 @@ class IntensityInfoDialog extends StatelessWidget {
     return AlertDialog(
       title: Row(
         children: [
-          Icon(Icons.info_outline, color: AppTheme.primaryOrange, size: 28),
+          const Icon(
+            Icons.info_outline,
+            color: LiftColors.actionTint,
+            size: 28,
+          ),
           const SizedBox(width: 12),
           const Text(AppStrings.intensityLevels),
         ],
@@ -177,34 +163,30 @@ class IntensityInfoDialog extends StatelessWidget {
             Container(
               padding: const EdgeInsets.all(16),
               decoration: BoxDecoration(
-                color: AppTheme.primaryOrange.withValues(alpha: 0.1),
-                borderRadius: BorderRadius.circular(12),
-                border: Border.all(
-                  color: AppTheme.primaryOrange.withValues(alpha: 0.3),
-                ),
+                color: LiftColors.actionWash,
+                border: Border.all(color: LiftColors.actionTint),
               ),
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   Text(
                     AppStrings.currentIntensity,
-                    style: Theme.of(context).textTheme.titleSmall?.copyWith(
-                      color: AppTheme.primaryOrange,
-                      fontWeight: FontWeight.w600,
+                    style: LiftText.titleSmall.copyWith(
+                      color: LiftColors.actionTint,
                     ),
                   ),
                   const SizedBox(height: 8),
                   Text(
                     '$currentIntensity - ${MuscleStimulus.getIntensityLabel(currentIntensity)}',
-                    style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                      fontWeight: FontWeight.bold,
+                    style: LiftText.titleMedium.copyWith(
+                      color: LiftColors.textPrimary,
                     ),
                   ),
                   const SizedBox(height: 8),
                   Text(
                     MuscleStimulus.getIntensityDescription(currentIntensity),
-                    style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                      color: AppTheme.textMedium,
+                    style: LiftText.bodyMedium.copyWith(
+                      color: LiftColors.textSecondary,
                     ),
                   ),
                 ],
@@ -215,9 +197,9 @@ class IntensityInfoDialog extends StatelessWidget {
             // All intensity levels
             Text(
               AppStrings.allIntensityLevels,
-              style: Theme.of(
-                context,
-              ).textTheme.titleSmall?.copyWith(fontWeight: FontWeight.w600),
+              style: LiftText.titleSmall.copyWith(
+                color: LiftColors.textPrimary,
+              ),
             ),
             const SizedBox(height: 12),
 
@@ -260,14 +242,9 @@ class IntensityInfoDialog extends StatelessWidget {
     return Container(
       padding: const EdgeInsets.all(12),
       decoration: BoxDecoration(
-        color: isCurrent
-            ? AppTheme.primaryOrange.withValues(alpha: 0.1)
-            : Colors.transparent,
-        borderRadius: BorderRadius.circular(8),
+        color: isCurrent ? LiftColors.actionWash : Colors.transparent,
         border: Border.all(
-          color: isCurrent
-              ? AppTheme.primaryOrange.withValues(alpha: 0.3)
-              : AppTheme.borderDark,
+          color: isCurrent ? LiftColors.actionTint : LiftColors.hairline,
         ),
       ),
       child: Column(
@@ -277,21 +254,19 @@ class IntensityInfoDialog extends StatelessWidget {
             children: [
               Text(
                 '$level',
-                style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                  fontWeight: FontWeight.bold,
+                style: LiftText.titleMedium.copyWith(
                   color: isCurrent
-                      ? AppTheme.primaryOrange
-                      : AppTheme.textLight,
+                      ? LiftColors.actionTint
+                      : LiftColors.textPrimary,
                 ),
               ),
               const SizedBox(width: 8),
               Text(
                 label,
-                style: Theme.of(context).textTheme.titleSmall?.copyWith(
-                  fontWeight: FontWeight.w600,
+                style: LiftText.titleSmall.copyWith(
                   color: isCurrent
-                      ? AppTheme.primaryOrange
-                      : AppTheme.textMedium,
+                      ? LiftColors.actionTint
+                      : LiftColors.textSecondary,
                 ),
               ),
             ],
@@ -299,9 +274,7 @@ class IntensityInfoDialog extends StatelessWidget {
           const SizedBox(height: 4),
           Text(
             description,
-            style: Theme.of(
-              context,
-            ).textTheme.bodySmall?.copyWith(color: AppTheme.textMedium),
+            style: LiftText.bodySmall.copyWith(color: LiftColors.textSecondary),
           ),
         ],
       ),

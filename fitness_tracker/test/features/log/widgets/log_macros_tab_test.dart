@@ -1,9 +1,12 @@
 import 'package:bloc_test/bloc_test.dart';
 import 'package:fitness_tracker/app/app.dart';
 import 'package:fitness_tracker/core/constants/app_strings.dart';
+import 'package:fitness_tracker/core/themes/lift_theme.dart';
 import 'package:fitness_tracker/domain/entities/nutrition_log.dart';
 import 'package:fitness_tracker/features/log/log.dart';
+import 'package:fitness_tracker/features/log/presentation/widgets/shared/log_stepper_field.dart';
 import 'package:fitness_tracker/features/log/presentation/widgets/shared/macro_composition_bar.dart';
+import 'package:fitness_tracker/features/log/presentation/widgets/shared/macro_label.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -90,7 +93,7 @@ void main() {
 
         // Each macro row keeps its name label + −/value/+ trio.
         for (final String label in <String>['Protein', 'Carbs', 'Fats']) {
-          expect(find.text(label), findsOneWidget);
+          expect(find.text(label.toUpperCase()), findsOneWidget);
           final Finder stepper = find.byKey(Key('macrosStepper-$label'));
           expect(stepper, findsOneWidget);
           expect(
@@ -196,7 +199,8 @@ void main() {
         }
         await tester.pumpAndSettle();
 
-        await tester.tap(find.text(AppStrings.logMacrosButton));
+        // LogActionBar renders the CTA label mono-caps uppercase.
+        await tester.tap(find.text(AppStrings.logMacrosButton.toUpperCase()));
         await tester.pump();
 
         verify(
@@ -274,8 +278,9 @@ void main() {
       );
       await tester.pumpAndSettle();
 
-      expect(find.text('Today so far'), findsOneWidget);
-      expect(find.text('370 kcal · 1 log'), findsOneWidget);
+      expect(find.text('TODAY SO FAR'), findsOneWidget);
+      expect(find.text('370'), findsOneWidget);
+      expect(find.text(' KCAL · 1 LOG'), findsOneWidget);
       expect(find.text('30g'), findsOneWidget);
       expect(find.text('40g'), findsOneWidget);
       expect(find.text('10g'), findsOneWidget);
@@ -303,9 +308,9 @@ void main() {
         );
         await tester.pumpAndSettle();
 
-        expect(find.text('Today so far'), findsNothing);
-        expect(find.textContaining('so far'), findsNothing);
-        expect(find.text('1234 kcal · 0 logs'), findsNothing);
+        expect(find.text('TODAY SO FAR'), findsNothing);
+        expect(find.textContaining('SO FAR'), findsNothing);
+        expect(find.text(' KCAL · 0 LOGS'), findsNothing);
       },
     );
 
@@ -331,8 +336,8 @@ void main() {
         );
         await tester.pumpAndSettle();
 
-        expect(find.text('Jan 5 so far'), findsOneWidget);
-        expect(find.text('Today so far'), findsNothing);
+        expect(find.text('JAN 5 SO FAR'), findsOneWidget);
+        expect(find.text('TODAY SO FAR'), findsNothing);
       },
     );
 
@@ -400,5 +405,85 @@ void main() {
       // Two composition bars (today + this entry).
       expect(find.byType(MacroCompositionBar), findsNWidgets(2));
     });
+
+    testWidgets(
+      'Deep Mist chrome: no Card, a rule Divider survives, macro stepper '
+      'keys resolve, and the enabled CTA fills actionFill',
+      (tester) async {
+        await tester.pumpWidget(
+          buildSubject(initialDate: DateTime(2026, 6, 14)),
+        );
+        await tester.pumpAndSettle();
+
+        expect(find.byType(Card), findsNothing);
+
+        final Iterable<Divider> dividers = tester.widgetList<Divider>(
+          find.byType(Divider),
+        );
+        expect(dividers, isNotEmpty);
+        expect(dividers.any((Divider d) => d.color == LiftColors.rule), isTrue);
+
+        for (final String label in <String>['Protein', 'Carbs', 'Fats']) {
+          expect(find.byKey(Key('macrosStepper-$label')), findsOneWidget);
+        }
+
+        // Bump a macro so the CTA is enabled.
+        await tester.tap(
+          find.descendant(
+            of: find.byKey(const Key('macrosStepper-Protein')),
+            matching: find.text('+'),
+          ),
+        );
+        await tester.pumpAndSettle();
+
+        final Material material = tester
+            .widgetList<Material>(
+              find.descendant(
+                of: find.byType(ElevatedButton),
+                matching: find.byType(Material),
+              ),
+            )
+            .first;
+        expect(material.color, LiftColors.actionFill);
+      },
+    );
+
+    testWidgets(
+      'each macro row header pins its own color — protein, carbs and fats '
+      'cannot be silently swapped',
+      (tester) async {
+        await tester.pumpWidget(
+          buildSubject(initialDate: DateTime(2026, 6, 14)),
+        );
+        await tester.pumpAndSettle();
+
+        final List<MacroLabel> headers = tester
+            .widgetList<MacroLabel>(find.byType(MacroLabel))
+            .where((MacroLabel l) => l.variant == MacroLabelVariant.header)
+            .toList();
+        expect(headers, hasLength(3));
+        expect(headers[0].kind, MacroKind.protein);
+        expect(headers[1].kind, MacroKind.carbs);
+        expect(headers[2].kind, MacroKind.fats);
+        expect(headers[0].kind.color, LiftColors.protein);
+        expect(headers[1].kind.color, LiftColors.carbs);
+        expect(headers[2].kind.color, LiftColors.fats);
+
+        // Each stepper's accent (the '+' glyph color) must match its own
+        // row's macro, not a neighbour's.
+        final LogStepperField proteinStepper = tester.widget<LogStepperField>(
+          find.byKey(const Key('macrosStepper-Protein')),
+        );
+        final LogStepperField carbsStepper = tester.widget<LogStepperField>(
+          find.byKey(const Key('macrosStepper-Carbs')),
+        );
+        final LogStepperField fatsStepper = tester.widget<LogStepperField>(
+          find.byKey(const Key('macrosStepper-Fats')),
+        );
+        expect(proteinStepper.accentColor, LiftColors.protein);
+        expect(carbsStepper.accentColor, LiftColors.carbs);
+        expect(fatsStepper.accentColor, LiftColors.fats);
+      },
+    );
   });
 }

@@ -1,7 +1,7 @@
 {
   "schemaVersion": 1,
   "generatedAt": "2026-05-25",
-  "fingerprint": "89c61a77c546f965",
+  "fingerprint": "8693a2297e53eab4",
   "features": {
     "auth": {
       "summary": "Authentication cubits for sign-in, sign-up, and OTP verification.",
@@ -158,8 +158,8 @@
         "nutrition_logs",
         "workout_sets"
       ],
-      "notes": "WorkoutBloc also consumes calculate_muscle_stimulus (from the muscle_stimulus domain layer) to compute stimulation scores on each rep-set log. WorkoutBloc also exposes ExerciseInsight (PR / fatigue chips / sets-today) via SelectExerciseForInsightEvent + ClearExerciseInsightEvent; insight is recomputed in _loadWeeklySetsData after every successful add so the Exercise tab refreshes the same frame the feed updates. GetExercisePersonalRecord returns the heaviest WorkoutSet for an exercise (tie-break higher reps); fatigue chips derive from GetMuscleVisualData(TimePeriod.week) via MuscleGroups.granularToSimple.",
-      "fingerprint": "1c9ce0bd83d8f7ff"
+      "notes": "WorkoutBloc also consumes calculate_muscle_stimulus (from the muscle_stimulus domain layer) to compute stimulation scores on each rep-set log. WorkoutBloc also exposes ExerciseInsight (PR / fatigue chips / sets-today) via SelectExerciseForInsightEvent + ClearExerciseInsightEvent; insight is recomputed in _loadWeeklySetsData after every successful add so the Exercise tab refreshes the same frame the feed updates. GetExercisePersonalRecord returns the heaviest WorkoutSet for an exercise (tie-break higher reps); fatigue chips derive from GetMuscleVisualData(TimePeriod.week) via MuscleGroups.granularToSimple. A shared MacroLabel widget (lib/features/log/presentation/widgets/shared/macro_label.dart) centralises the macro swatch+caption element (MacroKind enum bundles each macro's label and LiftColors token) — used by LogTodaySoFarCard, LogMealTab's this-entry preview, and LogMacrosTab's row headers.",
+      "fingerprint": "9c5db0a45b3a342b"
     },
     "profile": {
       "summary": "User profile view and sign-out; manages authenticated-user metadata.",

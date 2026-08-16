@@ -1,17 +1,12 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
-import '../../../../core/constants/app_strings.dart';
 import '../../../../core/constants/muscle_stimulus_constants.dart';
-import '../../../../core/themes/app_theme.dart';
-import '../../../../presentation/widgets/intensity_slider_widget.dart'
-    show IntensityInfoDialog;
-import 'shared/log_ui_colors.dart';
+import '../../../../core/themes/lift_theme.dart';
 
-/// 0–5 intensity cell selector + full-ramp legend strip, replacing the old
-/// [IntensitySliderWidget] on the Exercise tab (design spec §3, item 5).
-///
-/// The info button reuses the existing [IntensityInfoDialog] verbatim.
+/// Effort as a counted ladder (frame 02). Height encodes the value and the hue
+/// never changes — deliberately distinct from the muscle map's fatigue ramp,
+/// which is a white-density fill the user does not choose.
 class LogIntensitySelector extends StatelessWidget {
   const LogIntensitySelector({
     super.key,
@@ -22,7 +17,8 @@ class LogIntensitySelector extends StatelessWidget {
   final int intensity;
   final ValueChanged<int> onChanged;
 
-  static const Color _inactiveCell = Color(0xFF161616);
+  /// Rung heights, matching the ladder in the design spec.
+  static const List<double> _heights = <double>[9, 15, 21, 27, 33, 38];
 
   @override
   Widget build(BuildContext context) {
@@ -30,94 +26,57 @@ class LogIntensitySelector extends StatelessWidget {
       MuscleStimulus.minIntensity,
       MuscleStimulus.maxIntensity,
     );
-    final Color activeColor = LogUiColors.intensityRamp[level];
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: <Widget>[
         Row(
           children: <Widget>[
-            const Text(
-              AppStrings.intensity,
-              style: TextStyle(
-                color: AppTheme.textLight,
-                fontSize: 14,
-                fontWeight: FontWeight.w600,
-              ),
-            ),
-            SizedBox(
-              width: 40,
-              height: 40,
-              child: IconButton(
-                padding: EdgeInsets.zero,
-                onPressed: () => showDialog<void>(
-                  context: context,
-                  builder: (_) => IntensityInfoDialog(currentIntensity: level),
-                ),
-                icon: const Icon(
-                  Icons.info_outline,
-                  size: 18,
-                  color: AppTheme.primaryOrange,
-                ),
-                tooltip: AppStrings.intensityInfo,
-              ),
+            Text(
+              'EFFORT',
+              style: LiftText.labelLarge.copyWith(color: LiftColors.textStrong),
             ),
             const Spacer(),
             Text(
-              '$level · ${MuscleStimulus.getIntensityLabel(level)}',
-              style: TextStyle(
-                color: activeColor,
-                fontSize: 13,
-                fontWeight: FontWeight.w600,
-                fontFeatures: const <FontFeature>[FontFeature.tabularFigures()],
-              ),
+              '$level · ${MuscleStimulus.getIntensityLabel(level).toUpperCase()}',
+              style: LiftText.labelLarge.copyWith(color: LiftColors.actionTint),
             ),
           ],
         ),
-        const SizedBox(height: 8),
-        Row(
-          children: List<Widget>.generate(
-            MuscleStimulus.maxIntensity - MuscleStimulus.minIntensity + 1,
-            (int i) {
+        const SizedBox(height: 12),
+        SizedBox(
+          height: 44,
+          child: Row(
+            crossAxisAlignment: CrossAxisAlignment.end,
+            children: List<Widget>.generate(_heights.length, (int i) {
               final bool selected = i == level;
               return Expanded(
                 child: Padding(
-                  padding: EdgeInsets.only(left: i == 0 ? 0 : 4),
+                  padding: EdgeInsets.only(left: i == 0 ? 0 : 5),
                   child: Semantics(
                     button: true,
                     selected: selected,
-                    label: 'Intensity $i',
-                    child: SizedBox(
-                      height: 44,
-                      child: Material(
-                        color: selected
-                            ? LogUiColors.intensityRamp[i]
-                            : _inactiveCell,
-                        shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(8),
-                          side: selected
-                              ? BorderSide.none
-                              : const BorderSide(color: AppTheme.borderDark),
-                        ),
-                        child: InkWell(
-                          borderRadius: BorderRadius.circular(8),
-                          onTap: () {
-                            HapticFeedback.selectionClick();
-                            onChanged(i);
-                          },
-                          child: Center(
-                            child: Text(
-                              '$i',
-                              style: TextStyle(
-                                color: selected
-                                    ? AppTheme.backgroundDark
-                                    : AppTheme.textDim,
-                                fontSize: 15,
-                                fontWeight: FontWeight.w700,
-                                fontFeatures: const <FontFeature>[
-                                  FontFeature.tabularFigures(),
-                                ],
-                              ),
+                    label: 'Effort $i',
+                    child: GestureDetector(
+                      behavior: HitTestBehavior.opaque,
+                      onTap: () {
+                        HapticFeedback.selectionClick();
+                        onChanged(i);
+                      },
+                      child: SizedBox(
+                        height: 44,
+                        child: Align(
+                          alignment: Alignment.bottomCenter,
+                          child: Container(
+                            key: ValueKey<String>('effort-rung-$i'),
+                            constraints: BoxConstraints(
+                              minHeight: _heights[i],
+                              maxHeight: _heights[i],
+                            ),
+                            decoration: BoxDecoration(
+                              color: selected
+                                  ? LiftColors.effortOn
+                                  : LiftColors.effortOff,
                             ),
                           ),
                         ),
@@ -126,19 +85,27 @@ class LogIntensitySelector extends StatelessWidget {
                   ),
                 ),
               );
-            },
+            }),
           ),
         ),
-        const SizedBox(height: 8),
-        Container(
-          height: 6,
-          decoration: BoxDecoration(
-            borderRadius: BorderRadius.circular(3),
-            gradient: const LinearGradient(
-              colors: LogUiColors.intensityRamp,
-              stops: <double>[0.0, 0.2, 0.4, 0.6, 0.8, 1.0],
-            ),
-          ),
+        const SizedBox(height: 6),
+        Row(
+          children: List<Widget>.generate(_heights.length, (int i) {
+            return Expanded(
+              child: Padding(
+                padding: EdgeInsets.only(left: i == 0 ? 0 : 5),
+                child: Text(
+                  '$i',
+                  textAlign: TextAlign.center,
+                  style: LiftText.dataMeta.copyWith(
+                    color: i == level
+                        ? LiftColors.actionTint
+                        : LiftColors.textDim,
+                  ),
+                ),
+              ),
+            );
+          }),
         ),
       ],
     );
