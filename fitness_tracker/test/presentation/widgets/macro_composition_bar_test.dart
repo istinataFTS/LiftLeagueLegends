@@ -1,6 +1,6 @@
 import 'package:fitness_tracker/app/app.dart';
 import 'package:fitness_tracker/core/themes/lift_theme.dart';
-import 'package:fitness_tracker/features/log/presentation/widgets/shared/macro_composition_bar.dart';
+import 'package:fitness_tracker/presentation/widgets/macro_composition_bar.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 
@@ -10,6 +10,7 @@ void main() {
     double carbsGrams = 0,
     double fatsGrams = 0,
     bool disableAnimations = false,
+    bool showPercentages = true,
   }) {
     return AppShell(
       home: Scaffold(
@@ -19,6 +20,7 @@ void main() {
             proteinGrams: proteinGrams,
             carbsGrams: carbsGrams,
             fatsGrams: fatsGrams,
+            showPercentages: showPercentages,
           ),
         ),
       ),
@@ -204,5 +206,37 @@ void main() {
         expect(finalSize.width, greaterThan(midSize.width));
       },
     );
+
+    testWidgets('renders the percentage caption by default', (tester) async {
+      await tester.pumpWidget(
+        buildSubject(proteinGrams: 40, carbsGrams: 30, fatsGrams: 10),
+      );
+      await tester.pumpAndSettle();
+
+      expect(find.textContaining('% PROTEIN'), findsOneWidget);
+    });
+
+    testWidgets('showPercentages false renders the bar and nothing else', (
+      tester,
+    ) async {
+      await tester.pumpWidget(
+        buildSubject(
+          proteinGrams: 40,
+          carbsGrams: 30,
+          fatsGrams: 10,
+          showPercentages: false,
+        ),
+      );
+      await tester.pumpAndSettle();
+
+      expect(find.textContaining('% PROTEIN'), findsNothing);
+      expect(
+        find.byKey(const ValueKey<String>('macro-bar-track')),
+        findsOneWidget,
+      );
+      // The caption and its 8px gap are both gone: the widget is exactly as
+      // tall as the 3px bar.
+      expect(tester.getSize(find.byType(MacroCompositionBar)).height, 3);
+    });
   });
 }

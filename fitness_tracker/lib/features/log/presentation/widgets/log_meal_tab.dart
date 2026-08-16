@@ -11,6 +11,7 @@ import '../../../../core/utils/macro_calculator.dart';
 import '../../../../core/utils/week_date_utils.dart';
 import '../../../../domain/entities/meal.dart';
 import '../../../../domain/entities/nutrition_log.dart';
+import '../../../../presentation/widgets/macro_composition_bar.dart';
 import '../../../library/application/meal_bloc.dart';
 import '../../application/nutrition_log_bloc.dart';
 import 'meal_picker_sheet.dart';
@@ -19,7 +20,6 @@ import 'shared/log_numeric_keypad.dart';
 import 'shared/log_quick_chips.dart';
 import 'shared/log_stepper_field.dart';
 import 'shared/log_today_so_far_card.dart';
-import 'shared/macro_composition_bar.dart';
 import 'shared/macro_label.dart';
 
 class LogMealTab extends StatefulWidget {

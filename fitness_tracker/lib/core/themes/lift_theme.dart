@@ -66,6 +66,18 @@ class LiftColors {
     Color(0xE6FFFFFF),
   ];
 
+  /// The tone the 2D body model renders at when a muscle is untrained, and
+  /// the surface [fatigue] composites against.
+  ///
+  /// [fatigue] is a *white-density* ramp — its five stops are white at 5% to
+  /// 90% alpha — so it can only read as density over something dark. The body
+  /// PNGs under `assets/images/body/` are uniform grey 195, near-white, which
+  /// leaves the ramp barely two dozen grey levels to spend across its whole
+  /// range. `BodyVisualWidget` therefore modulates the base art down to this
+  /// tone, and the Home mapper composites each ramp stop against it, so the
+  /// figure reads as a slate silhouette whose fatigued regions light up.
+  static const Color bodyBase = Color(0xFF55616E);
+
   /// Effort, in two deliberately different encodings. The picker
   /// (`LogIntensitySelector`) gives rung height the value: its six rungs
   /// grow taller left to right and only the selected one takes [effortOn].

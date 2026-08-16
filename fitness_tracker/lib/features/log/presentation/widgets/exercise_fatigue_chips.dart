@@ -10,9 +10,17 @@ import '../../application/exercise_insight.dart';
 ///
 /// Each row is a 14x14 fatigue-ramp swatch, the muscle display name, and its
 /// percent. The swatch uses the Deep Mist fatigue ramp
-/// (`LiftColors.fatigue[bucket.index]`) rather than [MuscleFatigue.color] —
-/// Home does not join the fatigue ramp until PR B3, so for the life of this
-/// PR this chip and the Home 2D human model may legitimately disagree.
+/// (`LiftColors.fatigue[bucket.index]`) rather than [MuscleFatigue.color].
+///
+/// Home's 2D human model has read the same ramp at the same index since PR
+/// B3, so the two surfaces rank a muscle identically — that shared bucket
+/// index and five-stop ramp is the whole of what they have in common. They
+/// are not the same pixel: this chip paints the stop flat over the dark
+/// ground, while Home composites it onto `LiftColors.bodyBase` and blends the
+/// result through the muscle's overlay opacity over a darkened figure. And in
+/// Home's volume mode the bucket encodes training stimulus against a
+/// threshold rather than fatigue at all, so the same swatch tone can mean two
+/// different quantities on the two screens.
 class ExerciseFatigueChips extends StatelessWidget {
   const ExerciseFatigueChips({super.key, required this.muscles});
 

@@ -21,18 +21,26 @@ import 'package:flutter_test/flutter_test.dart';
 /// sets [WidgetTester.view] to the phone size and registers a teardown that
 /// resets it, so the narrowed viewport never leaks into a later test in the
 /// same file.
+/// Pass `settle: false` when the subject holds an indefinite animation — a
+/// `CircularProgressIndicator` never stops, so `pumpAndSettle` would time out
+/// rather than assert anything. A single `pump` is enough to lay the tree out.
 Future<void> pumpAtPhoneWidth(
   WidgetTester tester,
   Widget widget, {
   Size physicalSize = const Size(1080, 2400),
   double devicePixelRatio = 3,
+  bool settle = true,
 }) async {
   tester.view.physicalSize = physicalSize;
   tester.view.devicePixelRatio = devicePixelRatio;
   addTearDown(tester.view.reset);
 
   await tester.pumpWidget(widget);
-  await tester.pumpAndSettle();
+  if (settle) {
+    await tester.pumpAndSettle();
+  } else {
+    await tester.pump();
+  }
 }
 
 /// Asserts that pumping did not record a `FlutterError` (the way a

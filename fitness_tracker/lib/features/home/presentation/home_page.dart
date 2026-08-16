@@ -3,7 +3,7 @@ import 'package:flutter_bloc/flutter_bloc.dart';
 
 import '../../../core/constants/app_strings.dart';
 import '../../../core/session/session_display_name.dart';
-import '../../../core/themes/app_theme.dart';
+import '../../../core/themes/lift_theme.dart';
 import '../../../domain/entities/app_session.dart';
 import '../../../domain/entities/app_settings.dart';
 // convention-checker:allow=cross-feature-presentation-import reason=home observes ProfileCubit (app-level singleton) for username display; data-observation pattern, not navigation
@@ -40,7 +40,7 @@ class HomePage extends StatelessWidget {
               return const Center(
                 child: CircularProgressIndicator(
                   key: HomePageKeys.pageLoadingIndicatorKey,
-                  color: AppTheme.primaryOrange,
+                  color: LiftColors.actionTint,
                 ),
               );
             }
@@ -120,7 +120,7 @@ class _HomeErrorState extends StatelessWidget {
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
           children: <Widget>[
-            const Icon(Icons.error_outline, size: 64, color: AppTheme.errorRed),
+            const Icon(Icons.error_outline, size: 64, color: LiftColors.error),
             const SizedBox(height: 16),
             Text(
               AppStrings.error,
@@ -134,7 +134,7 @@ class _HomeErrorState extends StatelessWidget {
               textAlign: TextAlign.center,
               style: Theme.of(
                 context,
-              ).textTheme.bodyMedium?.copyWith(color: AppTheme.textMedium),
+              ).textTheme.bodyMedium?.copyWith(color: LiftColors.textSecondary),
             ),
             const SizedBox(height: 24),
             ElevatedButton.icon(

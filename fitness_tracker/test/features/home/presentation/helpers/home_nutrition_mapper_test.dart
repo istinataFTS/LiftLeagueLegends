@@ -37,7 +37,7 @@ void main() {
     weightUnit: WeightUnit.kilograms,
   );
 
-  test('macro strip shows rounded non-zero values with correct units', () {
+  test('macro strip carries raw non-zero macro values', () {
     final HomeDashboardData homeData = HomeDashboardData(
       todaysLogs: <NutritionLog>[
         buildLog(
@@ -64,13 +64,13 @@ void main() {
       userName: 'Tester',
     );
 
-    expect(viewData.nutrition.caloriesLabel, '660 kcal');
-    expect(viewData.nutrition.proteinLabel, '60 g');
-    expect(viewData.nutrition.carbsLabel, '72 g');
-    expect(viewData.nutrition.fatsLabel, '15 g');
+    expect(viewData.nutrition.calories, 660);
+    expect(viewData.nutrition.proteinGrams, 60);
+    expect(viewData.nutrition.carbsGrams, 72);
+    expect(viewData.nutrition.fatsGrams, 15);
   });
 
-  test('macro strip shows dash for zero macro values', () {
+  test('macro strip carries raw zeros for an empty day', () {
     final HomeDashboardData homeData = HomeDashboardData(
       todaysLogs: const <NutritionLog>[],
       dailyMacros: const <String, double>{
@@ -88,13 +88,16 @@ void main() {
       userName: 'Tester',
     );
 
-    expect(viewData.nutrition.caloriesLabel, '–');
-    expect(viewData.nutrition.proteinLabel, '–');
-    expect(viewData.nutrition.carbsLabel, '–');
-    expect(viewData.nutrition.fatsLabel, '–');
+    // Deliberate behaviour change (PR B3): an empty day is a real zero row
+    // (`0`, `0g`, `0g`, `0g`) rather than four em-dashes, so the composition
+    // bar beneath it has a coherent all-zero state.
+    expect(viewData.nutrition.calories, 0);
+    expect(viewData.nutrition.proteinGrams, 0);
+    expect(viewData.nutrition.carbsGrams, 0);
+    expect(viewData.nutrition.fatsGrams, 0);
   });
 
-  test('macro strip renders non-zero values with correct units — smoke', () {
+  test('macro strip carries raw non-zero macro values — smoke', () {
     final HomeDashboardData homeData = HomeDashboardData(
       todaysLogs: const <NutritionLog>[],
       dailyMacros: const <String, double>{
@@ -112,7 +115,7 @@ void main() {
       userName: 'Tester',
     );
 
-    expect(viewData.nutrition.proteinLabel, '100 g');
-    expect(viewData.nutrition.caloriesLabel, '1640 kcal');
+    expect(viewData.nutrition.proteinGrams, 100);
+    expect(viewData.nutrition.calories, 1640);
   });
 }

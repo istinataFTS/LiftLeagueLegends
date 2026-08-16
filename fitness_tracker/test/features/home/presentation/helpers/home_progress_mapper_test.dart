@@ -140,7 +140,7 @@ void main() {
       },
     );
 
-    test('macro strip shows dash when all macro values are zero', () {
+    test('macro strip carries raw zeros when all macro values are zero', () {
       final HomeDashboardData homeData = buildHomeData();
 
       final HomePageViewData result = HomeViewDataMapper.map(
@@ -150,13 +150,13 @@ void main() {
         userName: 'Tester',
       );
 
-      expect(result.nutrition.caloriesLabel, '–');
-      expect(result.nutrition.proteinLabel, '–');
-      expect(result.nutrition.carbsLabel, '–');
-      expect(result.nutrition.fatsLabel, '–');
+      expect(result.nutrition.calories, 0);
+      expect(result.nutrition.proteinGrams, 0);
+      expect(result.nutrition.carbsGrams, 0);
+      expect(result.nutrition.fatsGrams, 0);
     });
 
-    test('macro strip renders non-zero values with correct units', () {
+    test('macro strip carries raw non-zero macro values', () {
       final HomeDashboardData homeData = HomeDashboardData(
         todaysLogs: const <NutritionLog>[],
         dailyMacros: const <String, double>{
@@ -174,10 +174,10 @@ void main() {
         userName: 'Tester',
       );
 
-      expect(result.nutrition.caloriesLabel, '1840 kcal');
-      expect(result.nutrition.proteinLabel, '150 g');
-      expect(result.nutrition.carbsLabel, '200 g');
-      expect(result.nutrition.fatsLabel, '60 g');
+      expect(result.nutrition.calories, 1840);
+      expect(result.nutrition.proteinGrams, 150);
+      expect(result.nutrition.carbsGrams, 200);
+      expect(result.nutrition.fatsGrams, 60);
     });
   });
 }
