@@ -18,9 +18,9 @@ class HistoryStrings {
   static const String cannotViewTooFarPast =
       'Cannot view data from more than 5 years ago';
 
-  static const String previousMonthTooltip = 'Previous Month';
-  static const String nextMonthTooltip = 'Next Month';
-  static const String today = 'Today';
+  static const String previousMonthLabel = 'Previous month';
+  static const String nextMonthLabel = 'Next month';
+  static const String calendarSemanticLabel = 'Month calendar';
 
   static const String noDaySelectedTitle = 'No day selected';
   static const String noDaySelectedMessage =
@@ -29,8 +29,8 @@ class HistoryStrings {
 
   static const String workoutHistoryTitle = 'Workout history';
   static const String nutritionHistoryTitle = 'Nutrition history';
-  static const String addWorkoutTooltip = 'Add workout set';
-  static const String addNutritionTooltip = 'Add nutrition entry';
+  static const String dayTotalLabel = 'DAY TOTAL';
+  static const String unknownExercise = 'Unknown exercise';
 
   static const String noWorkoutsForDayTitle = 'No workouts on this day';
   static const String noWorkoutsForDayMessage =

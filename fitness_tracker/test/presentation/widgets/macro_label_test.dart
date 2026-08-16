@@ -1,6 +1,6 @@
 import 'package:fitness_tracker/app/app.dart';
 import 'package:fitness_tracker/core/themes/lift_theme.dart';
-import 'package:fitness_tracker/features/log/presentation/widgets/shared/macro_label.dart';
+import 'package:fitness_tracker/presentation/shared/widgets/macro_label.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 

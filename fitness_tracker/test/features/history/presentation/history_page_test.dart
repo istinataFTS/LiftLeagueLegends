@@ -4,6 +4,7 @@ import 'package:fitness_tracker/domain/entities/exercise.dart';
 import 'package:fitness_tracker/domain/entities/nutrition_log.dart';
 import 'package:fitness_tracker/domain/entities/workout_set.dart';
 import 'package:fitness_tracker/features/history/history.dart';
+import 'package:fitness_tracker/features/history/presentation/widgets/history_calendar_widget.dart';
 import 'package:fitness_tracker/domain/entities/app_settings.dart';
 import 'package:fitness_tracker/features/library/application/exercise_bloc.dart';
 import 'package:flutter/material.dart';
@@ -189,7 +190,7 @@ void main() {
       ).called(1);
     });
 
-    testWidgets('previous month button dispatches NavigateToMonthEvent', (
+    testWidgets('frame 08 leaves no month chevrons on the page', (
       tester,
     ) async {
       final HistoryLoaded state = HistoryLoaded(
@@ -201,7 +202,31 @@ void main() {
       await tester.pumpWidget(buildSubject(state));
       await tester.pumpAndSettle();
 
-      await tester.tap(find.byTooltip('Previous Month'));
+      expect(find.byIcon(Icons.chevron_left), findsNothing);
+      expect(find.byIcon(Icons.chevron_right), findsNothing);
+      expect(find.text('JANUARY 2024'), findsOneWidget);
+    });
+
+    testWidgets('swiping right dispatches NavigateToMonthEvent', (
+      tester,
+    ) async {
+      final HistoryLoaded state = HistoryLoaded(
+        currentMonth: januaryMonth,
+        monthSets: const <DateTime, List<WorkoutSet>>{},
+        monthNutritionLogs: const <DateTime, List<NutritionLog>>{},
+      );
+
+      await tester.pumpWidget(buildSubject(state));
+      await tester.pumpAndSettle();
+
+      // The chevrons are gone with the card that carried them, so the swipe
+      // the page has always had is now the only pointer path to the previous
+      // month. Fling right, hard enough to clear `swipeThreshold`.
+      await tester.fling(
+        find.byType(HistoryCalendarWidget),
+        const Offset(300, 0),
+        1200,
+      );
       await tester.pump();
 
       verify(
@@ -209,9 +234,7 @@ void main() {
       ).called(1);
     });
 
-    testWidgets('next month navigation is blocked for future months', (
-      tester,
-    ) async {
+    testWidgets('swiping to a future month is blocked', (tester) async {
       final DateTime now = DateTime.now();
       final DateTime currentMonth = DateTime(now.year, now.month, 1);
 
@@ -224,7 +247,11 @@ void main() {
       await tester.pumpWidget(buildSubject(state));
       await tester.pumpAndSettle();
 
-      await tester.tap(find.byTooltip('Next Month'));
+      await tester.fling(
+        find.byType(HistoryCalendarWidget),
+        const Offset(-300, 0),
+        1200,
+      );
       await tester.pumpAndSettle();
 
       expect(find.text('Cannot view future months'), findsOneWidget);
@@ -234,6 +261,29 @@ void main() {
           NavigateToMonthEvent(DateTime(now.year, now.month + 1, 1)),
         ),
       );
+    });
+
+    testWidgets('re-tapping the selected day clears the selection', (
+      tester,
+    ) async {
+      final HistoryLoaded state = HistoryLoaded(
+        currentMonth: januaryMonth,
+        monthSets: <DateTime, List<WorkoutSet>>{
+          selectedDate: <WorkoutSet>[workoutSet],
+        },
+        monthNutritionLogs: const <DateTime, List<NutritionLog>>{},
+        selectedDate: selectedDate,
+        selectedDateSets: <WorkoutSet>[workoutSet],
+        selectedDateNutritionLogs: const <NutritionLog>[],
+      );
+
+      await tester.pumpWidget(buildSubject(state));
+      await tester.pumpAndSettle();
+
+      await tester.tap(find.text('15'));
+      await tester.pump();
+
+      verify(() => historyBloc.add(const ClearDateSelectionEvent())).called(1);
     });
   });
 }

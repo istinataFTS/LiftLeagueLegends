@@ -5,7 +5,7 @@ import 'package:fitness_tracker/core/themes/lift_theme.dart';
 import 'package:fitness_tracker/domain/entities/nutrition_log.dart';
 import 'package:fitness_tracker/features/log/log.dart';
 import 'package:fitness_tracker/features/log/presentation/widgets/shared/log_stepper_field.dart';
-import 'package:fitness_tracker/features/log/presentation/widgets/shared/macro_label.dart';
+import 'package:fitness_tracker/presentation/shared/widgets/macro_label.dart';
 import 'package:fitness_tracker/presentation/widgets/macro_composition_bar.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
