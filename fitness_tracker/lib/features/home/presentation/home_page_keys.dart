@@ -22,4 +22,7 @@ class HomePageKeys {
   static const Key bodyVisualFlipButtonKey = ValueKey<String>(
     'home_body_visual_flip_button',
   );
+  static const Key bodyVisualPanelKey = ValueKey<String>(
+    'home_body_visual_panel',
+  );
 }
