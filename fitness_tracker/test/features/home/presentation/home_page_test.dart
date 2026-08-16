@@ -1,5 +1,6 @@
 import 'package:bloc_test/bloc_test.dart';
 import 'package:fitness_tracker/app/app.dart';
+import 'package:fitness_tracker/core/themes/lift_theme.dart';
 import 'package:fitness_tracker/domain/entities/app_session.dart';
 import 'package:fitness_tracker/domain/entities/app_settings.dart';
 import 'package:fitness_tracker/domain/entities/app_user.dart';
@@ -182,6 +183,12 @@ void main() {
     await tester.pumpWidget(buildSubject());
 
     expect(find.byKey(HomePage.pageLoadingIndicatorKey), findsOneWidget);
+
+    final CircularProgressIndicator indicator = tester
+        .widget<CircularProgressIndicator>(
+          find.byKey(HomePage.pageLoadingIndicatorKey),
+        );
+    expect(indicator.color, LiftColors.actionTint);
   });
 
   testWidgets('home-level retry dispatches LoadHomeDataEvent', (
@@ -197,6 +204,11 @@ void main() {
     await tester.pumpWidget(buildSubject());
 
     expect(find.byKey(HomePage.homeRetryButtonKey), findsOneWidget);
+
+    final Icon errorIcon = tester.widget<Icon>(
+      find.byIcon(Icons.error_outline),
+    );
+    expect(errorIcon.color, LiftColors.error);
 
     await tester.tap(find.byKey(HomePage.homeRetryButtonKey));
     await tester.pump();
