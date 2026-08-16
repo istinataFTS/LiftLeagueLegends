@@ -31,6 +31,21 @@ import 'lift_theme.dart';
 /// it qualifies), and letting the unit inherit [color] at full strength
 /// defeats the "small and dim" subordination this widget exists to
 /// express.
+///
+/// The cost of multiplying is at the low end, and it is not clamped away.
+/// `textPrimary` (α 1.00) yields a unit at α 0.60, exactly `textDim`;
+/// `textSecondary` (α 0.70) yields α 0.42, about `textDisabled`; `textDim`
+/// (α 0.60) yields α 0.36, below every text token in the palette. At
+/// [LiftText.dataMeta] the unit renders at roughly `12 * 0.42 ≈ 5px`, and
+/// 5px at 36% alpha on this app's ground is not readable. So scope [color]
+/// to full-alpha status and accent colours; passing an already-translucent
+/// colour compounds the two reductions and the unit disappears. There is
+/// deliberately no silent floor — clamping would hand a caller back a
+/// colour it did not ask for, which is its own trap.
+///
+/// [color] takes the **tint** role, never `LiftColors.actionFill` —
+/// `actionFill` is a fill for surfaces carrying a white label and measures
+/// 1.98:1 as a foreground on this ground.
 class LiftNumber extends StatelessWidget {
   const LiftNumber(
     this.value,

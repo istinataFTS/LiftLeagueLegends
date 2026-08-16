@@ -8,7 +8,7 @@ import 'package:fitness_tracker/features/log/presentation/widgets/shared/macro_c
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 
-import '../../log_phone_viewport.dart';
+import '../../../../support/phone_viewport.dart';
 
 void main() {
   Widget wrap(Widget child) {

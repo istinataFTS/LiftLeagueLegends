@@ -5,7 +5,7 @@ import 'package:fitness_tracker/features/log/presentation/widgets/exercise_set_r
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 
-import '../log_phone_viewport.dart';
+import '../../../support/phone_viewport.dart';
 
 void main() {
   Widget buildSubject({
@@ -56,11 +56,17 @@ void main() {
         // Level 4 is the case that disambiguates cumulative fill from a
         // single-mark fill (it's what frame row `03` shows); level 0 must
         // fill nothing and level 5 must fill all five.
+        // Declared outside the level loop on purpose: the first mark of the
+        // first level seeds it and every later mark — at every later level —
+        // is compared against that one size. Scoping it inside the loop
+        // would only compare marks to their siblings, which a mutation like
+        // `width: 11 + level` survives (all five marks stay equal at each
+        // level, they just grow together as the level rises).
+        Size? markSize;
         for (final int level in <int>[0, 1, 3, 4, 5]) {
           await pumpAtPhoneWidth(tester, buildSubject(intensity: level));
           expectNoOverflow(tester);
 
-          Size? markSize;
           for (int i = 0; i < 5; i++) {
             final Finder markFinder = find.byKey(
               ValueKey<String>('set-effort-mark-$i'),
@@ -72,15 +78,19 @@ void main() {
               reason: 'mark $i at level $level',
             );
 
-            // All marks are the same size, so count is provably the only
-            // channel — nothing about an individual mark's size varies with
-            // the level the way the picker's rung heights do.
+            // All marks are the same size at every level, so count is
+            // provably the only channel — nothing about an individual
+            // mark's size varies with the level the way the picker's rung
+            // heights do.
             final Size size = tester.getSize(markFinder);
             markSize ??= size;
             expect(
               size,
               markSize,
-              reason: 'mark $i size was $size, expected $markSize',
+              reason:
+                  'mark $i at level $level was $size, expected $markSize '
+                  '(the size measured for every other mark, at every '
+                  'other level)',
             );
           }
         }

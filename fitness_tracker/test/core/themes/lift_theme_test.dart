@@ -7,7 +7,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/rendering.dart';
 import 'package:flutter_test/flutter_test.dart';
 
-import '../../features/log/log_phone_viewport.dart';
+import '../../support/phone_viewport.dart';
 
 void main() {
   group('LiftColors', () {
@@ -75,22 +75,32 @@ void main() {
       'bottom-right shade near groundDark',
       (tester) async {
         final GlobalKey boundaryKey = GlobalKey();
+        const Key childKey = Key('lift-ground-child');
 
         await pumpAtPhoneWidth(
           tester,
           RepaintBoundary(
             key: boundaryKey,
             child: const MaterialApp(
-              home: LiftGround(child: SizedBox.shrink()),
+              home: LiftGround(child: SizedBox(key: childKey, width: 1)),
             ),
           ),
-          // Pinned explicitly rather than left to log_phone_viewport.dart's
+          // Pinned explicitly rather than left to phone_viewport.dart's
           // defaults: the sampled pixel coordinates and the measured RGB
           // constants below are derived for this exact 1080x2400 @3x
-          // surface, and must not silently drift if that Log-owned helper's
-          // defaults ever change for a Log-specific reason.
+          // surface, and must not silently drift if that shared helper's
+          // defaults ever change for some other caller's reason.
           physicalSize: const Size(1080, 2400),
           devicePixelRatio: 3,
+        );
+
+        // The inverse of the mutation this test exists to catch: paint the
+        // gradient but drop the child. LiftGround must put its child in the
+        // tree, not just decorate the space around it.
+        expect(
+          find.byKey(childKey),
+          findsOneWidget,
+          reason: 'LiftGround must render its child, not only its gradient',
         );
 
         await tester.runAsync(() async {
@@ -118,7 +128,7 @@ void main() {
 
           // The measured colour constants below are only valid at this
           // exact surface size. If this fails, the surface size changed
-          // (e.g. an unrelated edit to log_phone_viewport.dart's defaults)
+          // (e.g. an unrelated edit to phone_viewport.dart's defaults)
           // and the constants need re-measuring -- do not widen the
           // tolerance instead.
           expect(
@@ -159,10 +169,18 @@ void main() {
           //
           // Tolerance: with the inner radial DecoratedBox removed (outer
           // linear gradient only), the same top-left sample moves toward
-          // groundMid (#28323B = 40,50,59) instead of groundLight -- a gap
-          // of 6-10 units/channel. A tolerance of 6 stays clear of both the
-          // <=1 real-widget deviation and that mutation's >=6 deviation.
-          const int tol = 6;
+          // groundMid (#28323B = 40,50,59) instead of groundLight -- a
+          // deviation of 7 (red), 8 (green), 10 (blue). The real widget
+          // deviates from its token by <=1 on every channel. `closeTo` is
+          // inclusive (it passes when `diff <= delta`), so a tolerance of 6
+          // would let a 6-unit deviation through, and the mutation's
+          // narrowest channel (red, 7) would clear it by only 1. A
+          // tolerance of 3 is strictly better on both sides: 2 units of
+          // headroom above the real widget's <=1 drift, and 4 units of
+          // margin below the mutation's smallest deviation. If this ever
+          // fails, report the measured channel values -- do not widen it
+          // back.
+          const int tol = 3;
 
           expect(
             topLeft,

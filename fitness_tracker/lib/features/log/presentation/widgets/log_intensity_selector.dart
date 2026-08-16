@@ -4,7 +4,9 @@ import 'package:flutter/services.dart';
 import '../../../../core/constants/muscle_stimulus_constants.dart';
 import '../../../../core/themes/lift_theme.dart';
 
-/// Effort picker (frame 02, `export/02-log-exercise.png`). Rung **height**
+/// Effort picker, from frame 02 (`02-log-exercise.png`) of the design
+/// export. That export lives outside this repository and is not checked in,
+/// so there is no `export/` directory to look for here. Rung **height**
 /// is the value's channel: the six rungs grow taller left to right, and only
 /// the rung at the selected index switches to `LiftColors.effortOn` — every
 /// other rung stays `LiftColors.effortOff`. Nothing here is counted; a
@@ -26,8 +28,10 @@ class LogIntensitySelector extends StatelessWidget {
   final int intensity;
   final ValueChanged<int> onChanged;
 
-  /// Rung heights, matching the ladder in the design spec.
-  static const List<double> _heights = <double>[9, 15, 21, 27, 33, 38];
+  /// Rung heights, matching the ladder in the design frame: its rungs
+  /// measure 24, 42, 60, 78, 96, 114 image px, which is 8, 14, 20, 26, 32,
+  /// 38 logical at 3x — a uniform `+6` step.
+  static const List<double> _heights = <double>[8, 14, 20, 26, 32, 38];
 
   @override
   Widget build(BuildContext context) {
@@ -57,36 +61,37 @@ class LogIntensitySelector extends StatelessWidget {
           height: 44,
           child: Row(
             crossAxisAlignment: CrossAxisAlignment.end,
+            // `spacing`, not a per-child `Padding`: inside a tight `Expanded`
+            // slot a left inset shrinks the rung's own box instead of
+            // separating it, which made rung 0 render wider than the rest.
+            spacing: 5,
             children: List<Widget>.generate(_heights.length, (int i) {
               final bool selected = i == level;
               return Expanded(
-                child: Padding(
-                  padding: EdgeInsets.only(left: i == 0 ? 0 : 5),
-                  child: Semantics(
-                    button: true,
-                    selected: selected,
-                    label: 'Effort $i',
-                    child: GestureDetector(
-                      behavior: HitTestBehavior.opaque,
-                      onTap: () {
-                        HapticFeedback.selectionClick();
-                        onChanged(i);
-                      },
-                      child: SizedBox(
-                        height: 44,
-                        child: Align(
-                          alignment: Alignment.bottomCenter,
-                          child: Container(
-                            key: ValueKey<String>('effort-rung-$i'),
-                            constraints: BoxConstraints(
-                              minHeight: _heights[i],
-                              maxHeight: _heights[i],
-                            ),
-                            decoration: BoxDecoration(
-                              color: selected
-                                  ? LiftColors.effortOn
-                                  : LiftColors.effortOff,
-                            ),
+                child: Semantics(
+                  button: true,
+                  selected: selected,
+                  label: 'Effort $i',
+                  child: GestureDetector(
+                    behavior: HitTestBehavior.opaque,
+                    onTap: () {
+                      HapticFeedback.selectionClick();
+                      onChanged(i);
+                    },
+                    child: SizedBox(
+                      height: 44,
+                      child: Align(
+                        alignment: Alignment.bottomCenter,
+                        child: Container(
+                          key: ValueKey<String>('effort-rung-$i'),
+                          constraints: BoxConstraints(
+                            minHeight: _heights[i],
+                            maxHeight: _heights[i],
+                          ),
+                          decoration: BoxDecoration(
+                            color: selected
+                                ? LiftColors.effortOn
+                                : LiftColors.effortOff,
                           ),
                         ),
                       ),
@@ -99,18 +104,18 @@ class LogIntensitySelector extends StatelessWidget {
         ),
         const SizedBox(height: 6),
         Row(
+          // Same `spacing` as the rung row above, so each digit stays
+          // centred under its own rung.
+          spacing: 5,
           children: List<Widget>.generate(_heights.length, (int i) {
             return Expanded(
-              child: Padding(
-                padding: EdgeInsets.only(left: i == 0 ? 0 : 5),
-                child: Text(
-                  '$i',
-                  textAlign: TextAlign.center,
-                  style: LiftText.dataMeta.copyWith(
-                    color: i == level
-                        ? LiftColors.actionTint
-                        : LiftColors.textDim,
-                  ),
+              child: Text(
+                '$i',
+                textAlign: TextAlign.center,
+                style: LiftText.dataMeta.copyWith(
+                  color: i == level
+                      ? LiftColors.actionTint
+                      : LiftColors.textDim,
                 ),
               ),
             );

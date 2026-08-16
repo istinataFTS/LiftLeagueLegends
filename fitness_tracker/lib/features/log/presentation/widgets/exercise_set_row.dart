@@ -3,9 +3,12 @@ import 'package:flutter/material.dart';
 import '../../../../core/themes/lift_number.dart';
 import '../../../../core/themes/lift_theme.dart';
 
-/// One row in the Exercise tab's set feed (frame 02, `export/02-log-exercise.png`):
-/// index, effort marks, and the weight × reps pair right-aligned. Rows are
-/// divided by a hairline — the card, the pill and the gradient bar are gone.
+/// One row in the Exercise tab's set feed, from frame 02
+/// (`02-log-exercise.png`) of the design export. That export lives outside
+/// this repository and is not checked in, so there is no `export/`
+/// directory to look for here. The row carries the set index, the effort
+/// marks, and the weight × reps pair right-aligned. Rows are divided by a
+/// hairline — the card, the pill and the gradient bar are gone.
 ///
 /// The five effort marks are all the same size, so **count** of filled marks
 /// is the value's channel: marks `0` through `level - 1` fill with
@@ -16,6 +19,16 @@ import '../../../../core/themes/lift_theme.dart';
 /// spend, this compact row doesn't. Both encodings were confirmed by
 /// sampling the exported frame's pixels and must not be "harmonised" into
 /// one.
+///
+/// Known, unfixed mismatch against that frame: the frame's marks are 21x33
+/// image px with 9px gaps. The 3px gap below matches exactly at 3x
+/// (3dp -> 9px), which pins the scale, and at that same scale the marks
+/// should be roughly 7x11dp rather than the 11x15 used here — about 57%
+/// too wide and 36% too tall, a mark-width-to-gap ratio of 3.67:1 against
+/// the frame's 2.33:1. It is left alone on purpose: correcting it is a
+/// visible change to shipped pixels and belongs in its own restyle PR, and
+/// unlike the picker's rung widths no test asserts the current numbers, so
+/// nothing is silently locking them in.
 class ExerciseSetRow extends StatelessWidget {
   const ExerciseSetRow({
     super.key,
