@@ -1,5 +1,4 @@
 import 'package:dartz/dartz.dart';
-import 'package:fitness_tracker/core/constants/app_strings.dart';
 import 'package:fitness_tracker/domain/entities/exercise.dart';
 import 'package:fitness_tracker/domain/entities/muscle_factor.dart';
 import 'package:fitness_tracker/domain/usecases/exercises/add_exercise.dart';
