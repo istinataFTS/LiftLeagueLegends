@@ -11,6 +11,7 @@ import 'package:fitness_tracker/domain/usecases/exercises/get_exercises_for_musc
 import 'package:fitness_tracker/domain/usecases/exercises/update_exercise.dart';
 import 'package:fitness_tracker/domain/usecases/muscle_factors/get_muscle_factors_for_exercise.dart';
 import 'package:fitness_tracker/features/library/application/exercise_bloc.dart';
+import 'package:fitness_tracker/features/library/presentation/widgets/exercise_dialog.dart';
 import 'package:fitness_tracker/features/library/presentation/widgets/exercises_tab.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
@@ -111,6 +112,19 @@ Future<void> _openEditDialog(WidgetTester tester, ExerciseBloc bloc) async {
   await tester.pumpAndSettle();
 }
 
+/// The multiplier renders through [LiftNumber], which builds a `Text.rich`
+/// with the value and its `x` unit in two spans — so it has no `data`, and
+/// the assertion has to flatten the span tree.
+String _factorText(WidgetTester tester, String muscle) {
+  final Text text = tester.widget<Text>(
+    find.descendant(
+      of: find.byKey(ExercisesTab.factorValueKey(muscle)),
+      matching: find.byType(Text),
+    ),
+  );
+  return text.textSpan!.toPlainText();
+}
+
 // ---------------------------------------------------------------------------
 // Tests
 // ---------------------------------------------------------------------------
@@ -173,17 +187,12 @@ void main() {
 
       await _openAddDialog(tester, bloc);
 
-      await tester.tap(find.widgetWithText(FilterChip, 'Chest'));
+      await tester.tap(find.byKey(ExerciseDialog.muscleChipKey('chest')));
       await tester.pumpAndSettle();
 
       expect(find.byKey(ExercisesTab.factorEditorKey), findsOneWidget);
       expect(find.byKey(ExercisesTab.factorSliderKey('chest')), findsOneWidget);
-      expect(
-        tester
-            .widget<Text>(find.byKey(ExercisesTab.factorValueKey('chest')))
-            .data,
-        '1.00x',
-      );
+      expect(_factorText(tester, 'chest'), '1.00x');
     });
 
     testWidgets('deselecting a chip removes its slider row', (
@@ -200,11 +209,11 @@ void main() {
 
       await _openAddDialog(tester, bloc);
 
-      await tester.tap(find.widgetWithText(FilterChip, 'Chest'));
+      await tester.tap(find.byKey(ExerciseDialog.muscleChipKey('chest')));
       await tester.pumpAndSettle();
       expect(find.byKey(ExercisesTab.factorSliderKey('chest')), findsOneWidget);
 
-      await tester.tap(find.widgetWithText(FilterChip, 'Chest'));
+      await tester.tap(find.byKey(ExerciseDialog.muscleChipKey('chest')));
       await tester.pumpAndSettle();
       expect(find.byKey(ExercisesTab.factorSliderKey('chest')), findsNothing);
     });
@@ -223,7 +232,7 @@ void main() {
 
       await _openAddDialog(tester, bloc);
 
-      await tester.tap(find.widgetWithText(FilterChip, 'Chest'));
+      await tester.tap(find.byKey(ExerciseDialog.muscleChipKey('chest')));
       await tester.pumpAndSettle();
 
       // The Reset button lives inside the dialog's SingleChildScrollView and
@@ -235,12 +244,7 @@ void main() {
       await tester.tap(find.byKey(ExercisesTab.resetFactorsButtonKey));
       await tester.pumpAndSettle();
 
-      expect(
-        tester
-            .widget<Text>(find.byKey(ExercisesTab.factorValueKey('chest')))
-            .data,
-        '1.00x',
-      );
+      expect(_factorText(tester, 'chest'), '1.00x');
     });
 
     testWidgets(
@@ -275,11 +279,11 @@ void main() {
         await tester.pump();
 
         // Select Chest.
-        await tester.tap(find.widgetWithText(FilterChip, 'Chest'));
+        await tester.tap(find.byKey(ExerciseDialog.muscleChipKey('chest')));
         await tester.pumpAndSettle();
 
         // Tap the Add button.
-        await tester.tap(find.text(AppStrings.add));
+        await tester.tap(find.byKey(ExerciseDialog.saveButtonKey));
         await tester.pumpAndSettle();
 
         verify(
@@ -306,12 +310,7 @@ void main() {
 
       // chest and triceps come from _exercise.muscleGroups.
       expect(find.byKey(ExercisesTab.factorSliderKey('chest')), findsOneWidget);
-      expect(
-        tester
-            .widget<Text>(find.byKey(ExercisesTab.factorValueKey('chest')))
-            .data,
-        '1.00x',
-      );
+      expect(_factorText(tester, 'chest'), '1.00x');
     });
 
     testWidgets(
@@ -337,18 +336,8 @@ void main() {
         );
         await tester.pumpAndSettle();
 
-        expect(
-          tester
-              .widget<Text>(find.byKey(ExercisesTab.factorValueKey('chest')))
-              .data,
-          '0.60x',
-        );
-        expect(
-          tester
-              .widget<Text>(find.byKey(ExercisesTab.factorValueKey('triceps')))
-              .data,
-          '0.40x',
-        );
+        expect(_factorText(tester, 'chest'), '0.60x');
+        expect(_factorText(tester, 'triceps'), '0.40x');
       },
     );
 
@@ -376,12 +365,7 @@ void main() {
       await tester.pumpAndSettle();
 
       // Chest slider should still show the default 1.00x.
-      expect(
-        tester
-            .widget<Text>(find.byKey(ExercisesTab.factorValueKey('chest')))
-            .data,
-        '1.00x',
-      );
+      expect(_factorText(tester, 'chest'), '1.00x');
     });
   });
 }

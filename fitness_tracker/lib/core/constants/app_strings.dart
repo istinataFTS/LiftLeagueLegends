@@ -148,27 +148,9 @@ class AppStrings {
   static const String allIntensityLevels = 'All Intensity Levels';
 
   // ==================== Library Page ====================
-  static const String libraryTitle = 'Library';
-  static const String exercisesTab = 'Exercises';
-  static const String mealsTab = 'Meals';
-  static const String exercisesTitle = 'Exercises';
-  static const String aboutExercises = 'About Exercises';
-  static const String addFirstExercise = 'Add Your First Exercise';
-  static const String exerciseNameHint = 'e.g. Bench Press';
-  static const String deleteExerciseConfirm =
-      'Are you sure you want to delete this exercise?';
-  static const String editExercise = 'Edit Exercise';
-  static const String deleteExercise = 'Delete Exercise';
-  static const String noExercisesYet = 'No exercises yet';
-  static const String createExercisesDescription =
-      'Create exercises to track your workouts';
-  static const String emptyLibrary = 'Your library is empty';
-
-  // Muscle factor editor (exercise dialog)
-  static const String muscleFactorTitle = 'Muscle activation';
-  static const String muscleFactorHint =
-      'How much each muscle is taxed by one set';
-  static const String resetFactors = 'Reset to defaults';
+  // Library's copy moved to `features/library/presentation/library_strings.dart`
+  // with the Deep Mist rebuild (PR B5); every constant that lived here had
+  // zero remaining references afterwards.
 
   // ==================== Nutrition ====================
   static const String nutrition = 'Nutrition';

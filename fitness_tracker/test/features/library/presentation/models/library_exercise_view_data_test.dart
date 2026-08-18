@@ -44,7 +44,7 @@ void main() {
             selectedMuscle: 'chest',
           );
 
-      expect(viewData.resultCountLabel, '1 of 2 exercises');
+      expect(viewData.resultCountLabel, '1 OF 2 EXERCISES');
       expect(viewData.hasExercises, isTrue);
       expect(viewData.hasResults, isTrue);
       expect(viewData.hasActiveFilters, isTrue);
@@ -70,7 +70,7 @@ void main() {
           );
 
       expect(viewData.items, isEmpty);
-      expect(viewData.resultCountLabel, '0 of 0 exercises');
+      expect(viewData.resultCountLabel, '0 OF 0 EXERCISES');
       expect(viewData.hasExercises, isFalse);
       expect(viewData.hasResults, isFalse);
       expect(viewData.hasActiveFilters, isFalse);

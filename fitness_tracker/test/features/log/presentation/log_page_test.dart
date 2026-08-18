@@ -1,6 +1,6 @@
 import 'package:fitness_tracker/app/app.dart';
 import 'package:fitness_tracker/features/log/presentation/pages/log_page.dart';
-import 'package:fitness_tracker/features/log/presentation/widgets/shared/log_tab_selector.dart';
+import 'package:fitness_tracker/presentation/shared/widgets/lift_tab_selector.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 
@@ -24,7 +24,7 @@ void main() {
       await tester.pumpWidget(buildSubject());
       await tester.pumpAndSettle();
 
-      expect(find.byType(LogTabSelector), findsOneWidget);
+      expect(find.byType(LiftTabSelector), findsOneWidget);
       expect(find.text('EXERCISE'), findsOneWidget);
       expect(find.text('MEAL'), findsOneWidget);
       expect(find.text('MACROS'), findsOneWidget);
@@ -81,7 +81,7 @@ void main() {
       await tester.pumpAndSettle();
 
       expect(find.byType(AppBar), findsNothing);
-      expect(find.byType(LogTabSelector), findsOneWidget);
+      expect(find.byType(LiftTabSelector), findsOneWidget);
     });
 
     testWidgets('shows a back button when pushed onto a route', (tester) async {
@@ -136,12 +136,12 @@ void main() {
         await tester.pumpAndSettle();
 
         expect(find.byType(Card), findsNothing);
-        expect(find.byType(LogTabSelector), findsOneWidget);
+        expect(find.byType(LiftTabSelector), findsOneWidget);
 
         // Pre-restyle chrome wrapped the tab selector in a bordered
         // decorative Container ("chip") — Deep Mist drops that treatment
         // entirely. Scanning every Container on the page (not just direct
-        // ancestors of LogTabSelector, which turns out to have none — a
+        // ancestors of LiftTabSelector, which turns out to have none — a
         // vacuous check that would pass even if the border came back one
         // level up the tree) is what actually catches that regression.
         final Iterable<Container> containers = tester.widgetList<Container>(

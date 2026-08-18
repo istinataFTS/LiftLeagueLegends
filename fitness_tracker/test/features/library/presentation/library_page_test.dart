@@ -5,7 +5,10 @@ import 'package:fitness_tracker/features/library/application/exercise_bloc.dart'
 import 'package:fitness_tracker/features/library/application/meal_bloc.dart';
 import 'package:fitness_tracker/features/library/presentation/library_page.dart';
 import 'package:fitness_tracker/features/library/presentation/widgets/exercises_tab.dart';
+import 'package:fitness_tracker/features/library/presentation/widgets/exercise_dialog.dart';
 import 'package:fitness_tracker/features/library/presentation/widgets/meals_tab.dart';
+import 'package:fitness_tracker/core/themes/lift_theme.dart';
+import 'package:fitness_tracker/presentation/shared/widgets/lift_tab_selector.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -118,7 +121,7 @@ void main() {
   }
 
   Future<void> openMealsTab(WidgetTester tester) async {
-    await tester.tap(find.text('Meals'));
+    await tester.tap(find.text('MEALS'));
     await tester.pumpAndSettle();
   }
 
@@ -128,10 +131,10 @@ void main() {
     await tester.pumpWidget(buildSubject());
 
     expect(find.text('Library'), findsOneWidget);
-    expect(find.text('Exercises'), findsOneWidget);
-    expect(find.text('Meals'), findsOneWidget);
+    expect(find.text('EXERCISES'), findsOneWidget);
+    expect(find.text('MEALS'), findsOneWidget);
     expect(find.byKey(ExercisesTab.resultCountKey), findsOneWidget);
-    expect(find.text('3 of 3 exercises'), findsOneWidget);
+    expect(find.text('3 OF 3 EXERCISES'), findsOneWidget);
   });
 
   testWidgets('filters exercises by search query', (WidgetTester tester) async {
@@ -143,7 +146,7 @@ void main() {
     expect(find.text('Bench Press'), findsOneWidget);
     expect(find.text('Pull Up'), findsNothing);
     expect(find.text('Overhead Press'), findsNothing);
-    expect(find.text('1 of 3 exercises'), findsOneWidget);
+    expect(find.text('1 OF 3 EXERCISES'), findsOneWidget);
   });
 
   testWidgets('filters exercises by muscle chip', (WidgetTester tester) async {
@@ -161,7 +164,7 @@ void main() {
     expect(find.text('Bench Press'), findsOneWidget);
     expect(find.text('Pull Up'), findsNothing);
     expect(find.text('Overhead Press'), findsNothing);
-    expect(find.text('1 of 3 exercises'), findsOneWidget);
+    expect(find.text('1 OF 3 EXERCISES'), findsOneWidget);
   });
 
   testWidgets('exercise filters reset from no-results state', (
@@ -184,7 +187,7 @@ void main() {
     await tester.tap(find.byKey(ExercisesTab.clearFiltersButtonKey));
     await tester.pumpAndSettle();
 
-    expect(find.text('3 of 3 exercises'), findsOneWidget);
+    expect(find.text('3 OF 3 EXERCISES'), findsOneWidget);
     expect(find.text('Bench Press'), findsOneWidget);
     expect(find.text('Pull Up'), findsOneWidget);
     expect(find.text('Overhead Press'), findsOneWidget);
@@ -224,7 +227,7 @@ void main() {
 
     expect(find.text('Chicken Bowl'), findsOneWidget);
     expect(find.text('Oats'), findsNothing);
-    expect(find.text('1 of 2 meals'), findsOneWidget);
+    expect(find.text('1 OF 2 MEALS'), findsOneWidget);
   });
 
   testWidgets('meal search resets from no-results state', (
@@ -246,7 +249,7 @@ void main() {
     await tester.tap(find.byKey(MealsTab.clearResultsButtonKey));
     await tester.pumpAndSettle();
 
-    expect(find.text('2 of 2 meals'), findsOneWidget);
+    expect(find.text('2 OF 2 MEALS'), findsOneWidget);
     expect(find.text('Chicken Bowl'), findsOneWidget);
     expect(find.text('Oats'), findsOneWidget);
   });
@@ -272,15 +275,147 @@ void main() {
     verify(() => mealBloc.add(LoadMealsEvent())).called(1);
   });
 
-  testWidgets('about dialog is shown from info action', (
+  // ---------------------------------------------------------------------
+  // Frame 11 — what the rebuild removed. Each of these fails against the
+  // pre-restyle page, which is the only reason they are worth asserting.
+  // ---------------------------------------------------------------------
+
+  testWidgets('the AppBar carries no action — the info dialog is gone', (
     WidgetTester tester,
   ) async {
     await tester.pumpWidget(buildSubject());
 
-    await tester.tap(find.byTooltip('About Library'));
+    expect(find.byTooltip('About Library'), findsNothing);
+    expect(find.byIcon(Icons.info_outline), findsNothing);
+    expect(find.byType(IconButton), findsNothing);
+  });
+
+  testWidgets('the tabs are text only and carry no icons', (
+    WidgetTester tester,
+  ) async {
+    await tester.pumpWidget(buildSubject());
+
+    expect(find.byType(TabBar), findsNothing);
+    expect(find.byType(LiftTabSelector), findsOneWidget);
+    expect(find.byIcon(Icons.fitness_center), findsNothing);
+    expect(find.byIcon(Icons.restaurant), findsNothing);
+  });
+
+  testWidgets('the Scaffold is transparent so LiftGround shows through', (
+    WidgetTester tester,
+  ) async {
+    await tester.pumpWidget(buildSubject());
+
+    final Scaffold scaffold = tester.widget<Scaffold>(find.byType(Scaffold));
+    expect(scaffold.backgroundColor, anyOf(isNull, Colors.transparent));
+  });
+
+  testWidgets('rows are rules, not cards — no Card and no overflow menu', (
+    WidgetTester tester,
+  ) async {
+    await tester.pumpWidget(buildSubject());
+
+    expect(find.byType(Card), findsNothing);
+    expect(find.byType(PopupMenuButton<String>), findsNothing);
+    expect(find.byIcon(Icons.more_vert), findsNothing);
+  });
+
+  testWidgets('the muscle line is mono caps joined by a spaced middot', (
+    WidgetTester tester,
+  ) async {
+    await tester.pumpWidget(buildSubject());
+
+    final Text meta = tester.widget<Text>(find.text('CHEST'));
+    expect(meta.style!.fontFamily, 'JetBrainsMono');
+    expect(meta.style!.color, LiftColors.textDim);
+  });
+
+  testWidgets('the selected filter chip fills actionFill, the rest are '
+      'transparent behind a border', (WidgetTester tester) async {
+    tester.view.physicalSize = const Size(2000, 800);
+    tester.view.devicePixelRatio = 1.0;
+    addTearDown(tester.view.resetPhysicalSize);
+    addTearDown(tester.view.resetDevicePixelRatio);
+
+    await tester.pumpWidget(buildSubject());
+
+    BoxDecoration decorationOf(Key key) {
+      return tester
+              .widget<Container>(
+                find.descendant(
+                  of: find.byKey(key),
+                  matching: find.byType(Container),
+                ),
+              )
+              .decoration!
+          as BoxDecoration;
+    }
+
+    final BoxDecoration selected = decorationOf(ExercisesTab.allMusclesChipKey);
+    expect(selected.color, LiftColors.actionFill);
+    expect(selected.border, isNull);
+    expect(selected.borderRadius, isNull);
+
+    final BoxDecoration unselected = decorationOf(
+      ExercisesTab.muscleChipKey('chest'),
+    );
+    expect(unselected.color, Colors.transparent);
+    expect(unselected.border, isNotNull);
+    expect(unselected.borderRadius, isNull);
+  });
+
+  testWidgets('tapping a row opens the edit dialog', (
+    WidgetTester tester,
+  ) async {
+    await tester.pumpWidget(buildSubject());
+
+    await tester.tap(find.text('Bench Press'));
     await tester.pumpAndSettle();
 
-    expect(find.text('About Library'), findsOneWidget);
-    expect(find.text('Got it'), findsOneWidget);
+    expect(find.text('Edit exercise'), findsOneWidget);
+    expect(find.byKey(ExerciseDialog.deleteButtonKey), findsOneWidget);
+  });
+
+  testWidgets('long-pressing a row asks to delete it', (
+    WidgetTester tester,
+  ) async {
+    await tester.pumpWidget(buildSubject());
+
+    await tester.longPress(find.text('Bench Press'));
+    await tester.pumpAndSettle();
+
+    expect(find.text('Delete exercise'), findsOneWidget);
+
+    await tester.tap(find.text('Delete'));
+    await tester.pumpAndSettle();
+
+    verify(
+      () => exerciseBloc.add(any(that: isA<DeleteExerciseEvent>())),
+    ).called(1);
+  });
+
+  testWidgets('every key ExercisesTab declares still resolves', (
+    WidgetTester tester,
+  ) async {
+    tester.view.physicalSize = const Size(2000, 1600);
+    tester.view.devicePixelRatio = 1.0;
+    addTearDown(tester.view.resetPhysicalSize);
+    addTearDown(tester.view.resetDevicePixelRatio);
+
+    await tester.pumpWidget(buildSubject());
+
+    for (final Key key in <Key>[
+      ExercisesTab.searchFieldKey,
+      ExercisesTab.allMusclesChipKey,
+      ExercisesTab.resultCountKey,
+      ExercisesTab.addButtonKey,
+      ExercisesTab.muscleChipKey('chest'),
+    ]) {
+      expect(find.byKey(key), findsOneWidget, reason: '$key');
+    }
+
+    await tester.enterText(find.byKey(ExercisesTab.searchFieldKey), 'bench');
+    await tester.pump();
+    expect(find.byKey(ExercisesTab.clearSearchButtonKey), findsOneWidget);
   });
 }

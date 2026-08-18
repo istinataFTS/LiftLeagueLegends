@@ -1,10 +1,11 @@
 import 'package:flutter/material.dart';
 
+import '../../../../core/constants/app_strings.dart';
 import '../../../../core/themes/lift_theme.dart';
+import '../../../../presentation/shared/widgets/lift_tab_selector.dart';
 import '../widgets/log_exercise_tab.dart';
 import '../widgets/log_macros_tab.dart';
 import '../widgets/log_meal_tab.dart';
-import '../widgets/shared/log_tab_selector.dart';
 
 typedef LogTabBuilder = Widget Function(DateTime initialDate);
 
@@ -65,7 +66,13 @@ class _LogPageState extends State<LogPage> {
                         onPressed: () => Navigator.of(context).pop(),
                       ),
                     ),
-                  LogTabSelector(
+                  LiftTabSelector(
+                    labels: const <String>[
+                      AppStrings.logExerciseTab,
+                      AppStrings.logMealTab,
+                      AppStrings.logMacrosTab,
+                    ],
+                    keyPrefix: 'log-tab',
                     selectedIndex: _selectedIndex,
                     onChanged: (int i) => setState(() => _selectedIndex = i),
                   ),
