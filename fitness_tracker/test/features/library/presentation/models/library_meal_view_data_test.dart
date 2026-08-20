@@ -53,7 +53,7 @@ void main() {
         searchQuery: 'chicken',
       );
 
-      expect(viewData.resultCountLabel, '1 of 2 meals');
+      expect(viewData.resultCountLabel, '1 OF 2 MEALS');
       expect(viewData.hasMeals, isTrue);
       expect(viewData.hasResults, isTrue);
       expect(viewData.hasActiveSearch, isTrue);
@@ -63,8 +63,8 @@ void main() {
       final LibraryMealItemViewData item = viewData.items.single;
       expect(item.id, '1');
       expect(item.title, 'Chicken Bowl');
-      expect(item.subtitle, '150 g serving • 294 kcal');
-      expect(item.macroSummary, '30P • 15C • 12F');
+      expect(item.subtitle, '150 G SERVING · 294 KCAL');
+      expect(item.macroSummary, '30P · 15C · 12F');
       expect(item.meal, chickenBowl);
     });
 
@@ -76,7 +76,7 @@ void main() {
       );
 
       expect(viewData.items, isEmpty);
-      expect(viewData.resultCountLabel, '0 of 0 meals');
+      expect(viewData.resultCountLabel, '0 OF 0 MEALS');
       expect(viewData.hasMeals, isFalse);
       expect(viewData.hasResults, isFalse);
       expect(viewData.hasActiveSearch, isFalse);

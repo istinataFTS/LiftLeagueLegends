@@ -1,25 +1,39 @@
 import 'package:flutter/material.dart';
 
-import '../../../../../core/constants/app_strings.dart';
-import '../../../../../core/themes/lift_theme.dart';
+import '../../../core/themes/lift_theme.dart';
 
-/// Log's three sub-tabs as mono caps over a tint underline (frame 02).
+/// Deep Mist's tab strip: mono caps over a tint underline.
+///
+/// Log's three sub-tabs (frame 02) and Library's two (frame 11) are the same
+/// control, so it lives above the feature layer — a Library import of Log's
+/// `presentation/` would be a convention rule 8 violation, not a style choice.
+///
+/// Frame 11 measures the label at an 8dp cap height and a 25px glyph pitch at
+/// 3x, i.e. `labelLarge` (11dp / 1.8 letter-spacing) exactly, and the gap
+/// between two labels at ~23dp, which [_gap] rounds to 22.
+///
 /// Segment height stays 44 px for touch compliance.
-class LogTabSelector extends StatelessWidget {
-  const LogTabSelector({
-    super.key,
+class LiftTabSelector extends StatelessWidget {
+  const LiftTabSelector({
+    required this.labels,
     required this.selectedIndex,
     required this.onChanged,
+    this.keyPrefix = 'lift-tab',
+    super.key,
   });
+
+  /// Rendered verbatim in upper case, one segment each.
+  final List<String> labels;
 
   final int selectedIndex;
   final ValueChanged<int> onChanged;
 
-  static const List<String> _labels = <String>[
-    AppStrings.logExerciseTab,
-    AppStrings.logMealTab,
-    AppStrings.logMacrosTab,
-  ];
+  /// Underline keys are `<keyPrefix>-underline-<index>`, so two selectors on
+  /// one page (Log and Library never co-exist, but tests build both) do not
+  /// collide.
+  final String keyPrefix;
+
+  static const double _gap = 22;
 
   @override
   Widget build(BuildContext context) {
@@ -28,19 +42,19 @@ class LogTabSelector extends StatelessWidget {
       child: Row(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         mainAxisSize: MainAxisSize.min,
-        children: List<Widget>.generate(_labels.length, (int i) {
+        children: List<Widget>.generate(labels.length, (int i) {
           final bool active = i == selectedIndex;
           return Semantics(
             button: true,
             selected: active,
-            label: _labels[i],
+            label: labels[i],
             excludeSemantics: true,
             child: GestureDetector(
               behavior: HitTestBehavior.opaque,
               onTap: () => onChanged(i),
               child: Padding(
                 padding: EdgeInsets.only(
-                  right: i == _labels.length - 1 ? 0 : 22,
+                  right: i == labels.length - 1 ? 0 : _gap,
                 ),
                 child: IntrinsicWidth(
                   child: Column(
@@ -49,7 +63,7 @@ class LogTabSelector extends StatelessWidget {
                     children: <Widget>[
                       const Spacer(),
                       Text(
-                        _labels[i].toUpperCase(),
+                        labels[i].toUpperCase(),
                         style: LiftText.labelLarge.copyWith(
                           color: active
                               ? LiftColors.textPrimary
@@ -61,7 +75,7 @@ class LogTabSelector extends StatelessWidget {
                       ),
                       const SizedBox(height: 9),
                       Container(
-                        key: ValueKey<String>('log-tab-underline-$i'),
+                        key: ValueKey<String>('$keyPrefix-underline-$i'),
                         constraints: const BoxConstraints(
                           maxHeight: LiftShape.borderWidthActive,
                           minHeight: LiftShape.borderWidthActive,

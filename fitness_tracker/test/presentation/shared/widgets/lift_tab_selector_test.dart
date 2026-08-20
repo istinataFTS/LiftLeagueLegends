@@ -1,16 +1,18 @@
 import 'package:fitness_tracker/app/app.dart';
 import 'package:fitness_tracker/core/themes/lift_theme.dart';
-import 'package:fitness_tracker/features/log/presentation/widgets/shared/log_tab_selector.dart';
+import 'package:fitness_tracker/presentation/shared/widgets/lift_tab_selector.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 
-import '../../../../support/phone_viewport.dart';
+import '../../../support/phone_viewport.dart';
 
 void main() {
   Widget buildSubject({int selectedIndex = 0, ValueChanged<int>? onChanged}) {
     return AppShell(
       home: Scaffold(
-        body: LogTabSelector(
+        body: LiftTabSelector(
+          labels: const <String>['Exercise', 'Meal', 'Macros'],
+          keyPrefix: 'log-tab',
           selectedIndex: selectedIndex,
           onChanged: onChanged ?? (_) {},
         ),
@@ -18,7 +20,7 @@ void main() {
     );
   }
 
-  group('LogTabSelector', () {
+  group('LiftTabSelector', () {
     testWidgets('renders all three tab labels', (tester) async {
       await tester.pumpWidget(buildSubject());
       await tester.pumpAndSettle();
@@ -140,7 +142,7 @@ void main() {
       for (final int i in <int>[0, 1, 2]) {
         await tester.pumpWidget(buildSubject(selectedIndex: i));
         await tester.pumpAndSettle();
-        expect(find.byType(LogTabSelector), findsOneWidget);
+        expect(find.byType(LiftTabSelector), findsOneWidget);
       }
     });
   });

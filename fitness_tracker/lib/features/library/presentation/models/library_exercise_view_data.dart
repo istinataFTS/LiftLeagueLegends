@@ -85,8 +85,10 @@ class LibraryExerciseViewDataMapper {
             ),
           )
           .toList(growable: false),
+      // Frame 11 renders the count as mono caps: `53 OF 53 EXERCISES`.
       resultCountLabel:
-          '${filteredExercises.length} of ${allExercises.length} exercises',
+          '${filteredExercises.length} OF ${allExercises.length} '
+          '${allExercises.length == 1 ? 'EXERCISE' : 'EXERCISES'}',
       hasExercises: allExercises.isNotEmpty,
       hasResults: filteredExercises.isNotEmpty,
       hasActiveFilters: searchQuery.trim().isNotEmpty || selectedMuscle != null,

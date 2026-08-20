@@ -1,0 +1,512 @@
+/// The chrome both Library tabs share, rebuilt from frame 11.
+///
+/// Every size here was measured off `11-library-exercises.png` (1176x2538 =
+/// 392x846dp at 3x) rather than eyeballed, and the comment on each constant
+/// records what was measured. The frames use slightly tighter mono tracking
+/// than `LiftText`'s label tokens do; where the two disagree the token wins,
+/// because the tokens are what Log, Home and History already render.
+library;
+
+import 'package:flutter/material.dart';
+import 'package:flutter/semantics.dart';
+
+import '../../../../core/themes/lift_theme.dart';
+import '../library_strings.dart';
+
+/// Page gutter. Frame 11 puts the search box, every rule and the CTA at
+/// x=63px at 3x, i.e. 21dp; this rounds to the 20dp Home and History already
+/// use so the four screens line up with each other.
+const double libraryGutter = 20;
+
+/// Frame 11: consecutive row rules sit 189px apart at 3x = 63dp. That falls
+/// out of 13dp padding + a 15dp name + 5dp + a 9.5dp meta line + 13dp + 1dp
+/// rule, which is what [LibraryListRow] builds.
+const double _rowPadV = 13.5;
+
+/// Frame 11: the meta line's cap top sits ~14px at 3x below the name's line
+/// box.
+const double _rowNameToMeta = 3;
+
+/// Search box: outer height 117px at 3x = 39dp.
+const double _searchPadV = 10;
+
+/// Filter chips: 84px tall at 3x with an 18px gap = 28dp and 6dp.
+const double _chipHeight = 28;
+const double _chipGap = 6;
+
+/// Frame 11: an unselected chip's label ink is inset 42px at 3x from the chip
+/// edge; 14dp minus the 1.5dp border is what produces that.
+const double _chipPadH = 12.5;
+
+/// Frame 11's filter row runs off the right edge of the screen under a fade,
+/// which is how the design signals that it scrolls.
+const double _chipFadeWidth = 28;
+
+/// Library's search box (frame 11).
+///
+/// Square, 1.5dp `border`, `actionTint` on focus — all of that comes from
+/// `LiftTheme`'s `inputDecorationTheme`. What this widget adds is the frame's
+/// tighter vertical padding, its `bodyMedium` hint (the theme default is
+/// `bodyLarge`, which measures 5px too tall against the frame at 3x) and the
+/// `textDim` magnifier.
+class LibrarySearchField extends StatelessWidget {
+  const LibrarySearchField({
+    required this.controller,
+    required this.hintText,
+    required this.onChanged,
+    required this.onClear,
+    this.fieldKey,
+    this.clearButtonKey,
+    super.key,
+  });
+
+  final TextEditingController controller;
+  final String hintText;
+  final ValueChanged<String> onChanged;
+  final VoidCallback onClear;
+  final Key? fieldKey;
+  final Key? clearButtonKey;
+
+  @override
+  Widget build(BuildContext context) {
+    final bool hasQuery = controller.text.isNotEmpty;
+
+    return TextField(
+      key: fieldKey,
+      controller: controller,
+      onChanged: onChanged,
+      style: LiftText.bodyMedium.copyWith(color: LiftColors.textPrimary),
+      decoration: InputDecoration(
+        hintText: hintText,
+        hintStyle: LiftText.bodyMedium.copyWith(color: LiftColors.textFaint),
+        isDense: true,
+        contentPadding: const EdgeInsets.symmetric(vertical: _searchPadV),
+        prefixIcon: const Padding(
+          padding: EdgeInsets.only(left: 14, right: 5),
+          child: Icon(Icons.search, size: 16, color: LiftColors.textDim),
+        ),
+        prefixIconConstraints: const BoxConstraints(minWidth: 0, minHeight: 0),
+        suffixIcon: hasQuery
+            ? IconButton(
+                key: clearButtonKey,
+                icon: const Icon(Icons.clear, size: 16),
+                color: LiftColors.textDim,
+                onPressed: onClear,
+              )
+            : null,
+        suffixIconConstraints: const BoxConstraints(
+          minWidth: 44,
+          minHeight: 44,
+        ),
+      ),
+    );
+  }
+}
+
+/// One square filter chip (frame 11).
+///
+/// Selected fills `actionFill` with white; unselected is transparent behind a
+/// 1.5dp `border`. Neither state is rounded and neither carries a checkmark —
+/// frame 12 reserves a checkmark slot on its selected chips but draws nothing
+/// in it, which only pushes the label off centre, so the slot is dropped and
+/// the label is centred in both states.
+class LibraryFilterChip extends StatelessWidget {
+  const LibraryFilterChip({
+    required this.label,
+    required this.selected,
+    required this.onTap,
+    this.chipKey,
+    this.height = _chipHeight,
+    super.key,
+  });
+
+  final String label;
+  final bool selected;
+  final VoidCallback onTap;
+  final Key? chipKey;
+
+  /// Frame 11's filter row measures 28dp; frame 12's dialog chips measure 30.
+  final double height;
+
+  @override
+  Widget build(BuildContext context) {
+    return Semantics(
+      button: true,
+      selected: selected,
+      label: label,
+      excludeSemantics: true,
+      child: GestureDetector(
+        key: chipKey,
+        behavior: HitTestBehavior.opaque,
+        onTap: onTap,
+        child: Container(
+          height: height,
+          padding: const EdgeInsets.symmetric(horizontal: _chipPadH),
+          decoration: BoxDecoration(
+            color: selected ? LiftColors.actionFill : Colors.transparent,
+            border: selected
+                ? null
+                : Border.all(
+                    color: LiftColors.border,
+                    width: LiftShape.borderWidth,
+                  ),
+          ),
+          // `Center` with `widthFactor: 1` and not `Container.alignment`:
+          // `alignment` wraps the child in an `Align` that expands to the
+          // incoming constraints, which inside a `Wrap` means every chip
+          // takes the full row.
+          child: Center(
+            widthFactor: 1,
+            child: Text(
+              label.toUpperCase(),
+              style: LiftText.labelLarge.copyWith(
+                color: selected ? Colors.white : LiftColors.textSecondary,
+              ),
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+/// The horizontally scrolling filter row, faded at its right edge.
+class LibraryFilterChipRow extends StatelessWidget {
+  const LibraryFilterChipRow({required this.chips, super.key});
+
+  final List<Widget> chips;
+
+  @override
+  Widget build(BuildContext context) {
+    return SizedBox(
+      height: _chipHeight,
+      child: ShaderMask(
+        shaderCallback: (Rect bounds) {
+          final double stop = bounds.width <= _chipFadeWidth
+              ? 0
+              : 1 - _chipFadeWidth / bounds.width;
+          return LinearGradient(
+            begin: Alignment.centerLeft,
+            end: Alignment.centerRight,
+            colors: const <Color>[
+              Colors.white,
+              Colors.white,
+              Colors.transparent,
+            ],
+            stops: <double>[0, stop, 1],
+          ).createShader(bounds);
+        },
+        blendMode: BlendMode.dstIn,
+        child: ListView.separated(
+          scrollDirection: Axis.horizontal,
+          padding: const EdgeInsets.symmetric(horizontal: libraryGutter),
+          itemCount: chips.length,
+          separatorBuilder: (_, _) => const SizedBox(width: _chipGap),
+          itemBuilder: (BuildContext context, int index) => chips[index],
+        ),
+      ),
+    );
+  }
+}
+
+/// `53 OF 53 EXERCISES` (frame 11) — mono caps, `textDim`.
+class LibraryCountLabel extends StatelessWidget {
+  const LibraryCountLabel({required this.label, this.labelKey, super.key});
+
+  final String label;
+  final Key? labelKey;
+
+  @override
+  Widget build(BuildContext context) {
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: libraryGutter),
+      child: Text(
+        label,
+        key: labelKey,
+        style: LiftText.labelMedium.copyWith(color: LiftColors.textDim),
+      ),
+    );
+  }
+}
+
+/// One Library row: a name over a mono meta line, closed by a hairline rule.
+///
+/// The frames draw no per-row controls at all — no icon tile, no `⋮` menu, no
+/// edit or delete button. Under the owner's standing ruling the controls go
+/// and their function is re-homed on the row itself: tap to edit, long-press
+/// to delete. Both are published as semantics actions so the row is not left
+/// unreachable without a pointer.
+class LibraryListRow extends StatelessWidget {
+  const LibraryListRow({
+    required this.title,
+    required this.meta,
+    required this.onTap,
+    required this.onLongPress,
+    required this.editHint,
+    required this.deleteHint,
+    this.secondaryMeta,
+    super.key,
+  });
+
+  final String title;
+
+  /// Mono caps under the name, already joined with
+  /// [LibraryStrings.metaSeparator].
+  final String meta;
+
+  /// Meals carry a second mono line (`21P · 22C · 49F`); exercises do not.
+  final String? secondaryMeta;
+
+  final VoidCallback onTap;
+  final VoidCallback onLongPress;
+  final String editHint;
+  final String deleteHint;
+
+  @override
+  Widget build(BuildContext context) {
+    return Semantics(
+      button: true,
+      label: title,
+      customSemanticsActions: <CustomSemanticsAction, VoidCallback>{
+        CustomSemanticsAction(label: editHint): onTap,
+        CustomSemanticsAction(label: deleteHint): onLongPress,
+      },
+      child: InkWell(
+        onTap: onTap,
+        onLongPress: onLongPress,
+        child: Container(
+          decoration: const BoxDecoration(
+            border: Border(bottom: BorderSide(color: LiftColors.hairline)),
+          ),
+          padding: const EdgeInsets.symmetric(
+            horizontal: libraryGutter,
+            vertical: _rowPadV,
+          ),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: <Widget>[
+              Text(
+                title,
+                style: LiftText.titleMedium.copyWith(
+                  color: LiftColors.textPrimary,
+                ),
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+              ),
+              const SizedBox(height: _rowNameToMeta),
+              Text(
+                meta,
+                style: LiftText.labelMedium.copyWith(color: LiftColors.textDim),
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+              ),
+              if (secondaryMeta != null) ...<Widget>[
+                const SizedBox(height: 3),
+                Text(
+                  secondaryMeta!,
+                  style: LiftText.labelMedium.copyWith(
+                    color: LiftColors.textFaint,
+                  ),
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                ),
+              ],
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+/// The full-width `+ ADD EXERCISE` CTA (frame 11).
+///
+/// Frame 11 draws it 47dp tall against the theme's 52dp `ElevatedButton`, and
+/// its label a shade larger than `labelLarge`. Both deltas are shared with
+/// frame 02's `LOG SET`, which PR B2 already resolved in the theme's favour;
+/// resolving it the other way here would make Library's CTA the only one in
+/// the app that is not the theme's.
+///
+/// The `+` is part of the label rather than an [Icon] because the frame draws
+/// a mono plus one advance wide, not a Material glyph.
+class LibraryCta extends StatelessWidget {
+  const LibraryCta({
+    required this.label,
+    required this.onPressed,
+    this.buttonKey,
+    super.key,
+  });
+
+  final String label;
+  final VoidCallback onPressed;
+  final Key? buttonKey;
+
+  @override
+  Widget build(BuildContext context) {
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(
+        libraryGutter,
+        12,
+        libraryGutter,
+        libraryGutter,
+      ),
+      child: SafeArea(
+        top: false,
+        child: SizedBox(
+          width: double.infinity,
+          child: ElevatedButton(
+            key: buttonKey,
+            onPressed: onPressed,
+            child: Text('+ ${label.toUpperCase()}'),
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+/// Shared body for the empty, no-results and error states.
+///
+/// No frame draws any of them, so they keep a visible button — the same
+/// licence PR B4 took with History's empty states.
+class LibraryMessageState extends StatelessWidget {
+  const LibraryMessageState({
+    required this.title,
+    required this.body,
+    this.actionLabel,
+    this.onAction,
+    this.actionKey,
+    this.secondaryActionLabel,
+    this.onSecondaryAction,
+    this.secondaryActionKey,
+    this.titleColor,
+    super.key,
+  });
+
+  final String title;
+  final String body;
+  final String? actionLabel;
+  final VoidCallback? onAction;
+  final Key? actionKey;
+  final String? secondaryActionLabel;
+  final VoidCallback? onSecondaryAction;
+  final Key? secondaryActionKey;
+  final Color? titleColor;
+
+  @override
+  Widget build(BuildContext context) {
+    return LayoutBuilder(
+      builder: (BuildContext context, BoxConstraints constraints) {
+        return SingleChildScrollView(
+          padding: const EdgeInsets.symmetric(
+            horizontal: libraryGutter,
+            vertical: 32,
+          ),
+          child: ConstrainedBox(
+            constraints: BoxConstraints(
+              minHeight: constraints.maxHeight.isFinite
+                  ? (constraints.maxHeight - 64).clamp(0, double.infinity)
+                  : 0,
+            ),
+            child: Column(
+              mainAxisAlignment: MainAxisAlignment.center,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: <Widget>[
+                Text(
+                  title.toUpperCase(),
+                  style: LiftText.labelMedium.copyWith(
+                    color: titleColor ?? LiftColors.textDim,
+                  ),
+                ),
+                const SizedBox(height: 10),
+                Text(
+                  body,
+                  style: LiftText.bodyMedium.copyWith(
+                    color: LiftColors.textSecondary,
+                  ),
+                ),
+                if (actionLabel != null) ...<Widget>[
+                  const SizedBox(height: 22),
+                  IntrinsicWidth(
+                    child: ElevatedButton(
+                      key: actionKey,
+                      onPressed: onAction,
+                      child: Text(actionLabel!.toUpperCase()),
+                    ),
+                  ),
+                ],
+                if (secondaryActionLabel != null) ...<Widget>[
+                  const SizedBox(height: 10),
+                  IntrinsicWidth(
+                    child: OutlinedButton(
+                      key: secondaryActionKey,
+                      onPressed: onSecondaryAction,
+                      child: Text(secondaryActionLabel!.toUpperCase()),
+                    ),
+                  ),
+                ],
+              ],
+            ),
+          ),
+        );
+      },
+    );
+  }
+}
+
+/// Frame 12's modal panel: `panelTop` over the scrim, square, a 1.5dp
+/// `borderStrong` edge and the design system's only shadow.
+///
+/// Both Library dialogs use it so the exercise panel and the meal panel — of
+/// which no frame exists — cannot drift apart.
+class LibraryPanel extends StatelessWidget {
+  const LibraryPanel({required this.content, required this.footer, super.key});
+
+  /// Scrolls; the footer does not.
+  final Widget content;
+  final Widget footer;
+
+  @override
+  Widget build(BuildContext context) {
+    return Dialog(
+      // Frame 12: the panel is inset 16dp from each screen edge.
+      insetPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 24),
+      backgroundColor: Colors.transparent,
+      elevation: 0,
+      child: Container(
+        decoration: const BoxDecoration(
+          color: LiftColors.panelTop,
+          border: Border.fromBorderSide(
+            BorderSide(
+              color: LiftColors.borderStrong,
+              width: LiftShape.borderWidth,
+            ),
+          ),
+          boxShadow: LiftElevation.elevated,
+        ),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: <Widget>[
+            Flexible(child: content),
+            footer,
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+/// A `NAME` / `MUSCLE GROUPS` style field label inside a [LibraryPanel].
+class LibraryFieldLabel extends StatelessWidget {
+  const LibraryFieldLabel(this.text, {super.key});
+
+  final String text;
+
+  @override
+  Widget build(BuildContext context) {
+    return Text(
+      text.toUpperCase(),
+      style: LiftText.labelMedium.copyWith(color: LiftColors.textDim),
+    );
+  }
+}

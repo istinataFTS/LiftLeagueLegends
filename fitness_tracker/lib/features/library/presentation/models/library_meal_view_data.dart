@@ -63,18 +63,22 @@ class LibraryMealViewDataMapper {
             (Meal meal) => LibraryMealItemViewData(
               id: meal.id,
               title: meal.name,
+              // Frame 11: `100 G SERVING · 613 KCAL` over `21P · 22C · 49F`,
+              // both in mono caps separated by a spaced middot.
               subtitle:
-                  '${meal.servingSizeGrams.toStringAsFixed(0)} g serving • '
-                  '${meal.caloriesPerServing.toStringAsFixed(0)} kcal',
+                  '${meal.servingSizeGrams.toStringAsFixed(0)} G SERVING · '
+                  '${meal.caloriesPerServing.toStringAsFixed(0)} KCAL',
               macroSummary:
-                  '${meal.proteinPerServing.toStringAsFixed(0)}P • '
-                  '${meal.carbsPerServing.toStringAsFixed(0)}C • '
+                  '${meal.proteinPerServing.toStringAsFixed(0)}P · '
+                  '${meal.carbsPerServing.toStringAsFixed(0)}C · '
                   '${meal.fatsPerServing.toStringAsFixed(0)}F',
               meal: meal,
             ),
           )
           .toList(growable: false),
-      resultCountLabel: '${filteredMeals.length} of ${allMeals.length} meals',
+      resultCountLabel:
+          '${filteredMeals.length} OF ${allMeals.length} '
+          '${allMeals.length == 1 ? 'MEAL' : 'MEALS'}',
       hasMeals: allMeals.isNotEmpty,
       hasResults: filteredMeals.isNotEmpty,
       hasActiveSearch: searchQuery.trim().isNotEmpty,
