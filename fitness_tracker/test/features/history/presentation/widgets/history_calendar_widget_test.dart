@@ -22,6 +22,10 @@ void main() {
   Widget buildSubject({
     DateTime? selectedDate,
     void Function(DateTime)? onDateSelected,
+    VoidCallback? onPreviousMonth,
+    VoidCallback? onNextMonth,
+    bool canGoPrevious = true,
+    bool canGoNext = true,
   }) {
     return AppShell(
       home: Scaffold(
@@ -33,6 +37,10 @@ void main() {
             dayActivity: activity,
             weekStartDay: WeekStartDay.monday,
             onDateSelected: onDateSelected ?? (_) {},
+            onPreviousMonth: onPreviousMonth ?? () {},
+            onNextMonth: onNextMonth ?? () {},
+            canGoPrevious: canGoPrevious,
+            canGoNext: canGoNext,
           ),
         ),
       ),
@@ -44,17 +52,93 @@ void main() {
   );
 
   group('HistoryCalendarWidget', () {
-    testWidgets('frame 08 header: uppercase month, no chevrons, no Today', (
+    testWidgets('header: uppercase month flanked by two bare chevrons', (
       WidgetTester tester,
     ) async {
       await pumpAtPhoneWidth(tester, buildSubject());
 
       expect(find.text('AUGUST 2026'), findsOneWidget);
-      expect(find.byIcon(Icons.chevron_left), findsNothing);
-      expect(find.byIcon(Icons.chevron_right), findsNothing);
+      expect(find.byIcon(Icons.chevron_left), findsOneWidget);
+      expect(find.byIcon(Icons.chevron_right), findsOneWidget);
+      // Bare glyphs on their own target, not Material buttons.
       expect(find.byType(IconButton), findsNothing);
       expect(find.text('Today'), findsNothing);
       expectNoOverflow(tester);
+    });
+
+    testWidgets('each chevron reports its own direction', (
+      WidgetTester tester,
+    ) async {
+      int previous = 0;
+      int next = 0;
+
+      await pumpAtPhoneWidth(
+        tester,
+        buildSubject(
+          onPreviousMonth: () => previous++,
+          onNextMonth: () => next++,
+        ),
+      );
+
+      await tester.tap(
+        find.byKey(const ValueKey<String>('calendar-previous-month')),
+      );
+      await tester.pumpAndSettle();
+
+      expect(previous, 1);
+      expect(next, 0);
+
+      await tester.tap(
+        find.byKey(const ValueKey<String>('calendar-next-month')),
+      );
+      await tester.pumpAndSettle();
+
+      expect(previous, 1);
+      expect(next, 1);
+    });
+
+    testWidgets('an out-of-range chevron dims and does not fire', (
+      WidgetTester tester,
+    ) async {
+      int next = 0;
+
+      await pumpAtPhoneWidth(
+        tester,
+        buildSubject(canGoNext: false, onNextMonth: () => next++),
+      );
+
+      final Icon nextIcon = tester.widget<Icon>(
+        find.byIcon(Icons.chevron_right),
+      );
+      expect(nextIcon.color, LiftColors.textDisabled);
+
+      await tester.tap(
+        find.byKey(const ValueKey<String>('calendar-next-month')),
+      );
+      await tester.pumpAndSettle();
+
+      expect(next, 0);
+
+      // The other direction is unaffected.
+      final Icon previousIcon = tester.widget<Icon>(
+        find.byIcon(Icons.chevron_left),
+      );
+      expect(previousIcon.color, LiftColors.textDim);
+    });
+
+    testWidgets('each chevron keeps a 44dp touch target', (
+      WidgetTester tester,
+    ) async {
+      await pumpAtPhoneWidth(tester, buildSubject());
+
+      for (final String key in <String>[
+        'calendar-previous-month',
+        'calendar-next-month',
+      ]) {
+        final Size size = tester.getSize(find.byKey(ValueKey<String>(key)));
+        expect(size.width, greaterThanOrEqualTo(44), reason: key);
+        expect(size.height, greaterThanOrEqualTo(44), reason: key);
+      }
     });
 
     testWidgets('logged days carry a tint underline and nothing else does', (

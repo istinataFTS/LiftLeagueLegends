@@ -153,10 +153,10 @@ class _HistoryPageState extends State<HistoryPage> {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: <Widget>[
-              // Frame 08 drops the two chevrons that used to flank the month
-              // name, which leaves the horizontal swipe above as the only way
-              // to change month. A swipe is not operable from a screen reader,
-              // so the same two moves are published here as semantic actions.
+              // The grid draws its own month chevrons; the swipe above is a
+              // second way in. Neither is operable from a screen reader as a
+              // gesture, so the same two moves are published here as semantic
+              // actions.
               Semantics(
                 container: true,
                 label: HistoryStrings.calendarSemanticLabel,
@@ -182,6 +182,12 @@ class _HistoryPageState extends State<HistoryPage> {
                   onDateSelected: (DateTime date) {
                     _onDateSelected(context, state.selectedDate, date);
                   },
+                  onPreviousMonth: () =>
+                      _navigateToPreviousMonth(context, state.currentMonth),
+                  onNextMonth: () =>
+                      _navigateToNextMonth(context, state.currentMonth),
+                  canGoPrevious: _canGoToPreviousMonth(state.currentMonth),
+                  canGoNext: _canGoToNextMonth(state.currentMonth),
                 ),
               ),
               KeyedSubtree(
@@ -257,21 +263,21 @@ class _HistoryPageState extends State<HistoryPage> {
     );
   }
 
-  void _navigateToPreviousMonth(BuildContext context, DateTime currentMonth) {
+  /// Whether the month before [currentMonth] is inside the allowed range.
+  /// Drives both the guard below and the grid's left chevron, so a disabled
+  /// arrow and a refused swipe can never disagree.
+  bool _canGoToPreviousMonth(DateTime currentMonth) {
     final DateTime previousMonth = DateTime(
       currentMonth.year,
       currentMonth.month - 1,
     );
 
-    if (previousMonth.isBefore(CalendarConstants.minAllowedDate)) {
-      ErrorHandler.showInfo(context, HistoryStrings.cannotViewTooFarPast);
-      return;
-    }
-
-    context.read<HistoryBloc>().add(NavigateToMonthEvent(previousMonth));
+    return !previousMonth.isBefore(CalendarConstants.minAllowedDate);
   }
 
-  void _navigateToNextMonth(BuildContext context, DateTime currentMonth) {
+  /// Whether the month after [currentMonth] has started yet. Future months
+  /// hold nothing, so the grid never walks into one.
+  bool _canGoToNextMonth(DateTime currentMonth) {
     final DateTime nextMonth = DateTime(
       currentMonth.year,
       currentMonth.month + 1,
@@ -281,12 +287,29 @@ class _HistoryPageState extends State<HistoryPage> {
     final DateTime currentMonthDate = DateTime(now.year, now.month, 1);
     final DateTime nextMonthDate = DateTime(nextMonth.year, nextMonth.month, 1);
 
-    if (nextMonthDate.isAfter(currentMonthDate)) {
+    return !nextMonthDate.isAfter(currentMonthDate);
+  }
+
+  void _navigateToPreviousMonth(BuildContext context, DateTime currentMonth) {
+    if (!_canGoToPreviousMonth(currentMonth)) {
+      ErrorHandler.showInfo(context, HistoryStrings.cannotViewTooFarPast);
+      return;
+    }
+
+    context.read<HistoryBloc>().add(
+      NavigateToMonthEvent(DateTime(currentMonth.year, currentMonth.month - 1)),
+    );
+  }
+
+  void _navigateToNextMonth(BuildContext context, DateTime currentMonth) {
+    if (!_canGoToNextMonth(currentMonth)) {
       ErrorHandler.showInfo(context, HistoryStrings.cannotViewFutureMonths);
       return;
     }
 
-    context.read<HistoryBloc>().add(NavigateToMonthEvent(nextMonth));
+    context.read<HistoryBloc>().add(
+      NavigateToMonthEvent(DateTime(currentMonth.year, currentMonth.month + 1)),
+    );
   }
 
   void _focusSelectedDayContent() {

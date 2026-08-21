@@ -28,7 +28,7 @@ class MacroCompositionBar extends StatelessWidget {
   /// already spelled out immediately above the bar.
   final bool showPercentages;
 
-  static const double _barHeight = 3;
+  static const double _barHeight = 6;
 
   @override
   Widget build(BuildContext context) {

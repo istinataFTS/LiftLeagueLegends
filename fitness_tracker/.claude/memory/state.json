@@ -1,7 +1,7 @@
 {
   "schemaVersion": 1,
   "generatedAt": "2026-05-25",
-  "fingerprint": "a5f9ed9ac58a0b62",
+  "fingerprint": "d5b21300451a0ba8",
   "features": {
     "auth": {
       "summary": "Authentication cubits for sign-in, sign-up, and OTP verification.",
@@ -48,8 +48,8 @@
         "nutrition_logs",
         "workout_sets"
       ],
-      "notes": "Read-only consumer of log's data; shares repository singletons.",
-      "fingerprint": "7c84f964581fd6ee"
+      "notes": "Read-only consumer of log's data; shares repository singletons. The day panel groups a day's sets by exercise (one expandable row per exercise, sets revealed on tap) rather than listing every set flat; edit and delete are explicit per-set controls and the workout section header carries a `+` that opens the log-workout sheet for the selected day. The month grid draws its own prev/next chevrons; HistoryPage owns the range guards (_canGoToPreviousMonth / _canGoToNextMonth) that both the chevrons and the swipe consult. EditSetDialog uses the shared LiftEffortSelector.",
+      "fingerprint": "a177dc48872f8955"
     },
     "home": {
       "summary": "Dashboard surface aggregating muscle visual state and nutrition summary.",
@@ -158,8 +158,8 @@
         "nutrition_logs",
         "workout_sets"
       ],
-      "notes": "WorkoutBloc also consumes calculate_muscle_stimulus (from the muscle_stimulus domain layer) to compute stimulation scores on each rep-set log. WorkoutBloc also exposes ExerciseInsight (PR / fatigue chips / sets-today) via SelectExerciseForInsightEvent + ClearExerciseInsightEvent; insight is recomputed in _loadWeeklySetsData after every successful add so the Exercise tab refreshes the same frame the feed updates. GetExercisePersonalRecord returns the heaviest WorkoutSet for an exercise (tie-break higher reps); fatigue chips derive from GetMuscleVisualData(TimePeriod.week) via MuscleGroups.granularToSimple. A shared MacroLabel widget (lib/features/log/presentation/widgets/shared/macro_label.dart) centralises the macro swatch+caption element (MacroKind enum bundles each macro's label and LiftColors token) — used by LogTodaySoFarCard, LogMealTab's this-entry preview, and LogMacrosTab's row headers.",
-      "fingerprint": "7b8f8d4268bcf312"
+      "notes": "WorkoutBloc also consumes calculate_muscle_stimulus (from the muscle_stimulus domain layer) to compute stimulation scores on each rep-set log. WorkoutBloc also exposes ExerciseInsight (PR / muscles / sets-today) via SelectExerciseForInsightEvent + ClearExerciseInsightEvent; insight is recomputed in _loadWeeklySetsData after every successful add so the Exercise tab refreshes the same frame the feed updates. GetExercisePersonalRecord returns the heaviest WorkoutSet for an exercise (tie-break higher reps). The Exercise tab header renders only the PR badge and the sets-today count — the per-muscle fatigue chips were removed; ExerciseInsight.muscles is still populated but nothing in Log paints it. The effort picker lives above the feature layer at lib/presentation/shared/widgets/lift_effort_selector.dart (LiftEffortSelector) because History's edit-set dialog uses it too. A shared MacroLabel widget (lib/features/log/presentation/widgets/shared/macro_label.dart) centralises the macro swatch+caption element (MacroKind enum bundles each macro's label and LiftColors token) — used by LogTodaySoFarCard, LogMealTab's this-entry preview, and LogMacrosTab's row headers.",
+      "fingerprint": "42b76770f87699e3"
     },
     "profile": {
       "summary": "User profile view and sign-out; manages authenticated-user metadata.",

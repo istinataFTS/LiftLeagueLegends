@@ -19,13 +19,16 @@ import '../../../features/settings/presentation/settings_scope.dart';
 /// shadow, in line with the spec's SHAPE note ("square edges throughout; 8px
 /// only on buttons").
 ///
-/// The header carries exactly two lines: [title] in Space Grotesk bold and
-/// [subtitle] in dim letterspaced mono caps. The pre-restyle version of this
-/// widget also drew a leading icon, a trailing `+` button, a rotating chevron,
-/// and an optional `headerTrailing` chip row. **All four are gone**, because
-/// none of them appear anywhere in the frames — the whole header is the tap
-/// target instead, and the actions those controls carried moved onto the rows
-/// and empty states that own them.
+/// The header carries two lines — [title] in Space Grotesk bold and [subtitle]
+/// in dim letterspaced mono caps — plus an optional [trailing] control. The
+/// pre-restyle version also drew a leading icon, a rotating chevron, and a
+/// `headerTrailing` chip row; those are gone, and the whole two-line block is
+/// the collapse target instead.
+///
+/// [trailing] is the one control that came back. It sits outside that target,
+/// so a section can publish an action that is about the section as a whole —
+/// History's "add a set to this day" `+` — without the press also collapsing
+/// what it just added to.
 ///
 /// Collapse/expand state is persisted via [AppSettingsCubit] using [id] as the
 /// stable key, unchanged from before the restyle.
@@ -35,6 +38,7 @@ class CollapsibleSection extends StatefulWidget {
     required this.title,
     required this.subtitle,
     required this.child,
+    this.trailing,
     this.initiallyExpanded = true,
     super.key,
   });
@@ -44,6 +48,15 @@ class CollapsibleSection extends StatefulWidget {
   final String title;
   final String subtitle;
   final Widget child;
+
+  /// Optional control pinned to the right of the header, outside the header's
+  /// own tap target so pressing it does not also collapse the section.
+  ///
+  /// History's workout section uses it for the `add a set to this day` `+`.
+  /// That action has nowhere else to live: the section's empty-state call to
+  /// action is the only other place it appears, and a day that already has
+  /// sets never shows an empty state.
+  final Widget? trailing;
 
   /// Fallback used when no persisted state exists for this [id].
   final bool initiallyExpanded;
@@ -122,31 +135,52 @@ class _CollapsibleSectionState extends State<CollapsibleSection> {
   }
 
   Widget _buildHeader(BuildContext context) {
-    return Semantics(
-      button: true,
-      expanded: _expanded,
-      child: InkWell(
-        onTap: _toggle,
-        child: Padding(
-          padding: const EdgeInsets.fromLTRB(_gutter, 16, _gutter, 14),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: <Widget>[
-              Text(
-                widget.title,
-                style: LiftText.titleMedium.copyWith(
-                  color: LiftColors.textPrimary,
+    final Widget? trailing = widget.trailing;
+
+    return Row(
+      crossAxisAlignment: CrossAxisAlignment.center,
+      children: <Widget>[
+        Expanded(
+          child: Semantics(
+            button: true,
+            expanded: _expanded,
+            child: InkWell(
+              onTap: _toggle,
+              child: Padding(
+                padding: EdgeInsets.fromLTRB(
+                  _gutter,
+                  16,
+                  trailing == null ? _gutter : 8,
+                  14,
+                ),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: <Widget>[
+                    Text(
+                      widget.title,
+                      style: LiftText.titleMedium.copyWith(
+                        color: LiftColors.textPrimary,
+                      ),
+                    ),
+                    const SizedBox(height: 6),
+                    Text(
+                      widget.subtitle.toUpperCase(),
+                      style: LiftText.labelMedium.copyWith(
+                        color: LiftColors.textDim,
+                      ),
+                    ),
+                  ],
                 ),
               ),
-              const SizedBox(height: 6),
-              Text(
-                widget.subtitle.toUpperCase(),
-                style: LiftText.labelMedium.copyWith(color: LiftColors.textDim),
-              ),
-            ],
+            ),
           ),
         ),
-      ),
+        if (trailing != null)
+          Padding(
+            padding: const EdgeInsets.only(right: _gutter - 10),
+            child: trailing,
+          ),
+      ],
     );
   }
 }

@@ -38,20 +38,42 @@ void main() {
     createdAt: day,
   );
 
-  WorkoutSet buildSet(String id, double weight, int intensity) => WorkoutSet(
+  final Exercise barbellRow = Exercise(
+    id: 'e2',
+    name: 'Barbell Row',
+    muscleGroups: const <String>['back'],
+    createdAt: day,
+  );
+
+  WorkoutSet buildSet(
+    String id, {
+    String exerciseId = 'e1',
+    double weight = 20,
+    int intensity = 1,
+    int minute = 0,
+  }) => WorkoutSet(
     id: id,
-    exerciseId: 'e1',
+    exerciseId: exerciseId,
     reps: 12,
     weight: weight,
     intensity: intensity,
     date: day,
-    createdAt: day,
+    createdAt: DateTime(2026, 8, 8, 10, minute),
   );
 
   final List<WorkoutSet> sets = <WorkoutSet>[
-    buildSet('s1', 15, 1),
-    buildSet('s2', 42.5, 1),
-    buildSet('s3', 37, 4),
+    buildSet('s1', weight: 15),
+    buildSet('s2', weight: 42.5, minute: 1),
+    buildSet('s3', weight: 37, intensity: 4, minute: 2),
+  ];
+
+  /// Two exercises alternating — the shape a superset actually logs in.
+  final List<WorkoutSet> supersetSets = <WorkoutSet>[
+    buildSet('a1'),
+    buildSet('b1', exerciseId: 'e2', minute: 1),
+    buildSet('a2', minute: 2),
+    buildSet('b2', exerciseId: 'e2', minute: 3),
+    buildSet('a3', minute: 4),
   ];
 
   final NutritionLog mealLog = NutritionLog(
@@ -75,15 +97,18 @@ void main() {
     historyBloc = MockHistoryBloc();
     exerciseBloc = MockExerciseBloc();
 
+    final ExercisesLoaded loaded = ExercisesLoaded(<Exercise>[
+      cableCrossover,
+      barbellRow,
+    ]);
+
     when(() => historyBloc.add(any())).thenReturn(null);
     when(() => exerciseBloc.add(any())).thenReturn(null);
-    when(
-      () => exerciseBloc.state,
-    ).thenReturn(ExercisesLoaded(<Exercise>[cableCrossover]));
+    when(() => exerciseBloc.state).thenReturn(loaded);
     whenListen(
       exerciseBloc,
       const Stream<ExerciseState>.empty(),
-      initialState: ExercisesLoaded(<Exercise>[cableCrossover]),
+      initialState: loaded,
     );
   });
 
@@ -112,8 +137,13 @@ void main() {
     );
   }
 
-  group('HistoryDayContent — frame 09/10 chrome', () {
-    testWidgets('draws no add, edit, delete or chevron control', (
+  Future<void> toggleGroup(WidgetTester tester, String exerciseName) async {
+    await tester.tap(find.text(exerciseName));
+    await tester.pumpAndSettle();
+  }
+
+  group('HistoryDayContent — chrome', () {
+    testWidgets('there is no line naming the selected day', (
       WidgetTester tester,
     ) async {
       await pumpAtPhoneWidth(
@@ -121,25 +151,54 @@ void main() {
         buildSubject(workoutSets: sets, nutritionLogs: <NutritionLog>[mealLog]),
       );
 
-      expect(find.byType(IconButton), findsNothing);
-      expect(find.byIcon(Icons.add), findsNothing);
-      expect(find.byIcon(Icons.edit), findsNothing);
-      expect(find.byIcon(Icons.delete_outline), findsNothing);
-      expect(find.byIcon(Icons.expand_less), findsNothing);
-      expect(find.byIcon(Icons.close), findsNothing);
+      // The calendar above already shows which day is selected.
+      expect(find.text('SAT · AUG 8'), findsNothing);
+      expect(find.text('3 SETS · 1 ENTRY · 391 KCAL'), findsNothing);
       expectNoOverflow(tester);
     });
 
-    testWidgets('day strip reads as SAT · AUG 8 with the day counts', (
+    testWidgets('there is no muscle filter row', (WidgetTester tester) async {
+      await pumpAtPhoneWidth(tester, buildSubject(workoutSets: sets));
+
+      // The row led with an `ALL` chip and then listed every muscle group,
+      // trained or not. `CHEST` still appears — as the group's own muscle
+      // line — but `BACK`, which this day never touched, would only be here
+      // as a filter chip.
+      expect(find.text('ALL'), findsNothing);
+      expect(find.text('BACK'), findsNothing);
+      expect(find.text('CHEST'), findsOneWidget);
+    });
+
+    testWidgets('the workout header carries an add control', (
       WidgetTester tester,
     ) async {
-      await pumpAtPhoneWidth(
-        tester,
-        buildSubject(workoutSets: sets, nutritionLogs: <NutritionLog>[mealLog]),
+      await pumpAtPhoneWidth(tester, buildSubject(workoutSets: sets));
+
+      expect(
+        find.byKey(const ValueKey<String>('history-add-set-button')),
+        findsOneWidget,
+      );
+      expect(find.byIcon(Icons.add), findsOneWidget);
+    });
+
+    testWidgets('the add control sits outside the collapse target', (
+      WidgetTester tester,
+    ) async {
+      await pumpAtPhoneWidth(tester, buildSubject(workoutSets: sets));
+
+      final Rect addRect = tester.getRect(
+        find.byKey(const ValueKey<String>('history-add-set-button')),
+      );
+      final Rect headerRect = tester.getRect(
+        find
+            .ancestor(
+              of: find.text('Workout history'),
+              matching: find.byType(InkWell),
+            )
+            .first,
       );
 
-      expect(find.text('SAT · AUG 8'), findsOneWidget);
-      expect(find.text('3 SETS · 1 ENTRY · 391 KCAL'), findsOneWidget);
+      expect(headerRect.overlaps(addRect), isFalse);
     });
 
     testWidgets('workout subtitle counts sets and the muscles hit', (
@@ -151,11 +210,87 @@ void main() {
     });
   });
 
-  group('HistoryDayContent — workout rows', () {
+  group('HistoryDayContent — exercise groups', () {
+    testWidgets('a superset day renders one row per exercise, not per set', (
+      WidgetTester tester,
+    ) async {
+      await pumpAtPhoneWidth(tester, buildSubject(workoutSets: supersetSets));
+
+      // Five sets across two exercises collapse to two rows.
+      expect(find.text('Cable Crossover'), findsOneWidget);
+      expect(find.text('Barbell Row'), findsOneWidget);
+      expect(find.text('×3'), findsOneWidget);
+      expect(find.text('×2'), findsOneWidget);
+
+      // Nothing is expanded, so no set rows are painted.
+      expect(
+        find.byKey(const ValueKey<String>('history-effort-mark-0')),
+        findsNothing,
+      );
+      expectNoOverflow(tester);
+    });
+
+    testWidgets('groups are ordered by when the exercise was first logged', (
+      WidgetTester tester,
+    ) async {
+      await pumpAtPhoneWidth(tester, buildSubject(workoutSets: supersetSets));
+
+      final double crossover = tester
+          .getTopLeft(find.text('Cable Crossover'))
+          .dy;
+      final double row = tester.getTopLeft(find.text('Barbell Row')).dy;
+
+      expect(crossover, lessThan(row));
+    });
+
+    testWidgets('a group header carries its own volume', (
+      WidgetTester tester,
+    ) async {
+      await pumpAtPhoneWidth(tester, buildSubject(workoutSets: supersetSets));
+
+      // 3 x 20kg x 12 == 720; 2 x 20kg x 12 == 480.
+      expect(find.text('720 KG'), findsOneWidget);
+      expect(find.text('480 KG'), findsOneWidget);
+    });
+
+    testWidgets(
+      'tapping a group reveals its sets and tapping again hides them',
+      (WidgetTester tester) async {
+        await pumpAtPhoneWidth(tester, buildSubject(workoutSets: supersetSets));
+
+        await toggleGroup(tester, 'Cable Crossover');
+
+        // Three sets, numbered within the group.
+        expect(find.text('1'), findsOneWidget);
+        expect(find.text('2'), findsOneWidget);
+        expect(find.text('3'), findsOneWidget);
+        expect(find.byIcon(Icons.expand_less), findsOneWidget);
+
+        await toggleGroup(tester, 'Cable Crossover');
+
+        expect(find.text('1'), findsNothing);
+        expect(find.byIcon(Icons.expand_less), findsNothing);
+      },
+    );
+
+    testWidgets('expanding one group leaves the other collapsed', (
+      WidgetTester tester,
+    ) async {
+      await pumpAtPhoneWidth(tester, buildSubject(workoutSets: supersetSets));
+
+      await toggleGroup(tester, 'Barbell Row');
+
+      expect(find.byIcon(Icons.expand_less), findsOneWidget);
+      expect(find.byIcon(Icons.expand_more), findsOneWidget);
+    });
+  });
+
+  group('HistoryDayContent — set rows', () {
     testWidgets('effort fills by count, one mark per level', (
       WidgetTester tester,
     ) async {
       await pumpAtPhoneWidth(tester, buildSubject(workoutSets: sets));
+      await toggleGroup(tester, 'Cable Crossover');
 
       // Three rows x five marks.
       final List<Container> marks = tester
@@ -192,12 +327,47 @@ void main() {
       expect(find.text('KG'), findsOneWidget);
     });
 
-    testWidgets('long-pressing a row opens the delete confirmation', (
+    testWidgets('every set offers both edit and delete', (
       WidgetTester tester,
     ) async {
       await pumpAtPhoneWidth(tester, buildSubject(workoutSets: sets));
+      await toggleGroup(tester, 'Cable Crossover');
 
-      await tester.longPress(find.text('Cable Crossover').first);
+      for (final WorkoutSet s in sets) {
+        expect(
+          find.byKey(ValueKey<String>('history-edit-set-${s.id}')),
+          findsOneWidget,
+        );
+        expect(
+          find.byKey(ValueKey<String>('history-delete-set-${s.id}')),
+          findsOneWidget,
+        );
+      }
+    });
+
+    testWidgets('the edit control opens the edit dialog', (
+      WidgetTester tester,
+    ) async {
+      await pumpAtPhoneWidth(tester, buildSubject(workoutSets: sets));
+      await toggleGroup(tester, 'Cable Crossover');
+
+      await tester.tap(
+        find.byKey(const ValueKey<String>('history-edit-set-s1')),
+      );
+      await tester.pumpAndSettle();
+
+      expect(find.text('Edit Set'), findsOneWidget);
+    });
+
+    testWidgets('the delete control opens the delete confirmation', (
+      WidgetTester tester,
+    ) async {
+      await pumpAtPhoneWidth(tester, buildSubject(workoutSets: sets));
+      await toggleGroup(tester, 'Cable Crossover');
+
+      await tester.tap(
+        find.byKey(const ValueKey<String>('history-delete-set-s1')),
+      );
       await tester.pumpAndSettle();
 
       expect(find.text('Delete Set?'), findsOneWidget);
@@ -223,9 +393,9 @@ void main() {
       expect(find.text('FATS'), findsOneWidget);
       // Once as the totals column label, once on the single entry's row.
       expect(find.text('KCAL'), findsNWidgets(2));
-      // On a day with no sets the strip and the section subtitle say the
-      // same thing.
-      expect(find.text('1 ENTRY · 391 KCAL'), findsNWidgets(2));
+      // Only the section subtitle carries it now — the day strip that used to
+      // repeat it is gone.
+      expect(find.text('1 ENTRY · 391 KCAL'), findsOneWidget);
     });
 
     testWidgets('an entry row carries its time, kcal and amount', (

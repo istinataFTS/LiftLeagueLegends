@@ -481,11 +481,8 @@ class _LogMealTabState extends State<LogMealTab> {
           label: 'grams',
           unitSuffix: 'g',
           maxIntegerDigits: 4,
-          onSubmit: (num value) {
-            setState(() => _grams = value.round());
-            _setKeypadOpen(false);
-          },
-          onCancel: () => _setKeypadOpen(false),
+          onChanged: (num value) => setState(() => _grams = value.round()),
+          onDone: () => _setKeypadOpen(false),
         ),
       ),
     );

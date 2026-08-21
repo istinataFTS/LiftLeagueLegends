@@ -298,7 +298,7 @@ class _LogMacrosTabState extends State<LogMacrosTab> {
           unitSuffix: 'g',
           allowDecimal: true,
           maxIntegerDigits: _maxIntegerDigits,
-          onSubmit: (num value) {
+          onChanged: (num value) {
             setState(() {
               final double v = value.toDouble();
               switch (field) {
@@ -313,9 +313,8 @@ class _LogMacrosTabState extends State<LogMacrosTab> {
                   break;
               }
             });
-            _setEditingField(null);
           },
-          onCancel: () => _setEditingField(null),
+          onDone: () => _setEditingField(null),
         ),
       ),
     );

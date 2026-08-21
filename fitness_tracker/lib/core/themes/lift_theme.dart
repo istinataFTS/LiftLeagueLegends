@@ -78,15 +78,30 @@ class LiftColors {
   /// figure reads as a slate silhouette whose fatigued regions light up.
   static const Color bodyBase = Color(0xFF55616E);
 
-  /// Effort, in two deliberately different encodings. The picker
-  /// (`LogIntensitySelector`) gives rung height the value: its six rungs
-  /// grow taller left to right and only the selected one takes [effortOn].
-  /// The set row (`ExerciseSetRow`) gives count the value: its five marks
-  /// are all the same size and fill cumulatively, marks below the level
-  /// taking [effortOn]. Everything not filled takes [effortOff]. Hue never
-  /// changes in either — only which of the two tokens applies.
+  /// Effort marks on a logged set row (`ExerciseSetRow`, and History's set
+  /// rows). Count carries the value: the five marks are all the same size and
+  /// fill cumulatively, marks below the level taking [effortOn] and the rest
+  /// [effortOff]. Hue never changes — only which of the two tokens applies.
   static const Color effortOn = actionTint;
   static const Color effortOff = Color(0x1FFFFFFF);
+
+  /// Effort ramp for the picker (`LogIntensitySelector`), index == level 0–5.
+  ///
+  /// Unlike the marks above, the picker encodes effort as **hue**: a
+  /// green-to-red ramp under a row of numbered cells. These are the exact six
+  /// values the pre-restyle picker shipped with (`LogUiColors.intensityRamp`,
+  /// removed in the Deep Mist Log rebuild); they are restored verbatim rather
+  /// than re-derived from the Deep Mist palette, because "the old ramp" is
+  /// what was asked for. Index 0 is warm-up and stays neutral grey — a
+  /// warm-up is not "green effort", it is no effort.
+  static const List<Color> effortRamp = <Color>[
+    Color(0xFF888888), // 0 Warm-up
+    Color(0xFF1D9E75), // 1 Very light
+    Color(0xFF97C459), // 2 Light
+    Color(0xFFEF9F27), // 3 Moderate
+    Color(0xFFD85A30), // 4 Hard
+    Color(0xFFE24B4A), // 5 Max effort
+  ];
 }
 
 /// The two-tone ground, painted once behind every screen via

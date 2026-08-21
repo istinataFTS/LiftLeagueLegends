@@ -255,7 +255,7 @@ void main() {
       ).called(1);
     });
 
-    testWidgets('renders PR badge and fatigue chip from insight; count is '
+    testWidgets('renders the PR badge and nothing else from insight; count is '
         'selected-date-based', (tester) async {
       WorkoutSet todaySet(String id) => WorkoutSet(
         id: id,
@@ -280,10 +280,14 @@ void main() {
 
       await selectBenchPress(tester);
 
-      // PR + fatigue come from the (now-based) insight.
+      // PR comes from the (now-based) insight.
       expect(find.text('PR 105 KG'), findsOneWidget);
-      expect(find.text('CHEST'), findsOneWidget);
-      expect(find.text('42%'), findsOneWidget);
+      // The per-muscle fatigue readout is gone from this header. It reported
+      // a number nobody acts on mid-set, and the muscle map on Home is where
+      // fatigue belongs.
+      expect(find.text('CHEST'), findsNothing);
+      expect(find.text('42%'), findsNothing);
+      expect(find.text('FATIGUE'), findsNothing);
       // Count reflects the two sets logged for the selected date, not
       // insight.setsToday. Uppercased at the render site, matching every
       // other label-style string in the slice.

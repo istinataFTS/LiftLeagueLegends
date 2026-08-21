@@ -243,7 +243,7 @@ void main() {
     await tester.pumpWidget(buildSubject());
     await tester.pump();
 
-    await tester.tap(find.text('History'));
+    await tester.tap(find.text('HISTORY'));
     await tester.pump();
 
     verify(() => exerciseBloc.add(LoadExercisesEvent())).called(1);
@@ -273,13 +273,13 @@ void main() {
       await tester.pump();
 
       // First visit to Library.
-      await tester.tap(find.text('Library'));
+      await tester.tap(find.text('LIBRARY'));
       await tester.pump();
       // Navigate away.
-      await tester.tap(find.text('Home'));
+      await tester.tap(find.text('HOME'));
       await tester.pump();
       // Re-enter Library — state is still empty, so another dispatch expected.
-      await tester.tap(find.text('Library'));
+      await tester.tap(find.text('LIBRARY'));
       await tester.pump();
 
       verify(() => exerciseBloc.add(LoadExercisesEvent())).called(2);
@@ -305,11 +305,11 @@ void main() {
       await tester.pumpWidget(buildSubject());
       await tester.pump();
 
-      await tester.tap(find.text('Library'));
+      await tester.tap(find.text('LIBRARY'));
       await tester.pump();
-      await tester.tap(find.text('Home'));
+      await tester.tap(find.text('HOME'));
       await tester.pump();
-      await tester.tap(find.text('Library'));
+      await tester.tap(find.text('LIBRARY'));
       await tester.pump();
 
       // Healthy state: state-gate skips dispatch on every visit.
@@ -330,11 +330,11 @@ void main() {
       await tester.pumpWidget(buildSubject());
       await tester.pump();
 
-      await tester.tap(find.text('Library'));
+      await tester.tap(find.text('LIBRARY'));
       await tester.pump();
-      await tester.tap(find.text('Home'));
+      await tester.tap(find.text('HOME'));
       await tester.pump();
-      await tester.tap(find.text('Library'));
+      await tester.tap(find.text('LIBRARY'));
       await tester.pump();
 
       verifyNever(() => exerciseBloc.add(LoadExercisesEvent()));
@@ -356,11 +356,11 @@ void main() {
       await tester.pumpWidget(buildSubject());
       await tester.pump();
 
-      await tester.tap(find.text('Library'));
+      await tester.tap(find.text('LIBRARY'));
       await tester.pump();
-      await tester.tap(find.text('Home'));
+      await tester.tap(find.text('HOME'));
       await tester.pump();
-      await tester.tap(find.text('Library'));
+      await tester.tap(find.text('LIBRARY'));
       await tester.pump();
 
       verify(() => exerciseBloc.add(LoadExercisesEvent())).called(2);

@@ -190,7 +190,7 @@ void main() {
       ).called(1);
     });
 
-    testWidgets('frame 08 leaves no month chevrons on the page', (
+    testWidgets('the month header carries a chevron on each side', (
       tester,
     ) async {
       final HistoryLoaded state = HistoryLoaded(
@@ -202,9 +202,54 @@ void main() {
       await tester.pumpWidget(buildSubject(state));
       await tester.pumpAndSettle();
 
-      expect(find.byIcon(Icons.chevron_left), findsNothing);
-      expect(find.byIcon(Icons.chevron_right), findsNothing);
+      expect(find.byIcon(Icons.chevron_left), findsOneWidget);
+      expect(find.byIcon(Icons.chevron_right), findsOneWidget);
       expect(find.text('JANUARY 2024'), findsOneWidget);
+    });
+
+    testWidgets('tapping the left chevron dispatches NavigateToMonthEvent', (
+      tester,
+    ) async {
+      final HistoryLoaded state = HistoryLoaded(
+        currentMonth: januaryMonth,
+        monthSets: const <DateTime, List<WorkoutSet>>{},
+        monthNutritionLogs: const <DateTime, List<NutritionLog>>{},
+      );
+
+      await tester.pumpWidget(buildSubject(state));
+      await tester.pumpAndSettle();
+
+      await tester.tap(
+        find.byKey(const ValueKey<String>('calendar-previous-month')),
+      );
+      await tester.pump();
+
+      verify(
+        () => historyBloc.add(NavigateToMonthEvent(DateTime(2023, 12, 1))),
+      ).called(1);
+    });
+
+    testWidgets('the next chevron is disabled on the current month', (
+      tester,
+    ) async {
+      final DateTime now = DateTime.now();
+      final HistoryLoaded state = HistoryLoaded(
+        currentMonth: DateTime(now.year, now.month, 1),
+        monthSets: const <DateTime, List<WorkoutSet>>{},
+        monthNutritionLogs: const <DateTime, List<NutritionLog>>{},
+      );
+
+      await tester.pumpWidget(buildSubject(state));
+      await tester.pumpAndSettle();
+
+      await tester.tap(
+        find.byKey(const ValueKey<String>('calendar-next-month')),
+      );
+      await tester.pumpAndSettle();
+
+      verifyNever(
+        () => historyBloc.add(any(that: isA<NavigateToMonthEvent>())),
+      );
     });
 
     testWidgets('swiping right dispatches NavigateToMonthEvent', (
@@ -219,9 +264,8 @@ void main() {
       await tester.pumpWidget(buildSubject(state));
       await tester.pumpAndSettle();
 
-      // The chevrons are gone with the card that carried them, so the swipe
-      // the page has always had is now the only pointer path to the previous
-      // month. Fling right, hard enough to clear `swipeThreshold`.
+      // The chevrons are the visible path; the swipe is kept as a second one.
+      // Fling right, hard enough to clear `swipeThreshold`.
       await tester.fling(
         find.byType(HistoryCalendarWidget),
         const Offset(300, 0),

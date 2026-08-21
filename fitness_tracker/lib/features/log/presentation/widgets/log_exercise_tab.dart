@@ -18,10 +18,10 @@ import '../../../library/application/exercise_bloc.dart';
 import '../../../settings/presentation/settings_scope.dart';
 import '../../application/exercise_insight.dart';
 import '../../application/workout_bloc.dart';
-import 'exercise_fatigue_chips.dart';
 import 'exercise_picker_sheet.dart';
 import 'exercise_set_row.dart';
-import 'log_intensity_selector.dart';
+import '../../../../presentation/shared/widgets/lift_effort_selector.dart';
+
 import 'shared/log_action_bar.dart';
 import 'shared/log_numeric_keypad.dart';
 import 'shared/log_stepper_field.dart';
@@ -231,7 +231,7 @@ class _LogExerciseTabState extends State<LogExerciseTab> {
                         const SizedBox(height: 16),
                         const Divider(color: LiftColors.rule),
                         const SizedBox(height: 16),
-                        LogIntensitySelector(
+                        LiftEffortSelector(
                           intensity: _selectedIntensity,
                           onChanged: (int value) =>
                               setState(() => _selectedIntensity = value),
@@ -373,12 +373,6 @@ class _LogExerciseTabState extends State<LogExerciseTab> {
             ],
           ),
         ],
-        if (exercise != null &&
-            insight != null &&
-            insight.muscles.isNotEmpty) ...<Widget>[
-          const SizedBox(height: 12),
-          ExerciseFatigueChips(muscles: insight.muscles),
-        ],
       ],
     );
   }
@@ -460,7 +454,7 @@ class _LogExerciseTabState extends State<LogExerciseTab> {
           unitSuffix: isWeight ? WeightUnitUtils.unitLabel(weightUnit) : '',
           allowDecimal: isWeight,
           maxIntegerDigits: isWeight ? 4 : 3,
-          onSubmit: (num value) {
+          onChanged: (num value) {
             setState(() {
               if (isWeight) {
                 _weight = value.toDouble();
@@ -468,9 +462,8 @@ class _LogExerciseTabState extends State<LogExerciseTab> {
                 _reps = value.round();
               }
             });
-            _setKeypad(null);
           },
-          onCancel: () => _setKeypad(null),
+          onDone: () => _setKeypad(null),
         ),
       ),
     );
