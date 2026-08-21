@@ -41,6 +41,13 @@ class LiftEffortSelector extends StatelessWidget {
   static const double _cellGap = 5;
   static const double _legendHeight = 6;
 
+  /// Shared by the pointer gesture and the semantic action so a screen-reader
+  /// activation is indistinguishable from a tap, haptic included.
+  void _select(int level) {
+    HapticFeedback.selectionClick();
+    onChanged(level);
+  }
+
   @override
   Widget build(BuildContext context) {
     final int level = intensity.clamp(
@@ -87,13 +94,15 @@ class LiftEffortSelector extends StatelessWidget {
                 button: true,
                 selected: selected,
                 label: 'Effort $i',
+                // The node needs its own `onTap`: `excludeSemantics` drops the
+                // GestureDetector's semantics along with the rest of the
+                // subtree, so without this the cell announces as a button
+                // that assistive technology cannot activate.
+                onTap: () => _select(i),
                 excludeSemantics: true,
                 child: GestureDetector(
                   behavior: HitTestBehavior.opaque,
-                  onTap: () {
-                    HapticFeedback.selectionClick();
-                    onChanged(i);
-                  },
+                  onTap: () => _select(i),
                   child: Container(
                     key: ValueKey<String>('effort-cell-$i'),
                     height: _cellHeight,

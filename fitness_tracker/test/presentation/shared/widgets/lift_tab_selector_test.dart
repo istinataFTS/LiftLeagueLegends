@@ -2,6 +2,7 @@ import 'package:fitness_tracker/app/app.dart';
 import 'package:fitness_tracker/core/themes/lift_theme.dart';
 import 'package:fitness_tracker/presentation/shared/widgets/lift_tab_selector.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/semantics.dart';
 import 'package:flutter_test/flutter_test.dart';
 
 import '../../../support/phone_viewport.dart';
@@ -28,6 +29,31 @@ void main() {
       expect(find.text('EXERCISE'), findsOneWidget);
       expect(find.text('MEAL'), findsOneWidget);
       expect(find.text('MACROS'), findsOneWidget);
+    });
+
+    testWidgets('a tab is activatable from assistive technology', (
+      tester,
+    ) async {
+      // `excludeSemantics: true` drops the GestureDetector's own tap action,
+      // so the wrapping node has to publish one or the strip announces three
+      // buttons a screen reader cannot press.
+      final SemanticsHandle handle = tester.ensureSemantics();
+
+      int? received;
+      await tester.pumpWidget(buildSubject(onChanged: (v) => received = v));
+      await tester.pumpAndSettle();
+
+      final SemanticsNode node = tester.getSemantics(find.text('MACROS'));
+      expect(node.getSemanticsData().hasAction(SemanticsAction.tap), isTrue);
+
+      tester.binding.pipelineOwner.semanticsOwner!.performAction(
+        node.id,
+        SemanticsAction.tap,
+      );
+      await tester.pumpAndSettle();
+
+      expect(received, equals(2));
+      handle.dispose();
     });
 
     testWidgets('labels are mono JetBrainsMono', (tester) async {

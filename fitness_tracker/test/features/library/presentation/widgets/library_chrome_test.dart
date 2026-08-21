@@ -251,4 +251,44 @@ void main() {
       expectNoOverflow(tester);
     });
   });
+
+  group('LibraryFilterChip', () {
+    testWidgets('a chip is activatable from assistive technology', (
+      tester,
+    ) async {
+      // `excludeSemantics: true` drops the GestureDetector's own tap action,
+      // so the wrapping node has to publish one or the filter row announces
+      // as buttons a screen reader cannot press.
+      final SemanticsHandle handle = tester.ensureSemantics();
+
+      bool tapped = false;
+      await tester.pumpWidget(
+        MaterialApp(
+          theme: LiftTheme.dark(),
+          home: Scaffold(
+            body: LibraryFilterChip(
+              label: 'Chest',
+              selected: false,
+              onTap: () => tapped = true,
+            ),
+          ),
+        ),
+      );
+      await tester.pumpAndSettle();
+
+      final SemanticsNode node = tester.getSemantics(
+        find.byType(LibraryFilterChip),
+      );
+      expect(node.getSemanticsData().hasAction(SemanticsAction.tap), isTrue);
+
+      tester.binding.pipelineOwner.semanticsOwner!.performAction(
+        node.id,
+        SemanticsAction.tap,
+      );
+      await tester.pumpAndSettle();
+
+      expect(tapped, isTrue);
+      handle.dispose();
+    });
+  });
 }

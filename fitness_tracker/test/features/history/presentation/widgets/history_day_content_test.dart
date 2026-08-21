@@ -9,6 +9,7 @@ import 'package:fitness_tracker/features/history/history.dart';
 import 'package:fitness_tracker/features/history/presentation/widgets/history_day_content.dart';
 import 'package:fitness_tracker/features/library/application/exercise_bloc.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/semantics.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:mocktail/mocktail.dart';
@@ -243,6 +244,50 @@ void main() {
       expect(crossover, lessThan(row));
     });
 
+    testWidgets('group order survives the newest-first list the bloc emits', (
+      WidgetTester tester,
+    ) async {
+      // `HistoryBloc._loadMonthData` sorts each day's sets **descending** by
+      // `createdAt`, so this is the order the real widget is handed. Grouping
+      // must not inherit it — the day still reads Cable Crossover first
+      // because that is the exercise the day opened with.
+      final List<WorkoutSet> newestFirst = List<WorkoutSet>.from(supersetSets)
+        ..sort(
+          (WorkoutSet a, WorkoutSet b) => b.createdAt.compareTo(a.createdAt),
+        );
+
+      await pumpAtPhoneWidth(tester, buildSubject(workoutSets: newestFirst));
+
+      final double crossover = tester
+          .getTopLeft(find.text('Cable Crossover'))
+          .dy;
+      final double row = tester.getTopLeft(find.text('Barbell Row')).dy;
+
+      expect(crossover, lessThan(row));
+    });
+
+    testWidgets('sets inside a group read oldest first whatever the input '
+        'order', (WidgetTester tester) async {
+      final List<WorkoutSet> newestFirst = List<WorkoutSet>.from(sets)
+        ..sort(
+          (WorkoutSet a, WorkoutSet b) => b.createdAt.compareTo(a.createdAt),
+        );
+
+      await pumpAtPhoneWidth(tester, buildSubject(workoutSets: newestFirst));
+      await toggleGroup(tester, 'Cable Crossover');
+
+      // Row identity, not row position: the ordinals 1..3 are painted in
+      // order whatever the sets do, so they cannot show a mis-ordering.
+      final double first = tester
+          .getTopLeft(find.byKey(const ValueKey<String>('history-edit-set-s1')))
+          .dy;
+      final double last = tester
+          .getTopLeft(find.byKey(const ValueKey<String>('history-edit-set-s3')))
+          .dy;
+
+      expect(first, lessThan(last));
+    });
+
     testWidgets('a group header carries its own volume', (
       WidgetTester tester,
     ) async {
@@ -357,6 +402,69 @@ void main() {
       await tester.pumpAndSettle();
 
       expect(find.text('Edit Set'), findsOneWidget);
+    });
+
+    testWidgets('the row controls keep a 44dp target and a semantic tap', (
+      WidgetTester tester,
+    ) async {
+      final SemanticsHandle handle = tester.ensureSemantics();
+
+      await pumpAtPhoneWidth(tester, buildSubject(workoutSets: sets));
+      await toggleGroup(tester, 'Cable Crossover');
+
+      for (final String key in <String>[
+        'history-edit-set-s1',
+        'history-delete-set-s1',
+        'history-add-set-button',
+      ]) {
+        final Finder finder = find.byKey(ValueKey<String>(key));
+
+        // Edit and delete sit side by side and one of them is destructive.
+        final Size size = tester.getSize(finder);
+        expect(size.width, greaterThanOrEqualTo(44), reason: key);
+        expect(size.height, greaterThanOrEqualTo(44), reason: key);
+
+        // `excludeSemantics` drops the GestureDetector's own tap action, so
+        // the wrapping node has to publish one itself or the control is
+        // unreachable from assistive technology.
+        expect(
+          tester
+              .getSemantics(finder)
+              .getSemanticsData()
+              .hasAction(SemanticsAction.tap),
+          isTrue,
+          reason: '$key must be activatable by assistive technology',
+        );
+      }
+
+      handle.dispose();
+    });
+
+    testWidgets('an orphaned set keeps delete but loses edit', (
+      WidgetTester tester,
+    ) async {
+      // A set can outlive the library entry it points at; the row still has
+      // to render and still has to delete. Edit is the only thing that goes,
+      // because the dialog needs the exercise to name what is being edited.
+      final WorkoutSet orphan = buildSet('o1', exerciseId: 'gone');
+
+      await pumpAtPhoneWidth(
+        tester,
+        buildSubject(workoutSets: <WorkoutSet>[orphan]),
+      );
+      await toggleGroup(tester, 'Unknown exercise');
+
+      await tester.tap(
+        find.byKey(const ValueKey<String>('history-edit-set-o1')),
+      );
+      await tester.pumpAndSettle();
+      expect(find.text('Edit Set'), findsNothing);
+
+      await tester.tap(
+        find.byKey(const ValueKey<String>('history-delete-set-o1')),
+      );
+      await tester.pumpAndSettle();
+      expect(find.text('Delete Set?'), findsOneWidget);
     });
 
     testWidgets('the delete control opens the delete confirmation', (

@@ -142,6 +142,10 @@ class HistoryCalendarWidget extends StatelessWidget {
       button: true,
       enabled: enabled,
       label: semanticLabel,
+      // The node needs its own `onTap`: `excludeSemantics` drops the
+      // GestureDetector's semantics with the rest of the subtree. Null when
+      // out of range, so a disabled arrow offers no action to activate.
+      onTap: enabled ? onTap : null,
       excludeSemantics: true,
       child: GestureDetector(
         behavior: HitTestBehavior.opaque,

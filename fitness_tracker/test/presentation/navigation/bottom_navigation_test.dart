@@ -16,6 +16,7 @@ import 'package:fitness_tracker/features/settings/application/app_settings_cubit
 import 'package:fitness_tracker/features/settings/presentation/settings_scope.dart';
 import 'package:fitness_tracker/presentation/navigation/bottom_navigation.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/semantics.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:mocktail/mocktail.dart';
@@ -235,6 +236,30 @@ void main() {
     await tester.pump();
 
     expect(find.byType(FloatingActionButton), findsNothing);
+  });
+
+  testWidgets('a nav tab is activatable from assistive technology', (
+    WidgetTester tester,
+  ) async {
+    // `excludeSemantics: true` on the tab drops the GestureDetector's own tap
+    // action, so the wrapping node has to publish one or the whole bar is
+    // unreachable from a screen reader.
+    final SemanticsHandle handle = tester.ensureSemantics();
+
+    await tester.pumpWidget(buildSubject());
+    await tester.pump();
+
+    final SemanticsNode node = tester.getSemantics(find.text('HISTORY'));
+    expect(node.getSemanticsData().hasAction(SemanticsAction.tap), isTrue);
+
+    tester.binding.pipelineOwner.semanticsOwner!.performAction(
+      node.id,
+      SemanticsAction.tap,
+    );
+    await tester.pump();
+
+    verify(() => exerciseBloc.add(LoadExercisesEvent())).called(1);
+    handle.dispose();
   });
 
   testWidgets('opening History eagerly loads exercise and meal library data', (

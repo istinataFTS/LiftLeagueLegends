@@ -4,6 +4,7 @@ import 'package:fitness_tracker/domain/entities/app_settings.dart';
 import 'package:fitness_tracker/features/history/presentation/models/day_activity.dart';
 import 'package:fitness_tracker/features/history/presentation/widgets/history_calendar_widget.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/semantics.dart';
 import 'package:flutter_test/flutter_test.dart';
 
 import '../../../../support/phone_viewport.dart';
@@ -124,6 +125,51 @@ void main() {
         find.byIcon(Icons.chevron_left),
       );
       expect(previousIcon.color, LiftColors.textDim);
+    });
+
+    testWidgets('a chevron is activatable from assistive technology, and a '
+        'disabled one is not', (WidgetTester tester) async {
+      // `excludeSemantics: true` drops the GestureDetector's own tap action,
+      // so the wrapping node has to publish one — and must withhold it when
+      // the direction is out of range.
+      final SemanticsHandle handle = tester.ensureSemantics();
+
+      int previous = 0;
+      await pumpAtPhoneWidth(
+        tester,
+        buildSubject(canGoNext: false, onPreviousMonth: () => previous++),
+      );
+
+      final Finder back = find.byKey(
+        const ValueKey<String>('calendar-previous-month'),
+      );
+      expect(
+        tester
+            .getSemantics(back)
+            .getSemanticsData()
+            .hasAction(SemanticsAction.tap),
+        isTrue,
+      );
+
+      tester.binding.pipelineOwner.semanticsOwner!.performAction(
+        tester.getSemantics(back).id,
+        SemanticsAction.tap,
+      );
+      await tester.pumpAndSettle();
+      expect(previous, 1);
+
+      expect(
+        tester
+            .getSemantics(
+              find.byKey(const ValueKey<String>('calendar-next-month')),
+            )
+            .getSemanticsData()
+            .hasAction(SemanticsAction.tap),
+        isFalse,
+        reason: 'an out-of-range chevron offers no action to activate',
+      );
+
+      handle.dispose();
     });
 
     testWidgets('each chevron keeps a 44dp touch target', (

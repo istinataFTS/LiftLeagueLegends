@@ -203,6 +203,11 @@ class _WorkoutHistorySection extends StatelessWidget {
   /// Sets whose exercise is gone from the library keep their own group, keyed
   /// by exercise id, so they stay deletable instead of vanishing into a shared
   /// "unknown" bucket where two different missing exercises would merge.
+  ///
+  /// Both axes are sorted explicitly. `HistoryBloc` hands this widget a day's
+  /// sets **newest first** (`_loadMonthData` sorts each day descending), so
+  /// relying on the incoming order — or on `Map` insertion order, which is the
+  /// same thing — would list the day's exercises backwards.
   static List<_ExerciseGroup> _groupByExercise(
     List<WorkoutSet> sets,
     Map<String, Exercise> exerciseById,
@@ -214,7 +219,9 @@ class _WorkoutHistorySection extends StatelessWidget {
       byExercise.putIfAbsent(s.exerciseId, () => <WorkoutSet>[]).add(s);
     }
 
-    return byExercise.entries.map((MapEntry<String, List<WorkoutSet>> entry) {
+    final List<_ExerciseGroup> groups = byExercise.entries.map((
+      MapEntry<String, List<WorkoutSet>> entry,
+    ) {
       final List<WorkoutSet> ordered = List<WorkoutSet>.from(entry.value)
         ..sort(
           (WorkoutSet a, WorkoutSet b) => a.createdAt.compareTo(b.createdAt),
@@ -226,6 +233,11 @@ class _WorkoutHistorySection extends StatelessWidget {
         sets: ordered,
       );
     }).toList();
+
+    return groups..sort(
+      (_ExerciseGroup a, _ExerciseGroup b) =>
+          a.sets.first.createdAt.compareTo(b.sets.first.createdAt),
+    );
   }
 }
 
@@ -265,14 +277,19 @@ class _AddToDayButton extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    void open() =>
+        showHistoryWorkoutLogBottomSheet(context, selectedDate: date);
+
     return Semantics(
       button: true,
       label: 'Add a set for ${DateFormat('MMMM d').format(date)}',
+      // The node needs its own `onTap`: `excludeSemantics` drops the
+      // GestureDetector's semantics with the rest of the subtree.
+      onTap: open,
       excludeSemantics: true,
       child: GestureDetector(
         behavior: HitTestBehavior.opaque,
-        onTap: () =>
-            showHistoryWorkoutLogBottomSheet(context, selectedDate: date),
+        onTap: open,
         child: const SizedBox(
           key: ValueKey<String>('history-add-set-button'),
           width: 44,
@@ -574,9 +591,12 @@ class _WorkoutSetRow extends StatelessWidget {
   }
 }
 
-/// A bare 36dp-square icon control for a list row. Disabled when [onTap] is
-/// null, which is how a set whose exercise is gone loses edit but keeps
-/// delete.
+/// A bare icon control for a list row. Disabled when [onTap] is null, which is
+/// how a set whose exercise is gone loses edit but keeps delete.
+///
+/// The glyph is small but the target is a full 44dp: edit and delete sit
+/// side by side, and on a pair where one is destructive a near-miss is not a
+/// harmless mistake.
 class _RowAction extends StatelessWidget {
   const _RowAction({
     required this.keyValue,
@@ -585,6 +605,8 @@ class _RowAction extends StatelessWidget {
     required this.color,
     required this.onTap,
   });
+
+  static const double _target = 44;
 
   final String keyValue;
   final IconData icon;
@@ -600,14 +622,17 @@ class _RowAction extends StatelessWidget {
       button: true,
       enabled: enabled,
       label: semanticLabel,
+      // The node needs its own `onTap`: `excludeSemantics` drops the
+      // GestureDetector's semantics with the rest of the subtree.
+      onTap: onTap,
       excludeSemantics: true,
       child: GestureDetector(
         behavior: HitTestBehavior.opaque,
         onTap: onTap,
         child: SizedBox(
           key: ValueKey<String>(keyValue),
-          width: 36,
-          height: 36,
+          width: _target,
+          height: _target,
           child: Icon(
             icon,
             size: 18,

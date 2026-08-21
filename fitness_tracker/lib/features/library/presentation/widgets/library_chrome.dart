@@ -134,6 +134,9 @@ class LibraryFilterChip extends StatelessWidget {
       button: true,
       selected: selected,
       label: label,
+      // The node needs its own `onTap`: `excludeSemantics` drops the
+      // GestureDetector's semantics with the rest of the subtree.
+      onTap: onTap,
       excludeSemantics: true,
       child: GestureDetector(
         key: chipKey,

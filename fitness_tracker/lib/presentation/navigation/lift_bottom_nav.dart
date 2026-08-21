@@ -97,6 +97,10 @@ class LiftBottomNav extends StatelessWidget {
       button: true,
       selected: active,
       label: destination.label,
+      // The node needs its own `onTap`: `excludeSemantics` drops the
+      // GestureDetector's semantics with the rest of the subtree, so without
+      // this the tab announces as a button assistive technology cannot press.
+      onTap: () => onTap(index),
       excludeSemantics: true,
       child: GestureDetector(
         behavior: HitTestBehavior.opaque,

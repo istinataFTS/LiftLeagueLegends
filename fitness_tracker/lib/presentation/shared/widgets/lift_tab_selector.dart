@@ -48,6 +48,11 @@ class LiftTabSelector extends StatelessWidget {
             button: true,
             selected: active,
             label: labels[i],
+            // The node needs its own `onTap`: `excludeSemantics` drops the
+            // GestureDetector's semantics with the rest of the subtree, so
+            // without this the tab announces as a button assistive technology
+            // cannot press.
+            onTap: () => onChanged(i),
             excludeSemantics: true,
             child: GestureDetector(
               behavior: HitTestBehavior.opaque,

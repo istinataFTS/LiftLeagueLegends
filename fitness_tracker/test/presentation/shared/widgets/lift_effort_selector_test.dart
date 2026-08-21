@@ -2,6 +2,7 @@ import 'package:fitness_tracker/app/app.dart';
 import 'package:fitness_tracker/core/themes/lift_theme.dart';
 import 'package:fitness_tracker/presentation/shared/widgets/lift_effort_selector.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/semantics.dart';
 import 'package:flutter_test/flutter_test.dart';
 
 import '../../../support/phone_viewport.dart';
@@ -107,6 +108,40 @@ void main() {
               'expected exactly one filled cell at level $level, got $filled',
         );
       }
+    });
+
+    testWidgets('a cell is activatable from assistive technology', (
+      tester,
+    ) async {
+      // The cell wraps its GestureDetector in `Semantics(excludeSemantics:
+      // true)`, which drops the detector's own tap action along with the rest
+      // of the subtree. Without an `onTap` on the wrapping node the cell
+      // announces as a button that cannot be pressed.
+      final SemanticsHandle handle = tester.ensureSemantics();
+
+      int? received;
+      await tester.pumpWidget(
+        buildSubject(intensity: 3, onChanged: (v) => received = v),
+      );
+      await tester.pumpAndSettle();
+
+      final Finder cell5 = find.byKey(const ValueKey<String>('effort-cell-5'));
+      expect(
+        tester
+            .getSemantics(cell5)
+            .getSemanticsData()
+            .hasAction(SemanticsAction.tap),
+        isTrue,
+      );
+
+      tester.binding.pipelineOwner.semanticsOwner!.performAction(
+        tester.getSemantics(cell5).id,
+        SemanticsAction.tap,
+      );
+      await tester.pumpAndSettle();
+
+      expect(received, equals(5));
+      handle.dispose();
     });
 
     testWidgets('every cell renders at one size, at least 44px tall', (
