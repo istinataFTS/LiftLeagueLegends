@@ -1,9 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 
-import '../../core/constants/app_strings.dart';
-import '../../core/themes/lift_theme.dart';
-import 'lift_bottom_nav.dart';
 import '../../domain/entities/app_settings.dart';
 import '../../features/history/history.dart';
 import '../../features/home/home.dart';
@@ -14,6 +11,7 @@ import '../../features/log/application/nutrition_log_bloc.dart';
 import '../../features/log/presentation/pages/log_page.dart';
 import '../../features/profile/profile.dart';
 import '../../features/settings/presentation/settings_scope.dart';
+import 'lift_bottom_nav.dart';
 
 class BottomNavigation extends StatefulWidget {
   const BottomNavigation({super.key});

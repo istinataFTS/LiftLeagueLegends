@@ -23,7 +23,11 @@ import '../shared/widgets/lift_tab_selector.dart';
 /// the tab alone, and unlike the three-way Log selector these are places, not
 /// modes of one page.
 class LiftBottomNav extends StatelessWidget {
-  const LiftBottomNav({required this.selectedIndex, required this.onTap});
+  const LiftBottomNav({
+    required this.selectedIndex,
+    required this.onTap,
+    super.key,
+  });
 
   final int selectedIndex;
   final ValueChanged<int> onTap;
