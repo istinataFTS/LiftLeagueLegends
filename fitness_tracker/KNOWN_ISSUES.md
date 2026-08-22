@@ -108,6 +108,7 @@ Numbered steps or a short paragraph. State what to do and what *not* to do.
 6. [signin-does-not-navigate-until-restart](#signin-does-not-navigate-until-restart)
 7. [auth-gate-must-not-flash-signin-before-session-resolves](#auth-gate-must-not-flash-signin-before-session-resolves)
 8. [muscle-stimulus-rebuild-dst-day-iteration](#muscle-stimulus-rebuild-dst-day-iteration)
+9. [full-width-elevated-button-crashes-inside-a-row](#full-width-elevated-button-crashes-inside-a-row)
 
 ---
 
@@ -1057,3 +1058,33 @@ Step the loop with calendar-component arithmetic (`CalendarDay.nextDay`), which 
 - `lib/domain/usecases/muscle_stimulus/rebuild_muscle_stimulus_from_workout_history.dart` — loop step changed to `CalendarDay.nextDay`
 - `test/core/utils/calendar_day_test.dart` — helper contract tests
 - `test/domain/usecases/muscle_stimulus/rebuild_muscle_stimulus_from_workout_history_test.dart` — rebuild invariant tests
+
+---
+
+### full-width-elevated-button-crashes-inside-a-row
+
+- **Severity:** High
+- **Status:** Resolved-but-monitor
+- **First observed:** 2026-08-21
+- **Last verified:** 2026-08-21
+- **Area:** other
+
+**Symptom**
+
+A dialog or panel throws `BoxConstraints forces an infinite width` during `performLayout` the instant it is built, and the feature behind it looks broken rather than buggy — History's `Edit Set` dialog appeared to have no edit function at all, because the only way in produced a layout assertion instead of a dialog. Deleting a set from the same row worked, which made the fault read as "edit is missing" rather than "edit crashes".
+
+**Root cause**
+
+`LiftTheme`'s `elevatedButtonTheme` sets `minimumSize: const Size.fromHeight(52)`, and `Size.fromHeight` yields `Size(double.infinity, 52)` — every `ElevatedButton` in the app asks for infinite width by design, so CTAs fill their container. A `Row` hands its non-flex children unbounded width, so the button's own `ConstrainedBox` gets `w=Infinity` with nothing to clamp it and the assertion fires. `AlertDialog.actions` is safe because `OverflowBar` bounds its children; a bare `Row` is not.
+
+**Workaround / fix**
+
+1. Wrap every `ElevatedButton` (and `OutlinedButton`, which carries `Size.fromHeight(48)`) in `Expanded` or `Flexible` when it sits in a `Row`.
+2. Do not "fix" this by overriding `minimumSize` at the call site — the full-width minimum is the intended CTA shape and overriding it per-button re-introduces the inconsistent button widths the restyle removed.
+3. Widget tests catch this only if they actually open the surface. A test that asserts a control exists does not exercise the dialog behind it.
+
+**References**
+
+- `lib/core/themes/lift_theme.dart` — `elevatedButtonTheme` / `outlinedButtonTheme` `minimumSize`
+- `lib/features/history/presentation/widgets/edit_set_dialog.dart` — the actions row, now `Expanded`
+- `test/features/history/presentation/widgets/history_day_content_test.dart` — "the edit control opens the edit dialog", the regression test

@@ -32,30 +32,27 @@ const double _gutter = 20;
 /// (`10-history-nutrition-expanded.png`) of the Deep Mist export. The export
 /// lives outside this repository and is not checked in.
 ///
-/// ### Controls the frames do not draw, and where their function went
+/// ### What this panel does not repeat
 ///
-/// The pre-restyle version of this file painted a `+` in each section header,
-/// an edit and a delete [IconButton] on every row, and an `x` on the day
-/// strip. None of the three frames shows any of them — the rows are bare, and
-/// the section headers carry nothing but two lines of text. Frames 09 and 10
-/// are captioned "edit and delete per row" and "add from the section header",
-/// which contradicts their own pixels; the pixels win, because that is what
-/// this restyle was asked to reproduce.
+/// There is no line naming the selected day. The calendar directly above is
+/// already showing which cell is outlined, and printing `FRI · AUG 21` under
+/// it said the same thing twice — the counts it also carried are in the two
+/// section subtitles.
 ///
-/// Every one of those functions is still reachable, moved onto a gesture the
-/// row already had spare:
+/// The workout section has no muscle filter either. It filtered a list that is
+/// now grouped by exercise, where the exercise names are the index; a chip row
+/// that hides four of six groups is a worse way to find one of six groups than
+/// reading them.
 ///
-///  * **edit** — tap the row.
-///  * **delete** — long-press the row, which opens the same confirmation
-///    dialog the trash icon used to.
-///  * **add for this day** — the empty-state call to action, which the frames
-///    never show (they only show days with data) and which is therefore free
-///    to keep a visible button.
+/// ### Reaching edit, delete and add
 ///
-/// The highlight flash that used to draw a rounded orange border around the
-/// whole panel when the selection changed is gone with the radius it depended
-/// on; the day strip is the thing that changes, and it changes visibly.
-class HistoryDayContent extends StatefulWidget {
+///  * **edit a set** — the pencil on the set row, inside its exercise group.
+///    This used to be a bare tap on the row with nothing to announce it, which
+///    made editing look impossible next to a delete you could find.
+///  * **delete a set** — the trash on the same row.
+///  * **add to this day** — the `+` in the workout section header, and the
+///    empty-state call to action on days with nothing logged.
+class HistoryDayContent extends StatelessWidget {
   final DateTime? selectedDate;
   final List<WorkoutSet> workoutSets;
   final List<NutritionLog> nutritionLogs;
@@ -70,120 +67,21 @@ class HistoryDayContent extends StatefulWidget {
   });
 
   @override
-  State<HistoryDayContent> createState() => _HistoryDayContentState();
-}
-
-class _HistoryDayContentState extends State<HistoryDayContent> {
-  /// Muscle filter for the workout section. `null` = show all muscles.
-  String? _selectedMuscleFilter;
-
-  @override
-  void didUpdateWidget(covariant HistoryDayContent oldWidget) {
-    super.didUpdateWidget(oldWidget);
-
-    // Reset the filter when the selected date changes.
-    if (widget.selectedDate != oldWidget.selectedDate) {
-      _selectedMuscleFilter = null;
-    }
-  }
-
-  @override
   Widget build(BuildContext context) {
-    if (widget.selectedDate == null) {
+    if (selectedDate == null) {
       return const _NoDaySelected();
     }
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: <Widget>[
-        _SelectedDayStrip(
-          date: widget.selectedDate!,
-          setCount: widget.workoutSets.length,
-          entryCount: widget.nutritionLogs.length,
-          nutritionLogs: widget.nutritionLogs,
-        ),
         _WorkoutHistorySection(
-          date: widget.selectedDate!,
-          sets: widget.workoutSets,
-          weightUnit: widget.weightUnit,
-          muscleFilter: _selectedMuscleFilter,
-          onMuscleFilterChanged: (String? muscle) {
-            setState(() => _selectedMuscleFilter = muscle);
-          },
+          date: selectedDate!,
+          sets: workoutSets,
+          weightUnit: weightUnit,
         ),
-        _NutritionHistorySection(
-          date: widget.selectedDate!,
-          logs: widget.nutritionLogs,
-        ),
+        _NutritionHistorySection(date: selectedDate!, logs: nutritionLogs),
       ],
-    );
-  }
-}
-
-// ---------------------------------------------------------------------------
-// Selected day strip
-// ---------------------------------------------------------------------------
-
-/// `SAT · AUG 8   3 SETS · 4 ENTRIES · 2792 KCAL`.
-///
-/// The date reads in [LiftText.dataMeta] at full strength and the counts in
-/// dim letterspaced mono caps beside it, matching the frame's single line.
-/// Zero-valued counts are dropped rather than printed as `0 SETS`.
-class _SelectedDayStrip extends StatelessWidget {
-  final DateTime date;
-  final int setCount;
-  final int entryCount;
-  final List<NutritionLog> nutritionLogs;
-
-  const _SelectedDayStrip({
-    required this.date,
-    required this.setCount,
-    required this.entryCount,
-    required this.nutritionLogs,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    final String formattedDate = DateFormat('EEE').format(date).toUpperCase();
-    final String formattedDay = DateFormat('MMM d').format(date).toUpperCase();
-
-    final int totalKcal = nutritionLogs.fold<int>(
-      0,
-      (int acc, NutritionLog log) => acc + log.calories.round(),
-    );
-
-    final List<String> parts = <String>[
-      if (setCount > 0) '$setCount ${setCount == 1 ? 'SET' : 'SETS'}',
-      if (entryCount > 0)
-        '$entryCount ${entryCount == 1 ? 'ENTRY' : 'ENTRIES'}',
-      if (totalKcal > 0) '$totalKcal KCAL',
-    ];
-
-    return Padding(
-      padding: const EdgeInsets.fromLTRB(_gutter, 0, _gutter, 16),
-      child: Row(
-        crossAxisAlignment: CrossAxisAlignment.baseline,
-        textBaseline: TextBaseline.alphabetic,
-        children: <Widget>[
-          Text(
-            '$formattedDate · $formattedDay',
-            style: LiftText.dataMeta.copyWith(
-              color: LiftColors.textPrimary,
-              fontFeatures: LiftText.dataFeatures,
-            ),
-          ),
-          if (parts.isNotEmpty) ...<Widget>[
-            const SizedBox(width: 12),
-            Expanded(
-              child: Text(
-                parts.join(' · '),
-                overflow: TextOverflow.ellipsis,
-                style: LiftText.labelMedium.copyWith(color: LiftColors.textDim),
-              ),
-            ),
-          ],
-        ],
-      ),
     );
   }
 }
@@ -196,15 +94,11 @@ class _WorkoutHistorySection extends StatelessWidget {
   final DateTime date;
   final List<WorkoutSet> sets;
   final WeightUnit weightUnit;
-  final String? muscleFilter;
-  final ValueChanged<String?> onMuscleFilterChanged;
 
   const _WorkoutHistorySection({
     required this.date,
     required this.sets,
     required this.weightUnit,
-    required this.muscleFilter,
-    required this.onMuscleFilterChanged,
   });
 
   @override
@@ -224,54 +118,15 @@ class _WorkoutHistorySection extends StatelessWidget {
               exerciseById: exerciseMap,
             );
 
-        final List<WorkoutSet> filteredSets = muscleFilter == null
-            ? sets
-            : sets.where((WorkoutSet s) {
-                final Exercise? ex = exerciseMap[s.exerciseId];
-                return ex != null && ex.muscleGroups.contains(muscleFilter);
-              }).toList();
-
         return CollapsibleSection(
           id: _kWorkoutSectionId,
           title: HistoryStrings.workoutHistoryTitle,
           subtitle: _buildSubtitle(summary),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.stretch,
-            children: <Widget>[
-              if (sets.isNotEmpty) ...<Widget>[
-                _MuscleFilterChips(
-                  muscles: _orderedMuscles(summary),
-                  selectedMuscle: muscleFilter,
-                  onChanged: onMuscleFilterChanged,
-                ),
-                const SizedBox(height: 12),
-              ],
-              _buildContent(context, exerciseMap, filteredSets),
-            ],
-          ),
+          trailing: _AddToDayButton(date: date),
+          child: _buildContent(context, exerciseMap),
         );
       },
     );
-  }
-
-  /// The muscles this day actually hit, heaviest first, then every remaining
-  /// muscle group.
-  ///
-  /// Frame 09 shows `ALL · CHEST · SHOULDERS · REAR DELTS` on a chest-only
-  /// day, so the day's own muscles lead the row — a fixed global order buries
-  /// the one chip the user came to press behind however many groups happen to
-  /// sort before it. The rest still follow, because filtering to a muscle the
-  /// day did not train is a legitimate way to confirm it was not trained.
-  List<String> _orderedMuscles(HistoryWorkoutSummary summary) {
-    final List<String> present = summary.muscleCounts
-        .map((HistoryMuscleCount mc) => mc.muscleGroup)
-        .toList();
-    final Set<String> seen = present.toSet();
-
-    return <String>[
-      ...present,
-      ...MuscleGroups.all.where((String m) => !seen.contains(m)),
-    ];
   }
 
   /// `3 SETS · CHEST ×3` — the set count, then the two heaviest-hit muscles.
@@ -296,7 +151,6 @@ class _WorkoutHistorySection extends StatelessWidget {
   Widget _buildContent(
     BuildContext context,
     Map<String, Exercise> exerciseMap,
-    List<WorkoutSet> filteredSets,
   ) {
     if (sets.isEmpty) {
       return _EmptySectionHint(
@@ -317,13 +171,9 @@ class _WorkoutHistorySection extends StatelessWidget {
       );
     }
 
-    if (filteredSets.isEmpty) {
-      return const _EmptySectionHint(
-        message: 'No sets match this filter. Try another muscle group.',
-      );
-    }
+    final List<_ExerciseGroup> groups = _groupByExercise(sets, exerciseMap);
 
-    final double totalVolume = filteredSets.fold<double>(
+    final double totalVolume = sets.fold<double>(
       0,
       (double acc, WorkoutSet s) => acc + s.weight * s.reps,
     );
@@ -331,122 +181,293 @@ class _WorkoutHistorySection extends StatelessWidget {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: <Widget>[
-        for (final WorkoutSet s in filteredSets)
-          if (exerciseMap.containsKey(s.exerciseId))
-            _WorkoutSetRow(
-              set: s,
-              exercise: exerciseMap[s.exerciseId]!,
-              weightUnit: weightUnit,
-            )
-          else
-            _WorkoutSetRow(set: s, exercise: null, weightUnit: weightUnit),
+        for (final _ExerciseGroup group in groups)
+          _ExerciseGroupTile(
+            key: ValueKey<String>('history-exercise-group-${group.key}'),
+            group: group,
+            weightUnit: weightUnit,
+          ),
         _DayTotalRow(volumeKilograms: totalVolume, weightUnit: weightUnit),
       ],
     );
   }
+
+  /// Collapses the day's sets into one entry per exercise, in the order the
+  /// exercises were first logged.
+  ///
+  /// A superset day logs `A B A B A B`; listing every set flat turns six rows
+  /// into eighteen and buries the only question worth asking of the list —
+  /// how many times did I do A. Grouping answers it in the header and keeps
+  /// the individual sets one tap away.
+  ///
+  /// Sets whose exercise is gone from the library keep their own group, keyed
+  /// by exercise id, so they stay deletable instead of vanishing into a shared
+  /// "unknown" bucket where two different missing exercises would merge.
+  ///
+  /// Both axes are sorted explicitly. `HistoryBloc` hands this widget a day's
+  /// sets **newest first** (`_loadMonthData` sorts each day descending), so
+  /// relying on the incoming order — or on `Map` insertion order, which is the
+  /// same thing — would list the day's exercises backwards.
+  static List<_ExerciseGroup> _groupByExercise(
+    List<WorkoutSet> sets,
+    Map<String, Exercise> exerciseById,
+  ) {
+    final Map<String, List<WorkoutSet>> byExercise =
+        <String, List<WorkoutSet>>{};
+
+    for (final WorkoutSet s in sets) {
+      byExercise.putIfAbsent(s.exerciseId, () => <WorkoutSet>[]).add(s);
+    }
+
+    final List<_ExerciseGroup> groups = byExercise.entries.map((
+      MapEntry<String, List<WorkoutSet>> entry,
+    ) {
+      final List<WorkoutSet> ordered = List<WorkoutSet>.from(entry.value)
+        ..sort(
+          (WorkoutSet a, WorkoutSet b) => a.createdAt.compareTo(b.createdAt),
+        );
+
+      return _ExerciseGroup(
+        key: entry.key,
+        exercise: exerciseById[entry.key],
+        sets: ordered,
+      );
+    }).toList();
+
+    return groups..sort(
+      (_ExerciseGroup a, _ExerciseGroup b) =>
+          a.sets.first.createdAt.compareTo(b.sets.first.createdAt),
+    );
+  }
 }
 
-/// The frame's `ALL / CHEST / SHOULDERS / REAR DELTS` filter row: square
-/// 26dp-tall chips, 1.5px border, the active one filled with
-/// [LiftColors.actionFill]. Chips are filters here and nowhere else — the
-/// spec forbids using one to display a value.
-class _MuscleFilterChips extends StatelessWidget {
-  final List<String> muscles;
-  final String? selectedMuscle;
-  final ValueChanged<String?> onChanged;
-
-  const _MuscleFilterChips({
-    required this.muscles,
-    required this.selectedMuscle,
-    required this.onChanged,
+/// One exercise's sets for the selected day.
+class _ExerciseGroup {
+  const _ExerciseGroup({
+    required this.key,
+    required this.exercise,
+    required this.sets,
   });
 
-  static const double _height = 26;
+  /// The exercise id — stable even when [exercise] is null.
+  final String key;
+
+  /// Null when the set outlives the library entry it points at.
+  final Exercise? exercise;
+
+  /// This exercise's sets for the day, oldest first.
+  final List<WorkoutSet> sets;
+
+  double get volumeKilograms => sets.fold<double>(
+    0,
+    (double acc, WorkoutSet s) => acc + s.weight * s.reps,
+  );
+}
+
+/// The `+` in the workout section header: add a set to the day being viewed.
+///
+/// It opens the same sheet the empty state's call to action does. Before this
+/// existed, a day that already had one set had no way to gain a second from
+/// History — the only add button lived in an empty state that day could no
+/// longer show.
+class _AddToDayButton extends StatelessWidget {
+  const _AddToDayButton({required this.date});
+
+  final DateTime date;
 
   @override
   Widget build(BuildContext context) {
-    return SizedBox(
-      height: _height,
-      child: ListView(
-        scrollDirection: Axis.horizontal,
-        padding: EdgeInsets.zero,
-        children: <Widget>[
-          _chip(
-            label: 'ALL',
-            selected: selectedMuscle == null,
-            onTap: () => onChanged(null),
-          ),
-          ...muscles.map(
-            (String muscle) => _chip(
-              label: MuscleGroups.getDisplayName(muscle).toUpperCase(),
-              selected: selectedMuscle == muscle,
-              onTap: () => onChanged(selectedMuscle == muscle ? null : muscle),
-            ),
-          ),
-        ],
-      ),
-    );
-  }
+    void open() =>
+        showHistoryWorkoutLogBottomSheet(context, selectedDate: date);
 
-  Widget _chip({
-    required String label,
-    required bool selected,
-    required VoidCallback onTap,
-  }) {
-    return Padding(
-      padding: const EdgeInsets.only(right: 7),
+    return Semantics(
+      button: true,
+      label: 'Add a set for ${DateFormat('MMMM d').format(date)}',
+      // The node needs its own `onTap`: `excludeSemantics` drops the
+      // GestureDetector's semantics with the rest of the subtree.
+      onTap: open,
+      excludeSemantics: true,
       child: GestureDetector(
-        onTap: onTap,
-        child: Semantics(
-          button: true,
-          selected: selected,
-          child: Container(
-            height: _height,
-            alignment: Alignment.center,
-            padding: const EdgeInsets.symmetric(horizontal: 11),
-            decoration: BoxDecoration(
-              color: selected ? LiftColors.actionFill : Colors.transparent,
-              border: selected
-                  ? null
-                  : Border.all(
-                      color: LiftColors.border,
-                      width: LiftShape.borderWidth,
-                    ),
-            ),
-            child: Text(
-              label,
-              style: LiftText.labelMedium.copyWith(
-                color: selected ? Colors.white : LiftColors.textSecondary,
-                fontWeight: selected ? FontWeight.w700 : FontWeight.w500,
-              ),
-            ),
-          ),
+        behavior: HitTestBehavior.opaque,
+        onTap: open,
+        child: const SizedBox(
+          key: ValueKey<String>('history-add-set-button'),
+          width: 44,
+          height: 44,
+          child: Icon(Icons.add, size: 22, color: LiftColors.actionTint),
         ),
       ),
     );
   }
 }
 
-/// One logged set: five cumulative effort marks, the exercise and its muscle,
-/// then `weight × reps` right-aligned in tabular mono.
+/// An exercise group: a header row that expands to the sets under it.
 ///
-/// The marks encode effort by **count**, not height — marks `0..level-1` take
+/// Collapsed it reads `Bench Press / CHEST · TRICEPS` on the left and
+/// `×4 / 320 KG` on the right — the two facts the flat list made you count by
+/// eye. Expanded it lists each set with its own edit and delete controls.
+///
+/// A day usually opens with its groups collapsed; there is no persistence for
+/// this state, unlike [CollapsibleSection], because it belongs to one day's
+/// view of one exercise and there is nothing stable to key it to across days.
+class _ExerciseGroupTile extends StatefulWidget {
+  const _ExerciseGroupTile({
+    required this.group,
+    required this.weightUnit,
+    super.key,
+  });
+
+  final _ExerciseGroup group;
+  final WeightUnit weightUnit;
+
+  @override
+  State<_ExerciseGroupTile> createState() => _ExerciseGroupTileState();
+}
+
+class _ExerciseGroupTileState extends State<_ExerciseGroupTile> {
+  bool _expanded = false;
+
+  @override
+  Widget build(BuildContext context) {
+    final _ExerciseGroup group = widget.group;
+    final Exercise? exercise = group.exercise;
+    final int setCount = group.sets.length;
+
+    final String? muscleLabel = exercise == null
+        ? null
+        : exercise.muscleGroups
+              .map(MuscleGroups.getDisplayName)
+              .join(' · ')
+              .toUpperCase();
+
+    final String volumeText = WeightUnitUtils.formatForDisplay(
+      group.volumeKilograms,
+      widget.weightUnit,
+    ).toUpperCase();
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: <Widget>[
+        Semantics(
+          button: true,
+          expanded: _expanded,
+          label:
+              '${exercise?.name ?? HistoryStrings.unknownExercise}, '
+              '$setCount ${setCount == 1 ? 'set' : 'sets'}',
+          child: InkWell(
+            onTap: () => setState(() => _expanded = !_expanded),
+            child: Container(
+              padding: const EdgeInsets.symmetric(vertical: 13),
+              decoration: BoxDecoration(
+                border: Border(
+                  bottom: BorderSide(
+                    color: _expanded ? LiftColors.rule : LiftColors.hairline,
+                    width: 1,
+                  ),
+                ),
+              ),
+              child: Row(
+                children: <Widget>[
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      mainAxisSize: MainAxisSize.min,
+                      children: <Widget>[
+                        Text(
+                          exercise?.name ?? HistoryStrings.unknownExercise,
+                          overflow: TextOverflow.ellipsis,
+                          style: LiftText.titleSmall.copyWith(
+                            color: exercise == null
+                                ? LiftColors.textDim
+                                : LiftColors.textPrimary,
+                            fontStyle: exercise == null
+                                ? FontStyle.italic
+                                : FontStyle.normal,
+                          ),
+                        ),
+                        if (muscleLabel != null &&
+                            muscleLabel.isNotEmpty) ...<Widget>[
+                          const SizedBox(height: 3),
+                          Text(
+                            muscleLabel,
+                            overflow: TextOverflow.ellipsis,
+                            style: LiftText.labelMedium.copyWith(
+                              color: LiftColors.textDim,
+                            ),
+                          ),
+                        ],
+                      ],
+                    ),
+                  ),
+                  const SizedBox(width: 10),
+                  Column(
+                    crossAxisAlignment: CrossAxisAlignment.end,
+                    mainAxisSize: MainAxisSize.min,
+                    children: <Widget>[
+                      Text(
+                        '×$setCount',
+                        style: LiftText.dataSmall.copyWith(
+                          color: LiftColors.textPrimary,
+                          fontFeatures: LiftText.dataFeatures,
+                        ),
+                      ),
+                      const SizedBox(height: 3),
+                      Text(
+                        volumeText,
+                        style: LiftText.labelMedium.copyWith(
+                          color: LiftColors.textDim,
+                        ),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(width: 6),
+                  Icon(
+                    _expanded ? Icons.expand_less : Icons.expand_more,
+                    size: 20,
+                    color: LiftColors.textDim,
+                  ),
+                ],
+              ),
+            ),
+          ),
+        ),
+        if (_expanded)
+          for (int i = 0; i < group.sets.length; i++)
+            _WorkoutSetRow(
+              set: group.sets[i],
+              exercise: exercise,
+              setNumber: i + 1,
+              weightUnit: widget.weightUnit,
+            ),
+      ],
+    );
+  }
+}
+
+/// One logged set inside its exercise group: the set's ordinal, five
+/// cumulative effort marks, `weight × reps`, then edit and delete.
+///
+/// The marks encode effort by **count** — marks `0..level-1` take
 /// [LiftColors.effortOn] and the rest [LiftColors.effortOff]. This is the same
-/// encoding `ExerciseSetRow` uses on the Log tab and deliberately different
-/// from `LogIntensitySelector`'s height-encoded picker; the two must not be
-/// harmonised.
+/// encoding `ExerciseSetRow` uses on the Log tab, and deliberately different
+/// from `LogIntensitySelector`, which encodes the level the user is choosing
+/// as hue on a ramp.
+///
+/// The exercise name is not repeated here — the group header above carries it.
 ///
 /// [exercise] is null when the set outlives the library entry it points at.
-/// The row still renders — the set is real data and deleting it has to stay
-/// possible — with a dim italic placeholder name and no muscle line.
+/// The row still renders and still deletes; only edit is unavailable, because
+/// the edit dialog needs the exercise to name what is being edited.
 class _WorkoutSetRow extends StatelessWidget {
   final WorkoutSet set;
   final Exercise? exercise;
+  final int setNumber;
   final WeightUnit weightUnit;
 
   const _WorkoutSetRow({
     required this.set,
     required this.exercise,
+    required this.setNumber,
     required this.weightUnit,
   });
 
@@ -463,84 +484,61 @@ class _WorkoutSetRow extends StatelessWidget {
     );
     final (String weightValue, String weightUnitLabel) = _split(displayWeight);
 
-    final String? muscleLabel = exercise == null
-        ? null
-        : exercise!.muscleGroups
-              .map(MuscleGroups.getDisplayName)
-              .join(' · ')
-              .toUpperCase();
-
-    return InkWell(
-      onTap: exercise == null ? null : () => _showEditDialog(context),
-      onLongPress: () => _confirmDelete(context, displayWeight),
-      child: Container(
-        padding: const EdgeInsets.symmetric(vertical: 13),
-        decoration: const BoxDecoration(
-          border: Border(
-            bottom: BorderSide(color: LiftColors.hairline, width: 1),
+    return Container(
+      padding: const EdgeInsets.only(left: 14, top: 9, bottom: 9),
+      decoration: const BoxDecoration(
+        border: Border(
+          bottom: BorderSide(color: LiftColors.hairline, width: 1),
+        ),
+      ),
+      child: Row(
+        children: <Widget>[
+          SizedBox(
+            width: 26,
+            child: Text(
+              '$setNumber',
+              style: LiftText.labelMedium.copyWith(color: LiftColors.textFaint),
+            ),
           ),
-        ),
-        child: Row(
-          children: <Widget>[
-            Row(
-              children: List<Widget>.generate(5, (int i) {
-                return Padding(
-                  padding: EdgeInsets.only(left: i == 0 ? 0 : _markGap),
-                  child: Container(
-                    key: ValueKey<String>('history-effort-mark-$i'),
-                    width: _markWidth,
-                    height: _markHeight,
-                    color: i < level
-                        ? LiftColors.effortOn
-                        : LiftColors.effortOff,
-                  ),
-                );
-              }),
+          Row(
+            children: List<Widget>.generate(5, (int i) {
+              return Padding(
+                padding: EdgeInsets.only(left: i == 0 ? 0 : _markGap),
+                child: Container(
+                  key: ValueKey<String>('history-effort-mark-$i'),
+                  width: _markWidth,
+                  height: _markHeight,
+                  color: i < level ? LiftColors.effortOn : LiftColors.effortOff,
+                ),
+              );
+            }),
+          ),
+          const Spacer(),
+          LiftNumber(weightValue, weightUnitLabel, LiftText.dataSmall),
+          Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 10),
+            child: Text(
+              '×',
+              style: LiftText.dataSmall.copyWith(color: LiftColors.textDim),
             ),
-            const SizedBox(width: 13),
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                mainAxisSize: MainAxisSize.min,
-                children: <Widget>[
-                  Text(
-                    exercise?.name ?? HistoryStrings.unknownExercise,
-                    overflow: TextOverflow.ellipsis,
-                    style: LiftText.titleSmall.copyWith(
-                      color: exercise == null
-                          ? LiftColors.textDim
-                          : LiftColors.textPrimary,
-                      fontStyle: exercise == null
-                          ? FontStyle.italic
-                          : FontStyle.normal,
-                    ),
-                  ),
-                  if (muscleLabel != null &&
-                      muscleLabel.isNotEmpty) ...<Widget>[
-                    const SizedBox(height: 3),
-                    Text(
-                      muscleLabel,
-                      overflow: TextOverflow.ellipsis,
-                      style: LiftText.labelMedium.copyWith(
-                        color: LiftColors.textDim,
-                      ),
-                    ),
-                  ],
-                ],
-              ),
-            ),
-            const SizedBox(width: 10),
-            LiftNumber(weightValue, weightUnitLabel, LiftText.dataSmall),
-            Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 10),
-              child: Text(
-                '×',
-                style: LiftText.dataSmall.copyWith(color: LiftColors.textDim),
-              ),
-            ),
-            LiftNumber('${set.reps}', '', LiftText.dataSmall),
-          ],
-        ),
+          ),
+          LiftNumber('${set.reps}', '', LiftText.dataSmall),
+          const SizedBox(width: 4),
+          _RowAction(
+            keyValue: 'history-edit-set-${set.id}',
+            icon: Icons.edit_outlined,
+            semanticLabel: 'Edit set',
+            color: LiftColors.textDim,
+            onTap: exercise == null ? null : () => _showEditDialog(context),
+          ),
+          _RowAction(
+            keyValue: 'history-delete-set-${set.id}',
+            icon: Icons.delete_outline,
+            semanticLabel: 'Delete set',
+            color: LiftColors.textDim,
+            onTap: () => _confirmDelete(context, displayWeight),
+          ),
+        ],
       ),
     );
   }
@@ -588,6 +586,59 @@ class _WorkoutSetRow extends StatelessWidget {
             child: const Text(HistoryStrings.delete),
           ),
         ],
+      ),
+    );
+  }
+}
+
+/// A bare icon control for a list row. Disabled when [onTap] is null, which is
+/// how a set whose exercise is gone loses edit but keeps delete.
+///
+/// The glyph is small but the target is a full 44dp: edit and delete sit
+/// side by side, and on a pair where one is destructive a near-miss is not a
+/// harmless mistake.
+class _RowAction extends StatelessWidget {
+  const _RowAction({
+    required this.keyValue,
+    required this.icon,
+    required this.semanticLabel,
+    required this.color,
+    required this.onTap,
+  });
+
+  static const double _target = 44;
+
+  final String keyValue;
+  final IconData icon;
+  final String semanticLabel;
+  final Color color;
+  final VoidCallback? onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    final bool enabled = onTap != null;
+
+    return Semantics(
+      button: true,
+      enabled: enabled,
+      label: semanticLabel,
+      // The node needs its own `onTap`: `excludeSemantics` drops the
+      // GestureDetector's semantics with the rest of the subtree.
+      onTap: onTap,
+      excludeSemantics: true,
+      child: GestureDetector(
+        behavior: HitTestBehavior.opaque,
+        onTap: onTap,
+        child: SizedBox(
+          key: ValueKey<String>(keyValue),
+          width: _target,
+          height: _target,
+          child: Icon(
+            icon,
+            size: 18,
+            color: enabled ? color : LiftColors.textDisabled,
+          ),
+        ),
       ),
     );
   }

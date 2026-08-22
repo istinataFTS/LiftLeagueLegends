@@ -1,8 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 
-import '../../core/constants/app_strings.dart';
-import '../../core/themes/app_theme.dart';
 import '../../domain/entities/app_settings.dart';
 import '../../features/history/history.dart';
 import '../../features/home/home.dart';
@@ -13,6 +11,7 @@ import '../../features/log/application/nutrition_log_bloc.dart';
 import '../../features/log/presentation/pages/log_page.dart';
 import '../../features/profile/profile.dart';
 import '../../features/settings/presentation/settings_scope.dart';
+import 'lift_bottom_nav.dart';
 
 class BottomNavigation extends StatefulWidget {
   const BottomNavigation({super.key});
@@ -133,49 +132,9 @@ class _BottomNavigationState extends State<BottomNavigation> {
         index: _selectedIndex,
         children: List<Widget>.generate(_tabCount, _buildPageForIndex),
       ),
-      bottomNavigationBar: Container(
-        decoration: const BoxDecoration(
-          border: Border(top: BorderSide(color: AppTheme.borderDark)),
-        ),
-        child: BottomNavigationBar(
-          currentIndex: _selectedIndex,
-          onTap: _onItemTapped,
-          type: BottomNavigationBarType.fixed,
-          backgroundColor: AppTheme.surfaceDark,
-          unselectedItemColor: AppTheme.textDim,
-          selectedFontSize: 12,
-          unselectedFontSize: 11,
-          showSelectedLabels: true,
-          showUnselectedLabels: true,
-          elevation: 0,
-          items: const <BottomNavigationBarItem>[
-            BottomNavigationBarItem(
-              icon: Icon(Icons.home_outlined, size: 22),
-              activeIcon: Icon(Icons.home, size: 22),
-              label: AppStrings.navHome,
-            ),
-            BottomNavigationBarItem(
-              icon: Icon(Icons.add_circle_outline, size: 22),
-              activeIcon: Icon(Icons.add_circle, size: 22),
-              label: AppStrings.navLog,
-            ),
-            BottomNavigationBarItem(
-              icon: Icon(Icons.history_outlined, size: 22),
-              activeIcon: Icon(Icons.history, size: 22),
-              label: AppStrings.navHistory,
-            ),
-            BottomNavigationBarItem(
-              icon: Icon(Icons.library_books_outlined, size: 22),
-              activeIcon: Icon(Icons.library_books, size: 22),
-              label: AppStrings.navLibrary,
-            ),
-            BottomNavigationBarItem(
-              icon: Icon(Icons.person_outline, size: 22),
-              activeIcon: Icon(Icons.person, size: 22),
-              label: AppStrings.navProfile,
-            ),
-          ],
-        ),
+      bottomNavigationBar: LiftBottomNav(
+        selectedIndex: _selectedIndex,
+        onTap: _onItemTapped,
       ),
     );
   }

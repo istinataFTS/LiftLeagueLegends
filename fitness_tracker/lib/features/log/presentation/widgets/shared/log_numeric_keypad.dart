@@ -26,13 +26,19 @@ import '../../../../../core/themes/lift_theme.dart';
 /// First digit **replaces** the seeded [initialValue] ('fresh' flag);
 /// subsequent digits append. Decimal is capped at 1 fractional digit.
 /// Integer part is capped at [maxIntegerDigits] digits.
+///
+/// **Every keystroke commits.** [onChanged] fires on each digit, dot, and
+/// backspace, so the field above already holds the typed value before the
+/// keypad closes — there is nothing to confirm. The ✓ / `Done` key only
+/// dismisses the keypad, which is why it is labelled as a dismissal and not
+/// as a submit.
 class LogNumericKeypad extends StatefulWidget {
   const LogNumericKeypad({
     super.key,
     required this.initialValue,
     required this.label,
-    required this.onSubmit,
-    required this.onCancel,
+    required this.onChanged,
+    required this.onDone,
     this.unitSuffix = '',
     this.allowDecimal = false,
     this.maxIntegerDigits = 4,
@@ -43,8 +49,12 @@ class LogNumericKeypad extends StatefulWidget {
   final String unitSuffix;
   final bool allowDecimal;
   final int maxIntegerDigits;
-  final ValueChanged<num> onSubmit;
-  final VoidCallback onCancel;
+
+  /// Fired on every keystroke with the value typed so far.
+  final ValueChanged<num> onChanged;
+
+  /// Dismisses the keypad. The value is already committed.
+  final VoidCallback onDone;
 
   @override
   State<LogNumericKeypad> createState() => _LogNumericKeypadState();
@@ -65,6 +75,30 @@ class _LogNumericKeypadState extends State<LogNumericKeypad> {
     return ((v * 10).round() / 10.0).toStringAsFixed(1);
   }
 
+  /// Publishes the value typed so far. Called after every mutation of
+  /// [_input] so the parent's field tracks the keypad live.
+  ///
+  /// A trailing `.` is a half-typed number, not a zero: `8.` publishes 8 and
+  /// waits for the fraction. Without that, pressing the decimal point would
+  /// blank the field the user is looking at.
+  void _emit() {
+    if (_input.isEmpty) {
+      widget.onChanged(0);
+      return;
+    }
+
+    final num? parsed = num.tryParse(_input);
+    if (parsed != null) {
+      widget.onChanged(parsed);
+      return;
+    }
+
+    final num? withoutTrailingDot = num.tryParse(_input.replaceAll('.', ''));
+    if (withoutTrailingDot != null) {
+      widget.onChanged(withoutTrailingDot);
+    }
+  }
+
   void _onDigit(String digit) {
     HapticFeedback.selectionClick();
     setState(() {
@@ -83,6 +117,7 @@ class _LogNumericKeypadState extends State<LogNumericKeypad> {
         _input += digit;
       }
     });
+    _emit();
   }
 
   void _onDot() {
@@ -94,6 +129,7 @@ class _LogNumericKeypadState extends State<LogNumericKeypad> {
       if (_input.isEmpty) _input = '0';
       _input += '.';
     });
+    _emit();
   }
 
   void _onBackspace() {
@@ -108,11 +144,7 @@ class _LogNumericKeypadState extends State<LogNumericKeypad> {
         _input = _input.substring(0, _input.length - 1);
       }
     });
-  }
-
-  void _onSubmit() {
-    final num val = num.tryParse(_input) ?? 0;
-    widget.onSubmit(val);
+    _emit();
   }
 
   String get _displayValue => _input.isEmpty ? '0' : _input;
@@ -235,8 +267,8 @@ class _LogNumericKeypadState extends State<LogNumericKeypad> {
                 LiftColors.actionFill,
                 Colors.white,
                 isSpecial: true,
-                semanticLabel: 'Confirm',
-                onTap: _onSubmit,
+                semanticLabel: 'Close keypad',
+                onTap: widget.onDone,
               ),
             ),
           ],
@@ -294,9 +326,9 @@ class _LogNumericKeypadState extends State<LogNumericKeypad> {
           height: 48,
           child: Semantics(
             button: true,
-            label: 'Done',
+            label: 'Close keypad',
             child: ElevatedButton(
-              onPressed: _onSubmit,
+              onPressed: widget.onDone,
               style: ElevatedButton.styleFrom(
                 backgroundColor: LiftColors.actionFill,
                 foregroundColor: Colors.white,

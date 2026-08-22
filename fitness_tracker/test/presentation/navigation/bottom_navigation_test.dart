@@ -16,6 +16,7 @@ import 'package:fitness_tracker/features/settings/application/app_settings_cubit
 import 'package:fitness_tracker/features/settings/presentation/settings_scope.dart';
 import 'package:fitness_tracker/presentation/navigation/bottom_navigation.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/semantics.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:mocktail/mocktail.dart';
@@ -237,13 +238,37 @@ void main() {
     expect(find.byType(FloatingActionButton), findsNothing);
   });
 
+  testWidgets('a nav tab is activatable from assistive technology', (
+    WidgetTester tester,
+  ) async {
+    // `excludeSemantics: true` on the tab drops the GestureDetector's own tap
+    // action, so the wrapping node has to publish one or the whole bar is
+    // unreachable from a screen reader.
+    final SemanticsHandle handle = tester.ensureSemantics();
+
+    await tester.pumpWidget(buildSubject());
+    await tester.pump();
+
+    final SemanticsNode node = tester.getSemantics(find.text('HISTORY'));
+    expect(node.getSemanticsData().hasAction(SemanticsAction.tap), isTrue);
+
+    tester.binding.pipelineOwner.semanticsOwner!.performAction(
+      node.id,
+      SemanticsAction.tap,
+    );
+    await tester.pump();
+
+    verify(() => exerciseBloc.add(LoadExercisesEvent())).called(1);
+    handle.dispose();
+  });
+
   testWidgets('opening History eagerly loads exercise and meal library data', (
     WidgetTester tester,
   ) async {
     await tester.pumpWidget(buildSubject());
     await tester.pump();
 
-    await tester.tap(find.text('History'));
+    await tester.tap(find.text('HISTORY'));
     await tester.pump();
 
     verify(() => exerciseBloc.add(LoadExercisesEvent())).called(1);
@@ -273,13 +298,13 @@ void main() {
       await tester.pump();
 
       // First visit to Library.
-      await tester.tap(find.text('Library'));
+      await tester.tap(find.text('LIBRARY'));
       await tester.pump();
       // Navigate away.
-      await tester.tap(find.text('Home'));
+      await tester.tap(find.text('HOME'));
       await tester.pump();
       // Re-enter Library — state is still empty, so another dispatch expected.
-      await tester.tap(find.text('Library'));
+      await tester.tap(find.text('LIBRARY'));
       await tester.pump();
 
       verify(() => exerciseBloc.add(LoadExercisesEvent())).called(2);
@@ -305,11 +330,11 @@ void main() {
       await tester.pumpWidget(buildSubject());
       await tester.pump();
 
-      await tester.tap(find.text('Library'));
+      await tester.tap(find.text('LIBRARY'));
       await tester.pump();
-      await tester.tap(find.text('Home'));
+      await tester.tap(find.text('HOME'));
       await tester.pump();
-      await tester.tap(find.text('Library'));
+      await tester.tap(find.text('LIBRARY'));
       await tester.pump();
 
       // Healthy state: state-gate skips dispatch on every visit.
@@ -330,11 +355,11 @@ void main() {
       await tester.pumpWidget(buildSubject());
       await tester.pump();
 
-      await tester.tap(find.text('Library'));
+      await tester.tap(find.text('LIBRARY'));
       await tester.pump();
-      await tester.tap(find.text('Home'));
+      await tester.tap(find.text('HOME'));
       await tester.pump();
-      await tester.tap(find.text('Library'));
+      await tester.tap(find.text('LIBRARY'));
       await tester.pump();
 
       verifyNever(() => exerciseBloc.add(LoadExercisesEvent()));
@@ -356,11 +381,11 @@ void main() {
       await tester.pumpWidget(buildSubject());
       await tester.pump();
 
-      await tester.tap(find.text('Library'));
+      await tester.tap(find.text('LIBRARY'));
       await tester.pump();
-      await tester.tap(find.text('Home'));
+      await tester.tap(find.text('HOME'));
       await tester.pump();
-      await tester.tap(find.text('Library'));
+      await tester.tap(find.text('LIBRARY'));
       await tester.pump();
 
       verify(() => exerciseBloc.add(LoadExercisesEvent())).called(2);

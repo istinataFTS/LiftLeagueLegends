@@ -11,13 +11,20 @@ import '../models/day_activity.dart';
 /// not checked in.
 ///
 /// Everything that used to wrap this widget is gone: the rounded card, its
-/// 14px radius, its fill and border, the divider under the month header, and
-/// the two chevron [IconButton]s that flanked the month name. The frame shows
-/// a bare grid sitting on the app's two-tone ground with a single centred
-/// month label, so that is what this paints. Month navigation is the
-/// horizontal swipe the page has always had — see `HistoryPage`, which also
-/// exposes it to assistive technology as a pair of semantic actions, since
-/// removing the arrows removed the only pointer-free way to change month.
+/// 14px radius, its fill and border, and the divider under the month header.
+/// The frame shows a bare grid sitting on the app's two-tone ground, so that
+/// is what this paints.
+///
+/// The two chevrons flanking the month name are **back**, against the frame,
+/// because the swipe that replaced them was the only way to change month and
+/// a swipe is invisible: nothing on the screen said the month could move. They
+/// are drawn in the restyle's own language — bare [LiftColors.textDim] glyphs
+/// on a 44dp square target, no button chrome — rather than the Material
+/// [IconButton]s the pre-restyle grid used. An arrow whose direction is out of
+/// range ([canGoPrevious] / [canGoNext] false) renders at
+/// [LiftColors.textDisabled] and does not respond. The horizontal swipe is
+/// kept as a second way in, and `HistoryPage` still publishes both moves as
+/// semantic actions.
 ///
 /// ### The three day states the frame distinguishes
 ///
@@ -45,6 +52,10 @@ class HistoryCalendarWidget extends StatelessWidget {
   final Map<DateTime, DayActivity> dayActivity;
   final WeekStartDay weekStartDay;
   final ValueChanged<DateTime> onDateSelected;
+  final VoidCallback onPreviousMonth;
+  final VoidCallback onNextMonth;
+  final bool canGoPrevious;
+  final bool canGoNext;
 
   const HistoryCalendarWidget({
     super.key,
@@ -54,6 +65,10 @@ class HistoryCalendarWidget extends StatelessWidget {
     required this.dayActivity,
     required this.weekStartDay,
     required this.onDateSelected,
+    required this.onPreviousMonth,
+    required this.onNextMonth,
+    required this.canGoPrevious,
+    required this.canGoNext,
   });
 
   static const double _gutter = 20;
@@ -61,17 +76,21 @@ class HistoryCalendarWidget extends StatelessWidget {
   static const double _dayCellGap = 3;
   static const double _underlineWidth = 12;
   static const double _underlineHeight = 2;
+  static const double _arrowTarget = 44;
 
   @override
   Widget build(BuildContext context) {
     return Padding(
-      padding: const EdgeInsets.fromLTRB(_gutter, 21, _gutter, 18),
+      // Top inset and header gap are smaller than the frame's 21/18 because
+      // the month row is now 44dp tall (the arrows' touch target) rather than
+      // a bare line of text; the block's overall height is unchanged.
+      padding: const EdgeInsets.fromLTRB(_gutter, 8, _gutter, 18),
       child: Column(
         mainAxisSize: MainAxisSize.min,
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: <Widget>[
           _buildMonthHeader(context),
-          const SizedBox(height: 18),
+          const SizedBox(height: 8),
           _buildWeekdayHeaders(context),
           const SizedBox(height: 14),
           _buildCalendarGrid(context),
@@ -85,10 +104,63 @@ class HistoryCalendarWidget extends StatelessWidget {
       'MMMM yyyy',
     ).format(displayedMonth).toUpperCase();
 
-    return Text(
-      monthName,
-      textAlign: TextAlign.center,
-      style: LiftText.labelLarge.copyWith(color: LiftColors.textStrong),
+    return Row(
+      children: <Widget>[
+        _buildMonthArrow(
+          keyValue: 'calendar-previous-month',
+          icon: Icons.chevron_left,
+          semanticLabel: 'Previous month',
+          enabled: canGoPrevious,
+          onTap: onPreviousMonth,
+        ),
+        Expanded(
+          child: Text(
+            monthName,
+            textAlign: TextAlign.center,
+            style: LiftText.labelLarge.copyWith(color: LiftColors.textStrong),
+          ),
+        ),
+        _buildMonthArrow(
+          keyValue: 'calendar-next-month',
+          icon: Icons.chevron_right,
+          semanticLabel: 'Next month',
+          enabled: canGoNext,
+          onTap: onNextMonth,
+        ),
+      ],
+    );
+  }
+
+  Widget _buildMonthArrow({
+    required String keyValue,
+    required IconData icon,
+    required String semanticLabel,
+    required bool enabled,
+    required VoidCallback onTap,
+  }) {
+    return Semantics(
+      button: true,
+      enabled: enabled,
+      label: semanticLabel,
+      // The node needs its own `onTap`: `excludeSemantics` drops the
+      // GestureDetector's semantics with the rest of the subtree. Null when
+      // out of range, so a disabled arrow offers no action to activate.
+      onTap: enabled ? onTap : null,
+      excludeSemantics: true,
+      child: GestureDetector(
+        behavior: HitTestBehavior.opaque,
+        onTap: enabled ? onTap : null,
+        child: SizedBox(
+          key: ValueKey<String>(keyValue),
+          width: _arrowTarget,
+          height: _arrowTarget,
+          child: Icon(
+            icon,
+            size: 20,
+            color: enabled ? LiftColors.textDim : LiftColors.textDisabled,
+          ),
+        ),
+      ),
     );
   }
 

@@ -11,8 +11,8 @@ void main() {
     String label = 'Reps',
     bool allowDecimal = false,
     int maxIntegerDigits = 4,
-    ValueChanged<num>? onSubmit,
-    VoidCallback? onCancel,
+    ValueChanged<num>? onChanged,
+    VoidCallback? onDone,
   }) {
     return AppShell(
       home: Scaffold(
@@ -21,8 +21,8 @@ void main() {
           label: label,
           allowDecimal: allowDecimal,
           maxIntegerDigits: maxIntegerDigits,
-          onSubmit: onSubmit ?? (_) {},
-          onCancel: onCancel ?? () {},
+          onChanged: onChanged ?? (_) {},
+          onDone: onDone ?? () {},
         ),
       ),
     );
@@ -152,57 +152,95 @@ void main() {
       });
     });
 
-    group('submit', () {
-      testWidgets('tapping ✓ on integer calls onSubmit with parsed value', (
-        tester,
-      ) async {
+    group('live commit', () {
+      testWidgets('integer digits commit as they are typed', (tester) async {
         num? submitted;
         await tester.pumpWidget(
-          buildSubject(initialValue: 0, onSubmit: (v) => submitted = v),
+          buildSubject(initialValue: 0, onChanged: (v) => submitted = v),
         );
         await tester.pumpAndSettle();
 
+        // No ✓ tap — the digit alone must publish the value.
         await tester.tap(find.text('8').last);
-        await tester.pumpAndSettle();
-        await tester.tap(find.text('✓'));
         await tester.pumpAndSettle();
 
         expect(submitted, equals(8));
+
+        await tester.tap(find.text('1').last);
+        await tester.pumpAndSettle();
+
+        expect(submitted, equals(81));
       });
 
-      testWidgets('empty input submits 0', (tester) async {
+      testWidgets('clearing the input commits 0', (tester) async {
         num? submitted;
         await tester.pumpWidget(
-          buildSubject(initialValue: 5, onSubmit: (v) => submitted = v),
+          buildSubject(initialValue: 5, onChanged: (v) => submitted = v),
         );
         await tester.pumpAndSettle();
 
         // Backspace clears fresh input
         await tester.tap(find.text('⌫'));
         await tester.pumpAndSettle();
-        await tester.tap(find.text('✓'));
-        await tester.pumpAndSettle();
 
         expect(submitted, equals(0));
       });
 
-      testWidgets('Done button on decimal calls onSubmit', (tester) async {
+      testWidgets('decimal digits commit as they are typed', (tester) async {
         num? submitted;
         await tester.pumpWidget(
           buildSubject(
             initialValue: 0,
             allowDecimal: true,
-            onSubmit: (v) => submitted = v,
+            onChanged: (v) => submitted = v,
           ),
         );
         await tester.pumpAndSettle();
 
         await tester.tap(find.text('7').last);
         await tester.pumpAndSettle();
+
+        expect(submitted, equals(7));
+      });
+
+      testWidgets('✓ dismisses without publishing another value', (
+        tester,
+      ) async {
+        int changes = 0;
+        int dones = 0;
+        await tester.pumpWidget(
+          buildSubject(
+            initialValue: 0,
+            onChanged: (_) => changes++,
+            onDone: () => dones++,
+          ),
+        );
+        await tester.pumpAndSettle();
+
+        await tester.tap(find.text('4').last);
+        await tester.pumpAndSettle();
+        await tester.tap(find.text('✓'));
+        await tester.pumpAndSettle();
+
+        expect(changes, equals(1));
+        expect(dones, equals(1));
+      });
+
+      testWidgets('Done dismisses the decimal layout', (tester) async {
+        int dones = 0;
+        await tester.pumpWidget(
+          buildSubject(
+            initialValue: 0,
+            allowDecimal: true,
+            onDone: () => dones++,
+          ),
+        );
+        await tester.pumpAndSettle();
+
         await tester.tap(find.text('Done'));
         await tester.pumpAndSettle();
 
-        expect(submitted, equals(7));
+        expect(dones, equals(1));
       });
     });
 
@@ -213,7 +251,7 @@ void main() {
           buildSubject(
             initialValue: 0,
             allowDecimal: true,
-            onSubmit: (v) => submitted = v,
+            onChanged: (v) => submitted = v,
           ),
         );
         await tester.pumpAndSettle();
@@ -238,7 +276,7 @@ void main() {
           buildSubject(
             initialValue: 0,
             allowDecimal: true,
-            onSubmit: (v) => submitted = v,
+            onChanged: (v) => submitted = v,
           ),
         );
         await tester.pumpAndSettle();
@@ -275,7 +313,7 @@ void main() {
           buildSubject(
             initialValue: 0,
             maxIntegerDigits: 2,
-            onSubmit: (v) => submitted = v,
+            onChanged: (v) => submitted = v,
           ),
         );
         await tester.pumpAndSettle();
@@ -361,8 +399,8 @@ void main() {
                 child: LogNumericKeypad(
                   initialValue: 0,
                   label: 'Reps',
-                  onSubmit: (_) {},
-                  onCancel: () {},
+                  onChanged: (_) {},
+                  onDone: () {},
                 ),
               ),
             ),

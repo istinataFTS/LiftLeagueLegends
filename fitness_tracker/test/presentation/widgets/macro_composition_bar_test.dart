@@ -113,7 +113,7 @@ void main() {
     });
 
     testWidgets(
-      'bar is 3px tall, square, and segments use the macro colour tokens '
+      'bar is 6px tall, square, and segments use the macro colour tokens '
       'with no radius',
       (tester) async {
         await tester.pumpWidget(
@@ -129,7 +129,7 @@ void main() {
           final Finder finder = find.byKey(ValueKey<String>(key));
           expect(finder, findsOneWidget);
           final Size size = tester.getSize(finder);
-          expect(size.height, 3);
+          expect(size.height, 6);
 
           final BoxDecoration decoration = decorationOf(tester, key);
           expect(
@@ -235,8 +235,8 @@ void main() {
         findsOneWidget,
       );
       // The caption and its 8px gap are both gone: the widget is exactly as
-      // tall as the 3px bar.
-      expect(tester.getSize(find.byType(MacroCompositionBar)).height, 3);
+      // tall as the 6px bar.
+      expect(tester.getSize(find.byType(MacroCompositionBar)).height, 6);
     });
   });
 }
