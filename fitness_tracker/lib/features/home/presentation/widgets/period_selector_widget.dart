@@ -34,7 +34,12 @@ class PeriodSelectorWidget extends StatelessWidget {
   Widget build(BuildContext context) {
     return Container(
       key: containerKey,
-      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+      // Horizontal-only padding, dense button, 18dp icon: the selector now
+      // shares a row with the section title and the mode toggle, so it has to
+      // hold the toggle's height rather than the 48dp a non-dense
+      // `DropdownButton` claims, and it has to leave the title enough width
+      // not to ellipsise at 360dp.
+      padding: const EdgeInsets.symmetric(horizontal: 8),
       decoration: const BoxDecoration(
         color: LiftColors.surface,
         border: Border.fromBorderSide(
@@ -45,6 +50,7 @@ class PeriodSelectorWidget extends StatelessWidget {
         child: DropdownButton<TimePeriod>(
           key: dropdownKey,
           value: selectedPeriod,
+          isDense: true,
           onChanged: enabled
               ? (TimePeriod? value) {
                   if (value != null) {
@@ -52,10 +58,19 @@ class PeriodSelectorWidget extends StatelessWidget {
                   }
                 }
               : null,
+          iconSize: 18,
           icon: Icon(
             Icons.arrow_drop_down,
             color: enabled ? LiftColors.textSecondary : LiftColors.textDisabled,
           ),
+          // The closed button is width-driven by its *widest* entry, and it
+          // now shares a row with the section title and the mode toggle, so
+          // `ALL TIME` is abbreviated there. The menu itself still spells
+          // both options out in full.
+          selectedItemBuilder: (BuildContext context) => <Widget>[
+            _buildButtonLabel('MONTH'),
+            _buildButtonLabel('ALL'),
+          ],
           dropdownColor: LiftColors.panelTop,
           style: LiftText.labelLarge.copyWith(
             color: enabled ? LiftColors.textStrong : LiftColors.textDisabled,
@@ -76,6 +91,21 @@ class PeriodSelectorWidget extends StatelessWidget {
               label: AppStrings.periodAllTime,
             ),
           ],
+        ),
+      ),
+    );
+  }
+
+  /// Centred vertically so the abbreviated label sits on the toggle's
+  /// baseline; `selectedItemBuilder` entries are laid out at the button's
+  /// full height, not the text's.
+  Widget _buildButtonLabel(String label) {
+    return Align(
+      alignment: Alignment.centerLeft,
+      child: Text(
+        label,
+        style: LiftText.labelLarge.copyWith(
+          color: enabled ? LiftColors.textStrong : LiftColors.textDisabled,
         ),
       ),
     );

@@ -30,6 +30,19 @@ class _BodyVisualWidgetState extends State<BodyVisualWidget> {
   static const String _frontBaseAsset = 'assets/images/body/FrontLook.png';
   static const String _backBaseAsset = 'assets/images/body/BackLook.png';
 
+  /// Every body raster — both faces and all 26 overlays — shares this canvas.
+  static const Size _canvas = Size(440, 956);
+
+  /// The figure's opaque bounds inside [_canvas], the union of the two faces:
+  /// `FrontLook.png` inks (48,195)-(386,851) and `BackLook.png` (47,194)-(387,
+  /// 848) since the realignment in #212. Roughly a third of the canvas is
+  /// transparent margin, so fitting the *canvas* into the available box —
+  /// which is what a plain `BoxFit.contain` does — spends a third of the
+  /// screen's tallest dimension on nothing and renders the figure about 45%
+  /// smaller than the space allows. Both faces are cropped to the same rect
+  /// so the flip does not shift the model.
+  static const Rect _figureInk = Rect.fromLTRB(47, 194, 387, 851);
+
   late BodySide _side = widget.initialSide;
 
   void _flip() {
@@ -51,29 +64,55 @@ class _BodyVisualWidgetState extends State<BodyVisualWidget> {
       crossAxisAlignment: CrossAxisAlignment.start,
       children: <Widget>[
         Expanded(
-          child: Container(
+          // No frame and no fill: the map is the screen on Home, and a
+          // bordered panel around it drew a box the figure then had to
+          // letterbox inside. The two-tone ground shows straight through.
+          child: SizedBox(
             key: HomePageKeys.bodyVisualPanelKey,
-            padding: const EdgeInsets.all(16),
-            decoration: const BoxDecoration(
-              color: LiftColors.surface,
-              border: Border.fromBorderSide(
-                BorderSide(
-                  color: LiftColors.border,
-                  width: LiftShape.borderWidth,
-                ),
-              ),
-            ),
+            width: double.infinity,
             child: Center(
               child: AspectRatio(
-                aspectRatio: 0.62,
-                child: AnimatedSwitcher(
-                  duration: const Duration(milliseconds: 220),
-                  switchInCurve: Curves.easeOut,
-                  switchOutCurve: Curves.easeIn,
-                  child: _BodyFigure(
-                    key: ValueKey<BodySide>(_side),
-                    baseAssetPath: asset,
-                    layers: layers,
+                // The *figure's* aspect, not the canvas's. See [_figureInk].
+                aspectRatio: _figureInk.width / _figureInk.height,
+                child: ClipRect(
+                  child: LayoutBuilder(
+                    builder:
+                        (BuildContext context, BoxConstraints constraints) {
+                          // Scale the whole 440x956 art canvas up until its
+                          // ink box fills this box, then slide the canvas so
+                          // that box starts at the origin. Uniform in both
+                          // axes because the `AspectRatio` above already
+                          // matches the ink box's proportions.
+                          final double scale =
+                              constraints.maxWidth / _figureInk.width;
+                          return OverflowBox(
+                            alignment: Alignment.topLeft,
+                            minWidth: 0,
+                            maxWidth: double.infinity,
+                            minHeight: 0,
+                            maxHeight: double.infinity,
+                            child: Transform.translate(
+                              offset: Offset(
+                                -_figureInk.left * scale,
+                                -_figureInk.top * scale,
+                              ),
+                              child: SizedBox(
+                                width: _canvas.width * scale,
+                                height: _canvas.height * scale,
+                                child: AnimatedSwitcher(
+                                  duration: const Duration(milliseconds: 220),
+                                  switchInCurve: Curves.easeOut,
+                                  switchOutCurve: Curves.easeIn,
+                                  child: _BodyFigure(
+                                    key: ValueKey<BodySide>(_side),
+                                    baseAssetPath: asset,
+                                    layers: layers,
+                                  ),
+                                ),
+                              ),
+                            ),
+                          );
+                        },
                   ),
                 ),
               ),

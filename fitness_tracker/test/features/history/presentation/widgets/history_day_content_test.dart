@@ -182,7 +182,7 @@ void main() {
       expect(find.byIcon(Icons.add), findsOneWidget);
     });
 
-    testWidgets('the add control sits outside the collapse target', (
+    testWidgets('the add control sits inside the full-width header target', (
       WidgetTester tester,
     ) async {
       await pumpAtPhoneWidth(tester, buildSubject(workoutSets: sets));
@@ -199,7 +199,38 @@ void main() {
             .first,
       );
 
-      expect(headerRect.overlaps(addRect), isFalse);
+      // The header's press wash runs the whole screen width and covers the
+      // `+`. Clipping it to the text column was what made the control read as
+      // something bolted on beside the section rather than part of it.
+      expect(headerRect.left, 0);
+      expect(headerRect.width, 360);
+      expect(headerRect.contains(addRect.center), isTrue);
+    });
+
+    testWidgets('the add control keeps its own recogniser inside the header', (
+      WidgetTester tester,
+    ) async {
+      await pumpAtPhoneWidth(tester, buildSubject(workoutSets: sets));
+
+      // Being inside the header's ink target, it only survives as an action
+      // because it is the deeper hit-test entry and wins the gesture arena.
+      // `collapsible_section_test.dart` proves the arena outcome; here it is
+      // enough that the recogniser is present and nested.
+      expect(
+        find.descendant(
+          of: find
+              .ancestor(
+                of: find.text('Workout history'),
+                matching: find.byType(InkWell),
+              )
+              .first,
+          matching: find.descendant(
+            of: find.byKey(const ValueKey<String>('history-add-set-button')),
+            matching: find.byType(Icon),
+          ),
+        ),
+        findsOneWidget,
+      );
     });
 
     testWidgets('workout subtitle counts sets and the muscles hit', (

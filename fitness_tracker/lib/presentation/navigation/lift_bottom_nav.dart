@@ -12,16 +12,22 @@ import '../shared/widgets/lift_tab_selector.dart';
 /// [BottomNavigationBar] still painted in the pre-restyle `AppTheme` greys,
 /// with sentence-case proportional labels, sitting under five Deep Mist pages.
 /// Everything that made it read as a different app is gone — the label is now
-/// mono caps at [LiftText.labelMedium], the active tab takes
-/// [LiftColors.actionTint] and a 2.5px tint marker, and the bar itself is a
-/// [LiftColors.panelBottom] slab bounded by a single full-width
-/// [LiftColors.rule] hairline.
+/// mono caps at [LiftText.labelMedium].
 ///
-/// The marker rides the **top** edge of the active item — the mirror of the
-/// tab selector's underline, which sits under its label. Icons stay: five
-/// destinations at this width leave too little room for the label to carry
-/// the tab alone, and unlike the three-way Log selector these are places, not
-/// modes of one page.
+/// ### The bar draws nothing
+///
+/// No fill, no bounding rule, no marker. It is a row of five labels standing
+/// directly on [LiftGround], the same way the Log page's tab strip stands on
+/// it, and the only thing that separates the active destination from the
+/// other four is [LiftColors.actionTint] on its icon and label. A
+/// [LiftColors.panelBottom] slab under a [LiftColors.rule] hairline read as a
+/// docked chrome bar bolted to the bottom of the app rather than as part of
+/// the page — and the hairline in particular drew a second horizontal line
+/// under pages that already end in one.
+///
+/// Icons stay: five destinations at this width leave too little room for the
+/// label to carry the tab alone, and unlike the three-way Log selector these
+/// are places, not modes of one page.
 class LiftBottomNav extends StatelessWidget {
   const LiftBottomNav({
     required this.selectedIndex,
@@ -33,7 +39,6 @@ class LiftBottomNav extends StatelessWidget {
   final ValueChanged<int> onTap;
 
   static const double _height = 58;
-  static const double _markerHeight = LiftShape.borderWidthActive;
 
   static const List<_NavDestination> _destinations = <_NavDestination>[
     _NavDestination(
@@ -65,22 +70,14 @@ class LiftBottomNav extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return DecoratedBox(
-      decoration: const BoxDecoration(
-        color: LiftColors.panelBottom,
-        border: Border(
-          top: BorderSide(color: LiftColors.rule, width: LiftShape.borderWidth),
-        ),
-      ),
-      child: SafeArea(
-        top: false,
-        child: SizedBox(
-          height: _height,
-          child: Row(
-            children: List<Widget>.generate(_destinations.length, (int i) {
-              return Expanded(child: _buildItem(i));
-            }),
-          ),
+    return SafeArea(
+      top: false,
+      child: SizedBox(
+        height: _height,
+        child: Row(
+          children: List<Widget>.generate(_destinations.length, (int i) {
+            return Expanded(child: _buildItem(i));
+          }),
         ),
       ),
     );
@@ -108,11 +105,6 @@ class LiftBottomNav extends StatelessWidget {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: <Widget>[
-            Container(
-              key: ValueKey<String>('nav-marker-$index'),
-              height: _markerHeight,
-              color: active ? LiftColors.actionTint : Colors.transparent,
-            ),
             const Spacer(),
             Icon(
               active ? destination.activeIcon : destination.icon,

@@ -182,7 +182,11 @@ class _MuscleMapSection extends StatelessWidget {
             children: <Widget>[
               // One flex child, no `Spacer`. A `Flexible` title next to a
               // `Spacer` would split the free width evenly and ellipsize
-              // `MUSCLE FATIGUE` at roughly half the room it needs.
+              // `MUSCLE FATIGUE` at roughly half the room it needs. It is
+              // also the only child that may shrink: being the sole flex
+              // child, it absorbs whatever the two controls to its right do
+              // not use, which is what keeps the row a fixed height in both
+              // modes and the muscle map a fixed size with it.
               Expanded(
                 child: Text(
                   viewData.title.toUpperCase(),
@@ -193,24 +197,27 @@ class _MuscleMapSection extends StatelessWidget {
                   ),
                 ),
               ),
+              // Period selector is volume-mode only — fatigue is always
+              // "now" — and it belongs on this row, immediately left of the
+              // mode toggle. On its own line below it was a second block of
+              // fixed chrome inside the column that feeds the map's
+              // `Expanded`, so every switch into volume mode shrank the
+              // figure by the selector's height plus its 12dp gap. Here both
+              // modes produce the same row height and the map never resizes.
+              if (viewData.showPeriodSelector) ...<Widget>[
+                PeriodSelectorWidget(
+                  selectedPeriod: viewData.selectedPeriod,
+                  onPeriodChanged: onPeriodChanged,
+                  enabled: viewData.selectorEnabled,
+                ),
+                const SizedBox(width: 8),
+              ],
               _MuscleMapModeToggle(
                 currentMode: viewData.muscleMapMode,
                 onModeChanged: onModeChanged,
               ),
             ],
           ),
-          // Period selector is volume-mode only — fatigue is always "now".
-          if (viewData.showPeriodSelector) ...<Widget>[
-            const SizedBox(height: 12),
-            Align(
-              alignment: Alignment.centerRight,
-              child: PeriodSelectorWidget(
-                selectedPeriod: viewData.selectedPeriod,
-                onPeriodChanged: onPeriodChanged,
-                enabled: viewData.selectorEnabled,
-              ),
-            ),
-          ],
           const SizedBox(height: 14),
           Expanded(child: _buildBody(context)),
         ],
