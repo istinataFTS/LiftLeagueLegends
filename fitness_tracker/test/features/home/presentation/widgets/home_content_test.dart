@@ -9,6 +9,7 @@ import 'package:fitness_tracker/features/home/application/muscle_visual_bloc.dar
 import 'package:fitness_tracker/features/home/presentation/home_page_keys.dart';
 import 'package:fitness_tracker/features/home/presentation/models/home_view_data.dart';
 import 'package:fitness_tracker/features/home/presentation/widgets/home_content.dart';
+import 'package:fitness_tracker/features/home/presentation/widgets/period_selector_widget.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/rendering.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -271,19 +272,20 @@ void main() {
       // half the room it should — enough to ellipsize `MUSCLE FATIGUE`. The
       // invariant a single `Expanded` establishes is that the title box and
       // the toggle together account for the whole heading row, with nothing
-      // parked in a spacer.
+      // parked in a spacer — and, in volume mode, that the title is the only
+      // thing that yields when the period selector joins the row.
       //
       // This is asserted as a width identity rather than as "the title does
       // not ellipsize": the test harness falls back to a font far wider than
       // JetBrainsMono, so an absolute width threshold would encode the
       // harness's metrics rather than the layout's behaviour.
       final Finder titleFinder = find.text('MUSCLE FATIGUE');
+      final Finder rowFinder = find
+          .ancestor(of: titleFinder, matching: find.byType(Row))
+          .first;
+
       final double titleWidth = tester.getSize(titleFinder).width;
-      final double headingRowWidth = tester
-          .getSize(
-            find.ancestor(of: titleFinder, matching: find.byType(Row)).first,
-          )
-          .width;
+      final double rowWidth = tester.getSize(rowFinder).width;
       final double toggleWidth = tester
           .getSize(
             find
@@ -297,8 +299,70 @@ void main() {
 
       expect(
         titleWidth,
-        moreOrLessEquals(headingRowWidth - toggleWidth, epsilon: 0.5),
+        moreOrLessEquals(rowWidth - toggleWidth, epsilon: 0.5),
       );
+    });
+
+    testWidgets('the period selector shares the heading row with the toggle', (
+      WidgetTester tester,
+    ) async {
+      await pumpAtPhoneWidth(
+        tester,
+        buildSubject(
+          viewData: buildViewData(
+            mode: MuscleMapMode.volume,
+            title: 'Progress',
+            showPeriodSelector: true,
+          ),
+        ),
+      );
+
+      final Rect selector = tester.getRect(
+        find.byKey(PeriodSelectorWidget.containerKey),
+      );
+      final Rect toggle = tester.getRect(
+        find
+            .ancestor(of: find.text('VOLUME'), matching: find.byType(Container))
+            .at(1),
+      );
+      final Rect title = tester.getRect(find.text('PROGRESS'));
+
+      // Left of the toggle, right of the title, on one line with both.
+      expect(selector.right, lessThanOrEqualTo(toggle.left));
+      expect(selector.left, greaterThanOrEqualTo(title.right));
+      expect(
+        selector.center.dy,
+        moreOrLessEquals(toggle.center.dy, epsilon: 1),
+      );
+    });
+
+    testWidgets('showing the period selector does not shrink the map', (
+      WidgetTester tester,
+    ) async {
+      // The selector used to sit on its own line inside the column that feeds
+      // the map's `Expanded`, so switching to volume mode cost the figure the
+      // selector's height plus a 12dp gap. Same row, same map.
+      await pumpAtPhoneWidth(tester, buildSubject());
+      final double fatigueHeight = tester
+          .getSize(find.byKey(HomePageKeys.bodyVisualPanelKey))
+          .height;
+
+      await pumpAtPhoneWidth(
+        tester,
+        buildSubject(
+          viewData: buildViewData(
+            mode: MuscleMapMode.volume,
+            title: 'Progress',
+            showPeriodSelector: true,
+          ),
+        ),
+      );
+      final double volumeHeight = tester
+          .getSize(find.byKey(HomePageKeys.bodyVisualPanelKey))
+          .height;
+
+      expect(volumeHeight, moreOrLessEquals(fatigueHeight, epsilon: 0.5));
+      expectNoOverflow(tester);
     });
 
     testWidgets('both section rules are full-bleed', (

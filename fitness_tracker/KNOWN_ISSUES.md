@@ -109,6 +109,7 @@ Numbered steps or a short paragraph. State what to do and what *not* to do.
 7. [auth-gate-must-not-flash-signin-before-session-resolves](#auth-gate-must-not-flash-signin-before-session-resolves)
 8. [muscle-stimulus-rebuild-dst-day-iteration](#muscle-stimulus-rebuild-dst-day-iteration)
 9. [full-width-elevated-button-crashes-inside-a-row](#full-width-elevated-button-crashes-inside-a-row)
+10. [body-overlays-are-registered-to-the-base-arts-ink-box](#body-overlays-are-registered-to-the-base-arts-ink-box)
 
 ---
 
@@ -1088,3 +1089,31 @@ A dialog or panel throws `BoxConstraints forces an infinite width` during `perfo
 - `lib/core/themes/lift_theme.dart` — `elevatedButtonTheme` / `outlinedButtonTheme` `minimumSize`
 - `lib/features/history/presentation/widgets/edit_set_dialog.dart` — the actions row, now `Expanded`
 - `test/features/history/presentation/widgets/history_day_content_test.dart` — "the edit control opens the edit dialog", the regression test
+
+### body-overlays-are-registered-to-the-base-arts-ink-box
+
+- **Severity:** High
+- **Status:** Resolved-but-monitor
+- **First observed:** 2026-08-23
+- **Last verified:** 2026-08-23
+- **Area:** other
+
+**Symptom**
+
+Home's 2D muscle map highlights the wrong muscle. The back view is the one that shows it: a lats highlight paints across the trapezius and rhomboid rows, the upper-trap highlight lands on the neck, and every torso overlay sits roughly a tenth of the figure's height above the region it names. The arms look correct, which makes the fault read as a bad muscle-to-asset mapping in `HomeViewDataMapper` rather than as an asset-registration problem.
+
+**Root cause**
+
+Every raster under `assets/images/body/` shares a 440x956 canvas, and each overlay is drawn to register against one specific base image's *ink box* — not against the canvas. `BackLook.png` inked at (57,182)-(397,849) when the 14 `back_*.png` overlays were authored. Commit `2aaca8a` redrew it to (47,194)-(387,848) so the two faces would register against each other, and moved only the base: every overlay was then 10px right and 12px high of the art it labels, with a 2% height mismatch on top. Nothing in Dart, in the analyzer, or in the widget tests can see this — the mapper is correct, the assets load, and the layers composite exactly where they were told to.
+
+**Workaround / fix**
+
+1. Treat the base image's opaque bounds as a contract. Moving or rescaling `FrontLook.png` or `BackLook.png` means applying the same affine transform to every overlay for that face in the same commit.
+2. Verify by compositing, not by eye on a phone. Stack each overlay over its base in a distinct colour and check every polygon lands on an art region — an overlay that is 10px out still looks plausible at phone scale.
+3. `BodyVisualWidget` crops both faces to one shared ink rect (`_figureInk`), so the two bounds must also stay within a pixel or two of each other or the flip shifts the model.
+
+**References**
+
+- `lib/features/home/presentation/widgets/body_visual_widget.dart` — `_canvas` and `_figureInk`, the crop the bounds feed
+- `lib/features/home/presentation/mappers/home_view_data_mapper.dart` — `_backBodyAssetMap`, correct throughout
+- Commit `2aaca8a` — moved the base without the overlays

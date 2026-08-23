@@ -232,7 +232,7 @@ void main() {
     expect(find.text('CARBS'), findsOneWidget);
     expect(find.text('FATS'), findsOneWidget);
 
-    expect(find.text('PROGRESS • MONTH'), findsOneWidget);
+    expect(find.text('PROGRESS'), findsOneWidget);
   });
 
   testWidgets('greeting uses the resolved session display name', (
@@ -347,7 +347,7 @@ void main() {
 
     await pumpAtPhoneWidth(tester, buildSubject());
 
-    expect(find.text('PROGRESS • MONTH'), findsOneWidget);
+    expect(find.text('PROGRESS'), findsOneWidget);
     expect(find.byKey(HomePage.progressCardKey), findsOneWidget);
   });
 

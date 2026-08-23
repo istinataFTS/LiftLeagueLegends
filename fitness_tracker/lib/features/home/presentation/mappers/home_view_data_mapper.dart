@@ -175,9 +175,13 @@ class HomeViewDataMapper {
     final bool selectorEnabled = muscleVisualState is! MuscleVisualLoading;
     final bool showPeriodSelector = currentMode == MuscleMapMode.volume;
 
+    // In volume mode the period selector now sits on the same row as this
+    // title, spelling the period out two centimetres to the right, so the
+    // title no longer repeats it — and the row has no width to spare for a
+    // repeat at 360dp.
     final String cardTitle = currentMode == MuscleMapMode.fatigue
         ? 'Muscle Fatigue'
-        : '${AppStrings.progress} • ${_periodLabel(displayPeriod)}';
+        : AppStrings.progress;
 
     final HomeBodyVisualViewData emptyVisual = HomeBodyVisualViewData(
       frontLayers: const <HomeBodyOverlayViewData>[],
@@ -347,19 +351,6 @@ class HomeViewDataMapper {
     final HomeBodyOverlayViewData? existing = target[assetPath];
     if (existing == null || candidate.opacity >= existing.opacity) {
       target[assetPath] = candidate;
-    }
-  }
-
-  static String _periodLabel(TimePeriod period) {
-    switch (period) {
-      case TimePeriod.today:
-        return AppStrings.periodToday;
-      case TimePeriod.week:
-        return AppStrings.periodWeek;
-      case TimePeriod.month:
-        return AppStrings.periodMonth;
-      case TimePeriod.allTime:
-        return AppStrings.periodAllTime;
     }
   }
 }

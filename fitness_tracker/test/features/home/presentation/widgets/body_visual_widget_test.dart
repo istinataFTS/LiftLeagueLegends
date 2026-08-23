@@ -129,19 +129,58 @@ void main() {
       expect(capped, isEmpty);
     });
 
-    testWidgets('the panel is square, surface-filled and 1.5px bordered', (
+    testWidgets('the panel draws no frame and no fill', (tester) async {
+      await pumpAtPhoneWidth(tester, buildSubject());
+
+      // The map is the screen on Home. A bordered, surface-filled panel drew
+      // a box around it that the figure then had to letterbox inside, so the
+      // panel is a bare layout box now and the two-tone ground shows through.
+      expect(
+        find.descendant(
+          of: find.byKey(HomePageKeys.bodyVisualPanelKey),
+          matching: find.byType(DecoratedBox),
+        ),
+        findsNothing,
+      );
+      expect(
+        tester.widget<SizedBox>(find.byKey(HomePageKeys.bodyVisualPanelKey)),
+        isNotNull,
+      );
+    });
+
+    testWidgets('the figure is cropped to its ink box, not its canvas', (
       tester,
     ) async {
       await pumpAtPhoneWidth(tester, buildSubject());
 
-      final Container panel = tester.widget<Container>(
+      // 340x657 of the 440x956 art canvas is the figure; the rest is
+      // transparent margin. Fitting the canvas instead would letterbox the
+      // figure into roughly two thirds of the panel's height.
+      final AspectRatio box = tester.widget<AspectRatio>(
+        find.descendant(
+          of: find.byKey(HomePageKeys.bodyVisualPanelKey),
+          matching: find.byType(AspectRatio),
+        ),
+      );
+      expect(box.aspectRatio, closeTo(340 / 657, 0.0001));
+
+      final Size panel = tester.getSize(
         find.byKey(HomePageKeys.bodyVisualPanelKey),
       );
-      final BoxDecoration d = panel.decoration! as BoxDecoration;
-      expect(d.borderRadius, isNull);
-      expect(d.color, LiftColors.surface);
-      expect(d.border!.top.color, LiftColors.border);
-      expect(d.border!.top.width, LiftShape.borderWidth);
+      final Size figure = tester.getSize(
+        find.descendant(
+          of: find.byKey(HomePageKeys.bodyVisualPanelKey),
+          matching: find.byType(AspectRatio),
+        ),
+      );
+      // Width-limited at phone width: the figure spans the panel edge to
+      // edge. The old canvas fit reached 0.62 of that width and then let the
+      // art's transparent margin eat a third of the height on top.
+      expect(figure.width, panel.width);
+      expect(
+        figure.height,
+        moreOrLessEquals(panel.width * 657 / 340, epsilon: 0.5),
+      );
     });
 
     testWidgets(
