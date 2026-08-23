@@ -18,7 +18,13 @@ import 'library_chrome.dart';
 /// over one mono meta line, closed by a hairline. Editing is a tap on the row
 /// and deleting is a long-press, because the frame draws no control for either.
 class ExercisesTab extends StatefulWidget {
-  const ExercisesTab({super.key});
+  const ExercisesTab({this.headerSlivers = const <Widget>[], super.key});
+
+  /// Slivers the page stacks above the tab's own content — its title and the
+  /// pinned tab strip. They ride inside this tab's scroll view rather than
+  /// above it so the title scrolls away with the rest of the header instead
+  /// of holding a band of chrome open over a list that needs the room.
+  final List<Widget> headerSlivers;
 
   static const Key searchFieldKey = ValueKey<String>(
     'library_exercises_search_field',
@@ -115,16 +121,28 @@ class _ExercisesTabState extends State<ExercisesTab> {
         }
 
         if (state is ExerciseLoading) {
-          return const Center(
-            child: CircularProgressIndicator(
-              key: ExercisesTab.loadingIndicatorKey,
-              color: LiftColors.actionTint,
-            ),
+          return _buildScrollView(
+            context,
+            slivers: <Widget>[
+              librarySliverFill(
+                const Center(
+                  child: CircularProgressIndicator(
+                    key: ExercisesTab.loadingIndicatorKey,
+                    color: LiftColors.actionTint,
+                  ),
+                ),
+              ),
+            ],
           );
         }
 
         if (state is ExerciseError) {
-          return _buildErrorState(context, state.message);
+          return _buildScrollView(
+            context,
+            slivers: <Widget>[
+              librarySliverFill(_buildErrorState(context, state.message)),
+            ],
+          );
         }
 
         final List<Exercise> filteredExercises = LibraryExerciseFilters.apply(
@@ -141,21 +159,16 @@ class _ExercisesTabState extends State<ExercisesTab> {
               selectedMuscle: _selectedMuscleFilter,
             );
 
-        return Column(
-          children: <Widget>[
-            _buildBrowseHeader(context, viewData),
-            Expanded(
-              child: !viewData.hasExercises
-                  ? _buildEmptyState(context)
-                  : !viewData.hasResults
-                  ? _buildNoResultsState(context)
-                  : _buildExercisesList(context, viewData.items),
-            ),
-            LibraryCta(
-              buttonKey: ExercisesTab.addButtonKey,
-              label: LibraryStrings.addExerciseCta,
-              onPressed: () => _showExerciseDialog(context),
-            ),
+        return _buildScrollView(
+          context,
+          slivers: <Widget>[
+            SliverToBoxAdapter(child: _buildBrowseHeader(context, viewData)),
+            if (!viewData.hasExercises)
+              librarySliverFill(_buildEmptyState(context))
+            else if (!viewData.hasResults)
+              librarySliverFill(_buildNoResultsState(context))
+            else
+              _buildExercisesList(context, viewData.items),
           ],
         );
       },
@@ -173,6 +186,30 @@ class _ExercisesTabState extends State<ExercisesTab> {
     );
   }
 
+  Widget _buildScrollView(
+    BuildContext context, {
+    required List<Widget> slivers,
+  }) {
+    return LibraryTabScrollView(
+      onRefresh: () => _reload(context),
+      slivers: <Widget>[...widget.headerSlivers, ...slivers],
+    );
+  }
+
+  /// Reloads and completes when the bloc reaches a terminal state.
+  /// [LibraryTabScrollView] owns the timeout and the error handling.
+  Future<void> _reload(BuildContext context) {
+    final ExerciseBloc bloc = context.read<ExerciseBloc>();
+    if (bloc.isClosed) return Future<void>.value();
+
+    bloc.add(LoadExercisesEvent());
+    return bloc.stream
+        .firstWhere(
+          (ExerciseState s) => s is ExercisesLoaded || s is ExerciseError,
+        )
+        .then((_) {});
+  }
+
   Widget _buildBrowseHeader(
     BuildContext context,
     LibraryExercisePageViewData viewData,
@@ -182,9 +219,8 @@ class _ExercisesTabState extends State<ExercisesTab> {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: <Widget>[
-          Padding(
-            padding: const EdgeInsets.symmetric(horizontal: libraryGutter),
-            child: LibrarySearchField(
+          LibraryBrowseBar(
+            searchField: LibrarySearchField(
               fieldKey: ExercisesTab.searchFieldKey,
               clearButtonKey: ExercisesTab.clearSearchButtonKey,
               controller: _searchController,
@@ -194,6 +230,11 @@ class _ExercisesTabState extends State<ExercisesTab> {
                 _searchController.clear();
                 _searchQuery = '';
               }),
+            ),
+            addButton: LibraryAddButton(
+              buttonKey: ExercisesTab.addButtonKey,
+              semanticLabel: LibraryStrings.addExerciseCta,
+              onPressed: () => _showExerciseDialog(context),
             ),
           ),
           const SizedBox(height: 14),
@@ -267,34 +308,20 @@ class _ExercisesTabState extends State<ExercisesTab> {
     BuildContext context,
     List<LibraryExerciseItemViewData> items,
   ) {
-    return RefreshIndicator(
-      color: LiftColors.actionTint,
-      backgroundColor: LiftColors.background,
-      onRefresh: () {
-        final ExerciseBloc bloc = context.read<ExerciseBloc>();
-        bloc.add(LoadExercisesEvent());
-        return bloc.stream
-            .firstWhere(
-              (ExerciseState s) => s is ExercisesLoaded || s is ExerciseError,
-            )
-            .then((_) {});
+    return SliverList.builder(
+      itemCount: items.length,
+      itemBuilder: (BuildContext context, int index) {
+        final LibraryExerciseItemViewData item = items[index];
+        return LibraryListRow(
+          key: ValueKey<String>('library_exercise_row_${item.id}'),
+          title: item.title,
+          meta: _metaLine(item),
+          onTap: () => _showExerciseDialog(context, item.exercise),
+          onLongPress: () => _confirmDeleteExercise(context, item.exercise),
+          editHint: LibraryStrings.editExercise,
+          deleteHint: LibraryStrings.deleteExercise,
+        );
       },
-      child: ListView.builder(
-        padding: EdgeInsets.zero,
-        itemCount: items.length,
-        itemBuilder: (BuildContext context, int index) {
-          final LibraryExerciseItemViewData item = items[index];
-          return LibraryListRow(
-            key: ValueKey<String>('library_exercise_row_${item.id}'),
-            title: item.title,
-            meta: _metaLine(item),
-            onTap: () => _showExerciseDialog(context, item.exercise),
-            onLongPress: () => _confirmDeleteExercise(context, item.exercise),
-            editHint: LibraryStrings.editExercise,
-            deleteHint: LibraryStrings.deleteExercise,
-          );
-        },
-      ),
     );
   }
 

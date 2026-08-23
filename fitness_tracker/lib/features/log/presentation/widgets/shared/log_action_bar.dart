@@ -76,9 +76,14 @@ class LogActionBar extends StatelessWidget {
   Widget build(BuildContext context) {
     return SafeArea(
       top: false,
-      child: Container(
+      child: DecoratedBox(
+        // Rule only, no fill. `LiftColors.background` is a flat colour and
+        // `LiftGround` is a gradient, so an opaque dock cut a visibly
+        // different rectangle out of the bottom of every log tab — right
+        // where it met the transparent bottom nav. Nothing ever scrolls
+        // behind this dock (it is a `Column` sibling, not an overlay), so the
+        // fill was never doing any work.
         decoration: const BoxDecoration(
-          color: LiftColors.background,
           border: Border(
             top: BorderSide(
               color: LiftColors.rule,

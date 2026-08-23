@@ -1,7 +1,7 @@
 {
   "schemaVersion": 1,
   "generatedAt": "2026-05-25",
-  "fingerprint": "d5b21300451a0ba8",
+  "fingerprint": "27ae472522767275",
   "features": {
     "auth": {
       "summary": "Authentication cubits for sign-in, sign-up, and OTP verification.",
@@ -120,7 +120,7 @@
         "meals"
       ],
       "notes": "ExerciseBloc uses get_muscle_factors_for_exercise (from muscle_factors use cases) for muscle-group display in the catalog.",
-      "fingerprint": "975acfc0fad7daec"
+      "fingerprint": "6eed72f0e4a67728"
     },
     "log": {
       "summary": "Workout set logging and nutrition logging for the current day.",

@@ -220,20 +220,28 @@ void main() {
     });
   });
 
-  group('LibraryCta', () {
-    testWidgets('renders a full-width filled button with a mono plus', (
+  group('LibraryAddButton', () {
+    testWidgets('is a compact filled button that matches the field height', (
       WidgetTester tester,
     ) async {
       bool pressed = false;
+      final TextEditingController controller = TextEditingController();
+      addTearDown(controller.dispose);
+
       await pumpAtPhoneWidth(
         tester,
         MaterialApp(
           theme: LiftTheme.dark(),
           home: Scaffold(
-            body: Align(
-              alignment: Alignment.bottomCenter,
-              child: LibraryCta(
-                label: 'Add exercise',
+            body: LibraryBrowseBar(
+              searchField: LibrarySearchField(
+                controller: controller,
+                hintText: 'Search exercises',
+                onChanged: (_) {},
+                onClear: () {},
+              ),
+              addButton: LibraryAddButton(
+                semanticLabel: 'Add exercise',
                 onPressed: () => pressed = true,
               ),
             ),
@@ -241,14 +249,52 @@ void main() {
         ),
       );
 
-      expect(find.text('+ ADD EXERCISE'), findsOneWidget);
-      // Frame 11 draws no icon in the CTA; the plus is part of the label.
-      expect(find.byType(Icon), findsNothing);
+      // The label is the short form — what is being added is named by the tab
+      // strip above it, and the long form is on the semantics node.
+      expect(find.text('+ ADD'), findsOneWidget);
+      expect(find.text('+ ADD EXERCISE'), findsNothing);
 
-      await tester.tap(find.byType(ElevatedButton));
+      final Size button = tester.getSize(find.byType(LibraryAddButton));
+      final Size field = tester.getSize(find.byType(LibrarySearchField));
+      expect(button.height, field.height);
+      // The button's own floor lifts the whole row to a legal tap target.
+      expect(button.height, greaterThanOrEqualTo(44));
+      // Compact: the old full-width dock spanned the whole 320dp row.
+      expect(button.width, lessThan(160));
+
+      await tester.tap(find.byType(LibraryAddButton));
       await tester.pumpAndSettle();
       expect(pressed, isTrue);
       expectNoOverflow(tester);
+    });
+
+    testWidgets('is activatable from assistive technology by its long name', (
+      WidgetTester tester,
+    ) async {
+      final SemanticsHandle handle = tester.ensureSemantics();
+
+      await pumpAtPhoneWidth(
+        tester,
+        MaterialApp(
+          theme: LiftTheme.dark(),
+          home: Scaffold(
+            body: Align(
+              alignment: Alignment.topCenter,
+              child: LibraryAddButton(
+                semanticLabel: 'Add exercise',
+                onPressed: () {},
+              ),
+            ),
+          ),
+        ),
+      );
+
+      final SemanticsNode node = tester.getSemantics(
+        find.byType(LibraryAddButton),
+      );
+      expect(node.label, 'Add exercise');
+      expect(node.getSemanticsData().hasAction(SemanticsAction.tap), isTrue);
+      handle.dispose();
     });
   });
 

@@ -332,41 +332,227 @@ class LibraryListRow extends StatelessWidget {
 ///
 /// The `+` is part of the label rather than an [Icon] because the frame draws
 /// a mono plus one advance wide, not a Material glyph.
-class LibraryCta extends StatelessWidget {
-  const LibraryCta({
-    required this.label,
+/// The compact `+ ADD` control that rides the right-hand end of the search
+/// row (frames 11 and 12 put the action in a full-width dock at the bottom of
+/// the page instead).
+///
+/// The dock cost a permanent 88dp band at the bottom of a list that is
+/// already the whole point of the screen, and it sat directly on top of the
+/// app's bottom navigation — two stacked bars competing for the same edge.
+/// Here the action is one row up, beside the field it belongs with, and the
+/// list runs to the bottom of the screen.
+///
+/// The label is deliberately just `+ ADD`: what is being added is named by
+/// the tab strip two lines above it, and the assistive-technology label
+/// carries the long form. It is not an `ElevatedButton` because the theme
+/// gives those a `Size.fromHeight(52)` minimum, and this one has to match the
+/// search field beside it.
+class LibraryAddButton extends StatelessWidget {
+  const LibraryAddButton({
+    required this.semanticLabel,
     required this.onPressed,
     this.buttonKey,
     super.key,
   });
 
-  final String label;
+  /// Long form, e.g. `Add exercise` — the visible label is always `+ ADD`.
+  final String semanticLabel;
   final VoidCallback onPressed;
   final Key? buttonKey;
 
   @override
   Widget build(BuildContext context) {
-    return Padding(
-      padding: const EdgeInsets.fromLTRB(
-        libraryGutter,
-        12,
-        libraryGutter,
-        libraryGutter,
-      ),
-      child: SafeArea(
-        top: false,
-        child: SizedBox(
-          width: double.infinity,
-          child: ElevatedButton(
-            key: buttonKey,
-            onPressed: onPressed,
-            child: Text('+ ${label.toUpperCase()}'),
+    return Semantics(
+      button: true,
+      label: semanticLabel,
+      // The node needs its own `onTap`: `excludeSemantics` drops the
+      // GestureDetector's semantics with the rest of the subtree.
+      onTap: onPressed,
+      excludeSemantics: true,
+      child: GestureDetector(
+        behavior: HitTestBehavior.opaque,
+        onTap: onPressed,
+        child: Container(
+          key: buttonKey,
+          alignment: Alignment.center,
+          // The search field measures ~42dp, and `LibraryBrowseBar` stretches
+          // both to the taller of the two — so this floor lifts the field to
+          // 44dp as well and the pair stays aligned at a legal tap target.
+          constraints: const BoxConstraints(minHeight: 44),
+          padding: const EdgeInsets.symmetric(horizontal: 14),
+          decoration: BoxDecoration(
+            color: LiftColors.actionFill,
+            borderRadius: BorderRadius.circular(LiftShape.radiusButton),
+          ),
+          child: Text(
+            '+ ADD',
+            style: LiftText.labelLarge.copyWith(
+              color: Colors.white,
+              fontWeight: FontWeight.w700,
+            ),
           ),
         ),
       ),
     );
   }
 }
+
+/// The search field with [LibraryAddButton] on its right.
+///
+/// `IntrinsicHeight` is what keeps the two the same height: the field sizes
+/// itself from its own content padding and the button has no height of its
+/// own, so stretching it against the field's intrinsic height is the only way
+/// the pair stays aligned when the text scale moves.
+class LibraryBrowseBar extends StatelessWidget {
+  const LibraryBrowseBar({
+    required this.searchField,
+    required this.addButton,
+    super.key,
+  });
+
+  final Widget searchField;
+  final Widget addButton;
+
+  @override
+  Widget build(BuildContext context) {
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: libraryGutter),
+      child: IntrinsicHeight(
+        child: Row(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: <Widget>[
+            Expanded(child: searchField),
+            const SizedBox(width: 10),
+            addButton,
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+/// The `EXERCISES / MEALS` strip as a pinned sliver header.
+///
+/// Everything above it — the page title — scrolls away; the strip stays so
+/// the other tab is always one tap away. It draws nothing while it is resting
+/// in its own place in the list, and fades a [LiftColors.panelTop] slab and a
+/// hairline in once rows start passing underneath it, because a transparent
+/// strip with list rows sliding through the letterforms is unreadable.
+///
+/// The fade is driven by `shrinkOffset`, not by the `overlapsContent` flag —
+/// that flag is `constraints.overlap > 0`, which only becomes true when an
+/// *earlier* pinned sliver pushes this one out of place, and there is no such
+/// sliver here.
+class LibraryPinnedTabs extends SliverPersistentHeaderDelegate {
+  const LibraryPinnedTabs({required this.strip});
+
+  /// [LiftTabSelector], already keyed and wired by the page.
+  final Widget strip;
+
+  /// [LiftTabSelector] is a fixed 44dp for touch compliance.
+  static const double _stripHeight = 44;
+
+  /// The slab reaches full strength this many pixels into the scroll.
+  static const double _fadeDistance = 12;
+
+  @override
+  double get minExtent => _stripHeight;
+
+  @override
+  double get maxExtent => _stripHeight;
+
+  @override
+  Widget build(
+    BuildContext context,
+    double shrinkOffset,
+    bool overlapsContent,
+  ) {
+    final double t = (shrinkOffset / _fadeDistance).clamp(0.0, 1.0);
+
+    return DecoratedBox(
+      decoration: BoxDecoration(
+        color: Color.lerp(Colors.transparent, LiftColors.panelTop, t),
+        border: Border(
+          bottom: BorderSide(
+            color: Color.lerp(Colors.transparent, LiftColors.rule, t)!,
+            width: LiftShape.borderWidth,
+          ),
+        ),
+      ),
+      child: Padding(
+        padding: const EdgeInsets.symmetric(horizontal: libraryGutter),
+        child: strip,
+      ),
+    );
+  }
+
+  @override
+  bool shouldRebuild(covariant LibraryPinnedTabs oldDelegate) =>
+      oldDelegate.strip != strip;
+}
+
+/// How long a pull-to-refresh waits for the bloc before giving up.
+const Duration _refreshTimeout = Duration(seconds: 10);
+
+/// The scroll view both Library tabs are built on.
+///
+/// One `CustomScrollView` carries the page header, the browse controls and
+/// the rows, so all three move together — a fixed header over an `Expanded`
+/// list meant a third of the screen never moved however far the list was
+/// scrolled.
+class LibraryTabScrollView extends StatelessWidget {
+  const LibraryTabScrollView({
+    required this.onRefresh,
+    required this.slivers,
+    super.key,
+  });
+
+  /// Dispatches the tab's reload and completes when the bloc settles.
+  final Future<void> Function() onRefresh;
+
+  final List<Widget> slivers;
+
+  @override
+  Widget build(BuildContext context) {
+    return RefreshIndicator(
+      color: LiftColors.actionTint,
+      backgroundColor: LiftColors.background,
+      onRefresh: _refresh,
+      child: CustomScrollView(
+        // Keeps the refresh drag alive on the empty and no-results states,
+        // which fill the viewport exactly and so have nothing to scroll.
+        physics: const AlwaysScrollableScrollPhysics(),
+        slivers: slivers,
+      ),
+    );
+  }
+
+  /// The spinner has to stop whatever the bloc does.
+  ///
+  /// Both tabs resolve a refresh by waiting for the next terminal state. A
+  /// bloc that never reaches one would leave the indicator turning for the
+  /// life of the page, and one that closes first makes `firstWhere` throw a
+  /// `StateError` into the indicator's future. Neither is worth surfacing:
+  /// the list still shows whatever was last emitted, and a genuine failure
+  /// arrives as an error state that renders itself.
+  Future<void> _refresh() async {
+    try {
+      await onRefresh().timeout(_refreshTimeout);
+    } catch (_) {
+      // Deliberately swallowed — see above.
+    }
+  }
+}
+
+/// Fills whatever height is left below the header.
+///
+/// `hasScrollBody` stays at its default `true` even though these states do
+/// not look like scroll bodies: [LibraryMessageState] centres itself inside
+/// its own `SingleChildScrollView` so it can still be read at an
+/// accessibility text scale, and the `LayoutBuilder` driving that centring
+/// cannot answer the intrinsic-height query `hasScrollBody: false` puts to
+/// its child.
+Widget librarySliverFill(Widget child) => SliverFillRemaining(child: child);
 
 /// Shared body for the empty, no-results and error states.
 ///
