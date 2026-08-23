@@ -375,6 +375,10 @@ class LibraryAddButton extends StatelessWidget {
         child: Container(
           key: buttonKey,
           alignment: Alignment.center,
+          // The search field measures ~42dp, and `LibraryBrowseBar` stretches
+          // both to the taller of the two — so this floor lifts the field to
+          // 44dp as well and the pair stays aligned at a legal tap target.
+          constraints: const BoxConstraints(minHeight: 44),
           padding: const EdgeInsets.symmetric(horizontal: 14),
           decoration: BoxDecoration(
             color: LiftColors.actionFill,
@@ -486,6 +490,69 @@ class LibraryPinnedTabs extends SliverPersistentHeaderDelegate {
   bool shouldRebuild(covariant LibraryPinnedTabs oldDelegate) =>
       oldDelegate.strip != strip;
 }
+
+/// How long a pull-to-refresh waits for the bloc before giving up.
+const Duration _refreshTimeout = Duration(seconds: 10);
+
+/// The scroll view both Library tabs are built on.
+///
+/// One `CustomScrollView` carries the page header, the browse controls and
+/// the rows, so all three move together — a fixed header over an `Expanded`
+/// list meant a third of the screen never moved however far the list was
+/// scrolled.
+class LibraryTabScrollView extends StatelessWidget {
+  const LibraryTabScrollView({
+    required this.onRefresh,
+    required this.slivers,
+    super.key,
+  });
+
+  /// Dispatches the tab's reload and completes when the bloc settles.
+  final Future<void> Function() onRefresh;
+
+  final List<Widget> slivers;
+
+  @override
+  Widget build(BuildContext context) {
+    return RefreshIndicator(
+      color: LiftColors.actionTint,
+      backgroundColor: LiftColors.background,
+      onRefresh: _refresh,
+      child: CustomScrollView(
+        // Keeps the refresh drag alive on the empty and no-results states,
+        // which fill the viewport exactly and so have nothing to scroll.
+        physics: const AlwaysScrollableScrollPhysics(),
+        slivers: slivers,
+      ),
+    );
+  }
+
+  /// The spinner has to stop whatever the bloc does.
+  ///
+  /// Both tabs resolve a refresh by waiting for the next terminal state. A
+  /// bloc that never reaches one would leave the indicator turning for the
+  /// life of the page, and one that closes first makes `firstWhere` throw a
+  /// `StateError` into the indicator's future. Neither is worth surfacing:
+  /// the list still shows whatever was last emitted, and a genuine failure
+  /// arrives as an error state that renders itself.
+  Future<void> _refresh() async {
+    try {
+      await onRefresh().timeout(_refreshTimeout);
+    } catch (_) {
+      // Deliberately swallowed — see above.
+    }
+  }
+}
+
+/// Fills whatever height is left below the header.
+///
+/// `hasScrollBody` stays at its default `true` even though these states do
+/// not look like scroll bodies: [LibraryMessageState] centres itself inside
+/// its own `SingleChildScrollView` so it can still be read at an
+/// accessibility text scale, and the `LayoutBuilder` driving that centring
+/// cannot answer the intrinsic-height query `hasScrollBody: false` puts to
+/// its child.
+Widget librarySliverFill(Widget child) => SliverFillRemaining(child: child);
 
 /// Shared body for the empty, no-results and error states.
 ///

@@ -15,6 +15,7 @@ import 'package:fitness_tracker/features/profile/application/profile_cubit.dart'
 import 'package:fitness_tracker/features/settings/application/app_settings_cubit.dart';
 import 'package:fitness_tracker/features/settings/presentation/settings_scope.dart';
 import 'package:fitness_tracker/presentation/navigation/bottom_navigation.dart';
+import 'package:fitness_tracker/presentation/navigation/lift_bottom_nav.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/rendering.dart';
 import 'package:flutter/semantics.dart';
@@ -179,6 +180,10 @@ void main() {
       initialState: MealInitial(),
     );
 
+    // The Profile page is built as soon as navigation reaches it, and it
+    // calls this from its first frame.
+    when(() => profileCubit.ensureLoaded()).thenAnswer((_) async {});
+
     when(() => workoutBloc.state).thenReturn(WorkoutInitial());
     // The Log page is built as soon as a swipe reaches it, and its exercise
     // tab subscribes to this in `initState`.
@@ -308,8 +313,17 @@ void main() {
     ).dispatch(context);
   }
 
-  double barHeight(WidgetTester tester) =>
-      tester.getSize(find.byType(SizeTransition)).height;
+  /// Anchored on the bar rather than on `SizeTransition` alone: any page
+  /// subtree that grows one of its own would otherwise make the bare finder
+  /// ambiguous and break every bar test at once.
+  double barHeight(WidgetTester tester) => tester
+      .getSize(
+        find.ancestor(
+          of: find.byType(LiftBottomNav),
+          matching: find.byType(SizeTransition),
+        ),
+      )
+      .height;
 
   /// `pumpAndSettle` never returns here — HomePage holds an indeterminate
   /// `CircularProgressIndicator` in this file's fixture state — so the bar's
@@ -318,6 +332,23 @@ void main() {
     await tester.pump();
     await tester.pump(const Duration(milliseconds: 400));
   }
+
+  testWidgets('a tap across several pages does not enter the ones between', (
+    WidgetTester tester,
+  ) async {
+    await tester.pumpWidget(buildSubject());
+    await tester.pump();
+
+    // Home (0) → Profile (4). `animateToPage` would scroll through Log,
+    // History and Library, firing `onPageChanged` for each and running their
+    // tab-entry loads, so a move this far jumps instead.
+    await tester.tap(find.text('PROFILE'));
+    await tester.pump();
+    await tester.pump(const Duration(seconds: 1));
+
+    verifyNever(() => exerciseBloc.add(LoadExercisesEvent()));
+    verifyNever(() => mealBloc.add(LoadMealsEvent()));
+  });
 
   testWidgets('the bar hides on a downward scroll and returns on an upward '
       'one', (WidgetTester tester) async {

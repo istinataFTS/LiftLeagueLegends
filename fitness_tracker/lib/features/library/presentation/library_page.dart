@@ -49,9 +49,6 @@ class LibraryPage extends StatefulWidget {
 }
 
 class _LibraryPageState extends State<LibraryPage> {
-  /// The horizontal inset shared by the tab strip and by both tabs' content.
-  static const double _gutter = 20;
-
   /// Frame 11: the title's line box opens 12dp below the status bar.
   static const double _titleTopPad = 12;
 
@@ -66,7 +63,12 @@ class _LibraryPageState extends State<LibraryPage> {
   List<Widget> get _headerSlivers => <Widget>[
     const SliverToBoxAdapter(
       child: Padding(
-        padding: EdgeInsets.fromLTRB(_gutter, _titleTopPad, _gutter, 0),
+        padding: EdgeInsets.fromLTRB(
+          libraryGutter,
+          _titleTopPad,
+          libraryGutter,
+          0,
+        ),
         child: Text(LibraryStrings.title, style: LiftText.headlineMedium),
       ),
     ),

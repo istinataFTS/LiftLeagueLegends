@@ -124,7 +124,7 @@ class _ExercisesTabState extends State<ExercisesTab> {
           return _buildScrollView(
             context,
             slivers: <Widget>[
-              _fillRemaining(
+              librarySliverFill(
                 const Center(
                   child: CircularProgressIndicator(
                     key: ExercisesTab.loadingIndicatorKey,
@@ -140,7 +140,7 @@ class _ExercisesTabState extends State<ExercisesTab> {
           return _buildScrollView(
             context,
             slivers: <Widget>[
-              _fillRemaining(_buildErrorState(context, state.message)),
+              librarySliverFill(_buildErrorState(context, state.message)),
             ],
           );
         }
@@ -164,9 +164,9 @@ class _ExercisesTabState extends State<ExercisesTab> {
           slivers: <Widget>[
             SliverToBoxAdapter(child: _buildBrowseHeader(context, viewData)),
             if (!viewData.hasExercises)
-              _fillRemaining(_buildEmptyState(context))
+              librarySliverFill(_buildEmptyState(context))
             else if (!viewData.hasResults)
-              _fillRemaining(_buildNoResultsState(context))
+              librarySliverFill(_buildNoResultsState(context))
             else
               _buildExercisesList(context, viewData.items),
           ],
@@ -174,44 +174,6 @@ class _ExercisesTabState extends State<ExercisesTab> {
       },
     );
   }
-
-  /// One scroll view for the whole tab: the page header, the browse controls
-  /// and the rows all move together. Splitting them — a fixed header over an
-  /// `Expanded` list — meant a third of the screen never moved no matter how
-  /// far the list was scrolled.
-  Widget _buildScrollView(
-    BuildContext context, {
-    required List<Widget> slivers,
-  }) {
-    return RefreshIndicator(
-      color: LiftColors.actionTint,
-      backgroundColor: LiftColors.background,
-      onRefresh: () {
-        final ExerciseBloc bloc = context.read<ExerciseBloc>();
-        bloc.add(LoadExercisesEvent());
-        return bloc.stream
-            .firstWhere(
-              (ExerciseState s) => s is ExercisesLoaded || s is ExerciseError,
-            )
-            .then((_) {});
-      },
-      child: CustomScrollView(
-        // Keeps the refresh drag alive on the empty and no-results states,
-        // which fill the viewport exactly and so have nothing to scroll.
-        physics: const AlwaysScrollableScrollPhysics(),
-        slivers: <Widget>[...widget.headerSlivers, ...slivers],
-      ),
-    );
-  }
-
-  /// Fills whatever height is left below the header.
-  ///
-  /// `hasScrollBody: true` even though these states do not look like scroll
-  /// bodies: `LibraryMessageState` centres itself inside its own
-  /// `SingleChildScrollView` so it can still be read at an accessibility text
-  /// scale, and the `LayoutBuilder` that drives that centring cannot answer
-  /// the intrinsic-height query `hasScrollBody: false` puts to its child.
-  Widget _fillRemaining(Widget child) => SliverFillRemaining(child: child);
 
   void _showSnack(BuildContext context, String message, Color color) {
     ScaffoldMessenger.of(context).showSnackBar(
@@ -222,6 +184,30 @@ class _ExercisesTabState extends State<ExercisesTab> {
         margin: const EdgeInsets.all(libraryGutter),
       ),
     );
+  }
+
+  Widget _buildScrollView(
+    BuildContext context, {
+    required List<Widget> slivers,
+  }) {
+    return LibraryTabScrollView(
+      onRefresh: () => _reload(context),
+      slivers: <Widget>[...widget.headerSlivers, ...slivers],
+    );
+  }
+
+  /// Reloads and completes when the bloc reaches a terminal state.
+  /// [LibraryTabScrollView] owns the timeout and the error handling.
+  Future<void> _reload(BuildContext context) {
+    final ExerciseBloc bloc = context.read<ExerciseBloc>();
+    if (bloc.isClosed) return Future<void>.value();
+
+    bloc.add(LoadExercisesEvent());
+    return bloc.stream
+        .firstWhere(
+          (ExerciseState s) => s is ExercisesLoaded || s is ExerciseError,
+        )
+        .then((_) {});
   }
 
   Widget _buildBrowseHeader(

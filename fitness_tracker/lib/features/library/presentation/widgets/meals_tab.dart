@@ -81,7 +81,7 @@ class _MealsTabState extends State<MealsTab> {
           return _buildScrollView(
             context,
             slivers: <Widget>[
-              _fillRemaining(
+              librarySliverFill(
                 const Center(
                   child: CircularProgressIndicator(
                     key: MealsTab.loadingIndicatorKey,
@@ -97,7 +97,7 @@ class _MealsTabState extends State<MealsTab> {
           return _buildScrollView(
             context,
             slivers: <Widget>[
-              _fillRemaining(_buildErrorState(context, state.message)),
+              librarySliverFill(_buildErrorState(context, state.message)),
             ],
           );
         }
@@ -122,9 +122,9 @@ class _MealsTabState extends State<MealsTab> {
           slivers: <Widget>[
             SliverToBoxAdapter(child: _buildBrowseHeader(context, viewData)),
             if (!viewData.hasMeals)
-              _fillRemaining(_buildEmptyState(context))
+              librarySliverFill(_buildEmptyState(context))
             else if (!viewData.hasResults)
-              _fillRemaining(_buildNoResultsState(context))
+              librarySliverFill(_buildNoResultsState(context))
             else
               _buildMealsList(context, viewData.items),
           ],
@@ -132,38 +132,6 @@ class _MealsTabState extends State<MealsTab> {
       },
     );
   }
-
-  /// One scroll view for the whole tab — see [ExercisesTab] for why the
-  /// header is not a fixed band above the list.
-  Widget _buildScrollView(
-    BuildContext context, {
-    required List<Widget> slivers,
-  }) {
-    return RefreshIndicator(
-      color: LiftColors.actionTint,
-      backgroundColor: LiftColors.background,
-      onRefresh: () {
-        final MealBloc bloc = context.read<MealBloc>();
-        bloc.add(LoadMealsEvent());
-        return bloc.stream
-            .firstWhere((MealState s) => s is MealsLoaded || s is MealError)
-            .then((_) {});
-      },
-      child: CustomScrollView(
-        physics: const AlwaysScrollableScrollPhysics(),
-        slivers: <Widget>[...widget.headerSlivers, ...slivers],
-      ),
-    );
-  }
-
-  /// Fills whatever height is left below the header.
-  ///
-  /// `hasScrollBody: true` even though these states do not look like scroll
-  /// bodies: `LibraryMessageState` centres itself inside its own
-  /// `SingleChildScrollView` so it can still be read at an accessibility text
-  /// scale, and the `LayoutBuilder` that drives that centring cannot answer
-  /// the intrinsic-height query `hasScrollBody: false` puts to its child.
-  Widget _fillRemaining(Widget child) => SliverFillRemaining(child: child);
 
   void _showSnack(BuildContext context, String message, Color color) {
     ScaffoldMessenger.of(context).showSnackBar(
@@ -174,6 +142,28 @@ class _MealsTabState extends State<MealsTab> {
         margin: const EdgeInsets.all(libraryGutter),
       ),
     );
+  }
+
+  Widget _buildScrollView(
+    BuildContext context, {
+    required List<Widget> slivers,
+  }) {
+    return LibraryTabScrollView(
+      onRefresh: () => _reload(context),
+      slivers: <Widget>[...widget.headerSlivers, ...slivers],
+    );
+  }
+
+  /// See [ExercisesTab] — the timeout and error handling live in
+  /// [LibraryTabScrollView].
+  Future<void> _reload(BuildContext context) {
+    final MealBloc bloc = context.read<MealBloc>();
+    if (bloc.isClosed) return Future<void>.value();
+
+    bloc.add(LoadMealsEvent());
+    return bloc.stream
+        .firstWhere((MealState s) => s is MealsLoaded || s is MealError)
+        .then((_) {});
   }
 
   Widget _buildBrowseHeader(

@@ -428,7 +428,16 @@ void main() {
       lessThan(stripTopAtRest),
     );
 
-    await tester.drag(find.byType(CustomScrollView), const Offset(0, -300));
+    // Scoped to the visible tab. `IndexedStack` builds both tabs and both own
+    // a `CustomScrollView`; only the offstage-skipping default of `find`
+    // keeps the bare finder unambiguous today.
+    await tester.drag(
+      find.descendant(
+        of: find.byType(ExercisesTab),
+        matching: find.byType(CustomScrollView),
+      ),
+      const Offset(0, -300),
+    );
     await tester.pumpAndSettle();
 
     // The title is gone — scrolled past the viewport's cache extent and torn

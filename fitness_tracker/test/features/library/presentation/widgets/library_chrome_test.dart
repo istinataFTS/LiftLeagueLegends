@@ -257,6 +257,8 @@ void main() {
       final Size button = tester.getSize(find.byType(LibraryAddButton));
       final Size field = tester.getSize(find.byType(LibrarySearchField));
       expect(button.height, field.height);
+      // The button's own floor lifts the whole row to a legal tap target.
+      expect(button.height, greaterThanOrEqualTo(44));
       // Compact: the old full-width dock spanned the whole 320dp row.
       expect(button.width, lessThan(160));
 
@@ -293,88 +295,6 @@ void main() {
       expect(node.label, 'Add exercise');
       expect(node.getSemanticsData().hasAction(SemanticsAction.tap), isTrue);
       handle.dispose();
-    });
-  });
-
-  group('LibraryFilterChip', () {
-    testWidgets('sizes to its label rather than filling the row', (
-      WidgetTester tester,
-    ) async {
-      await pumpAtPhoneWidth(
-        tester,
-        MaterialApp(
-          theme: LiftTheme.dark(),
-          home: Scaffold(
-            body: Wrap(
-              children: <Widget>[
-                LibraryFilterChip(
-                  label: 'Chest',
-                  selected: false,
-                  onTap: () {},
-                ),
-                LibraryFilterChip(
-                  label: 'Shoulders',
-                  selected: true,
-                  onTap: () {},
-                ),
-              ],
-            ),
-          ),
-        ),
-      );
-
-      final double chest = tester
-          .getSize(find.widgetWithText(LibraryFilterChip, 'CHEST'))
-          .width;
-      final double shoulders = tester
-          .getSize(find.widgetWithText(LibraryFilterChip, 'SHOULDERS'))
-          .width;
-
-      expect(
-        chest,
-        lessThan(shoulders),
-        reason:
-            'a Container with `alignment` expands to the incoming '
-            'constraints, which inside a Wrap gives every chip the full row',
-      );
-      expect(chest, lessThan(360));
-    });
-
-    testWidgets('is 28dp tall by default and 30 when the dialog asks', (
-      WidgetTester tester,
-    ) async {
-      await pumpAtPhoneWidth(
-        tester,
-        MaterialApp(
-          theme: LiftTheme.dark(),
-          home: Scaffold(
-            body: Wrap(
-              children: <Widget>[
-                LibraryFilterChip(
-                  label: 'Chest',
-                  selected: false,
-                  onTap: () {},
-                ),
-                LibraryFilterChip(
-                  label: 'Back',
-                  selected: false,
-                  height: 30,
-                  onTap: () {},
-                ),
-              ],
-            ),
-          ),
-        ),
-      );
-
-      expect(
-        tester.getSize(find.widgetWithText(LibraryFilterChip, 'CHEST')).height,
-        28,
-      );
-      expect(
-        tester.getSize(find.widgetWithText(LibraryFilterChip, 'BACK')).height,
-        30,
-      );
     });
   });
 

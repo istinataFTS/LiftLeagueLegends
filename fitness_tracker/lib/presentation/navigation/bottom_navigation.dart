@@ -77,18 +77,29 @@ class _BottomNavigationState extends State<BottomNavigation>
     // destination's data on the same frame, before the page animation runs.
     _initializeTabIfNeeded(index);
 
+    final int from = _selectedIndex;
+
     setState(() {
       _selectedIndex = index;
       _visitedTabs.add(index);
     });
     _showBar();
 
-    if (_pageController.hasClients) {
+    if (!_pageController.hasClients) return;
+
+    // `animateToPage` scrolls *through* every page in between, and each one
+    // that centres fires `onPageChanged` — so a tap from Home to Profile
+    // would build and run the tab-entry loads for Log, History and Library on
+    // the way past. Only an adjacent move has nothing in between; anything
+    // further jumps.
+    if ((index - from).abs() == 1) {
       _pageController.animateToPage(
         index,
         duration: _pageMotion,
         curve: Curves.easeInOutCubic,
       );
+    } else {
+      _pageController.jumpToPage(index);
     }
   }
 
