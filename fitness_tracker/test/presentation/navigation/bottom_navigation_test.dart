@@ -16,6 +16,7 @@ import 'package:fitness_tracker/features/settings/application/app_settings_cubit
 import 'package:fitness_tracker/features/settings/presentation/settings_scope.dart';
 import 'package:fitness_tracker/presentation/navigation/bottom_navigation.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/rendering.dart';
 import 'package:flutter/semantics.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -179,6 +180,11 @@ void main() {
     );
 
     when(() => workoutBloc.state).thenReturn(WorkoutInitial());
+    // The Log page is built as soon as a swipe reaches it, and its exercise
+    // tab subscribes to this in `initState`.
+    when(
+      () => workoutBloc.effects,
+    ).thenAnswer((_) => const Stream<WorkoutUiEffect>.empty());
     whenListen<WorkoutState>(
       workoutBloc,
       const Stream<WorkoutState>.empty(),
@@ -260,6 +266,113 @@ void main() {
 
     verify(() => exerciseBloc.add(LoadExercisesEvent())).called(1);
     handle.dispose();
+  });
+
+  testWidgets('swiping left moves to the next page and loads its data', (
+    WidgetTester tester,
+  ) async {
+    await tester.pumpWidget(buildSubject());
+    await tester.pump();
+
+    // Home → Log. The swipe is the primary way between the five pages, so it
+    // has to run the same tab-entry loads the bar's own taps do.
+    await tester.fling(find.byType(PageView), const Offset(-400, 0), 1000);
+    await tester.pump();
+    await tester.pump(const Duration(seconds: 1));
+
+    verify(() => exerciseBloc.add(LoadExercisesEvent())).called(1);
+    verify(() => mealBloc.add(LoadMealsEvent())).called(1);
+  });
+
+  /// Dispatches a scroll notification as if it came from the active page.
+  void dispatchScroll(
+    WidgetTester tester, {
+    required ScrollDirection direction,
+    double maxScrollExtent = 400,
+    Axis axis = Axis.vertical,
+  }) {
+    final BuildContext context = tester.element(find.byType(PageView));
+    UserScrollNotification(
+      metrics: FixedScrollMetrics(
+        minScrollExtent: 0,
+        maxScrollExtent: maxScrollExtent,
+        pixels: 0,
+        viewportDimension: 600,
+        axisDirection: axis == Axis.vertical
+            ? AxisDirection.down
+            : AxisDirection.right,
+        devicePixelRatio: 1,
+      ),
+      context: context,
+      direction: direction,
+    ).dispatch(context);
+  }
+
+  double barHeight(WidgetTester tester) =>
+      tester.getSize(find.byType(SizeTransition)).height;
+
+  /// `pumpAndSettle` never returns here — HomePage holds an indeterminate
+  /// `CircularProgressIndicator` in this file's fixture state — so the bar's
+  /// own 200ms animation is pumped out by hand.
+  Future<void> settleBar(WidgetTester tester) async {
+    await tester.pump();
+    await tester.pump(const Duration(milliseconds: 400));
+  }
+
+  testWidgets('the bar hides on a downward scroll and returns on an upward '
+      'one', (WidgetTester tester) async {
+    await tester.pumpWidget(buildSubject());
+    await tester.pump();
+
+    final double shown = barHeight(tester);
+    expect(shown, greaterThan(0));
+
+    dispatchScroll(tester, direction: ScrollDirection.reverse);
+    await settleBar(tester);
+    expect(barHeight(tester), 0);
+
+    dispatchScroll(tester, direction: ScrollDirection.forward);
+    await settleBar(tester);
+    expect(barHeight(tester), shown);
+  });
+
+  testWidgets('a page with nothing to scroll cannot hide the bar', (
+    WidgetTester tester,
+  ) async {
+    await tester.pumpWidget(buildSubject());
+    await tester.pump();
+
+    final double shown = barHeight(tester);
+
+    // Home is exactly viewport-tall and keeps `AlwaysScrollableScrollPhysics`
+    // for pull-to-refresh, so its refresh drag reports a scroll on a page
+    // with a zero scroll extent.
+    dispatchScroll(
+      tester,
+      direction: ScrollDirection.reverse,
+      maxScrollExtent: 0,
+    );
+    await settleBar(tester);
+
+    expect(barHeight(tester), shown);
+  });
+
+  testWidgets('a horizontal swipe does not move the bar', (
+    WidgetTester tester,
+  ) async {
+    await tester.pumpWidget(buildSubject());
+    await tester.pump();
+
+    final double shown = barHeight(tester);
+
+    dispatchScroll(
+      tester,
+      direction: ScrollDirection.reverse,
+      axis: Axis.horizontal,
+    );
+    await settleBar(tester);
+
+    expect(barHeight(tester), shown);
   });
 
   testWidgets('opening History eagerly loads exercise and meal library data', (

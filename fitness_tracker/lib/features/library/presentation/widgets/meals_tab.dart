@@ -7,6 +7,7 @@ import '../../application/library_meal_filters.dart';
 import '../../application/meal_bloc.dart';
 import '../library_strings.dart';
 import '../models/library_meal_view_data.dart';
+import 'exercises_tab.dart';
 import 'library_chrome.dart';
 import 'meal_dialog.dart';
 
@@ -16,7 +17,10 @@ import 'meal_dialog.dart';
 /// one tab strip, so the meal rows take the treatment Task 26 spells out for
 /// them: `100 G SERVING · 613 KCAL` over `21P · 22C · 49F`, both in mono.
 class MealsTab extends StatefulWidget {
-  const MealsTab({super.key});
+  const MealsTab({this.headerSlivers = const <Widget>[], super.key});
+
+  /// See [ExercisesTab.headerSlivers] — the page's title and pinned tab strip.
+  final List<Widget> headerSlivers;
 
   static const Key searchFieldKey = ValueKey<String>(
     'library_meals_search_field',
@@ -74,16 +78,28 @@ class _MealsTabState extends State<MealsTab> {
       },
       builder: (BuildContext context, MealState state) {
         if (state is MealLoading) {
-          return const Center(
-            child: CircularProgressIndicator(
-              key: MealsTab.loadingIndicatorKey,
-              color: LiftColors.actionTint,
-            ),
+          return _buildScrollView(
+            context,
+            slivers: <Widget>[
+              _fillRemaining(
+                const Center(
+                  child: CircularProgressIndicator(
+                    key: MealsTab.loadingIndicatorKey,
+                    color: LiftColors.actionTint,
+                  ),
+                ),
+              ),
+            ],
           );
         }
 
         if (state is MealError) {
-          return _buildErrorState(context, state.message);
+          return _buildScrollView(
+            context,
+            slivers: <Widget>[
+              _fillRemaining(_buildErrorState(context, state.message)),
+            ],
+          );
         }
 
         final List<Meal> allMeals = state is MealsLoaded
@@ -101,26 +117,53 @@ class _MealsTabState extends State<MealsTab> {
           searchQuery: _searchQuery,
         );
 
-        return Column(
-          children: <Widget>[
-            _buildBrowseHeader(context, viewData),
-            Expanded(
-              child: !viewData.hasMeals
-                  ? _buildEmptyState(context)
-                  : !viewData.hasResults
-                  ? _buildNoResultsState(context)
-                  : _buildMealsList(context, viewData.items),
-            ),
-            LibraryCta(
-              buttonKey: MealsTab.addButtonKey,
-              label: LibraryStrings.addMealCta,
-              onPressed: () => _showMealDialog(context),
-            ),
+        return _buildScrollView(
+          context,
+          slivers: <Widget>[
+            SliverToBoxAdapter(child: _buildBrowseHeader(context, viewData)),
+            if (!viewData.hasMeals)
+              _fillRemaining(_buildEmptyState(context))
+            else if (!viewData.hasResults)
+              _fillRemaining(_buildNoResultsState(context))
+            else
+              _buildMealsList(context, viewData.items),
           ],
         );
       },
     );
   }
+
+  /// One scroll view for the whole tab — see [ExercisesTab] for why the
+  /// header is not a fixed band above the list.
+  Widget _buildScrollView(
+    BuildContext context, {
+    required List<Widget> slivers,
+  }) {
+    return RefreshIndicator(
+      color: LiftColors.actionTint,
+      backgroundColor: LiftColors.background,
+      onRefresh: () {
+        final MealBloc bloc = context.read<MealBloc>();
+        bloc.add(LoadMealsEvent());
+        return bloc.stream
+            .firstWhere((MealState s) => s is MealsLoaded || s is MealError)
+            .then((_) {});
+      },
+      child: CustomScrollView(
+        physics: const AlwaysScrollableScrollPhysics(),
+        slivers: <Widget>[...widget.headerSlivers, ...slivers],
+      ),
+    );
+  }
+
+  /// Fills whatever height is left below the header.
+  ///
+  /// `hasScrollBody: true` even though these states do not look like scroll
+  /// bodies: `LibraryMessageState` centres itself inside its own
+  /// `SingleChildScrollView` so it can still be read at an accessibility text
+  /// scale, and the `LayoutBuilder` that drives that centring cannot answer
+  /// the intrinsic-height query `hasScrollBody: false` puts to its child.
+  Widget _fillRemaining(Widget child) => SliverFillRemaining(child: child);
 
   void _showSnack(BuildContext context, String message, Color color) {
     ScaffoldMessenger.of(context).showSnackBar(
@@ -142,15 +185,19 @@ class _MealsTabState extends State<MealsTab> {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: <Widget>[
-          Padding(
-            padding: const EdgeInsets.symmetric(horizontal: libraryGutter),
-            child: LibrarySearchField(
+          LibraryBrowseBar(
+            searchField: LibrarySearchField(
               fieldKey: MealsTab.searchFieldKey,
               clearButtonKey: MealsTab.clearSearchButtonKey,
               controller: _searchController,
               hintText: LibraryStrings.searchMealsHint,
               onChanged: (String value) => setState(() => _searchQuery = value),
               onClear: _resetSearch,
+            ),
+            addButton: LibraryAddButton(
+              buttonKey: MealsTab.addButtonKey,
+              semanticLabel: LibraryStrings.addMealCta,
+              onPressed: () => _showMealDialog(context),
             ),
           ),
           const SizedBox(height: 21),
@@ -197,8 +244,7 @@ class _MealsTabState extends State<MealsTab> {
     BuildContext context,
     List<LibraryMealItemViewData> items,
   ) {
-    return ListView.builder(
-      padding: EdgeInsets.zero,
+    return SliverList.builder(
       itemCount: items.length,
       itemBuilder: (BuildContext context, int index) {
         final LibraryMealItemViewData item = items[index];

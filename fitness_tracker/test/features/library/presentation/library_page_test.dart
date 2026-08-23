@@ -394,6 +394,75 @@ void main() {
     ).called(1);
   });
 
+  testWidgets('the add control rides the search row, not a bottom dock', (
+    WidgetTester tester,
+  ) async {
+    await tester.pumpWidget(buildSubject());
+
+    final Rect search = tester.getRect(find.byKey(ExercisesTab.searchFieldKey));
+    final Rect add = tester.getRect(find.byKey(ExercisesTab.addButtonKey));
+
+    // Same line, immediately to its right, and small — the old control was a
+    // full-width dock pinned to the bottom of the page, stacked directly on
+    // top of the app's bottom navigation.
+    expect(add.left, greaterThanOrEqualTo(search.right));
+    expect(add.center.dy, moreOrLessEquals(search.center.dy, epsilon: 1));
+    expect(add.width, lessThan(search.width));
+    expect(add.height, search.height);
+  });
+
+  testWidgets('the title scrolls away and the tab strip stays', (
+    WidgetTester tester,
+  ) async {
+    // Short enough that the header plus three rows overflow it by more than
+    // the title's own height, or the title never clears the top edge.
+    tester.view.physicalSize = const Size(360, 300);
+    tester.view.devicePixelRatio = 1;
+    addTearDown(tester.view.reset);
+
+    await tester.pumpWidget(buildSubject());
+
+    final double stripTopAtRest = tester.getTopLeft(find.text('EXERCISES')).dy;
+    expect(
+      tester.getTopLeft(find.text('Library')).dy,
+      lessThan(stripTopAtRest),
+    );
+
+    await tester.drag(find.byType(CustomScrollView), const Offset(0, -300));
+    await tester.pumpAndSettle();
+
+    // The title is gone — scrolled past the viewport's cache extent and torn
+    // down — while the strip has pinned itself at the top rather than
+    // travelling with it.
+    expect(find.text('Library'), findsNothing);
+    expect(
+      tester.getTopLeft(find.text('EXERCISES')).dy,
+      lessThan(stripTopAtRest),
+    );
+    expect(
+      tester.getTopLeft(find.text('EXERCISES')).dy,
+      greaterThanOrEqualTo(0),
+    );
+    expect(find.text('MEALS'), findsOneWidget);
+  });
+
+  testWidgets('the tabs no longer swipe — the page navigation owns that', (
+    WidgetTester tester,
+  ) async {
+    await tester.pumpWidget(buildSubject());
+
+    // A nested horizontal scrollable would win the gesture from the shell's
+    // `PageView` and make Library the one page a swipe cannot leave.
+    expect(find.byType(TabBarView), findsNothing);
+    expect(find.byType(PageView), findsNothing);
+
+    await tester.drag(find.text('3 OF 3 EXERCISES'), const Offset(-300, 0));
+    await tester.pumpAndSettle();
+
+    expect(find.text('3 OF 3 EXERCISES'), findsOneWidget);
+    expect(find.byKey(MealsTab.searchFieldKey), findsNothing);
+  });
+
   testWidgets('every key ExercisesTab declares still resolves', (
     WidgetTester tester,
   ) async {

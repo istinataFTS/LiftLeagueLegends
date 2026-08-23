@@ -1,7 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 
-import '../../../core/themes/app_theme.dart';
 import '../../../core/validation/username_validator.dart';
 import '../../../domain/entities/app_settings.dart';
 // convention-checker:allow=cross-feature-presentation-import reason=settings observes ProfileCubit (app-level singleton) for username display; data-observation pattern, not navigation
@@ -79,7 +78,8 @@ class _SettingsPageState extends State<SettingsPage> {
         );
 
         return Scaffold(
-          backgroundColor: AppTheme.backgroundDark,
+          // No `backgroundColor` — see `profile_page.dart`. `LiftGround` is
+          // the app's only background.
           appBar: AppBar(title: const Text('Settings')),
           body: SettingsContent(
             viewData: viewData,

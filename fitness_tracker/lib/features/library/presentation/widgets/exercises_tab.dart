@@ -18,7 +18,13 @@ import 'library_chrome.dart';
 /// over one mono meta line, closed by a hairline. Editing is a tap on the row
 /// and deleting is a long-press, because the frame draws no control for either.
 class ExercisesTab extends StatefulWidget {
-  const ExercisesTab({super.key});
+  const ExercisesTab({this.headerSlivers = const <Widget>[], super.key});
+
+  /// Slivers the page stacks above the tab's own content — its title and the
+  /// pinned tab strip. They ride inside this tab's scroll view rather than
+  /// above it so the title scrolls away with the rest of the header instead
+  /// of holding a band of chrome open over a list that needs the room.
+  final List<Widget> headerSlivers;
 
   static const Key searchFieldKey = ValueKey<String>(
     'library_exercises_search_field',
@@ -115,16 +121,28 @@ class _ExercisesTabState extends State<ExercisesTab> {
         }
 
         if (state is ExerciseLoading) {
-          return const Center(
-            child: CircularProgressIndicator(
-              key: ExercisesTab.loadingIndicatorKey,
-              color: LiftColors.actionTint,
-            ),
+          return _buildScrollView(
+            context,
+            slivers: <Widget>[
+              _fillRemaining(
+                const Center(
+                  child: CircularProgressIndicator(
+                    key: ExercisesTab.loadingIndicatorKey,
+                    color: LiftColors.actionTint,
+                  ),
+                ),
+              ),
+            ],
           );
         }
 
         if (state is ExerciseError) {
-          return _buildErrorState(context, state.message);
+          return _buildScrollView(
+            context,
+            slivers: <Widget>[
+              _fillRemaining(_buildErrorState(context, state.message)),
+            ],
+          );
         }
 
         final List<Exercise> filteredExercises = LibraryExerciseFilters.apply(
@@ -141,26 +159,59 @@ class _ExercisesTabState extends State<ExercisesTab> {
               selectedMuscle: _selectedMuscleFilter,
             );
 
-        return Column(
-          children: <Widget>[
-            _buildBrowseHeader(context, viewData),
-            Expanded(
-              child: !viewData.hasExercises
-                  ? _buildEmptyState(context)
-                  : !viewData.hasResults
-                  ? _buildNoResultsState(context)
-                  : _buildExercisesList(context, viewData.items),
-            ),
-            LibraryCta(
-              buttonKey: ExercisesTab.addButtonKey,
-              label: LibraryStrings.addExerciseCta,
-              onPressed: () => _showExerciseDialog(context),
-            ),
+        return _buildScrollView(
+          context,
+          slivers: <Widget>[
+            SliverToBoxAdapter(child: _buildBrowseHeader(context, viewData)),
+            if (!viewData.hasExercises)
+              _fillRemaining(_buildEmptyState(context))
+            else if (!viewData.hasResults)
+              _fillRemaining(_buildNoResultsState(context))
+            else
+              _buildExercisesList(context, viewData.items),
           ],
         );
       },
     );
   }
+
+  /// One scroll view for the whole tab: the page header, the browse controls
+  /// and the rows all move together. Splitting them — a fixed header over an
+  /// `Expanded` list — meant a third of the screen never moved no matter how
+  /// far the list was scrolled.
+  Widget _buildScrollView(
+    BuildContext context, {
+    required List<Widget> slivers,
+  }) {
+    return RefreshIndicator(
+      color: LiftColors.actionTint,
+      backgroundColor: LiftColors.background,
+      onRefresh: () {
+        final ExerciseBloc bloc = context.read<ExerciseBloc>();
+        bloc.add(LoadExercisesEvent());
+        return bloc.stream
+            .firstWhere(
+              (ExerciseState s) => s is ExercisesLoaded || s is ExerciseError,
+            )
+            .then((_) {});
+      },
+      child: CustomScrollView(
+        // Keeps the refresh drag alive on the empty and no-results states,
+        // which fill the viewport exactly and so have nothing to scroll.
+        physics: const AlwaysScrollableScrollPhysics(),
+        slivers: <Widget>[...widget.headerSlivers, ...slivers],
+      ),
+    );
+  }
+
+  /// Fills whatever height is left below the header.
+  ///
+  /// `hasScrollBody: true` even though these states do not look like scroll
+  /// bodies: `LibraryMessageState` centres itself inside its own
+  /// `SingleChildScrollView` so it can still be read at an accessibility text
+  /// scale, and the `LayoutBuilder` that drives that centring cannot answer
+  /// the intrinsic-height query `hasScrollBody: false` puts to its child.
+  Widget _fillRemaining(Widget child) => SliverFillRemaining(child: child);
 
   void _showSnack(BuildContext context, String message, Color color) {
     ScaffoldMessenger.of(context).showSnackBar(
@@ -182,9 +233,8 @@ class _ExercisesTabState extends State<ExercisesTab> {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: <Widget>[
-          Padding(
-            padding: const EdgeInsets.symmetric(horizontal: libraryGutter),
-            child: LibrarySearchField(
+          LibraryBrowseBar(
+            searchField: LibrarySearchField(
               fieldKey: ExercisesTab.searchFieldKey,
               clearButtonKey: ExercisesTab.clearSearchButtonKey,
               controller: _searchController,
@@ -194,6 +244,11 @@ class _ExercisesTabState extends State<ExercisesTab> {
                 _searchController.clear();
                 _searchQuery = '';
               }),
+            ),
+            addButton: LibraryAddButton(
+              buttonKey: ExercisesTab.addButtonKey,
+              semanticLabel: LibraryStrings.addExerciseCta,
+              onPressed: () => _showExerciseDialog(context),
             ),
           ),
           const SizedBox(height: 14),
@@ -267,34 +322,20 @@ class _ExercisesTabState extends State<ExercisesTab> {
     BuildContext context,
     List<LibraryExerciseItemViewData> items,
   ) {
-    return RefreshIndicator(
-      color: LiftColors.actionTint,
-      backgroundColor: LiftColors.background,
-      onRefresh: () {
-        final ExerciseBloc bloc = context.read<ExerciseBloc>();
-        bloc.add(LoadExercisesEvent());
-        return bloc.stream
-            .firstWhere(
-              (ExerciseState s) => s is ExercisesLoaded || s is ExerciseError,
-            )
-            .then((_) {});
+    return SliverList.builder(
+      itemCount: items.length,
+      itemBuilder: (BuildContext context, int index) {
+        final LibraryExerciseItemViewData item = items[index];
+        return LibraryListRow(
+          key: ValueKey<String>('library_exercise_row_${item.id}'),
+          title: item.title,
+          meta: _metaLine(item),
+          onTap: () => _showExerciseDialog(context, item.exercise),
+          onLongPress: () => _confirmDeleteExercise(context, item.exercise),
+          editHint: LibraryStrings.editExercise,
+          deleteHint: LibraryStrings.deleteExercise,
+        );
       },
-      child: ListView.builder(
-        padding: EdgeInsets.zero,
-        itemCount: items.length,
-        itemBuilder: (BuildContext context, int index) {
-          final LibraryExerciseItemViewData item = items[index];
-          return LibraryListRow(
-            key: ValueKey<String>('library_exercise_row_${item.id}'),
-            title: item.title,
-            meta: _metaLine(item),
-            onTap: () => _showExerciseDialog(context, item.exercise),
-            onLongPress: () => _confirmDeleteExercise(context, item.exercise),
-            editHint: LibraryStrings.editExercise,
-            deleteHint: LibraryStrings.deleteExercise,
-          );
-        },
-      ),
     );
   }
 

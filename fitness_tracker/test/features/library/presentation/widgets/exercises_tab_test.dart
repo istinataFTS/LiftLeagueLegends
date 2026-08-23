@@ -169,8 +169,12 @@ void main() {
         reset(mockGetAll);
         when(() => mockGetAll()).thenAnswer((_) async => Right([_exercise]));
 
-        // Trigger pull-to-refresh on the visible list.
-        await tester.drag(find.text(_exercise.name), const Offset(0, 300));
+        // Trigger pull-to-refresh on the visible list. `RefreshIndicator`
+        // arms at a quarter of its scroll view's height, and that scroll view
+        // is now the whole page rather than the strip below a fixed header —
+        // at this 1200dp surface a 300dp drag lands exactly on the threshold
+        // instead of past it.
+        await tester.drag(find.text(_exercise.name), const Offset(0, 400));
         await tester.pumpAndSettle();
 
         verify(() => mockGetAll()).called(greaterThanOrEqualTo(1));

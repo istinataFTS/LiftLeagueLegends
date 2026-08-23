@@ -4,6 +4,7 @@ import '../../../core/themes/lift_theme.dart';
 import '../../../presentation/shared/widgets/lift_tab_selector.dart';
 import 'library_strings.dart';
 import 'widgets/exercises_tab.dart';
+import 'widgets/library_chrome.dart';
 import 'widgets/meals_tab.dart';
 
 /// Library, rebuilt from frames 11 and 12 of the Deep Mist export.
@@ -19,9 +20,25 @@ import 'widgets/meals_tab.dart';
 ///
 /// The `TabBar` goes with them: the tab strip is [LiftTabSelector], the same
 /// control Log's three sub-tabs use, so the two screens cannot drift apart.
-/// It sits in the AppBar's `bottom`, which puts the theme's AppBar rule below
-/// the strip and lets it run the full width of the screen, as frame 11 draws
-/// it.
+///
+/// ### The header scrolls
+///
+/// There is no `AppBar`. The title and the tab strip are **slivers handed to
+/// the active tab**, which stacks them above its own search row and list
+/// inside one [CustomScrollView]. A fixed header over an `Expanded` list held
+/// a third of the screen open permanently while the only part anybody reads
+/// scrolled inside what was left. Now the title scrolls away and the strip
+/// pins itself under it ([LibraryPinnedTabs]), so a scrolled list has the
+/// whole screen and the other tab is still one tap away.
+///
+/// ### The tabs do not swipe
+///
+/// [TabBarView] is gone, replaced by an [IndexedStack]. A horizontal swipe is
+/// the app's primary navigation between the five main pages, and a nested
+/// horizontal scrollable always wins that gesture from its parent — keeping
+/// the inner swipe would have made Library the one page the main navigation
+/// gesture could not leave. The strip switches tabs on tap; the stack keeps
+/// both tabs' search text and filters alive across the switch.
 class LibraryPage extends StatefulWidget {
   const LibraryPage({super.key});
 
@@ -31,104 +48,71 @@ class LibraryPage extends StatefulWidget {
   State<LibraryPage> createState() => _LibraryPageState();
 }
 
-class _LibraryPageState extends State<LibraryPage>
-    with SingleTickerProviderStateMixin {
-  late final TabController _tabController;
-
+class _LibraryPageState extends State<LibraryPage> {
   /// The horizontal inset shared by the tab strip and by both tabs' content.
   static const double _gutter = 20;
 
   /// Frame 11: the title's line box opens 12dp below the status bar.
   static const double _titleTopPad = 12;
 
-  /// 12dp pad + the 26dp title's 1.1 line box + [LiftTabSelector]'s 44dp.
-  /// The line box is 28.6dp on paper and lays out at 29 — `PreferredSize`
-  /// takes a fixed height, so it gets the laid-out one.
-  static const double _headerHeight = _titleTopPad + 29 + 44;
+  int _selectedTab = 0;
 
-  @override
-  void initState() {
-    super.initState();
-    _tabController = TabController(length: 2, vsync: this)
-      ..addListener(_onTabChanged);
+  void _selectTab(int index) {
+    if (_selectedTab == index) return;
+    setState(() => _selectedTab = index);
   }
 
-  @override
-  void dispose() {
-    _tabController
-      ..removeListener(_onTabChanged)
-      ..dispose();
-    super.dispose();
-  }
-
-  /// Keeps the strip in step with a swipe on the [TabBarView], which moves the
-  /// controller without going through [LiftTabSelector.onChanged].
-  void _onTabChanged() {
-    if (mounted) {
-      setState(() {});
-    }
-  }
+  /// The title and the pinned strip, in the order both tabs stack them.
+  List<Widget> get _headerSlivers => <Widget>[
+    const SliverToBoxAdapter(
+      child: Padding(
+        padding: EdgeInsets.fromLTRB(_gutter, _titleTopPad, _gutter, 0),
+        child: Text(LibraryStrings.title, style: LiftText.headlineMedium),
+      ),
+    ),
+    SliverPersistentHeader(
+      pinned: true,
+      delegate: LibraryPinnedTabs(
+        strip: LiftTabSelector(
+          key: LibraryPage.tabSelectorKey,
+          labels: const <String>[
+            LibraryStrings.exercisesTab,
+            LibraryStrings.mealsTab,
+          ],
+          keyPrefix: 'library-tab',
+          selectedIndex: _selectedTab,
+          onChanged: _selectTab,
+        ),
+      ),
+    ),
+  ];
 
   @override
   Widget build(BuildContext context) {
+    final List<Widget> headerSlivers = _headerSlivers;
+
+    // Only the visible tab is handed the header. `IndexedStack` builds both
+    // children — that is what keeps the hidden tab's search text and filters
+    // alive — so giving both a header would put two copies of the title and
+    // two tab strips in the tree at once.
     return Scaffold(
-      appBar: AppBar(
-        automaticallyImplyLeading: false,
-        elevation: 0,
-        // The whole header lives in `bottom`, and the toolbar is collapsed to
-        // nothing. Frame 11 stacks the title directly on the tab strip: a
-        // Material toolbar centres its title in a 56dp band, which opens a
-        // 35dp gap where the frame draws 18dp, and no `toolbarHeight` closes
-        // it — shrinking the band moves the title down half as fast as it
-        // moves the strip up, and the band would have to go below the title's
-        // own line box before the two met. `bottom` still sits above the
-        // theme's AppBar rule, so the rule keeps running the full width under
-        // the strip, which is what the frame draws.
-        toolbarHeight: 0,
-        bottom: PreferredSize(
-          preferredSize: const Size.fromHeight(_headerHeight),
-          // `AppBar` hands `bottom` a loose width constraint, so a bare
-          // Column shrink-wraps to its widest child and centres — the title
-          // and the tab strip end up mid-screen. The SizedBox pins it open.
-          child: SizedBox(
-            width: double.infinity,
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              mainAxisSize: MainAxisSize.min,
-              children: <Widget>[
-                const Padding(
-                  padding: EdgeInsets.fromLTRB(
-                    _gutter,
-                    _titleTopPad,
-                    _gutter,
-                    0,
-                  ),
-                  child: Text(
-                    LibraryStrings.title,
-                    style: LiftText.headlineMedium,
-                  ),
-                ),
-                Padding(
-                  padding: const EdgeInsets.symmetric(horizontal: _gutter),
-                  child: LiftTabSelector(
-                    key: LibraryPage.tabSelectorKey,
-                    labels: const <String>[
-                      LibraryStrings.exercisesTab,
-                      LibraryStrings.mealsTab,
-                    ],
-                    keyPrefix: 'library-tab',
-                    selectedIndex: _tabController.index,
-                    onChanged: _tabController.animateTo,
-                  ),
-                ),
-              ],
+      body: SafeArea(
+        bottom: false,
+        child: IndexedStack(
+          index: _selectedTab,
+          children: <Widget>[
+            ExercisesTab(
+              headerSlivers: _selectedTab == 0
+                  ? headerSlivers
+                  : const <Widget>[],
             ),
-          ),
+            MealsTab(
+              headerSlivers: _selectedTab == 1
+                  ? headerSlivers
+                  : const <Widget>[],
+            ),
+          ],
         ),
-      ),
-      body: TabBarView(
-        controller: _tabController,
-        children: const <Widget>[ExercisesTab(), MealsTab()],
       ),
     );
   }

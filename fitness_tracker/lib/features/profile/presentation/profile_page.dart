@@ -63,7 +63,9 @@ class _ProfileViewState extends State<_ProfileView> {
         final ProfilePageViewData viewData = ProfileViewDataMapper.map(state);
 
         return Scaffold(
-          backgroundColor: AppTheme.backgroundDark,
+          // No `backgroundColor`: an opaque page paints over `LiftGround`,
+          // and the transparent bottom nav below it does not — which put a
+          // seam across the bottom of the screen where the two met.
           appBar: AppBar(
             title: const Text('Profile'),
             automaticallyImplyLeading: false,
