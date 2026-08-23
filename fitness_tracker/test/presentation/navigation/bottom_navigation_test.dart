@@ -316,9 +316,14 @@ void main() {
   /// Anchored on the bar rather than on `SizeTransition` alone: any page
   /// subtree that grows one of its own would otherwise make the bare finder
   /// ambiguous and break every bar test at once.
+  ///
+  /// The transition sits *under* `LiftBottomNav`'s `SafeArea`, not around the
+  /// whole bar, so that a hidden bar hands the page its own 58dp and never
+  /// the system navigation inset — see `LiftBottomNav.visibility`. That is
+  /// why this reads a descendant.
   double barHeight(WidgetTester tester) => tester
       .getSize(
-        find.ancestor(
+        find.descendant(
           of: find.byType(LiftBottomNav),
           matching: find.byType(SizeTransition),
         ),

@@ -143,6 +143,19 @@ void main() {
     await tester.pumpAndSettle();
   }
 
+  /// The rotation of each group's chevron, in page order: 0 collapsed, 0.5
+  /// expanded. The glyph no longer swaps between `expand_more` and
+  /// `expand_less` — one icon turns with the body's animation controller.
+  List<double> chevronTurns(WidgetTester tester) => tester
+      .widgetList<RotationTransition>(
+        find.ancestor(
+          of: find.byIcon(Icons.expand_more),
+          matching: find.byType(RotationTransition),
+        ),
+      )
+      .map((RotationTransition r) => r.turns.value)
+      .toList();
+
   group('HistoryDayContent — chrome', () {
     testWidgets('there is no line naming the selected day', (
       WidgetTester tester,
@@ -340,12 +353,12 @@ void main() {
         expect(find.text('1'), findsOneWidget);
         expect(find.text('2'), findsOneWidget);
         expect(find.text('3'), findsOneWidget);
-        expect(find.byIcon(Icons.expand_less), findsOneWidget);
+        expect(chevronTurns(tester), contains(0.5));
 
         await toggleGroup(tester, 'Cable Crossover');
 
         expect(find.text('1'), findsNothing);
-        expect(find.byIcon(Icons.expand_less), findsNothing);
+        expect(chevronTurns(tester), everyElement(0.0));
       },
     );
 
@@ -356,8 +369,7 @@ void main() {
 
       await toggleGroup(tester, 'Barbell Row');
 
-      expect(find.byIcon(Icons.expand_less), findsOneWidget);
-      expect(find.byIcon(Icons.expand_more), findsOneWidget);
+      expect(chevronTurns(tester), <double>[0.0, 0.5]);
     });
   });
 

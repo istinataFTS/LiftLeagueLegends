@@ -324,8 +324,50 @@ class _ExerciseGroupTile extends StatefulWidget {
   State<_ExerciseGroupTile> createState() => _ExerciseGroupTileState();
 }
 
-class _ExerciseGroupTileState extends State<_ExerciseGroupTile> {
+class _ExerciseGroupTileState extends State<_ExerciseGroupTile>
+    with SingleTickerProviderStateMixin {
+  /// Same motion as [CollapsibleSection]: one controller played forward and
+  /// in reverse so expand and collapse are exact mirrors, height on
+  /// `easeInOutCubic` with the body cross-fading inside that window. The row
+  /// used to swap `if (_expanded)` on and off, which popped the sets in and
+  /// out with no transition at all while the section above them animated.
+  static const Duration _motion = Duration(milliseconds: 320);
+
+  late final AnimationController _controller = AnimationController(
+    duration: _motion,
+    vsync: this,
+  );
+  late final CurvedAnimation _extent = CurvedAnimation(
+    parent: _controller,
+    curve: Curves.easeInOutCubic,
+    reverseCurve: Curves.easeInOutCubic,
+  );
+  late final CurvedAnimation _opacity = CurvedAnimation(
+    parent: _controller,
+    curve: const Interval(0.2, 1, curve: Curves.easeOut),
+    reverseCurve: const Interval(0.3, 1, curve: Curves.easeIn),
+  );
+
   bool _expanded = false;
+
+  @override
+  void dispose() {
+    _extent.dispose();
+    _opacity.dispose();
+    _controller.dispose();
+    super.dispose();
+  }
+
+  void _toggle() {
+    setState(() {
+      _expanded = !_expanded;
+      if (_expanded) {
+        _controller.forward();
+      } else {
+        _controller.reverse();
+      }
+    });
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -354,8 +396,17 @@ class _ExerciseGroupTileState extends State<_ExerciseGroupTile> {
           label:
               '${exercise?.name ?? HistoryStrings.unknownExercise}, '
               '$setCount ${setCount == 1 ? 'set' : 'sets'}',
+          // The header's press feedback is [CollapsibleSection]'s full-row
+          // wash, not a Material ripple. The stock splash drew a grey block
+          // expanding out of the touch point and clipped square at the row's
+          // edges, which is the one piece of pre-restyle Material still
+          // visible on this page.
           child: InkWell(
-            onTap: () => setState(() => _expanded = !_expanded),
+            onTap: _toggle,
+            splashFactory: NoSplash.splashFactory,
+            splashColor: Colors.transparent,
+            highlightColor: LiftColors.surfaceSunken,
+            hoverColor: LiftColors.surfaceSunken,
             child: Container(
               padding: const EdgeInsets.symmetric(vertical: 13),
               decoration: BoxDecoration(
@@ -421,24 +472,56 @@ class _ExerciseGroupTileState extends State<_ExerciseGroupTile> {
                     ],
                   ),
                   const SizedBox(width: 6),
-                  Icon(
-                    _expanded ? Icons.expand_less : Icons.expand_more,
-                    size: 20,
-                    color: LiftColors.textDim,
+                  // Turned by the same controller that drives the body, so
+                  // the glyph tracks the opening instead of cutting between
+                  // two icons on the press.
+                  RotationTransition(
+                    turns: Tween<double>(begin: 0, end: 0.5).animate(_extent),
+                    child: const Icon(
+                      Icons.expand_more,
+                      size: 20,
+                      color: LiftColors.textDim,
+                    ),
                   ),
                 ],
               ),
             ),
           ),
         ),
-        if (_expanded)
-          for (int i = 0; i < group.sets.length; i++)
-            _WorkoutSetRow(
-              set: group.sets[i],
-              exercise: exercise,
-              setNumber: i + 1,
-              weightUnit: widget.weightUnit,
-            ),
+        AnimatedBuilder(
+          animation: _controller,
+          // Handed in as `child` so the rows are built once per parent frame
+          // rather than once per animation tick, and mounted only while the
+          // controller is off its collapsed resting value — a collapsed group
+          // still puts nothing findable in the tree.
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: <Widget>[
+              for (int i = 0; i < group.sets.length; i++)
+                _WorkoutSetRow(
+                  set: group.sets[i],
+                  exercise: exercise,
+                  setNumber: i + 1,
+                  weightUnit: widget.weightUnit,
+                ),
+            ],
+          ),
+          builder: (BuildContext context, Widget? child) {
+            if (_controller.isDismissed) {
+              return const SizedBox(width: double.infinity);
+            }
+            return ClipRect(
+              child: Align(
+                alignment: Alignment.topCenter,
+                heightFactor: _extent.value,
+                child: Opacity(
+                  opacity: _opacity.value.clamp(0.0, 1.0),
+                  child: child,
+                ),
+              ),
+            );
+          },
+        ),
       ],
     );
   }

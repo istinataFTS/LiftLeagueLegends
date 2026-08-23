@@ -294,12 +294,19 @@ class AppBootstrapper {
     PerformanceMonitor.trackSync<void>(
       _systemUiTimerName,
       () {
+        // Dark app, dark system chrome. The white navigation bar with dark
+        // glyphs below was left over from the pre-restyle light theme and
+        // drew a white slab under every Deep Mist page on the devices that
+        // still honour the colour. Transparent on both edges with light
+        // glyphs lets `LiftGround` run to the physical edge instead.
         SystemChrome.setSystemUIOverlayStyle(
           const SystemUiOverlayStyle(
             statusBarColor: Colors.transparent,
-            statusBarIconBrightness: Brightness.dark,
-            systemNavigationBarColor: Colors.white,
-            systemNavigationBarIconBrightness: Brightness.dark,
+            statusBarIconBrightness: Brightness.light,
+            statusBarBrightness: Brightness.dark,
+            systemNavigationBarColor: Colors.transparent,
+            systemNavigationBarDividerColor: Colors.transparent,
+            systemNavigationBarIconBrightness: Brightness.light,
           ),
         );
       },
