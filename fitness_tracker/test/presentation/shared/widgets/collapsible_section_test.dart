@@ -179,6 +179,60 @@ void main() {
       expect(find.text('body'), findsNothing);
     });
 
+    testWidgets('swapping the section id reapplies the new id state', (
+      WidgetTester tester,
+    ) async {
+      const AppSettingsState mixed = AppSettingsState(
+        settings: AppSettings(
+          notificationsEnabled: true,
+          weekStartDay: WeekStartDay.monday,
+          weightUnit: WeightUnit.kilograms,
+          uiExpansionState: <String, bool>{
+            'test.section': true,
+            'other.section': false,
+          },
+        ),
+        isLoading: false,
+        isSaving: false,
+        hasLoaded: true,
+        errorMessage: null,
+      );
+      when(() => cubit.state).thenReturn(mixed);
+      whenListen<AppSettingsState>(
+        cubit,
+        const Stream<AppSettingsState>.empty(),
+        initialState: mixed,
+      );
+
+      Widget subjectFor(String id) {
+        return BlocProvider<AppSettingsCubit>.value(
+          value: cubit,
+          child: MaterialApp(
+            home: Scaffold(
+              body: SettingsScope(
+                child: CollapsibleSection(
+                  id: id,
+                  title: 'Workout history',
+                  subtitle: '3 sets',
+                  child: const Text('body'),
+                ),
+              ),
+            ),
+          ),
+        );
+      }
+
+      await pumpAt360(tester, subjectFor('test.section'));
+      expect(find.text('body'), findsOneWidget);
+
+      // Same position, same type, so the `State` is retained and only the
+      // configuration changes — `didChangeDependencies` never fires.
+      await tester.pumpWidget(subjectFor('other.section'));
+      await tester.pumpAndSettle();
+
+      expect(find.text('body'), findsNothing);
+    });
+
     testWidgets('a toggle is persisted under the section id', (
       WidgetTester tester,
     ) async {

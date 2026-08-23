@@ -110,9 +110,33 @@ class _CollapsibleSectionState extends State<CollapsibleSection>
   @override
   void didChangeDependencies() {
     super.didChangeDependencies();
-    // Prefer the persisted state; fall back to the widget default. A value
-    // arriving from settings is applied without animating — only a press
-    // animates.
+    _syncFromSettings();
+  }
+
+  @override
+  void didUpdateWidget(CollapsibleSection oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (widget.id == oldWidget.id &&
+        widget.initiallyExpanded == oldWidget.initiallyExpanded) {
+      return;
+    }
+    // The state this section shows belongs to [CollapsibleSection.id], and
+    // `didChangeDependencies` only fires when `SettingsScope` changes — a
+    // parent swapping the id on a retained `State` would otherwise leave the
+    // previous section's expansion showing under the new one's name. Both
+    // call sites pass a `const` id today, so this is a guard on the shared
+    // widget rather than a fix for a live bug.
+    //
+    // Any write still queued belongs to the id that was on screen when the
+    // press happened, and that section is gone.
+    _persistDebounce?.cancel();
+    _syncFromSettings();
+  }
+
+  /// Prefers the persisted state and falls back to [widget.initiallyExpanded].
+  /// A value arriving from settings is applied without animating — only a
+  /// press animates.
+  void _syncFromSettings() {
     final settings = SettingsScope.maybeOf(context);
     final bool expanded =
         settings?.uiExpansionState[widget.id] ?? widget.initiallyExpanded;
