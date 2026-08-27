@@ -196,8 +196,19 @@ void main() {
         final Finder flip = find.byKey(HomePageKeys.bodyVisualFlipButtonKey);
         expect(flip, findsOneWidget);
         expect(find.byType(ElevatedButton), findsOneWidget);
-        // No local style: the button must take LiftTheme's elevatedButtonTheme.
-        expect(tester.widget<ElevatedButton>(flip).style, isNull);
+        // Deliberately styled off-theme: `elevatedButtonTheme`'s
+        // `Size.fromHeight(52)` CTA shape is what pushed the figure off
+        // centre between the two section rules. The control is compact and
+        // shrink-wrapped instead.
+        final ButtonStyle? style = tester.widget<ElevatedButton>(flip).style;
+        expect(style, isNotNull);
+        expect(style!.minimumSize!.resolve(<WidgetState>{}), Size.zero);
+        expect(style.tapTargetSize, MaterialTapTargetSize.shrinkWrap);
+        expect(
+          tester.getSize(flip).height,
+          lessThan(36),
+          reason: 'the flip control is a secondary toggle, not a 52dp CTA',
+        );
         // The old pill control carried an Icons.cached glyph; the frame shows none.
         expect(
           find.descendant(of: flip, matching: find.byType(Icon)),

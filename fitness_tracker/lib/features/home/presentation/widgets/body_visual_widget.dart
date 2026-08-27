@@ -119,7 +119,7 @@ class _BodyVisualWidgetState extends State<BodyVisualWidget> {
             ),
           ),
         ),
-        const SizedBox(height: 16),
+        const SizedBox(height: 12),
         Row(
           children: <Widget>[
             Text(
@@ -129,20 +129,33 @@ class _BodyVisualWidgetState extends State<BodyVisualWidget> {
               ),
             ),
             const Spacer(),
-            // `LiftTheme.dark()`'s elevatedButtonTheme sets minimumSize to
-            // `Size.fromHeight(52)`, whose width component is
-            // `double.infinity` (it is designed for full-width CTAs like
-            // `LogActionBar`'s, which sits in a tight-width parent). A bare
-            // `Row` child gets unbounded main-axis constraints, so pairing
-            // the two forces a tight-infinite width and crashes. Wrapping in
-            // `IntrinsicWidth` gives the button a bounded, content-sized
-            // width to resolve against without adding a `style:` override.
-            IntrinsicWidth(
-              child: ElevatedButton(
-                key: HomePageKeys.bodyVisualFlipButtonKey,
-                onPressed: _flip,
-                child: Text(isFront ? 'SHOW BACK' : 'SHOW FRONT'),
+            // Deliberately styled off-theme. `LiftTheme.dark()`'s
+            // elevatedButtonTheme sets `minimumSize: Size.fromHeight(52)` —
+            // a full-width CTA shape, designed for `LogActionBar`, whose
+            // width component is `double.infinity` (so a bare `Row` child
+            // pairing the two forces a tight-infinite width and crashes).
+            //
+            // At 52dp the control is also the reason the figure sits high on
+            // the page: the chrome under the map ran 84dp against the ~55dp
+            // above it, so the model's feet cleared the intake rule by half
+            // again what its head cleared the header rule by. This is a
+            // secondary toggle, not a CTA — at ~26dp the two margins match
+            // and the figure reads as centred between the rules.
+            ElevatedButton(
+              key: HomePageKeys.bodyVisualFlipButtonKey,
+              onPressed: _flip,
+              style: ElevatedButton.styleFrom(
+                minimumSize: Size.zero,
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 14,
+                  vertical: 7,
+                ),
+                tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                textStyle: LiftText.labelMedium.copyWith(
+                  fontWeight: FontWeight.w700,
+                ),
               ),
+              child: Text(isFront ? 'SHOW BACK' : 'SHOW FRONT'),
             ),
           ],
         ),

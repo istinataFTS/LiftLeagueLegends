@@ -260,14 +260,14 @@ class _BottomNavigationState extends State<BottomNavigation>
       ),
       // Collapsing from the top edge sinks the bar below the bottom of the
       // screen rather than shrinking it in place, and hands the space back to
-      // the page instead of covering content with an overlay.
-      bottomNavigationBar: SizeTransition(
-        sizeFactor: _barController,
-        axisAlignment: -1,
-        child: LiftBottomNav(
-          selectedIndex: _selectedIndex,
-          onTap: _onItemTapped,
-        ),
+      // the page instead of covering content with an overlay. The transition
+      // lives inside `LiftBottomNav`, under its `SafeArea`, so the system
+      // navigation inset stays reserved while the bar is away — see
+      // `LiftBottomNav.visibility`.
+      bottomNavigationBar: LiftBottomNav(
+        selectedIndex: _selectedIndex,
+        onTap: _onItemTapped,
+        visibility: _barController,
       ),
     );
   }

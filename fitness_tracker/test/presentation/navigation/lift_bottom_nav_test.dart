@@ -4,16 +4,27 @@ import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 
 void main() {
-  Widget buildSubject({int selectedIndex = 0, ValueChanged<int>? onTap}) {
+  Widget buildSubject({
+    int selectedIndex = 0,
+    ValueChanged<int>? onTap,
+    Animation<double>? visibility,
+    double bottomInset = 0,
+  }) {
     return MaterialApp(
       theme: LiftTheme.dark(),
-      builder: (BuildContext context, Widget? child) =>
-          LiftGround(child: child ?? const SizedBox.shrink()),
+      builder: (BuildContext context, Widget? child) => MediaQuery(
+        data: MediaQuery.of(context).copyWith(
+          padding: EdgeInsets.only(bottom: bottomInset),
+          viewPadding: EdgeInsets.only(bottom: bottomInset),
+        ),
+        child: LiftGround(child: child ?? const SizedBox.shrink()),
+      ),
       home: Scaffold(
         body: const SizedBox.expand(),
         bottomNavigationBar: LiftBottomNav(
           selectedIndex: selectedIndex,
           onTap: onTap ?? (int _) {},
+          visibility: visibility,
         ),
       ),
     );
@@ -24,6 +35,36 @@ void main() {
   }
 
   group('LiftBottomNav', () {
+    // The bar hides on scroll, and for a while it took the system navigation
+    // inset down with it: the shell wrapped the whole bar — `SafeArea` and
+    // all — in the `SizeTransition`, so a collapsed bar handed the page the
+    // gesture/3-button strip's height as well as its own and the last rows of
+    // a scrolled list painted underneath Android's navigation bar.
+    testWidgets('a hidden bar still reserves the system navigation inset', (
+      WidgetTester tester,
+    ) async {
+      const double inset = 48;
+      final AnimationController controller = AnimationController(
+        vsync: const TestVSync(),
+        value: 1,
+      );
+      addTearDown(controller.dispose);
+
+      await tester.pumpWidget(
+        buildSubject(visibility: controller, bottomInset: inset),
+      );
+
+      final double shown = tester.getSize(find.byType(LiftBottomNav)).height;
+      expect(shown, greaterThan(inset));
+
+      controller.value = 0;
+      await tester.pump();
+
+      // Collapsed to exactly the inset: the page gains the 58dp row and
+      // nothing else.
+      expect(tester.getSize(find.byType(LiftBottomNav)).height, inset);
+    });
+
     testWidgets('the bar paints nothing of its own', (
       WidgetTester tester,
     ) async {

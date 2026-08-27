@@ -32,11 +32,25 @@ class LiftBottomNav extends StatelessWidget {
   const LiftBottomNav({
     required this.selectedIndex,
     required this.onTap,
+    this.visibility,
     super.key,
   });
 
   final int selectedIndex;
   final ValueChanged<int> onTap;
+
+  /// Drives hide-on-scroll: 1 shows the row, 0 collapses it to nothing.
+  ///
+  /// The collapse deliberately happens **inside** the [SafeArea], not around
+  /// it. Wrapping the whole bar — inset included — in the transition handed
+  /// the system gesture/3-button strip's height back to the page as the bar
+  /// left, so a scrolled list ran its last rows underneath Android's
+  /// navigation bar and the two read as one overlapping mess. Collapsing only
+  /// the 58dp row keeps `viewPadding.bottom` reserved for the whole
+  /// animation: the page gains the bar's height and never the system inset.
+  ///
+  /// Null (the dev preview) means always shown.
+  final Animation<double>? visibility;
 
   static const double _height = 58;
 
@@ -70,16 +84,26 @@ class LiftBottomNav extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final Widget row = SizedBox(
+      height: _height,
+      child: Row(
+        children: List<Widget>.generate(_destinations.length, (int i) {
+          return Expanded(child: _buildItem(i));
+        }),
+      ),
+    );
+
+    final Animation<double>? visibility = this.visibility;
+
     return SafeArea(
       top: false,
-      child: SizedBox(
-        height: _height,
-        child: Row(
-          children: List<Widget>.generate(_destinations.length, (int i) {
-            return Expanded(child: _buildItem(i));
-          }),
-        ),
-      ),
+      child: visibility == null
+          ? row
+          : SizeTransition(
+              sizeFactor: visibility,
+              axisAlignment: -1,
+              child: row,
+            ),
     );
   }
 
